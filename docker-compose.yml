@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  mysql-db:
+    image: mysql:8.0.36
+    container_name: aureliabooks_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bookstore_ecommerce_v2_db
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/initdb:/docker-entrypoint-initdb.d
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+
+volumes:
+  mysql_data:

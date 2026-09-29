@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)">
+<head th:replace="~{fragments/head :: head(${title})}"></head>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    <!-- Navbar Header -->
+    <header th:replace="~{fragments/navbar :: navbar}"></header>
+
+    <!-- Global Flash Alerts -->
+    <div th:replace="~{fragments/alerts :: alerts}"></div>
+
+    <!-- Main Dynamic Content -->
+    <main class="flex-grow-1">
+        <th:block th:replace="${content}" />
+    </main>
+
+    <!-- Footer -->
+    <footer th:replace="~{fragments/footer :: footer}"></footer>
+</body>
+</html>

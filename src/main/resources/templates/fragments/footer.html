@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<footer th:fragment="footer" class="bg-dark text-white pt-5 pb-3 mt-auto border-top">
+    <div class="container">
+        <div class="row g-4">
+            <!-- Brand & Mission -->
+            <div class="col-lg-4 col-md-6">
+                <h5 class="text-warning fw-bold mb-3">
+                    <i class="bi bi-book-half me-2"></i>AureliaBook
+                </h5>
+                <p class="text-white-50 small">
+                    Hệ thống bán lẻ Sách và Văn phòng phẩm cao cấp trực tuyến. 
+                    Nền tảng thương mại điện tử hiện đại, tích hợp tra cứu danh mục thông minh và thanh toán bảo mật.
+                </p>
+                <div class="d-flex gap-3 fs-5">
+                    <a href="#" class="text-white-50"><i class="bi bi-facebook"></i></a>
+                    <a href="#" class="text-white-50"><i class="bi bi-instagram"></i></a>
+                    <a href="#" class="text-white-50"><i class="bi bi-github"></i></a>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="col-lg-2 col-md-6">
+                <h6 class="text-uppercase fw-bold mb-3 text-light">Danh Mục</h6>
+                <ul class="list-unstyled small">
+                    <li class="mb-2"><a th:href="@{/products}" class="text-white-50 text-decoration-none">Sách Tiếng Việt</a></li>
+                    <li class="mb-2"><a th:href="@{/products}" class="text-white-50 text-decoration-none">Văn Phòng Phẩm</a></li>
+                    <li class="mb-2"><a th:href="@{/products}" class="text-white-50 text-decoration-none">Sách Bán Chạy</a></li>
+                </ul>
+            </div>
+
+            <!-- Customer Service -->
+            <div class="col-lg-3 col-md-6">
+                <h6 class="text-uppercase fw-bold mb-3 text-light">Hỗ Trợ Khách Hàng</h6>
+                <ul class="list-unstyled small">
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Chính sách đổi trả & hoàn tiền</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Phương thức vận chuyển</a></li>
+                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Hướng dẫn thanh toán VNPay</a></li>
+                </ul>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="col-lg-3 col-md-6">
+                <h6 class="text-uppercase fw-bold mb-3 text-light">Liên Hệ</h6>
+                <p class="small text-white-50 mb-1"><i class="bi bi-geo-alt me-2 text-warning"></i>Khu CNC Hòa Lạc, Hà Nội</p>
+                <p class="small text-white-50 mb-1"><i class="bi bi-telephone me-2 text-warning"></i>(024) 7300 1866</p>
+                <p class="small text-white-50 mb-1"><i class="bi bi-envelope me-2 text-warning"></i>support@aureliabook.com</p>
+            </div>
+        </div>
+
+        <hr class="my-4 border-secondary">
+        <div class="row align-items-center">
+            <div class="col-md-6 text-center text-md-start">
+                <small class="text-white-50">&copy; 2026 AureliaBook. Đồ án SWP391 - Fall 2026 | FPT University.</small>
+            </div>
+            <div class="col-md-6 text-center text-md-end mt-2 mt-md-0">
+                <small class="text-white-50">Developed by Group 5 (Dũng, Duy, Đức Anh, Trọng, Giác)</small>
+            </div>
+        </div>
+    </div>
+</footer>
+<!-- Bootstrap 5.3.3 Bundle JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
