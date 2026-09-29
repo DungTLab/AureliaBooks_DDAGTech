@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Trang Chủ - Thế Giới Sách & VPP', ~{::#main-content})}">
+<head>
+    <title>Trang Chủ</title>
+</head>
+<body>
+    <div id="main-content">
+        <!-- Hero Banner Section -->
+        <section class="bg-navy text-white py-5 mb-5 shadow-sm">
+            <div class="container py-4 text-center">
+                <h1 class="display-4 fw-bold mb-3">Chào mừng bạn đến với AureliaBook</h1>
+                <p class="lead text-light mb-4">Khám phá hàng ngàn đầu sách chọn lọc và văn phòng phẩm cao cấp cùng trải nghiệm mua sắm mượt mà.</p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a th:href="@{/products}" class="btn btn-warning btn-lg px-4 fw-semibold">
+                        <i class="bi bi-book me-2"></i>Xem Danh Mục Sách
+                    </a>
+                    <a th:href="@{/auth/register}" class="btn btn-outline-light btn-lg px-4">
+                        <i class="bi bi-person-plus me-2"></i>Đăng Ký Tài Khoản
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sprint 1 Foundation Milestone Status Card -->
+        <div class="container mb-5">
+            <div class="card border-0 shadow-sm rounded-3">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-success text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                            <i class="bi bi-check-lg fs-4"></i>
+                        </div>
+                        <div>
+                            <h4 class="card-title fw-bold mb-0 text-navy">Hạ Tầng Kỹ Thuật Dự Án (FND-01) Đã Sẵn Sàng!</h4>
+                            <p class="text-muted small mb-0">Hệ thống đã kết nối Spring Boot 3, Thymeleaf Master Layout, CSDL 23 Bảng và Spring Security 6.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-3">
+                            <div class="p-3 bg-light rounded border text-center">
+                                <i class="bi bi-database-check fs-2 text-primary"></i>
+                                <h6 class="fw-bold mt-2 mb-1">MySQL 8.0 Docker</h6>
+                                <span class="badge bg-success">23 Tables Active</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 bg-light rounded border text-center">
+                                <i class="bi bi-layers fs-2 text-primary"></i>
+                                <h6 class="fw-bold mt-2 mb-1">Thymeleaf Layout</h6>
+                                <span class="badge bg-success">SSR Responsive</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 bg-light rounded border text-center">
+                                <i class="bi bi-shield-check fs-2 text-primary"></i>
+                                <h6 class="fw-bold mt-2 mb-1">Spring Security 6</h6>
+                                <span class="badge bg-success">RBAC Filter</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="p-3 bg-light rounded border text-center">
+                                <i class="bi bi-people fs-2 text-primary"></i>
+                                <h6 class="fw-bold mt-2 mb-1">Phân Nhánh Code</h6>
+                                <span class="badge bg-primary">Ready for Team</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
