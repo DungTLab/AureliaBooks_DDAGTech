@@ -1,5 +1,7 @@
 package com.ddagtech.aureliabooks.config;
 
+import com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler;
+import com.ddagtech.aureliabooks.security.CustomAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationFailureHandler;
 import com.ddagtech.aureliabooks.security.CustomUserDetailsService;
 import com.ddagtech.aureliabooks.security.RoleBasedAuthenticationSuccessHandler;
@@ -35,6 +37,8 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final RoleBasedAuthenticationSuccessHandler authenticationSuccessHandler;
     private final CustomAuthenticationFailureHandler authenticationFailureHandler;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 
     /**
      * Password encoder utilizing BCrypt hashing with work factor (cost) of 12.
@@ -160,6 +164,10 @@ public class SecurityConfig {
                 .sessionFixation(fixation -> fixation.migrateSession())
                 .maximumSessions(5)
                 .sessionRegistry(sessionRegistry())
+            )
+            .exceptionHandling(exceptions -> exceptions
+                .accessDeniedHandler(accessDeniedHandler)
+                .authenticationEntryPoint(authenticationEntryPoint)
             )
             .headers(headers -> headers
                 .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('404 - Không Tìm Thấy Trang | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>404 - Không Tìm Thấy Trang</title>
+</head>
+<body>
+    <div id="main-content" class="container py-5 my-auto">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6 text-center">
+                <!-- Error Icon -->
+                <div class="mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-circle shadow-sm" style="width: 100px; height: 100px;">
+                        <i class="bi bi-compass" style="font-size: 3rem;"></i>
+                    </div>
+                </div>
+
+                <!-- Error Title & Status -->
+                <h1 class="display-4 fw-bold text-navy mb-2">404 Not Found</h1>
+                <h3 class="h5 fw-semibold text-secondary mb-3">Trang Yêu Cầu Không Tồn Tại</h3>
+
+                <!-- Descriptive Information -->
+                <p class="text-muted mb-4">
+                    Liên kết bạn vừa truy cập có thể đã bị di chuyển, đổi tên hoặc không còn tồn tại trên hệ thống AureliaBook.
+                </p>
+
+                <!-- Search Shortcut Form -->
+                <form class="d-flex mx-auto mb-4" th:action="@{/products/search}" method="get" style="max-width: 450px;">
+                    <div class="input-group">
+                        <input class="form-control" type="search" name="keyword" placeholder="Tìm kiếm sách hoặc văn phòng phẩm..." aria-label="Search">
+                        <button class="btn btn-warning" type="submit">
+                            <i class="bi bi-search me-1"></i>Tìm
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Navigation Action -->
+                <div>
+                    <a th:href="@{/}" class="btn btn-navy px-4 py-2 text-white">
+                        <i class="bi bi-house-door me-2"></i>Quay Về Trang Chủ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

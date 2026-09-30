@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('500 - Lỗi Máy Chủ Nội Bộ | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>500 - Lỗi Máy Chủ Nội Bộ</title>
+</head>
+<body>
+    <div id="main-content" class="container py-5 my-auto">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6 text-center">
+                <!-- Error Icon -->
+                <div class="mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-danger bg-opacity-10 text-danger rounded-circle shadow-sm" style="width: 100px; height: 100px;">
+                        <i class="bi bi-exclamation-octagon-fill" style="font-size: 3rem;"></i>
+                    </div>
+                </div>
+
+                <!-- Error Title & Status -->
+                <h1 class="display-4 fw-bold text-navy mb-2">500 Server Error</h1>
+                <h3 class="h5 fw-semibold text-danger mb-3">Hệ Thống Đang Xử Lý Gián Đoạn</h3>
+
+                <!-- Descriptive Information -->
+                <p class="text-muted mb-4">
+                    Đã xảy ra sự cố kỹ thuật ngoài ý muốn trong quá trình xử lý yêu cầu. Đội ngũ kỹ sư AureliaBook đã nhận được cảnh báo và đang tích cực khắc phục.
+                </p>
+
+                <!-- Support Information Card -->
+                <div class="card border-0 bg-white shadow-sm rounded-3 mb-4 p-3 text-start">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-telephone-inbound text-primary me-2 fs-5"></i>
+                        <span class="text-muted small">Tổng đài hỗ trợ khẩn cấp:</span>
+                        <strong class="ms-auto text-dark">1900 6868 (8:00 - 21:00)</strong>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-envelope text-navy me-2 fs-5"></i>
+                        <span class="text-muted small">Email kỹ thuật:</span>
+                        <strong class="ms-auto text-dark">support@aureliabook.vn</strong>
+                    </div>
+                </div>
+
+                <!-- Navigation Action -->
+                <div class="d-flex justify-content-center gap-3">
+                    <a th:href="@{/}" class="btn btn-warning px-4 py-2 fw-semibold text-dark">
+                        <i class="bi bi-house-door me-2"></i>Về Trang Chủ
+                    </a>
+                    <button onclick="window.location.reload();" class="btn btn-outline-secondary px-4 py-2">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Thử Lại
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
