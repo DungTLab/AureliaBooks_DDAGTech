@@ -1,7 +1,7 @@
 -- =============================================================================
 -- SEED DATA CƠ SỞ CHO HỆ THỐNG AURELIABOOK (SWP391)
 -- =============================================================================
-USE bookstore_ecommerce_v2_db;
+USE aurelia_books_db;
 
 -- 1. Khởi tạo 4 vai trò chuẩn RBAC
 INSERT INTO roles (id, role_name, description) VALUES

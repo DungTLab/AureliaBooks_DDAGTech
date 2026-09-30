@@ -1,7 +1,7 @@
 -- =============================================================================
--- HỆ THỐNG CSDL THƯƠNG MẠI ĐIỆN TỬ NHÀ SÁCH (AURELIABOOK) - PHIÊN BẢN V2 (MVP TINH GỌN)
+-- HỆ THỐNG CSDL THƯƠNG MẠI ĐIỆN TỬ NHÀ SÁCH (AURELIABOOK)
 -- Hệ quản trị: MySQL 8.0.16+ InnoDB | Charset: utf8mb4 | Collation: utf8mb4_0900_ai_ci
--- Quy mô: 23 Bảng Chuẩn Hóa (Khớp 100% Tài liệu Nghiệp vụ 0 & Phản biện Giảng viên)
+-- Quy mô: 23 Bảng Chuẩn Hóa
 -- 
 -- CÁC CẢI TIẾN TINH GỌN CHÍNH:
 -- 1. Bỏ bảng user_vouchers: Chuyển sang mô hình voucher công khai nhập tay, chống lạm
@@ -25,9 +25,9 @@
 -- - PHÂN HỆ 6 (Kiểm toán An ninh): audit_logs -> UC29
 -- =============================================================================
 
-DROP DATABASE IF EXISTS bookstore_ecommerce_v2_db;
-CREATE DATABASE bookstore_ecommerce_v2_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-USE bookstore_ecommerce_v2_db;
+DROP DATABASE IF EXISTS aurelia_books_db;
+CREATE DATABASE aurelia_books_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE aurelia_books_db;
 
 -- -----------------------------------------------------------------------------
 -- PHÂN HỆ 1: TÀI KHOẢN, PHÂN QUYỀN & ĐỊA CHỈ (FE-1)
