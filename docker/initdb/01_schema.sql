@@ -25,9 +25,9 @@
 -- - PHÂN HỆ 6 (Kiểm toán An ninh): audit_logs -> UC29
 -- =============================================================================
 
-DROP DATABASE IF EXISTS bookstore_ecommerce_v2_db;
-CREATE DATABASE bookstore_ecommerce_v2_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-USE bookstore_ecommerce_v2_db;
+DROP DATABASE IF EXISTS AureliaBooks;
+CREATE DATABASE AureliaBooks CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE AureliaBooks;
 
 -- -----------------------------------------------------------------------------
 -- PHÂN HỆ 1: TÀI KHOẢN, PHÂN QUYỀN & ĐỊA CHỈ (FE-1)
