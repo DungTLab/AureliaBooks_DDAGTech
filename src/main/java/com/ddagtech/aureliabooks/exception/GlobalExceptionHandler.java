@@ -120,6 +120,29 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles NoResourceFoundException thrown when a requested URL path or static resource does not exist.
+     *
+     * @param exception NoResourceFoundException instance
+     * @param request   the current HTTP request
+     * @return ResponseEntity with JSON for API or redirect to /error/404 for SSR
+     */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public Object handleNoResourceFoundException(org.springframework.web.servlet.resource.NoResourceFoundException exception,
+                                                 HttpServletRequest request) {
+        log.warn("Resource not found caught: {}", exception.getMessage());
+
+        if (HttpRequestUtil.isAjaxOrApi(request)) {
+            ApiResponse<Object> response = ApiResponse.error(
+                    ErrorCode.RESOURCE_NOT_FOUND.getCode(),
+                    ErrorCode.RESOURCE_NOT_FOUND.getMessage()
+            );
+            return ResponseEntity.status(ErrorCode.RESOURCE_NOT_FOUND.getStatusCode()).body(response);
+        }
+
+        return "redirect:/error/404";
+    }
+
+    /**
      * Handles AuthenticationException thrown when unauthenticated user attempts access.
      *
      * @param exception AuthenticationException instance
