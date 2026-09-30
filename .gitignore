@@ -31,3 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Documents & Out-of-Repo Artifacts (Safety Guardrail) ###
+*.docx
+*.xlsx
+*.pptx
+*.pdf
+*.log
+*.tmp
+*.bak
+temp/
+scratch/
+notes/
+AI_OUTPUT/
