@@ -7,17 +7,20 @@ spring:
   application:
     name: AureliaBooks
 
-  # Database Connection Configuration
+  # Database Connection Configuration (MySQL 8.0 utf8mb4)
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:bookstore_ecommerce_v2_db}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:aurelia_books_db}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
     username: ${DB_USER:root}
     password: ${DB_PASS:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
+      pool-name: AureliaBooksHikariPool
       maximum-pool-size: 10
       minimum-idle: 2
       idle-timeout: 300000
       connection-timeout: 20000
+      max-lifetime: 1800000
+      leak-detection-threshold: 20000
 
   # JPA & Hibernate Configuration
   jpa:

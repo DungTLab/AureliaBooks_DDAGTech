@@ -1,74 +1,437 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Trang Chủ - Thế Giới Sách & VPP', ~{::#main-content})}">
+      th:replace="~{layout/base :: layout('Trang Chủ - Thế Giới Sách & Văn Phòng Phẩm', ~{::#main-content})}">
 <head>
     <title>Trang Chủ</title>
 </head>
 <body>
-    <div id="main-content">
-        <!-- Hero Banner Section -->
-        <section class="bg-navy text-white py-5 mb-5 shadow-sm">
-            <div class="container py-4 text-center">
-                <h1 class="display-4 fw-bold mb-3">Chào mừng bạn đến với AureliaBook</h1>
-                <p class="lead text-light mb-4">Khám phá hàng ngàn đầu sách chọn lọc và văn phòng phẩm cao cấp cùng trải nghiệm mua sắm mượt mà.</p>
-                <div class="d-flex justify-content-center gap-3">
-                    <a th:href="@{/products}" class="btn btn-warning btn-lg px-4 fw-semibold">
-                        <i class="bi bi-book me-2"></i>Xem Danh Mục Sách
+    <div id="main-content" class="w-full">
+        <!-- Hero Banner Section (Warm Literary Parchment & Terracotta Flame) -->
+        <section class="relative overflow-hidden bg-gradient-to-b from-[#f9f6ef] via-[#efe8dc] to-[#e4d9c7] border-b border-dust_grey py-12 lg:py-20">
+            <!-- Subtle Warm Ambient Lighting Effects -->
+            <div class="absolute -top-24 -left-24 w-96 h-96 bg-blazing_flame/8 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-amber-600/6 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                    
+                    <!-- Left Hero Editorial Copy -->
+                    <div class="lg:col-span-7 text-center lg:text-left space-y-6">
+                        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-blazing_flame-100 text-blazing_flame border border-blazing_flame-300 shadow-sm">
+                            <i class="bi bi-stars text-blazing_flame"></i>
+                            <span>KHUYẾN MÃI MÙA TỰU TRƯỜNG &bull; GIẢM ĐẾN 30%</span>
+                        </span>
+
+                        <h1 class="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-carbon_black leading-tight">
+                            Khởi Đầu Hành Trình Tri Thức Cùng <span class="text-blazing_flame">AureliaBook</span>
+                        </h1>
+
+                        <p class="text-base sm:text-lg text-carbon_black-500 max-w-2xl font-normal leading-relaxed">
+                            Hàng ngàn đầu sách tuyển chọn tinh hoa từ NXB Trẻ, Kim Đồng cùng văn phòng phẩm cao cấp Deli, Thiên Long. Trải nghiệm mua sắm hiện đại, tra cứu thông minh và bảo mật tối đa.
+                        </p>
+
+                        <!-- Call-To-Action Buttons -->
+                        <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+                            <a th:href="@{/products}"
+                               class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-sm bg-blazing_flame hover:bg-blazing_flame-600 text-white shadow-flame transition-all transform hover:-translate-y-0.5">
+                                <i class="bi bi-book text-base"></i>
+                                <span>Khám Phá Danh Mục Sách</span>
+                            </a>
+                            <a th:href="@{/products(type='STATIONERY')}"
+                               class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-sm bg-white hover:bg-parchment-200 text-carbon_black border-2 border-carbon_black transition-all shadow-sm">
+                                <i class="bi bi-pencil-square text-base text-blazing_flame"></i>
+                                <span>Văn Phòng Phẩm</span>
+                            </a>
+                        </div>
+
+                        <!-- Key Store Metrics & Stats -->
+                        <div class="grid grid-cols-3 gap-6 pt-6 border-t border-dust_grey max-w-lg mx-auto lg:mx-0">
+                            <div>
+                                <div class="text-2xl font-bold text-carbon_black font-serif">10.000+</div>
+                                <div class="text-xs text-carbon_black-500 font-medium">Tựa sách tinh hoa</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold text-carbon_black font-serif">100%</div>
+                                <div class="text-xs text-carbon_black-500 font-medium">Sách có bản quyền</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold text-carbon_black font-serif">24/7</div>
+                                <div class="text-xs text-carbon_black-500 font-medium">Hỗ trợ đối soát</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Visual Showcase Card -->
+                    <div class="lg:col-span-5 relative flex justify-center">
+                        <div class="relative w-full max-w-md bg-white rounded-3xl p-6 border border-dust_grey shadow-soft">
+                            <!-- Visual Banner Card Mockup with Gentle Warm Gradient -->
+                            <div class="aspect-[4/3] rounded-2xl bg-gradient-to-br from-[#faf7f0] to-[#eae2d2] relative overflow-hidden flex items-center justify-center border border-dust_grey/70 p-6">
+                                <div class="text-center space-y-3">
+                                    <div class="w-16 h-16 mx-auto rounded-2xl bg-blazing_flame-100 text-blazing_flame flex items-center justify-center text-3xl shadow-sm">
+                                        <i class="bi bi-bookmark-star"></i>
+                                    </div>
+                                    <div class="font-serif font-bold text-xl text-carbon_black">Bestseller Tuần Này</div>
+                                    <p class="text-xs text-carbon_black-500 leading-relaxed max-w-xs mx-auto">
+                                        Bộ tác phẩm Hoàng Tử Bé, Clean Code và Tuyển tập Nguyễn Nhật Ánh
+                                    </p>
+                                    <div class="inline-block px-4 py-1.5 bg-blazing_flame text-white text-xs font-bold rounded-full shadow-sm">
+                                        Giảm 20% Hôm Nay
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Trust Badges Under Hero Card -->
+                            <div class="mt-4 flex items-center justify-between text-xs text-carbon_black-500 px-2 font-medium">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="bi bi-shield-check text-emerald-700"></i> Thanh toán VNPay bảo mật
+                                </span>
+                                <span class="flex items-center gap-1.5">
+                                    <i class="bi bi-truck text-blazing_flame"></i> Giao siêu tốc 2h
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Value Propositions (Minimalist Trust Signals Floating Cards) -->
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-soft border border-dust_grey/80 flex items-center gap-4 hover:shadow-hover hover:-translate-y-0.5 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-blazing_flame-100 text-blazing_flame flex items-center justify-center flex-shrink-0 text-2xl">
+                        <i class="bi bi-truck"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-carbon_black text-sm">Giao Hàng Siêu Tốc</h4>
+                        <p class="text-xs text-carbon_black-500 mt-0.5">Nội thành 2h, COD toàn quốc</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-soft border border-dust_grey/80 flex items-center gap-4 hover:shadow-hover hover:-translate-y-0.5 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0 text-2xl">
+                        <i class="bi bi-patch-check"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-carbon_black text-sm">100% Sách Thật</h4>
+                        <p class="text-xs text-carbon_black-500 mt-0.5">NXB Trẻ, Kim Đồng, Nhã Nam</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-soft border border-dust_grey/80 flex items-center gap-4 hover:shadow-hover hover:-translate-y-0.5 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center flex-shrink-0 text-2xl">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-carbon_black text-sm">Đổi Trả 7 Ngày</h4>
+                        <p class="text-xs text-carbon_black-500 mt-0.5">Đổi mới miễn phí lỗi in ấn</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-soft border border-dust_grey/80 flex items-center gap-4 hover:shadow-hover hover:-translate-y-0.5 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center flex-shrink-0 text-2xl">
+                        <i class="bi bi-qr-code-scan"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-carbon_black text-sm">Thanh Toán Tiện Lợi</h4>
+                        <p class="text-xs text-carbon_black-500 mt-0.5">VNPay QR, Thẻ ATM & COD</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Featured Bestsellers (SCR-ST-01 4-Column Responsive Grid) -->
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+                <div>
+                    <div class="text-xs font-bold text-blazing_flame uppercase tracking-wider mb-1">Top Ấn Phẩm Nổi Bật</div>
+                    <h2 class="text-2xl sm:text-3xl font-serif font-bold text-carbon_black">Tác Phẩm Bán Chạy Tuyển Chọn</h2>
+                    <p class="text-sm text-carbon_black-500 mt-1">Các đầu sách và văn phòng phẩm nhận được đánh giá cao nhất từ độc giả</p>
+                </div>
+                <a th:href="@{/products}"
+                   class="inline-flex items-center gap-2 text-sm font-bold text-blazing_flame hover:text-blazing_flame-600 transition-colors">
+                    <span>Xem toàn bộ danh mục</span>
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+
+            <!-- 4-Column Responsive Product Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                <!-- Product Card 1: Book (Clean Code) -->
+                <div class="group bg-white rounded-2xl border border-dust_grey/80 shadow-soft hover:shadow-hover hover:border-blazing_flame/50 transition-all duration-300 flex flex-col overflow-hidden">
+                    <div class="relative aspect-[3/4] bg-parchment-200 overflow-hidden flex items-center justify-center p-6">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-carbon_black text-white shadow-sm">
+                            Sách
+                        </span>
+                        <span class="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Còn hàng
+                        </span>
+                        <div class="w-32 h-44 rounded-lg bg-gradient-to-tr from-slate-800 to-slate-700 shadow-md group-hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-between text-white text-center p-3 border-l-4 border-blazing_flame">
+                            <span class="text-[9px] uppercase tracking-widest text-slate-300">Công Nghệ</span>
+                            <span class="font-serif font-bold text-xs">Clean Code</span>
+                            <span class="text-[9px] text-slate-400">Robert C. Martin</span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col flex-1">
+                        <span class="text-xs text-carbon_black-500 font-medium">Robert C. Martin</span>
+                        <h3 class="font-bold text-carbon_black text-base mt-1 line-clamp-2 group-hover:text-blazing_flame transition-colors">
+                            Clean Code - Nghệ Thuật Viết Mã Sạch
+                        </h3>
+                        <div class="mt-4 pt-3 border-t border-dust_grey/50 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs text-carbon_black-400 block line-through">350.000đ</span>
+                                <span class="text-lg font-extrabold text-blazing_flame">280.000đ</span>
+                            </div>
+                            <a th:href="@{/products}" class="w-9 h-9 rounded-lg bg-parchment-300 hover:bg-blazing_flame hover:text-white text-carbon_black flex items-center justify-center transition-colors shadow-sm" title="Xem chi tiết">
+                                <i class="bi bi-cart-plus"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Card 2: Book (Mắt Biếc) -->
+                <div class="group bg-white rounded-2xl border border-dust_grey/80 shadow-soft hover:shadow-hover hover:border-blazing_flame/50 transition-all duration-300 flex flex-col overflow-hidden">
+                    <div class="relative aspect-[3/4] bg-parchment-200 overflow-hidden flex items-center justify-center p-6">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-carbon_black text-white shadow-sm">
+                            Sách
+                        </span>
+                        <span class="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Còn hàng
+                        </span>
+                        <div class="w-32 h-44 rounded-lg bg-gradient-to-tr from-rose-900 to-rose-700 shadow-md group-hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-between text-white text-center p-3 border-l-4 border-amber-400">
+                            <span class="text-[9px] uppercase tracking-widest text-rose-200">Văn Học</span>
+                            <span class="font-serif font-bold text-xs">Mắt Biếc</span>
+                            <span class="text-[9px] text-rose-200">Nguyễn Nhật Ánh</span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col flex-1">
+                        <span class="text-xs text-carbon_black-500 font-medium">Nguyễn Nhật Ánh</span>
+                        <h3 class="font-bold text-carbon_black text-base mt-1 line-clamp-2 group-hover:text-blazing_flame transition-colors">
+                            Mắt Biếc (Tái Bản Đặc Biệt)
+                        </h3>
+                        <div class="mt-4 pt-3 border-t border-dust_grey/50 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs text-carbon_black-400 block line-through">120.000đ</span>
+                                <span class="text-lg font-extrabold text-blazing_flame">96.000đ</span>
+                            </div>
+                            <a th:href="@{/products}" class="w-9 h-9 rounded-lg bg-parchment-300 hover:bg-blazing_flame hover:text-white text-carbon_black flex items-center justify-center transition-colors shadow-sm" title="Xem chi tiết">
+                                <i class="bi bi-cart-plus"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Card 3: Book (Hoàng Tử Bé) -->
+                <div class="group bg-white rounded-2xl border border-dust_grey/80 shadow-soft hover:shadow-hover hover:border-blazing_flame/50 transition-all duration-300 flex flex-col overflow-hidden">
+                    <div class="relative aspect-[3/4] bg-parchment-200 overflow-hidden flex items-center justify-center p-6">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-carbon_black text-white shadow-sm">
+                            Sách
+                        </span>
+                        <span class="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Còn hàng
+                        </span>
+                        <div class="w-32 h-44 rounded-lg bg-gradient-to-tr from-sky-900 to-indigo-800 shadow-md group-hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-between text-white text-center p-3 border-l-4 border-yellow-400">
+                            <span class="text-[9px] uppercase tracking-widest text-sky-200">Kinh Điển</span>
+                            <span class="font-serif font-bold text-xs">Hoàng Tử Bé</span>
+                            <span class="text-[9px] text-sky-200">Saint-Exupéry</span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col flex-1">
+                        <span class="text-xs text-carbon_black-500 font-medium">Antoine de Saint-Exupéry</span>
+                        <h3 class="font-bold text-carbon_black text-base mt-1 line-clamp-2 group-hover:text-blazing_flame transition-colors">
+                            Hoàng Tử Bé (Bản Dịch Minh Họa Màu)
+                        </h3>
+                        <div class="mt-4 pt-3 border-t border-dust_grey/50 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs text-carbon_black-400 block line-through">150.000đ</span>
+                                <span class="text-lg font-extrabold text-blazing_flame">115.000đ</span>
+                            </div>
+                            <a th:href="@{/products}" class="w-9 h-9 rounded-lg bg-parchment-300 hover:bg-blazing_flame hover:text-white text-carbon_black flex items-center justify-center transition-colors shadow-sm" title="Xem chi tiết">
+                                <i class="bi bi-cart-plus"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Card 4: Stationery (Parker Pen) -->
+                <div class="group bg-white rounded-2xl border border-dust_grey/80 shadow-soft hover:shadow-hover hover:border-blazing_flame/50 transition-all duration-300 flex flex-col overflow-hidden">
+                    <div class="relative aspect-[3/4] bg-parchment-200 overflow-hidden flex items-center justify-center p-6">
+                        <span class="absolute top-3 left-3 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blazing_flame text-white shadow-sm">
+                            VPP
+                        </span>
+                        <span class="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Còn hàng
+                        </span>
+                        <div class="w-32 h-44 rounded-lg bg-gradient-to-tr from-amber-900 to-amber-700 shadow-md group-hover:scale-105 transition-transform duration-300 flex flex-col items-center justify-between text-white text-center p-3 border-l-4 border-amber-300">
+                            <span class="text-[9px] uppercase tracking-widest text-amber-200">Cao Cấp</span>
+                            <span class="font-serif font-bold text-xs">Bút Ký Parker</span>
+                            <span class="text-[9px] text-amber-200">Kim Loại Khắc Tên</span>
+                        </div>
+                    </div>
+                    <div class="p-5 flex flex-col flex-1">
+                        <span class="text-xs text-carbon_black-500 font-medium">Thương hiệu: Parker / Thiên Long</span>
+                        <h3 class="font-bold text-carbon_black text-base mt-1 line-clamp-2 group-hover:text-blazing_flame transition-colors">
+                            Bút Ký Kim Loại Khắc Tên Cao Cấp
+                        </h3>
+                        <div class="mt-4 pt-3 border-t border-dust_grey/50 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs text-carbon_black-400 block line-through">450.000đ</span>
+                                <span class="text-lg font-extrabold text-blazing_flame">380.000đ</span>
+                            </div>
+                            <a th:href="@{/products}" class="w-9 h-9 rounded-lg bg-parchment-300 hover:bg-blazing_flame hover:text-white text-carbon_black flex items-center justify-center transition-colors shadow-sm" title="Xem chi tiết">
+                                <i class="bi bi-cart-plus"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Category Discovery Section (Table-Per-Type Hierarchy Showcase) -->
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+            <div class="bg-white rounded-3xl border border-dust_grey/80 shadow-soft p-8 sm:p-12">
+                <div class="text-center max-w-2xl mx-auto mb-10">
+                    <span class="text-xs font-bold text-blazing_flame uppercase tracking-wider">Khám Phá Theo Nhu Cầu</span>
+                    <h2 class="text-2xl sm:text-3xl font-serif font-bold text-carbon_black mt-1">Danh Mục Sách & Văn Phòng Phẩm</h2>
+                    <p class="text-sm text-carbon_black-500 mt-2">Dễ dàng lựa chọn ấn phẩm theo sở thích, lĩnh vực chuyên môn và công việc</p>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <a th:href="@{/products(category=2)}" class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
+                        <div class="w-14 h-14 mx-auto rounded-xl bg-blazing_flame-100 text-blazing_flame flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <span class="block mt-3 text-xs font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Văn Học</span>
+                        <span class="text-[11px] text-carbon_black-500">Tiểu thuyết, truyện</span>
                     </a>
-                    <a th:href="@{/auth/register}" class="btn btn-outline-light btn-lg px-4">
-                        <i class="bi bi-person-plus me-2"></i>Đăng Ký Tài Khoản
+
+                    <a th:href="@{/products(category=3)}" class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
+                        <div class="w-14 h-14 mx-auto rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <span class="block mt-3 text-xs font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Kinh Doanh</span>
+                        <span class="text-[11px] text-carbon_black-500">Khởi nghiệp, quản trị</span>
+                    </a>
+
+                    <a th:href="@{/products(category=4)}" class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
+                        <div class="w-14 h-14 mx-auto rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <i class="bi bi-laptop"></i>
+                        </div>
+                        <span class="block mt-3 text-xs font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Công Nghệ</span>
+                        <span class="text-[11px] text-carbon_black-500">Lập trình, AI, dữ liệu</span>
+                    </a>
+
+                    <a th:href="@{/products(category=6)}" class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
+                        <div class="w-14 h-14 mx-auto rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <i class="bi bi-pen"></i>
+                        </div>
+                        <span class="block mt-3 text-xs font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Bút Ký</span>
+                        <span class="text-[11px] text-carbon_black-500">Bút máy, bút bi cao cấp</span>
+                    </a>
+
+                    <a th:href="@{/products(category=7)}" class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
+                        <div class="w-14 h-14 mx-auto rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <i class="bi bi-journal-bookmark"></i>
+                        </div>
+                        <span class="block mt-3 text-xs font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Sổ Tay</span>
+                        <span class="text-[11px] text-carbon_black-500">Sổ bìa da, planner</span>
+                    </a>
+
+                    <a th:href="@{/products}" class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
+                        <div class="w-14 h-14 mx-auto rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                            <i class="bi bi-fire"></i>
+                        </div>
+                        <span class="block mt-3 text-xs font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Bán Chạy</span>
+                        <span class="text-[11px] text-carbon_black-500">Top 100 tác phẩm</span>
                     </a>
                 </div>
             </div>
         </section>
 
-        <!-- Sprint 1 Foundation Milestone Status Card -->
-        <div class="container mb-5">
-            <div class="card border-0 shadow-sm rounded-3">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="bg-success text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
-                            <i class="bi bi-check-lg fs-4"></i>
+        <!-- Technical Foundation Milestone Dashboard (Sprint 1 Architecture Active Ready) -->
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+            <div class="bg-white rounded-3xl p-8 sm:p-12 border border-dust_grey/80 shadow-soft">
+                <div class="flex flex-col md:flex-row md:items-center justify-between pb-8 border-b border-dust_grey/60 gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-blazing_flame text-white flex items-center justify-center text-2xl shadow-flame">
+                            <i class="bi bi-shield-check"></i>
                         </div>
                         <div>
-                            <h4 class="card-title fw-bold mb-0 text-navy">Hạ Tầng Kỹ Thuật Dự Án (FND-01) Đã Sẵn Sàng!</h4>
-                            <p class="text-muted small mb-0">Hệ thống đã kết nối Spring Boot 3, Thymeleaf Master Layout, CSDL 23 Bảng và Spring Security 6.</p>
+                            <h2 class="text-xl sm:text-2xl font-serif font-bold text-carbon_black tracking-tight">Hạ Tầng Kỹ Thuật (Foundation Milestone FND-01)</h2>
+                            <p class="text-sm text-carbon_black-500 mt-0.5">Khớp 100% tài liệu thiết kế RDS Document & Phản biện kỹ thuật SWP391.</p>
                         </div>
                     </div>
-                    
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-3">
-                            <div class="p-3 bg-light rounded border text-center">
-                                <i class="bi bi-database-check fs-2 text-primary"></i>
-                                <h6 class="fw-bold mt-2 mb-1">MySQL 8.0 Docker</h6>
-                                <span class="badge bg-success">23 Tables Active</span>
-                            </div>
+                    <div>
+                        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            ACTIVE READY
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 4 Architecture Pillars Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+                    <!-- Pillar 1: MySQL 8.0 Docker -->
+                    <div class="p-5 rounded-2xl bg-parchment-100 border border-dust_grey/60 hover:bg-white hover:border-blazing_flame/40 hover:shadow-soft transition-all">
+                        <div class="w-10 h-10 rounded-xl bg-blazing_flame-100 text-blazing_flame flex items-center justify-center text-xl mb-3">
+                            <i class="bi bi-database"></i>
                         </div>
-                        <div class="col-md-3">
-                            <div class="p-3 bg-light rounded border text-center">
-                                <i class="bi bi-layers fs-2 text-primary"></i>
-                                <h6 class="fw-bold mt-2 mb-1">Thymeleaf Layout</h6>
-                                <span class="badge bg-success">SSR Responsive</span>
-                            </div>
+                        <h3 class="font-bold text-carbon_black text-base">MySQL 8.0 Docker</h3>
+                        <p class="text-xs text-carbon_black-500 mt-1 leading-relaxed">
+                            Charset utf8mb4, collation utf8mb4_0900_ai_ci, nạp sẵn 23 bảng từ 01_schema.sql & RBAC seed roles.
+                        </p>
+                        <div class="mt-3 inline-block px-2.5 py-1 rounded bg-white border border-dust_grey/70 text-blazing_flame text-[11px] font-bold">
+                            23 Bảng Chuẩn Hóa
                         </div>
-                        <div class="col-md-3">
-                            <div class="p-3 bg-light rounded border text-center">
-                                <i class="bi bi-shield-check fs-2 text-primary"></i>
-                                <h6 class="fw-bold mt-2 mb-1">Spring Security 6</h6>
-                                <span class="badge bg-success">RBAC Filter</span>
-                            </div>
+                    </div>
+
+                    <!-- Pillar 2: Spring Boot 3 + Java 21 -->
+                    <div class="p-5 rounded-2xl bg-parchment-100 border border-dust_grey/60 hover:bg-white hover:border-blazing_flame/40 hover:shadow-soft transition-all">
+                        <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center text-xl mb-3">
+                            <i class="bi bi-cpu"></i>
                         </div>
-                        <div class="col-md-3">
-                            <div class="p-3 bg-light rounded border text-center">
-                                <i class="bi bi-people fs-2 text-primary"></i>
-                                <h6 class="fw-bold mt-2 mb-1">Phân Nhánh Code</h6>
-                                <span class="badge bg-primary">Ready for Team</span>
-                            </div>
+                        <h3 class="font-bold text-carbon_black text-base">Spring Boot 3 + Java 21</h3>
+                        <p class="text-xs text-carbon_black-500 mt-1 leading-relaxed">
+                            Kiến trúc Monolith phân tầng, kết nối HikariCP Connection Pool và Hibernate JPA ddl-auto.
+                        </p>
+                        <div class="mt-3 inline-block px-2.5 py-1 rounded bg-white border border-dust_grey/70 text-sky-700 text-[11px] font-bold">
+                            HikariCP Tuned
+                        </div>
+                    </div>
+
+                    <!-- Pillar 3: Balanced Warm Editorial Theme -->
+                    <div class="p-5 rounded-2xl bg-parchment-100 border border-dust_grey/60 hover:bg-white hover:border-blazing_flame/40 hover:shadow-soft transition-all">
+                        <div class="w-10 h-10 rounded-xl bg-blazing_flame-100 text-blazing_flame flex items-center justify-center text-xl mb-3">
+                            <i class="bi bi-palette"></i>
+                        </div>
+                        <h3 class="font-bold text-carbon_black text-base">Tailwind v3.4 Editorial</h3>
+                        <p class="text-xs text-carbon_black-500 mt-1 leading-relaxed">
+                            Tông giấy ngà Parchment chống lóa, điểm nhấn Terracotta Flame, hài hòa trải nghiệm đọc.
+                        </p>
+                        <div class="mt-3 inline-block px-2.5 py-1 rounded bg-white border border-dust_grey/70 text-blazing_flame text-[11px] font-bold">
+                            Warm Editorial UX
+                        </div>
+                    </div>
+
+                    <!-- Pillar 4: Spring Security 6 RBAC -->
+                    <div class="p-5 rounded-2xl bg-parchment-100 border border-dust_grey/60 hover:bg-white hover:border-blazing_flame/40 hover:shadow-soft transition-all">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl mb-3">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <h3 class="font-bold text-carbon_black text-base">Spring Security 6 RBAC</h3>
+                        <p class="text-xs text-carbon_black-500 mt-1 leading-relaxed">
+                            BCrypt Password Encoder, phân quyền route (ADMIN, MANAGER, SALE_STAFF, CUSTOMER) và bảo vệ CSRF.
+                        </p>
+                        <div class="mt-3 inline-block px-2.5 py-1 rounded bg-white border border-dust_grey/70 text-emerald-700 text-[11px] font-bold">
+                            Security Filter Chain
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 </body>
 </html>
