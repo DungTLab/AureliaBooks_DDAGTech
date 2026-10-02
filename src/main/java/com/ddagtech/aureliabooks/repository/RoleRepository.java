@@ -2,7 +2,11 @@ package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
+@Repository
 public interface RoleRepository extends JpaRepository<Role, Long> {
-    // TODO: owner adds only queries required by their Sprint 1 use cases.
+    Optional<Role> findByRoleName(String roleName);
 }
