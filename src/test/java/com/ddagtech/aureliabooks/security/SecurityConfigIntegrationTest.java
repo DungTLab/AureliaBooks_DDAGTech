@@ -11,8 +11,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -148,5 +150,36 @@ class SecurityConfigIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("error/500"))
                 .andExpect(model().attributeExists("title"));
+    }
+
+    @Test
+    @DisplayName("Should reject browser POST request without valid CSRF token with redirect to /error/403")
+    void testCsrfProtection_BrowserPostWithoutCsrfToken_RedirectsTo403() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .param("username", "test@aureliabook.vn")
+                        .param("password", "Password123!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("Should reject AJAX POST request without valid CSRF token with HTTP 403 Forbidden JSON")
+    void testCsrfProtection_AjaxPostWithoutCsrfToken_Forbidden403Json() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .header("Accept", "application/json")
+                        .param("username", "test@aureliabook.vn")
+                        .param("password", "Password123!"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(1002));
+    }
+
+    @Test
+    @DisplayName("Should accept state-changing POST request when accompanied by valid CSRF token")
+    void testCsrfProtection_PostWithValidCsrfToken_Processed() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("username", "test@aureliabook.vn")
+                        .param("password", "Password123!"))
+                .andExpect(status().is3xxRedirection());
     }
 }

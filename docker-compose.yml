@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: bookstore_ecommerce_v2_db
+      MYSQL_DATABASE: aurelia_books_db
       MYSQL_USER: app_user
       MYSQL_PASSWORD: app_password
     ports:
@@ -16,6 +16,12 @@ services:
       - mysql_data:/var/lib/mysql
       - ./docker/initdb:/docker-entrypoint-initdb.d
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   mysql_data:

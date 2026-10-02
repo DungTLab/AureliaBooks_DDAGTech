@@ -1,84 +1,308 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
-<nav th:fragment="navbar" class="navbar navbar-expand-lg navbar-dark bg-navy sticky-top shadow-sm">
-    <div class="container">
-        <!-- Logo Brand -->
-        <a class="navbar-brand d-flex align-items-center" th:href="@{/}">
-            <i class="bi bi-book-half me-2 fs-4 text-warning"></i>
-            <span>AureliaBook</span>
-        </a>
+<header th:fragment="navbar" class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300">
+    <!-- Top Utility Announcement Bar (Grounding Warm Espresso Anchor) -->
+    <div class="hidden sm:block bg-[#1f1c19] text-[#ded7cc] text-xs py-2 px-4 border-b border-[#2d2824]">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-6">
+                <span class="inline-flex items-center gap-1.5 hover:text-[#ff8a5c] transition-colors">
+                    <i class="bi bi-geo-alt-fill text-[#ff7c4d]"></i>
+                    <span>Showroom: Khu CNC Hòa Lạc, Km29 Đại lộ Thăng Long, Hà Nội</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5 hover:text-[#ff8a5c] transition-colors">
+                    <i class="bi bi-telephone-fill text-[#ff7c4d]"></i>
+                    <span>Hotline: (024) 7300 1866</span>
+                </span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-[#ff8a5c] font-bold inline-flex items-center gap-1.5">
+                    <i class="bi bi-lightning-charge-fill text-[#ff7c4d]"></i>
+                    <span>Miễn phí giao hàng toàn quốc cho đơn từ 250.000đ</span>
+                </span>
+            </div>
+        </div>
+    </div>
 
-        <!-- Mobile Toggler -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+    <!-- Main Navigation Bar -->
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-18 lg:h-20 gap-4">
+            
+            <!-- Brand Logo with Warm Terracotta Identity -->
+            <a th:href="@{/}" class="flex items-center gap-3 group flex-shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 flex items-center justify-center text-white shadow-flame group-hover:scale-105 transition-transform duration-200">
+                    <i class="bi bi-book-half text-xl"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-serif font-extrabold text-2xl tracking-tight text-carbon_black group-hover:text-blazing_flame transition-colors">
+                        Aurelia<span class="text-blazing_flame font-sans">Book</span>
+                    </span>
+                    <span class="text-[10px] uppercase tracking-widest text-carbon_black-500 font-bold -mt-1 hidden sm:block">
+                        Nhà Sách Trực Tuyến & Văn Phòng Phẩm
+                    </span>
+                </div>
+            </a>
 
-        <div class="collapse navbar-collapse" id="mainNavbar">
-            <!-- Search Bar (UC02 - Search Products) -->
-            <form class="d-flex mx-auto my-2 my-lg-0 col-12 col-lg-5" th:action="@{/products/search}" method="get">
-                <div class="input-group">
-                    <input class="form-control" type="search" name="keyword" th:value="${param.keyword}" placeholder="Tìm sách, tác giả, ISBN, VPP..." aria-label="Search" required>
-                    <button class="btn btn-warning" type="submit">
-                        <i class="bi bi-search"></i>
+            <!-- Global Search Bar (UC02 - Search by Keyword, Author, ISBN) -->
+            <form class="hidden md:flex flex-1 max-w-xl mx-6" th:action="@{/products/search}" method="get">
+                <div class="relative w-full">
+                    <input type="search"
+                           name="keyword"
+                           th:value="${param.keyword}"
+                           placeholder="Tìm tựa sách, tác giả, ISBN, văn phòng phẩm..."
+                           class="w-full bg-parchment-100 text-carbon_black placeholder-carbon_black-400 text-sm rounded-full pl-11 pr-24 py-2.5 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all shadow-inner"
+                           required>
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-carbon_black-400">
+                        <i class="bi bi-search text-base"></i>
+                    </div>
+                    <button type="submit"
+                            class="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-xs rounded-full transition-colors flex items-center gap-1.5 shadow-sm">
+                        <span>Tìm</span>
                     </button>
                 </div>
             </form>
 
-            <!-- Navigation Links & User Menu -->
-            <ul class="navbar-nav ms-auto align-items-center">
-                <!-- Catalog Dropdown (UC01) -->
-                <li class="nav-item">
-                    <a class="nav-link text-white" th:href="@{/products}">
-                        <i class="bi bi-grid me-1"></i> Danh Mục
-                    </a>
-                </li>
+            <!-- Navigation Actions & Cart -->
+            <div class="flex items-center space-x-3 sm:space-x-4">
+                <!-- Catalog Direct Link -->
+                <a th:href="@{/products}"
+                   class="hidden lg:inline-flex items-center gap-1.5 text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 px-3.5 py-2 rounded-xl transition-colors">
+                    <i class="bi bi-grid text-blazing_flame"></i>
+                    <span>Danh Mục</span>
+                </a>
 
-                <!-- Cart Icon (UC10) -->
-                <li class="nav-item me-2">
-                    <a class="nav-link position-relative text-white" th:href="@{/cart}">
-                        <i class="bi bi-cart3 fs-5"></i>
-                        <span class="position-absolute top-1 start-100 translate-middle badge rounded-pill bg-danger" id="cartBadge" th:text="${cartItemCount != null ? cartItemCount : 0}">
-                            0
+                <!-- Cart Icon with Live Item Badge (UC10) -->
+                <a th:href="@{/cart}"
+                   class="relative inline-flex items-center justify-center p-2.5 rounded-xl text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors"
+                   title="Giỏ hàng của bạn">
+                    <i class="bi bi-bag text-2xl"></i>
+                    <span id="cartBadge"
+                          class="absolute top-1 right-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-blazing_flame rounded-full border-2 border-white shadow-sm"
+                          th:text="${cartItemCount != null ? cartItemCount : 0}">
+                        0
+                    </span>
+                </a>
+
+                <!-- Guest Actions (Unauthenticated) -->
+                <div sec:authorize="!isAuthenticated()" class="hidden sm:flex items-center space-x-2">
+                    <a th:href="@{/auth/login}"
+                       class="inline-flex items-center px-4 py-2 text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 rounded-xl transition-colors">
+                        Đăng Nhập
+                    </a>
+                    <a th:href="@{/auth/register}"
+                       class="inline-flex items-center px-4.5 py-2 text-sm font-bold text-white bg-blazing_flame hover:bg-blazing_flame-600 rounded-xl shadow-flame transition-all transform hover:-translate-y-0.5">
+                        Đăng Ký
+                    </a>
+                </div>
+
+                <!-- Authenticated User Menu Dropdown -->
+                <div sec:authorize="isAuthenticated()" class="relative">
+                    <button id="userMenuBtn"
+                            type="button"
+                            class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-parchment-200 focus:outline-none focus:ring-2 focus:ring-blazing_flame transition-colors">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <span class="hidden md:inline-block text-sm font-bold text-carbon_black truncate max-w-[120px]"
+                              sec:authentication="name">
+                            Tài khoản
                         </span>
-                    </a>
-                </li>
+                        <i class="bi bi-chevron-down text-xs text-carbon_black-400"></i>
+                    </button>
 
-                <!-- Unauthenticated Menu (Guest) -->
-                <li class="nav-item" sec:authorize="!isAuthenticated()">
-                    <a class="btn btn-outline-light btn-sm me-2" th:href="@{/auth/login}">Đăng Nhập</a>
-                </li>
-                <li class="nav-item" sec:authorize="!isAuthenticated()">
-                    <a class="btn btn-warning btn-sm" th:href="@{/auth/register}">Đăng Ký</a>
-                </li>
+                    <!-- Dropdown Menu -->
+                    <div id="userDropdown"
+                         class="hidden absolute right-0 mt-2 w-56 bg-white border border-dust_grey rounded-2xl shadow-hover py-2 z-50 animate-fade-in-down divide-y divide-dust_grey/40">
+                        <!-- Profile Links -->
+                        <div class="py-1">
+                            <a th:href="@{/profile}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
+                                <i class="bi bi-person text-blazing_flame"></i> Hồ sơ cá nhân
+                            </a>
+                            <a th:href="@{/profile/addresses}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
+                                <i class="bi bi-geo-alt text-blazing_flame"></i> Sổ địa chỉ
+                            </a>
+                            <a th:href="@{/orders/my-orders}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
+                                <i class="bi bi-bag-check text-blazing_flame"></i> Đơn mua của tôi
+                            </a>
+                        </div>
 
-                <!-- Authenticated User Dropdown -->
-                <li class="nav-item dropdown" sec:authorize="isAuthenticated()">
-                    <a class="nav-link dropdown-toggle text-white d-flex align-items-center" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-person-circle fs-5 me-1"></i>
-                        <span sec:authentication="name">Tài khoản</span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userMenu">
-                        <li><a class="dropdown-item" th:href="@{/profile}"><i class="bi bi-person me-2"></i>Hồ sơ cá nhân</a></li>
-                        <li><a class="dropdown-item" th:href="@{/profile/addresses}"><i class="bi bi-geo-alt me-2"></i>Sổ địa chỉ</a></li>
-                        <li><a class="dropdown-item" th:href="@{/orders/my-orders}"><i class="bi bi-bag-check me-2"></i>Đơn mua của tôi</a></li>
-                        
-                        <li sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')"><hr class="dropdown-divider"></li>
-                        <li sec:authorize="hasRole('ADMIN')"><a class="dropdown-item text-danger" th:href="@{/admin}"><i class="bi bi-shield-lock me-2"></i>Quản trị hệ thống</a></li>
-                        <li sec:authorize="hasRole('MANAGER')"><a class="dropdown-item text-primary" th:href="@{/admin/products}"><i class="bi bi-box-seam me-2"></i>Quản lý kho & SP</a></li>
-                        <li sec:authorize="hasRole('SALE_STAFF')"><a class="dropdown-item text-success" th:href="@{/staff/orders}"><i class="bi bi-card-checklist me-2"></i>Xử lý đơn hàng</a></li>
-                        
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form th:action="@{/auth/logout}" method="post">
-                                <button type="submit" class="dropdown-item text-secondary"><i class="bi bi-box-arrow-right me-2"></i>Đăng xuất</button>
+                        <!-- Role-based Administrative Navigation Links -->
+                        <div sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" class="py-1">
+                            <div class="px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-carbon_black-400">Khu vực nghiệp vụ</div>
+                            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-rose-700 hover:bg-rose-50 transition-colors font-semibold">
+                                <i class="bi bi-shield-lock"></i> Quản trị hệ thống
+                            </a>
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/admin/products}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                                <i class="bi bi-box-seam"></i> Quản lý kho & SP
+                            </a>
+                            <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/orders}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold">
+                                <i class="bi bi-card-checklist"></i> Xử lý đơn hàng
+                            </a>
+                        </div>
+
+                        <!-- Logout Form with CSRF Protection -->
+                        <div class="py-1">
+                            <form th:action="@{/auth/logout}" method="post" class="w-full">
+                                <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-100 transition-colors text-left font-medium">
+                                    <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                                </button>
                             </form>
-                        </li>
-                    </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile Hamburger Drawer Toggle Button -->
+                <button id="mobileMenuBtn"
+                        type="button"
+                        class="md:hidden inline-flex items-center justify-center p-2 rounded-xl text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 focus:outline-none focus:ring-2 focus:ring-blazing_flame transition-colors"
+                        aria-expanded="false">
+                    <span class="sr-only">Mở menu</span>
+                    <i id="menuIconClosed" class="bi bi-list text-2xl"></i>
+                    <i id="menuIconOpen" class="bi bi-x-lg text-2xl hidden"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Search Bar (Visible on mobile viewports) -->
+        <div class="md:hidden pb-3">
+            <form th:action="@{/products/search}" method="get" class="relative">
+                <input type="search"
+                       name="keyword"
+                       th:value="${param.keyword}"
+                       placeholder="Tìm kiếm sách, tác giả..."
+                       class="w-full bg-parchment-100 text-carbon_black placeholder-carbon_black-400 text-sm rounded-lg pl-10 pr-20 py-2.5 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                       required>
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-carbon_black-400">
+                    <i class="bi bi-search"></i>
+                </div>
+                <button type="submit"
+                        class="absolute right-1 top-1 bottom-1 px-3.5 bg-blazing_flame text-white font-bold text-xs rounded-md">
+                    Tìm
+                </button>
+            </form>
+        </div>
+    </nav>
+
+    <!-- Secondary Category Navigation Bar (Warm Linen Tone with Terracotta Active Underlines) -->
+    <div class="hidden md:block bg-alabaster_grey-100 border-t border-dust_grey/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <ul class="flex items-center space-x-7 overflow-x-auto py-2.5 text-xs font-bold tracking-wide text-carbon_black-700 whitespace-nowrap">
+                <li>
+                    <a th:href="@{/products}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
+                        <i class="bi bi-compass-fill text-blazing_flame"></i>Tất Cả Sản Phẩm
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/products(type='BOOK')}" class="hover:text-blazing_flame transition-colors py-1">
+                        Sách Tiếng Việt
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/products(category=2)}" class="hover:text-blazing_flame transition-colors py-1">
+                        Văn Học & Tiểu Thuyết
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/products(category=3)}" class="hover:text-blazing_flame transition-colors py-1">
+                        Kinh Tế - Khởi Nghiệp
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/products(category=4)}" class="hover:text-blazing_flame transition-colors py-1">
+                        Khoa Học - Công Nghệ
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/products(type='STATIONERY')}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
+                        <i class="bi bi-pencil-fill text-blazing_flame"></i>Văn Phòng Phẩm
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/products(category=6)}" class="hover:text-blazing_flame transition-colors py-1">
+                        Bút Ký Cao Cấp
+                    </a>
+                </li>
+                <li>
+                    <a th:href="@{/products(category=7)}" class="hover:text-blazing_flame transition-colors py-1">
+                        Sổ Tay & Planner
+                    </a>
                 </li>
             </ul>
         </div>
     </div>
-</nav>
+
+    <!-- Mobile Collapsible Menu Drawer -->
+    <div id="mobileMenu" class="hidden md:hidden bg-white border-t border-dust_grey px-4 pt-3 pb-6 space-y-2.5 shadow-lg">
+        <a th:href="@{/}" class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-house-door me-2 text-blazing_flame"></i>Trang Chủ
+        </a>
+        <a th:href="@{/products}" class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-grid me-2 text-blazing_flame"></i>Tất Cả Danh Mục
+        </a>
+        <a th:href="@{/products(type='BOOK')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-book me-2 text-blazing_flame"></i>Sách Tiếng Việt
+        </a>
+        <a th:href="@{/products(type='STATIONERY')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-pencil me-2 text-blazing_flame"></i>Văn Phòng Phẩm
+        </a>
+        <a th:href="@{/cart}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <span><i class="bi bi-bag me-2 text-blazing_flame"></i>Giỏ Hàng</span>
+            <span class="bg-blazing_flame text-white text-xs font-bold px-2 py-0.5 rounded-full" th:text="${cartItemCount != null ? cartItemCount : 0}">0</span>
+        </a>
+
+        <!-- Guest Mobile Actions -->
+        <div sec:authorize="!isAuthenticated()" class="pt-3 border-t border-dust_grey/50 flex flex-col gap-2">
+            <a th:href="@{/auth/login}" class="w-full text-center px-4 py-2.5 rounded-xl border border-dust_grey text-carbon_black font-bold text-sm hover:bg-parchment-200 transition-colors">
+                Đăng Nhập
+            </a>
+            <a th:href="@{/auth/register}" class="w-full text-center px-4 py-2.5 rounded-xl bg-blazing_flame text-white font-bold text-sm hover:bg-blazing_flame-600 shadow-flame transition-colors">
+                Đăng Ký Thành Viên
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- Interactive Vanilla JS for Navigation & Dropdowns -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // User profile dropdown toggle
+        const userMenuBtn = document.getElementById('userMenuBtn');
+        const userDropdown = document.getElementById('userDropdown');
+
+        if (userMenuBtn && userDropdown) {
+            userMenuBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        // Mobile drawer toggle
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const menuIconClosed = document.getElementById('menuIconClosed');
+        const menuIconOpen = document.getElementById('menuIconOpen');
+
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', function () {
+                const isExpanded = mobileMenu.classList.toggle('hidden');
+                menuIconClosed.classList.toggle('hidden');
+                menuIconOpen.classList.toggle('hidden');
+                mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
+            });
+        }
+    });
+</script>
 </body>
 </html>

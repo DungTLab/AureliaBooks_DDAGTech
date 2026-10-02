@@ -3,30 +3,161 @@
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${title != null ? title + ' - AureliaBook' : 'AureliaBook - Nhà Sách Trực Tuyến'}">AureliaBook</title>
-    <!-- Bootstrap 5.3.3 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
+    <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
+    
+    <!-- Spring Security CSRF Meta Tokens -->
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
+    <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : ''}">
+
+    <title th:text="${title != null ? title + ' - AureliaBook' : 'AureliaBook - World of Books & Stationery'}">AureliaBook</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans (Modern Clean Sans) & Playfair Display (High-End Literary Serif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons for clean, consistent vector iconography -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Tailwind CSS CDN (v3.4) with Balanced Warm Literary Editorial Bookstore Palette -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        // Brand Accent: Warm Terracotta / Burnt Sienna (Sophisticated, eye-friendly, bookish warmth)
+                        'blazing_flame': {
+                            DEFAULT: '#d94a26',
+                            50: '#fdf4f0',
+                            100: '#faebe5',
+                            200: '#f5d4c7',
+                            300: '#eeb39f',
+                            400: '#e5876d',
+                            500: '#d94a26',
+                            600: '#c23c1a',
+                            700: '#a32f13',
+                            800: '#842611',
+                            900: '#6c2211'
+                        },
+                        // Canvas Background: Warm Book Paper / Natural Linen Parchment (Prevents glare and eye strain)
+                        'parchment': {
+                            DEFAULT: '#f5f1e8',
+                            50: '#fdfbf7',
+                            100: '#faf6f0',
+                            200: '#f5f1e8',
+                            300: '#ece5d8',
+                            400: '#dfd6c4',
+                            500: '#cdbfab',
+                            600: '#b8a68f',
+                            700: '#9b8772',
+                            800: '#7f6e5e',
+                            900: '#685a4e'
+                        },
+                        // High Contrast Typography: Warm Espresso Charcoal (Sharp readability without stark coldness)
+                        'carbon_black': {
+                            DEFAULT: '#1f1c19',
+                            50: '#f6f5f4',
+                            100: '#e7e5e3',
+                            200: '#d1ccc7',
+                            300: '#b3aca4',
+                            400: '#8b8278',
+                            500: '#665d53',
+                            600: '#4e463d',
+                            700: '#3a332c',
+                            800: '#28231e',
+                            900: '#1f1c19'
+                        },
+                        // Secondary Structural Neutral: Soft Alabaster Linen
+                        'alabaster_grey': {
+                            DEFAULT: '#eae4d8',
+                            50: '#fbf9f5',
+                            100: '#f5f2eb',
+                            200: '#eae4d8',
+                            300: '#ded5c5',
+                            400: '#cdbfab',
+                            500: '#b4a189',
+                            600: '#9b866e',
+                            700: '#7f6c57',
+                            800: '#685746',
+                            900: '#554739'
+                        },
+                        // Delicate Border & Divider Neutral: Warm Sandstone Grey
+                        'dust_grey': {
+                            DEFAULT: '#dcd4c6',
+                            50: '#faf8f5',
+                            100: '#f3efe8',
+                            200: '#e6dfd3',
+                            300: '#dcd4c6',
+                            400: '#c7bca9',
+                            500: '#aea18b',
+                            600: '#92846f',
+                            700: '#766957',
+                            800: '#605547',
+                            900: '#4f463b'
+                        },
+                        'white': {
+                            DEFAULT: '#ffffff',
+                            warm: '#fffdfa'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'Georgia', 'serif']
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(31, 28, 25, 0.05)',
+                        'hover': '0 12px 28px -4px rgba(31, 28, 25, 0.09)',
+                        'flame': '0 8px 24px -4px rgba(217, 74, 38, 0.32)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS utilities -->
     <style>
-        :root {
-            --primary-navy: #1F4E78;
-            --accent-gold: #D4AF37;
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translate3d(0, -20px, 0);
+            }
+            to {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
         }
-        .bg-navy { background-color: var(--primary-navy) !important; }
-        .text-navy { color: var(--primary-navy) !important; }
-        .btn-navy {
-            background-color: var(--primary-navy);
-            color: #ffffff;
-            border: none;
+        @keyframes fadeOutRight {
+            from {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
+            to {
+                opacity: 0;
+                transform: translate3d(100%, 0, 0);
+            }
         }
-        .btn-navy:hover {
-            background-color: #163856;
-            color: #ffffff;
+        .animate-fade-in-down {
+            animation: fadeInDown 0.35s ease-out forwards;
         }
-        .navbar-brand {
-            font-weight: 700;
-            letter-spacing: 0.5px;
+        .animate-fade-out-right {
+            animation: fadeOutRight 0.35s ease-in forwards;
+        }
+        /* Custom warm editorial scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #ede6da;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c5baa8;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ab9d87;
         }
     </style>
 </head>

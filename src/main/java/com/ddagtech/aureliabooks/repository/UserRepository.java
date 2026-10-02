@@ -32,13 +32,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByPhone(String phone);
 
     /**
-     * Finds a user by either email or phone number with roles eagerly fetched.
-     * Eliminates LazyInitializationException and solves N+1 queries during authentication.
+     * Finds a user by either email or phone number with role eagerly fetched.
+     * Eliminates LazyInitializationException and solves N+1 queries during authentication in 22-table schema.
      *
      * @param identifier user email or phone number
-     * @return Optional containing the user with populated roles if found
+     * @return Optional containing the user with populated role if found
      */
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email = :identifier OR u.phone = :identifier")
+    @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.email = :identifier OR u.phone = :identifier")
     Optional<User> findByIdentifierWithRoles(@Param("identifier") String identifier);
 
     /**

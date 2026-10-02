@@ -47,10 +47,10 @@ public class CustomUserDetails implements UserDetails {
         this.avatarUrl = user.getAvatarUrl();
         this.active = Boolean.TRUE.equals(user.getIsActive());
 
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-            this.authorities = user.getRoles().stream()
-                    .map(role -> new SimpleGrantedAuthority(role.getRoleName()))
-                    .collect(Collectors.toUnmodifiableSet());
+        if (user.getRole() != null && user.getRole().getRoleName() != null) {
+            this.authorities = Collections.singleton(
+                    new SimpleGrantedAuthority(user.getRole().getRoleName())
+            );
         } else {
             this.authorities = Collections.emptySet();
         }

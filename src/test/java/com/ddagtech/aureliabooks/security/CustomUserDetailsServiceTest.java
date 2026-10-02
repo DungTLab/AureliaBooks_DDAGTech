@@ -53,7 +53,7 @@ class CustomUserDetailsServiceTest {
                 .fullName("Nguyễn Văn Khách")
                 .passwordHash("$2a$12$eXampleHashedPasswordForTestOnly")
                 .isActive(true)
-                .roles(Set.of(customerRole))
+                .role(customerRole)
                 .build();
 
         sampleLockedUser = User.builder()
@@ -63,7 +63,7 @@ class CustomUserDetailsServiceTest {
                 .fullName("Tài Khoản Bị Khóa")
                 .passwordHash("$2a$12$eXampleHashedPasswordForTestOnly")
                 .isActive(false)
-                .roles(Set.of(customerRole))
+                .role(customerRole)
                 .build();
     }
 

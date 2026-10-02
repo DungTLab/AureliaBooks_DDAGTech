@@ -5,6 +5,7 @@ import com.ddagtech.aureliabooks.security.CustomAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationFailureHandler;
 import com.ddagtech.aureliabooks.security.CustomUserDetailsService;
 import com.ddagtech.aureliabooks.security.RoleBasedAuthenticationSuccessHandler;
+import org.springframework.beans.factory.ObjectProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,11 +35,11 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomUserDetailsService userDetailsService;
-    private final RoleBasedAuthenticationSuccessHandler authenticationSuccessHandler;
-    private final CustomAuthenticationFailureHandler authenticationFailureHandler;
-    private final CustomAccessDeniedHandler accessDeniedHandler;
-    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final ObjectProvider<CustomUserDetailsService> userDetailsServiceProvider;
+    private final ObjectProvider<RoleBasedAuthenticationSuccessHandler> authenticationSuccessHandlerProvider;
+    private final ObjectProvider<CustomAuthenticationFailureHandler> authenticationFailureHandlerProvider;
+    private final ObjectProvider<CustomAccessDeniedHandler> accessDeniedHandlerProvider;
+    private final ObjectProvider<CustomAuthenticationEntryPoint> authenticationEntryPointProvider;
 
     /**
      * Password encoder utilizing BCrypt hashing with work factor (cost) of 12.
@@ -74,18 +75,6 @@ public class SecurityConfig {
     }
 
     /**
-     * Configures DaoAuthenticationProvider binding custom UserDetailsService and BCrypt password encoder.
-     *
-     * @return DaoAuthenticationProvider instance
-     */
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
-        return authProvider;
-    }
-
-    /**
      * Exposes the AuthenticationManager bean for programmatic authentication flows.
      *
      * @param config authentication configuration
@@ -107,8 +96,14 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        CustomUserDetailsService userDetailsService = userDetailsServiceProvider.getIfAvailable();
+        if (userDetailsService != null) {
+            DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
+            authProvider.setPasswordEncoder(passwordEncoder());
+            http.authenticationProvider(authProvider);
+        }
+
         http
-            .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(authorize -> authorize
                 // 1. Public Storefront Catalog, Auth Entry, and Static Assets
                 .requestMatchers(
@@ -143,15 +138,28 @@ public class SecurityConfig {
                 // 4. Default: All other routes require an authenticated session
                 .anyRequest().authenticated()
             )
-            .formLogin(login -> login
-                .loginPage("/auth/login")
-                .loginProcessingUrl("/auth/login")
-                .usernameParameter("username")
-                .passwordParameter("password")
-                .successHandler(authenticationSuccessHandler)
-                .failureHandler(authenticationFailureHandler)
-                .permitAll()
-            )
+            .formLogin(login -> {
+                login
+                    .loginPage("/auth/login")
+                    .loginProcessingUrl("/auth/login")
+                    .usernameParameter("username")
+                    .passwordParameter("password")
+                    .permitAll();
+
+                RoleBasedAuthenticationSuccessHandler successHandler = authenticationSuccessHandlerProvider.getIfAvailable();
+                if (successHandler != null) {
+                    login.successHandler(successHandler);
+                } else {
+                    login.defaultSuccessUrl("/", false);
+                }
+
+                CustomAuthenticationFailureHandler failureHandler = authenticationFailureHandlerProvider.getIfAvailable();
+                if (failureHandler != null) {
+                    login.failureHandler(failureHandler);
+                } else {
+                    login.failureUrl("/auth/login?error=true");
+                }
+            })
             .logout(logout -> logout
                 .logoutUrl("/auth/logout")
                 .logoutSuccessUrl("/auth/login?logout=true")
@@ -164,14 +172,24 @@ public class SecurityConfig {
                 .sessionFixation(fixation -> fixation.migrateSession())
                 .maximumSessions(5)
                 .sessionRegistry(sessionRegistry())
-            )
-            .exceptionHandling(exceptions -> exceptions
-                .accessDeniedHandler(accessDeniedHandler)
-                .authenticationEntryPoint(authenticationEntryPoint)
-            )
-            .headers(headers -> headers
-                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
             );
+
+        CustomAccessDeniedHandler accessDeniedHandler = accessDeniedHandlerProvider.getIfAvailable();
+        CustomAuthenticationEntryPoint authenticationEntryPoint = authenticationEntryPointProvider.getIfAvailable();
+        if (accessDeniedHandler != null || authenticationEntryPoint != null) {
+            http.exceptionHandling(exceptions -> {
+                if (accessDeniedHandler != null) {
+                    exceptions.accessDeniedHandler(accessDeniedHandler);
+                }
+                if (authenticationEntryPoint != null) {
+                    exceptions.authenticationEntryPoint(authenticationEntryPoint);
+                }
+            });
+        }
+
+        http.headers(headers -> headers
+            .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+        );
 
         return http.build();
     }
