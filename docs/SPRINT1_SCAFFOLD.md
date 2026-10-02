@@ -28,7 +28,7 @@ Nguồn cụ thể: `5_Week_Sprint_Roadmap!A8:P21` trong workbook kế hoạch. 
 - Supplier workbook đề cập MST/unique tên: SQL hiện không có MST hoặc unique tên; khung không tự thêm chúng. Chốt lại trước khi triển khai validation tương ứng.
 - Login yêu cầu failed attempts/locked_until: SQL chưa có cột này; nhóm chọn nơi lưu trạng thái khóa hoặc đề xuất migration riêng. Không thêm trường JPA không có trong DDL.
 - Roadmap hàng 11/12 có DoD/quality gate bị tráo giữa nhập kho, đăng ký và low-stock. Không dùng các DoD nhầm này để tuyên bố hoàn tất tính năng.
-- Workbook nói Spring Boot 3/Security 6/Bootstrap 5; project đang dùng Boot 4.1.1 và layout Tailwind. Khung giữ nền tảng hiện tại; chưa chứng nhận đáp ứng yêu cầu phiên bản trong workbook.
+- Project đã chuyển sang Spring Boot 3.5.16 với Java 21 và dependency Security 6 do Boot quản lý. Layout Thymeleaf dùng Tailwind theo yêu cầu giao diện responsive đã chốt; Bootstrap 5 không còn là điều kiện nghiệm thu.
 - Class controller/admin giữ đúng tên phân công; namespace trang quản lý sản phẩm/danh mục/NCC là `/manager/**`, lập phiếu là `/staff/receipts/new`, duyệt phiếu là `/manager/receipts`, tài khoản và audit là `/admin/**`. Chúng khớp phân vùng SecurityConfig hiện tại. Nghiệp vụ/POST về sau cần phân quyền theo thao tác.
 
 ## Cách triển khai tiếp
