@@ -23,10 +23,10 @@ INSERT INTO categories (id, name, parent_id, description, is_active) VALUES
 ON DUPLICATE KEY UPDATE name=VALUES(name);
 
 -- 3. Initialize sample book publishers
-INSERT INTO publishers (id, name, address, phone, email) VALUES
-(1, 'Nhà Xuất Bản Trẻ', '161B Lý Chính Thắng, P. Võ Thị Sáu, Q.3, TP.HCM', '02839316289', 'hopthu@nxbtre.com.vn'),
-(2, 'Nhà Xuất Bản Kim Đồng', '55 Quang Trung, Hà Nội', '02439434730', 'cskh_online@nxbkimdong.com.vn'),
-(3, 'Nhà Xuất Bản Phụ Nữ', '39 Hàng Chuối, Hà Nội', '02439710741', 'truyenthongnxbpn@gmail.com')
+INSERT INTO publishers (id, name, address, email) VALUES
+(1, 'Nhà Xuất Bản Trẻ', '161B Lý Chính Thắng, P. Võ Thị Sáu, Q.3, TP.HCM', 'hopthu@nxbtre.com.vn'),
+(2, 'Nhà Xuất Bản Kim Đồng', '55 Quang Trung, Hà Nội', 'cskh_online@nxbkimdong.com.vn'),
+(3, 'Nhà Xuất Bản Phụ Nữ', '39 Hàng Chuối, Hà Nội', 'truyenthongnxbpn@gmail.com')
 ON DUPLICATE KEY UPDATE name=VALUES(name);
 
 -- 4. Initialize sample authors

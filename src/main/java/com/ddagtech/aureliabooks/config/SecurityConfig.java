@@ -10,7 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Foundational Spring Security 6 Configuration (FND-04).
+ * Foundational security configuration (FND-04), using the version managed by pom.xml.
  * Permits public Storefront browsing, configures BCrypt password encoder,
  * and sets up form login & logout structure for the team.
  */
@@ -44,6 +44,8 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/manager/**").hasAnyRole("ADMIN", "MANAGER")
                 .requestMatchers("/staff/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                // Sprint 1 customer page namespaces; handlers/providers remain team TODOs.
+                .requestMatchers("/profile/**", "/cart/**", "/orders/**").hasRole("CUSTOMER")
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

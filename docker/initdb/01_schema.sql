@@ -1,7 +1,7 @@
 -- =============================================================================
 -- E-COMMERCE DATABASE SYSTEM FOR BOOKSTORE (AURELIABOOK)
 -- Database Engine: MySQL 8.0.16+ InnoDB | Charset: utf8mb4 | Collation: utf8mb4_0900_ai_ci
--- Scale: 23 Normalized Tables
+-- Scale: 22 Normalized Tables
 -- 
 -- KEY ARCHITECTURAL STREAMLINING DECISIONS:
 -- 1. Dropped user_vouchers table: Transitioned to manual public voucher code entry,
@@ -17,7 +17,7 @@
 -- 6. Dropped book_series table: Merged into series_name column in books table as MVP does not sell bundled combos.
 -- 
 -- USE CASE TRACEABILITY MATRIX (100% COVERAGE):
--- - Subsystem 1 (Accounts & Addresses): roles, users, user_roles, shipping_addresses -> UC05, UC06, UC07, UC08, UC09, UC28
+-- - Subsystem 1 (Accounts & Addresses): roles, users, shipping_addresses -> UC05, UC06, UC07, UC08, UC09, UC28
 -- - Subsystem 2 (Promotions): vouchers, order_vouchers -> UC11.2, UC13
 -- - Subsystem 3 (Catalog & AI): categories, products, publishers, books, authors, book_authors, brands, stationeries -> UC01, UC02, UC03, UC04, UC15, UC16, UC17, UC18, UC19, UC20, UC21
 -- - Subsystem 4 (Inbound Logistics & Inventory): suppliers, goods_receipts, goods_receipt_items, stock_logs -> UC21, UC22, UC23, UC24, UC25, UC27, UC30
@@ -42,6 +42,7 @@ CREATE TABLE roles (
 
 CREATE TABLE users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    role_id BIGINT NOT NULL COMMENT 'Exactly one role per user',
     email VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NULL COMMENT 'BCrypt hash (Nullable for Google OAuth2 SSO accounts)',
     full_name VARCHAR(100) NOT NULL,
@@ -54,6 +55,7 @@ CREATE TABLE users (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT,
     CONSTRAINT uk_users_email UNIQUE (email),
     CONSTRAINT uk_users_phone UNIQUE (phone),
     CONSTRAINT uk_users_provider UNIQUE (auth_provider, provider_id),
@@ -63,14 +65,6 @@ CREATE TABLE users (
         (auth_provider = 'GOOGLE' AND provider_id IS NOT NULL)
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='User and staff accounts supporting Local Auth and Google OAuth2 SSO (Maps to Use Cases: UC05, UC06, UC07, UC08, UC28)';
-
-CREATE TABLE user_roles (
-    user_id BIGINT NOT NULL,
-    role_id BIGINT NOT NULL,
-    PRIMARY KEY (user_id, role_id),
-    CONSTRAINT fk_ur_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_ur_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Many-to-Many junction table between Users and Roles (Maps to Use Cases: UC06, UC28)';
 
 CREATE TABLE shipping_addresses (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -339,6 +333,7 @@ CREATE TABLE orders (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT uk_orders_code UNIQUE (order_code),
+    CONSTRAINT uk_orders_id_user UNIQUE (id, user_id),
     CONSTRAINT fk_ord_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT chk_ord_fee CHECK (shipping_fee >= 0),
     CONSTRAINT chk_ord_total CHECK (final_total_amount >= 0)
@@ -361,16 +356,23 @@ CREATE TABLE order_items (
     CONSTRAINT chk_oi_price CHECK (unit_price_snapshot >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Order line items preserving point-in-time product name and price snapshots (Maps to Use Cases: UC11, UC12, UC14)';
 
+-- A row records redemption at order placement, not cart selection.
+-- Release on eligible cancellation: explicitly delete the redemption in the same
+-- transaction as cancellation and quota restoration; preserve the event in audit_logs.
+-- Changing order_status alone does not release the user/voucher unique key.
 CREATE TABLE order_vouchers (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     order_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL COMMENT 'Voucher redeemer; must match the order owner',
     voucher_id BIGINT NOT NULL,
     discount_applied DECIMAL(12,2) NOT NULL,
-    CONSTRAINT fk_ov_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ov_order_user FOREIGN KEY (order_id, user_id) REFERENCES orders(id, user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_ov_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT uk_ov_user_voucher UNIQUE (user_id, voucher_id),
     CONSTRAINT fk_ov_voucher FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE RESTRICT,
     CONSTRAINT uk_ov_order UNIQUE (order_id) COMMENT 'Hard constraint enforcing maximum 1 voucher per order',
     CONSTRAINT chk_ov_discount CHECK (discount_applied >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Applied vouchers per order enforced at maximum 1 voucher per order (Maps to Use Cases: UC11.2, UC13)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Voucher redemptions: maximum 1 per order and 1 per user per voucher (Maps to Use Cases: UC11.2, UC13)';
 
 -- -----------------------------------------------------------------------------
 -- SUBSYSTEM 6: SECURITY AUDIT & SYSTEM RECONCILIATION (FE-7)
@@ -389,7 +391,7 @@ CREATE TABLE audit_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Security audit log tracking CRUD events and transaction reconciliations (Maps to Use Cases: UC29)';
 
 -- =============================================================================
--- END OF SCHEMA (TOTAL: EXACTLY 23 TABLES | MySQL 8.0.16+ | InnoDB)
+-- END OF SCHEMA (TOTAL: EXACTLY 22 TABLES | MySQL 8.0.16+ | InnoDB)
 -- Non-cyclic inter-table foreign key dependencies guaranteed across all tables.
 -- (Only categories table possesses a self-referencing parent_id hierarchy)
 -- =============================================================================

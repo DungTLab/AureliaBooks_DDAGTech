@@ -25,7 +25,7 @@ spring:
   # JPA & Hibernate Configuration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate # schema.sql is authoritative; do not generate/alter tables from scaffold
     show-sql: false
     properties:
       hibernate:
