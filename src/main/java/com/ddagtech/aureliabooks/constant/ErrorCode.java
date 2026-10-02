@@ -14,7 +14,7 @@ public enum ErrorCode {
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized system error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_KEY(9001, "Invalid message or configuration key", HttpStatus.BAD_REQUEST),
 
-    // 1xxx: Authentication & Authorization (Phan he Auth / RBAC)
+    // 1xxx: Authentication & Authorization (Auth Subsystem / RBAC)
     UNAUTHENTICATED(1001, "Unauthenticated access. Please log in", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(1002, "You do not have permission to access this resource", HttpStatus.FORBIDDEN),
     USER_EXISTED(1003, "User with this phone number or email already exists", HttpStatus.CONFLICT),

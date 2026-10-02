@@ -1,66 +1,152 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<footer th:fragment="footer" class="bg-dark text-white pt-5 pb-3 mt-auto border-top">
-    <div class="container">
-        <div class="row g-4">
-            <!-- Brand & Mission -->
-            <div class="col-lg-4 col-md-6">
-                <h5 class="text-warning fw-bold mb-3">
-                    <i class="bi bi-book-half me-2"></i>AureliaBook
-                </h5>
-                <p class="text-white-50 small">
+<footer th:fragment="footer" class="bg-[#1a1715] text-[#d6d0c7] pt-16 pb-8 border-t border-[#2e2925] mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+            
+            <!-- Column 1: Brand & Identity -->
+            <div class="space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 flex items-center justify-center text-white shadow-flame">
+                        <i class="bi bi-book-half text-xl"></i>
+                    </div>
+                    <span class="font-serif font-extrabold text-2xl tracking-tight text-white">
+                        Aurelia<span class="text-blazing_flame font-sans">Book</span>
+                    </span>
+                </div>
+                <p class="text-[#aba398] text-sm leading-relaxed">
                     Hệ thống bán lẻ Sách và Văn phòng phẩm cao cấp trực tuyến. 
-                    Nền tảng thương mại điện tử hiện đại, tích hợp tra cứu danh mục thông minh và thanh toán bảo mật.
+                    Nền tảng thương mại điện tử hiện đại, tích hợp tra cứu thông minh và thanh toán VNPay bảo mật.
                 </p>
-                <div class="d-flex gap-3 fs-5">
-                    <a href="#" class="text-white-50"><i class="bi bi-facebook"></i></a>
-                    <a href="#" class="text-white-50"><i class="bi bi-instagram"></i></a>
-                    <a href="#" class="text-white-50"><i class="bi bi-github"></i></a>
+                <div class="flex items-center space-x-3 pt-2">
+                    <a href="https://facebook.com" target="_blank" rel="noopener noreferrer"
+                       class="w-9 h-9 rounded-lg bg-[#26221f] border border-[#38322c] flex items-center justify-center text-[#d6d0c7] hover:text-[#ff8a5c] hover:border-blazing_flame transition-colors"
+                       aria-label="Facebook">
+                        <i class="bi bi-facebook"></i>
+                    </a>
+                    <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"
+                       class="w-9 h-9 rounded-lg bg-[#26221f] border border-[#38322c] flex items-center justify-center text-[#d6d0c7] hover:text-[#ff8a5c] hover:border-blazing_flame transition-colors"
+                       aria-label="Instagram">
+                        <i class="bi bi-instagram"></i>
+                    </a>
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer"
+                       class="w-9 h-9 rounded-lg bg-[#26221f] border border-[#38322c] flex items-center justify-center text-[#d6d0c7] hover:text-[#ff8a5c] hover:border-blazing_flame transition-colors"
+                       aria-label="GitHub">
+                        <i class="bi bi-github"></i>
+                    </a>
                 </div>
             </div>
 
-            <!-- Quick Links -->
-            <div class="col-lg-2 col-md-6">
-                <h6 class="text-uppercase fw-bold mb-3 text-light">Danh Mục</h6>
-                <ul class="list-unstyled small">
-                    <li class="mb-2"><a th:href="@{/products}" class="text-white-50 text-decoration-none">Sách Tiếng Việt</a></li>
-                    <li class="mb-2"><a th:href="@{/products}" class="text-white-50 text-decoration-none">Văn Phòng Phẩm</a></li>
-                    <li class="mb-2"><a th:href="@{/products}" class="text-white-50 text-decoration-none">Sách Bán Chạy</a></li>
+            <!-- Column 2: Selected Categories -->
+            <div>
+                <h3 class="text-white text-sm font-bold uppercase tracking-wider mb-4 border-l-2 border-blazing_flame pl-2.5">
+                    Danh Mục Chọn Lọc
+                </h3>
+                <ul class="space-y-2.5 text-sm text-[#aba398]">
+                    <li>
+                        <a th:href="@{/products(type='BOOK')}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Sách Tiếng Việt
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(category=2)}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Văn Học & Tiểu Thuyết
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(category=3)}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Kinh Tế - Kinh Doanh
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(category=4)}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Khoa Học - Công Nghệ
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(type='STATIONERY')}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Văn Phòng Phẩm Cao Cấp
+                        </a>
+                    </li>
                 </ul>
             </div>
 
-            <!-- Customer Service -->
-            <div class="col-lg-3 col-md-6">
-                <h6 class="text-uppercase fw-bold mb-3 text-light">Hỗ Trợ Khách Hàng</h6>
-                <ul class="list-unstyled small">
-                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Chính sách đổi trả & hoàn tiền</a></li>
-                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Phương thức vận chuyển</a></li>
-                    <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Hướng dẫn thanh toán VNPay</a></li>
+            <!-- Column 3: Customer Care & Policies -->
+            <div>
+                <h3 class="text-white text-sm font-bold uppercase tracking-wider mb-4 border-l-2 border-blazing_flame pl-2.5">
+                    Hỗ Trợ Khách Hàng
+                </h3>
+                <ul class="space-y-2.5 text-sm text-[#aba398]">
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-shield-check text-xs text-blazing_flame"></i>Chính sách đổi trả 7 ngày
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-truck text-xs text-blazing_flame"></i>Phương thức vận chuyển toàn quốc
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-credit-card text-xs text-blazing_flame"></i>Hướng dẫn thanh toán VNPay
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-patch-question text-xs text-blazing_flame"></i>Câu hỏi thường gặp (FAQ)
+                        </a>
+                    </li>
                 </ul>
             </div>
 
-            <!-- Contact Info -->
-            <div class="col-lg-3 col-md-6">
-                <h6 class="text-uppercase fw-bold mb-3 text-light">Liên Hệ</h6>
-                <p class="small text-white-50 mb-1"><i class="bi bi-geo-alt me-2 text-warning"></i>Khu CNC Hòa Lạc, Hà Nội</p>
-                <p class="small text-white-50 mb-1"><i class="bi bi-telephone me-2 text-warning"></i>(024) 7300 1866</p>
-                <p class="small text-white-50 mb-1"><i class="bi bi-envelope me-2 text-warning"></i>support@aureliabook.com</p>
+            <!-- Column 4: Contact & Showroom -->
+            <div>
+                <h3 class="text-white text-sm font-bold uppercase tracking-wider mb-4 border-l-2 border-blazing_flame pl-2.5">
+                    Liên Hệ & Showroom
+                </h3>
+                <div class="space-y-3 text-sm text-[#aba398]">
+                    <p class="flex items-start gap-2.5">
+                        <i class="bi bi-geo-alt-fill text-blazing_flame mt-1"></i>
+                        <span>Khu Công nghệ cao Hòa Lạc, Km29 Đại lộ Thăng Long, Hà Nội</span>
+                    </p>
+                    <p class="flex items-center gap-2.5">
+                        <i class="bi bi-telephone-fill text-blazing_flame"></i>
+                        <span class="text-white font-medium">(024) 7300 1866</span>
+                    </p>
+                    <p class="flex items-center gap-2.5">
+                        <i class="bi bi-envelope-fill text-blazing_flame"></i>
+                        <span>support@aureliabook.vn</span>
+                    </p>
+                    <p class="flex items-center gap-2.5 text-xs text-[#8c8479]">
+                        <i class="bi bi-clock-fill text-blazing_flame"></i>
+                        <span>Mở cửa: 08:00 - 22:00 (Tất cả các ngày)</span>
+                    </p>
+                </div>
             </div>
         </div>
 
-        <hr class="my-4 border-secondary">
-        <div class="row align-items-center">
-            <div class="col-md-6 text-center text-md-start">
-                <small class="text-white-50">&copy; 2026 AureliaBook. Đồ án SWP391 - Fall 2026 | FPT University.</small>
+        <!-- Divider & Bottom Bar -->
+        <div class="border-t border-[#2e2925] pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#8c8479]">
+            <div class="text-center md:text-left space-y-1">
+                <p>&copy; 2026 AureliaBook Inc. Dự án SWP391 - Fall 2026 | Đại học FPT.</p>
+                <p class="text-[#aba398] font-medium">Được xây dựng bởi Nhóm 5 DDAGTech (Dũng, Duy, Đức Anh, Trọng, Giác).</p>
             </div>
-            <div class="col-md-6 text-center text-md-end mt-2 mt-md-0">
-                <small class="text-white-50">Developed by Group 5 (Dũng, Duy, Đức Anh, Trọng, Giác)</small>
+            <!-- Trust & Payment Security Badges -->
+            <div class="flex items-center gap-3">
+                <span class="px-2.5 py-1 rounded bg-[#26221f] border border-[#38322c] text-[11px] font-semibold text-[#d6d0c7]">
+                    <i class="bi bi-shield-lock-fill text-emerald-400 me-1"></i>SSL 256-Bit
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#26221f] border border-[#38322c] text-[11px] font-semibold text-[#d6d0c7]">
+                    <i class="bi bi-qr-code text-[#ff7c4d] me-1"></i>VNPay QR
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#26221f] border border-[#38322c] text-[11px] font-semibold text-[#d6d0c7]">
+                    <i class="bi bi-cash-coin text-amber-400 me-1"></i>COD
+                </span>
             </div>
         </div>
     </div>
 </footer>
-<!-- Bootstrap 5.3.3 Bundle JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

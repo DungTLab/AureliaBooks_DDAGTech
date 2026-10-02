@@ -1,27 +1,104 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<div th:fragment="alerts" class="container mt-3">
-    <!-- Success Alert -->
-    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
-        <i class="bi bi-check-circle-fill me-2"></i>
-        <span th:text="${successMessage}">Thao tác thành công!</span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+<div th:fragment="alerts" id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 w-full max-w-sm pointer-events-none px-4 sm:px-0">
+    <!-- Success Toast Alert -->
+    <div th:if="${successMessage}"
+         class="toast-alert pointer-events-auto bg-white border-l-4 border-emerald-600 rounded-xl shadow-hover p-4 flex items-start gap-3 animate-fade-in-down transition-all duration-300 ring-1 ring-dust_grey"
+         role="alert">
+        <div class="flex-shrink-0 text-emerald-600 mt-0.5">
+            <i class="bi bi-check-circle-fill text-xl"></i>
+        </div>
+        <div class="flex-1 text-sm font-medium text-carbon_black">
+            <div class="font-bold text-carbon_black mb-0.5">Thành công!</div>
+            <p th:text="${successMessage}" class="text-carbon_black-600 leading-snug">Thao tác thành công!</p>
+        </div>
+        <button type="button"
+                onclick="closeToast(this.closest('.toast-alert'))"
+                class="flex-shrink-0 text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg focus:outline-none transition-colors"
+                aria-label="Đóng">
+            <i class="bi bi-x-lg text-xs"></i>
+        </button>
     </div>
 
-    <!-- Error Alert -->
-    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        <span th:text="${errorMessage}">Đã xảy ra lỗi, vui lòng thử lại!</span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <!-- Error Toast Alert with Terracotta Accent -->
+    <div th:if="${errorMessage}"
+         class="toast-alert pointer-events-auto bg-white border-l-4 border-blazing_flame rounded-xl shadow-hover p-4 flex items-start gap-3 animate-fade-in-down transition-all duration-300 ring-1 ring-dust_grey"
+         role="alert">
+        <div class="flex-shrink-0 text-blazing_flame mt-0.5">
+            <i class="bi bi-exclamation-triangle-fill text-xl"></i>
+        </div>
+        <div class="flex-1 text-sm font-medium text-carbon_black">
+            <div class="font-bold text-carbon_black mb-0.5">Đã xảy ra lỗi!</div>
+            <p th:text="${errorMessage}" class="text-carbon_black-600 leading-snug">Vui lòng kiểm tra lại thông tin!</p>
+        </div>
+        <button type="button"
+                onclick="closeToast(this.closest('.toast-alert'))"
+                class="flex-shrink-0 text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg focus:outline-none transition-colors"
+                aria-label="Đóng">
+            <i class="bi bi-x-lg text-xs"></i>
+        </button>
     </div>
 
-    <!-- Info Alert -->
-    <div th:if="${infoMessage}" class="alert alert-info alert-dismissible fade show shadow-sm" role="alert">
-        <i class="bi bi-info-circle-fill me-2"></i>
-        <span th:text="${infoMessage}">Thông báo hệ thống.</span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <!-- Warning Toast Alert -->
+    <div th:if="${warningMessage}"
+         class="toast-alert pointer-events-auto bg-white border-l-4 border-amber-600 rounded-xl shadow-hover p-4 flex items-start gap-3 animate-fade-in-down transition-all duration-300 ring-1 ring-dust_grey"
+         role="alert">
+        <div class="flex-shrink-0 text-amber-600 mt-0.5">
+            <i class="bi bi-exclamation-circle-fill text-xl"></i>
+        </div>
+        <div class="flex-1 text-sm font-medium text-carbon_black">
+            <div class="font-bold text-carbon_black mb-0.5">Cảnh báo</div>
+            <p th:text="${warningMessage}" class="text-carbon_black-600 leading-snug">Thông báo lưu ý từ hệ thống.</p>
+        </div>
+        <button type="button"
+                onclick="closeToast(this.closest('.toast-alert'))"
+                class="flex-shrink-0 text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg focus:outline-none transition-colors"
+                aria-label="Đóng">
+            <i class="bi bi-x-lg text-xs"></i>
+        </button>
     </div>
+
+    <!-- Info Toast Alert -->
+    <div th:if="${infoMessage}"
+         class="toast-alert pointer-events-auto bg-white border-l-4 border-carbon_black-700 rounded-xl shadow-hover p-4 flex items-start gap-3 animate-fade-in-down transition-all duration-300 ring-1 ring-dust_grey"
+         role="alert">
+        <div class="flex-shrink-0 text-carbon_black-700 mt-0.5">
+            <i class="bi bi-info-circle-fill text-xl"></i>
+        </div>
+        <div class="flex-1 text-sm font-medium text-carbon_black">
+            <div class="font-bold text-carbon_black mb-0.5">Thông tin</div>
+            <p th:text="${infoMessage}" class="text-carbon_black-600 leading-snug">Thông báo hệ thống.</p>
+        </div>
+        <button type="button"
+                onclick="closeToast(this.closest('.toast-alert'))"
+                class="flex-shrink-0 text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg focus:outline-none transition-colors"
+                aria-label="Đóng">
+            <i class="bi bi-x-lg text-xs"></i>
+        </button>
+    </div>
+
+    <!-- Toast Auto-Dismiss Client Script -->
+    <script>
+        function closeToast(element) {
+            if (!element) return;
+            element.classList.remove('animate-fade-in-down');
+            element.classList.add('animate-fade-out-right');
+            setTimeout(() => {
+                element.remove();
+            }, 300);
+        }
+
+        // Auto-dismiss each toast after 5 seconds
+        document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.toast-alert');
+            toasts.forEach(toast => {
+                setTimeout(() => {
+                    closeToast(toast);
+                }, 5000);
+            });
+        });
+    </script>
 </div>
 </body>
 </html>
