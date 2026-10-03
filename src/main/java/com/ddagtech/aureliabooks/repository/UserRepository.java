@@ -1,6 +1,8 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -56,4 +58,26 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return true if exists, false otherwise
      */
     boolean existsByPhone(String phone);
+
+    /**
+     * Counts the total number of active administrator accounts in the system.
+     * Used to prevent revoking the privilege or deactivating the last remaining administrator (BR-08-01).
+     *
+     * @return number of active admin users
+     */
+    @Query("SELECT COUNT(u) FROM User u JOIN u.role r WHERE r.roleName = 'ROLE_ADMIN' AND u.isActive = true")
+    long countActiveAdmins();
+
+    /**
+     * Retrieves paginated internal staff users filtered optionally by role name.
+     * Utilizes JOIN FETCH on the role relationship to strictly eliminate N+1 queries.
+     *
+     * @param roleName optional role name filter (e.g. ROLE_ADMIN, ROLE_MANAGER, ROLE_SALE_STAFF)
+     * @param pageable pagination and sorting parameters
+     * @return page of matching internal user entities with loaded roles
+     */
+    @Query(value = "SELECT u FROM User u JOIN FETCH u.role r WHERE (:roleName IS NULL OR r.roleName = :roleName) AND r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF')",
+           countQuery = "SELECT COUNT(u) FROM User u JOIN u.role r WHERE (:roleName IS NULL OR r.roleName = :roleName) AND r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF')")
+    Page<User> findInternalStaff(@Param("roleName") String roleName, Pageable pageable);
 }
+

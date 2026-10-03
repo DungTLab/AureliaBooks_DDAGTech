@@ -24,6 +24,9 @@ public enum ErrorCode {
     PASSWORD_NOT_MATCH(1007, "Current password does not match", HttpStatus.BAD_REQUEST),
     AGE_RESTRICTION_VIOLATED(1008, "User age must be at least 13 years old (BR-07-02)", HttpStatus.BAD_REQUEST),
     DOB_IMMUTABLE(1009, "Date of birth cannot be modified after registration (BR-04-01)", HttpStatus.BAD_REQUEST),
+    CANNOT_LOCK_SELF(1010, "Không thể tự khóa tài khoản của bản thân (BR-08-01)", HttpStatus.BAD_REQUEST),
+    CANNOT_REVOKE_LAST_ADMIN(1011, "Không thể thu hồi quyền Quản trị viên của Admin duy nhất còn lại trong hệ thống", HttpStatus.BAD_REQUEST),
+    INVALID_ROLE_ASSIGNMENT(1012, "Chỉ được phép gán các vai trò nội bộ: SALE_STAFF, MANAGER, ADMIN", HttpStatus.BAD_REQUEST),
 
     // 2xxx: Address & Shipping Constraints
     ADDRESS_QUOTA_EXCEEDED(2001, "Maximum 5 shipping addresses allowed per customer (BR-21)", HttpStatus.BAD_REQUEST),
