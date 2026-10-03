@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -22,7 +23,7 @@ public class Cart extends BaseEntity {
     @JoinColumn(name = "user_id",nullable = false)
     private User user;
     @OneToMany(mappedBy = "cart", fetch = FetchType.LAZY)
-    private List<CartItem> items;
+    private List<CartItem> items = new ArrayList<>();
 
     public void addItem(CartItem item) {
         items.add(item);
