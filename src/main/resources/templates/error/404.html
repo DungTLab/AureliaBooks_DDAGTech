@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('404 - Không Tìm Thấy Trang | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>404 - Không Tìm Thấy Trang</title>
+</head>
+<body>
+    <div id="main-content" class="min-h-[70vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-md w-full text-center">
+            <!-- Error Icon Badge -->
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-amber-500/10 text-amber-600 shadow-sm mb-6">
+                <i class="bi bi-compass text-4xl"></i>
+            </div>
+
+            <!-- Error Title & Status -->
+            <h1 class="text-4xl font-extrabold text-carbon_black tracking-tight mb-2">404 Not Found</h1>
+            <h2 class="text-xl font-bold text-carbon_black/80 mb-3">Trang Yêu Cầu Không Tồn Tại</h2>
+
+            <!-- Descriptive Text -->
+            <p class="text-sm text-carbon_black/70 mb-6 leading-relaxed">
+                Liên kết bạn vừa truy cập có thể đã bị di chuyển, đổi tên hoặc không còn tồn tại trên hệ thống AureliaBook.
+            </p>
+
+            <!-- Search Shortcut Form -->
+            <form class="flex items-center max-w-sm mx-auto mb-6" th:action="@{/products/search}" method="get">
+                <div class="relative w-full">
+                    <input type="search" name="keyword"
+                           class="w-full px-4 py-2.5 pl-10 rounded-lg text-sm border border-dust_grey bg-white text-carbon_black placeholder-carbon_black/40 focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-transparent transition-all"
+                           placeholder="Tìm kiếm sách hoặc văn phòng phẩm..." />
+                    <i class="bi bi-search absolute left-3.5 top-3 text-carbon_black/40 text-sm"></i>
+                </div>
+                <button type="submit"
+                        class="ml-2 inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-medium bg-blazing_flame text-white hover:bg-blazing_flame/90 transition-colors shadow-sm">
+                    Tìm
+                </button>
+            </form>
+
+            <!-- Navigation Action -->
+            <div>
+                <a th:href="@{/}"
+                   class="inline-flex items-center px-5 py-2.5 rounded-lg text-sm font-medium bg-carbon_black text-white hover:bg-carbon_black/90 transition-colors shadow-sm">
+                    <i class="bi bi-house-door mr-2"></i>Quay Về Trang Chủ
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
