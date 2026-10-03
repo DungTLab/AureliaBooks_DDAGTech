@@ -120,19 +120,19 @@ public class SecurityConfig {
                 ).permitAll()
 
                 // 2. Back-Office Administrative Routes (Lean RBAC Governance)
-                .requestMatchers("/admin/**").hasRole("ADMIN")
-                .requestMatchers("/manager/**").hasAnyRole("ADMIN", "MANAGER")
-                .requestMatchers("/staff/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
+                .requestMatchers("/manager", "/manager/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/staff", "/staff/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers("/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers("/dashboard", "/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
 
                 // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
                 .requestMatchers(
-                    "/cart/**",
-                    "/checkout/**",
-                    "/account/**",
-                    "/orders/**",
-                    "/profile/**"
+                    "/cart", "/cart/**",
+                    "/checkout", "/checkout/**",
+                    "/account", "/account/**",
+                    "/orders", "/orders/**",
+                    "/profile", "/profile/**"
                 ).hasRole("CUSTOMER")
 
                 // 4. Default: All other routes require an authenticated session

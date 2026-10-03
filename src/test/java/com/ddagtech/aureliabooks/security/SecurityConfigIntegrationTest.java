@@ -6,7 +6,7 @@ import com.ddagtech.aureliabooks.controller.HomeController;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -54,6 +54,14 @@ class SecurityConfigIntegrationTest {
     }
 
     @Test
+    @DisplayName("QA-01: Should redirect anonymous user to login when accessing exact /admin root")
+    void testUnauthenticatedAccess_AdminRoot_RedirectsToLogin() throws Exception {
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login"));
+    }
+
+    @Test
     @DisplayName("Should redirect anonymous user to login when accessing protected admin console")
     void testUnauthenticatedAccess_AdminRoute_RedirectsToLogin() throws Exception {
         mockMvc.perform(get("/admin/users"))
@@ -75,6 +83,14 @@ class SecurityConfigIntegrationTest {
         mockMvc.perform(get("/cart"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login"));
+    }
+
+    @Test
+    @DisplayName("QA-02: Should redirect authenticated CUSTOMER to /error/403 when accessing exact /admin root")
+    void testRbacForbidden_CustomerAccessingAdminRoot_RedirectsTo403() throws Exception {
+        mockMvc.perform(get("/admin").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
     }
 
     @Test
@@ -153,28 +169,40 @@ class SecurityConfigIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should reject browser POST request without valid CSRF token with redirect to /error/403")
-    void testCsrfProtection_BrowserPostWithoutCsrfToken_RedirectsTo403() throws Exception {
+    @DisplayName("QA-03: Should reject browser POST request without valid CSRF token with HTTP 403 Forbidden forward")
+    void testCsrfProtection_BrowserPostWithoutCsrfToken_Forbidden403Forward() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .param("username", "test@aureliabook.vn")
                         .param("password", "Password123!"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/error/403"));
+                .andExpect(status().isForbidden())
+                .andExpect(forwardedUrl("/error/403"));
     }
 
     @Test
-    @DisplayName("Should reject AJAX POST request without valid CSRF token with HTTP 403 Forbidden JSON")
+    @DisplayName("QA-03: Should reject browser POST request with invalid CSRF token with HTTP 403 Forbidden forward")
+    void testCsrfProtection_BrowserPostWithInvalidCsrfToken_Forbidden403Forward() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf().useInvalidToken())
+                        .param("username", "test@aureliabook.vn")
+                        .param("password", "Password123!"))
+                .andExpect(status().isForbidden())
+                .andExpect(forwardedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("QA-03: Should reject AJAX POST request without valid CSRF token with HTTP 403 Forbidden JSON identifying CSRF missing")
     void testCsrfProtection_AjaxPostWithoutCsrfToken_Forbidden403Json() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .header("Accept", "application/json")
                         .param("username", "test@aureliabook.vn")
                         .param("password", "Password123!"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value(1002));
+                .andExpect(jsonPath("$.code").value(1002))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("CSRF token is missing")));
     }
 
     @Test
-    @DisplayName("Should accept state-changing POST request when accompanied by valid CSRF token")
+    @DisplayName("QA-03: Should accept state-changing POST request when accompanied by valid CSRF token")
     void testCsrfProtection_PostWithValidCsrfToken_Processed() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .with(csrf())

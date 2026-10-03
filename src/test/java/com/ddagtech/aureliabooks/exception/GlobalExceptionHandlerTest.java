@@ -63,10 +63,23 @@ class GlobalExceptionHandlerTest {
         AppException appException = new AppException(ErrorCode.ADDRESS_QUOTA_EXCEEDED);
         Object result = exceptionHandler.handleAppException(appException, request, redirectAttributes);
 
-        assertThat(result).isEqualTo("redirect:http://localhost:8080/cart");
+        assertThat(result).isEqualTo("redirect:/cart");
         assertThat(redirectAttributes.getFlashAttributes()).containsKey("errorMessage");
         assertThat(redirectAttributes.getFlashAttributes().get("errorMessage"))
                 .isEqualTo(ErrorCode.ADDRESS_QUOTA_EXCEEDED.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should reject external referer and fallback to default root to prevent open redirect (CWE-601)")
+    void testHandleAppException_WhenExternalReferer_RedirectsToDefaultRoot() {
+        request.addHeader("Accept", "text/html");
+        request.addHeader("Referer", "https://attacker.com/malicious?param=/error");
+
+        AppException appException = new AppException(ErrorCode.ADDRESS_QUOTA_EXCEEDED);
+        Object result = exceptionHandler.handleAppException(appException, request, redirectAttributes);
+
+        assertThat(result).isEqualTo("redirect:/");
+        assertThat(redirectAttributes.getFlashAttributes()).containsKey("errorMessage");
     }
 
     @Test

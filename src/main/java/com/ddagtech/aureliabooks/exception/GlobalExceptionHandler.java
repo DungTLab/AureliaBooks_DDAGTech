@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -187,15 +188,39 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Resolves a safe redirect destination from the HTTP Referer header to prevent redirect loops.
+     * Resolves a safe redirect destination from the HTTP Referer header to prevent open redirect vulnerabilities (CWE-601).
+     * Only permits same-origin absolute URLs or relative paths, discarding external domains and dangerous protocols.
      *
      * @param request incoming HttpServletRequest
      * @return safe redirect view string
      */
     private String getSafeRedirectUrl(HttpServletRequest request) {
         String referer = request.getHeader("Referer");
-        if (referer != null && !referer.isBlank() && !referer.contains("/error") && !referer.contains("/auth/login")) {
-            return "redirect:" + referer;
+        if (referer != null && !referer.isBlank()) {
+            try {
+                URI uri = URI.create(referer.trim());
+                // Relative URL (e.g. /cart) - reject protocol-relative (//external.com)
+                if (!uri.isAbsolute()) {
+                    if (referer.startsWith("/") && !referer.startsWith("//")
+                            && !referer.contains("/error") && !referer.contains("/auth/login")) {
+                        return "redirect:" + referer;
+                    }
+                } else {
+                    // Absolute URL - verify host matches the current request
+                    String requestHost = request.getServerName();
+                    String refererHost = uri.getHost();
+                    if (requestHost != null && requestHost.equalsIgnoreCase(refererHost)) {
+                        String path = uri.getRawPath();
+                        String query = uri.getRawQuery();
+                        if (path != null && path.startsWith("/") && !path.startsWith("//")
+                                && !path.contains("/error") && !path.contains("/auth/login")) {
+                            return "redirect:" + path + (query != null ? "?" + query : "");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Malformed Referer header ignored: {}", referer);
+            }
         }
         return "redirect:/";
     }

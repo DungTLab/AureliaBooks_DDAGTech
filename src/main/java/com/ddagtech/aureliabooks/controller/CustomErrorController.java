@@ -3,7 +3,7 @@ package com.ddagtech.aureliabooks.controller;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.webmvc.error.ErrorController;
+import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -28,11 +28,12 @@ public class CustomErrorController implements ErrorController {
     /**
      * Renders the 403 Forbidden Access Denied view.
      *
-     * @param model Spring MVC UI Model
+     * @param request HttpServletRequest
+     * @param model   Spring MVC UI Model
      * @return Thymeleaf view path for error/403
      */
-    @GetMapping("/error/403")
-    public String accessDenied(Model model) {
+    @RequestMapping("/error/403")
+    public String accessDenied(HttpServletRequest request, Model model) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
             model.addAttribute("username", auth.getName());
@@ -43,6 +44,11 @@ public class CustomErrorController implements ErrorController {
         } else {
             model.addAttribute("username", "Khách vãng lai");
             model.addAttribute("roles", "Chưa xác thực");
+        }
+
+        Object errorMessage = request.getAttribute("errorMessage");
+        if (errorMessage != null) {
+            model.addAttribute("errorMessage", errorMessage.toString());
         }
 
         model.addAttribute("title", "403 - Quyền Bị Từ Chối | AureliaBook");
@@ -89,7 +95,7 @@ public class CustomErrorController implements ErrorController {
             log.warn("Handling HTTP container error status: {}", statusCode);
 
             if (statusCode == HttpStatus.FORBIDDEN.value()) {
-                return accessDenied(model);
+                return accessDenied(request, model);
             } else if (statusCode == HttpStatus.NOT_FOUND.value()) {
                 return notFound(model);
             }

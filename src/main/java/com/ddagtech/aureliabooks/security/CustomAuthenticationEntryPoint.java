@@ -3,7 +3,7 @@ package com.ddagtech.aureliabooks.security;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.response.ApiResponse;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
