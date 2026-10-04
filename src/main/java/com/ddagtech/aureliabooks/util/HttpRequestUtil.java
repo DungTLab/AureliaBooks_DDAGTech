@@ -90,9 +90,12 @@ public final class HttpRequestUtil {
         // Direct connection is from a trusted proxy -> inspect forwarded headers
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isBlank() && !"unknown".equalsIgnoreCase(xForwardedFor.trim())) {
-            String candidateIp = xForwardedFor.split(",")[0].trim();
-            if (isValidIp(candidateIp)) {
-                return candidateIp;
+            String[] parts = xForwardedFor.split(",");
+            for (String part : parts) {
+                String candidate = part.trim();
+                if (!candidate.isEmpty() && !"unknown".equalsIgnoreCase(candidate) && isValidIp(candidate)) {
+                    return candidate;
+                }
             }
         }
 

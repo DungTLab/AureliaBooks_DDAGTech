@@ -78,6 +78,29 @@ class HttpRequestUtilTest {
     }
 
     @Test
+    @DisplayName("getClientIp() should handle empty or comma-only X-Forwarded-For headers without throwing exception")
+    void testTrustedProxy_CommaOnlyForwardedHeader_FallsBackToRemoteAddr() {
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(request.getHeader("X-Forwarded-For")).thenReturn(",");
+        when(request.getHeader("X-Real-IP")).thenReturn(null);
+
+        String resolvedIp = HttpRequestUtil.getClientIp(request);
+
+        assertThat(resolvedIp).isEqualTo("127.0.0.1");
+    }
+
+    @Test
+    @DisplayName("getClientIp() should handle multi-comma and empty tokens in X-Forwarded-For")
+    void testTrustedProxy_MultiCommaWithValidToken_ReturnsValidIp() {
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(request.getHeader("X-Forwarded-For")).thenReturn(" , 203.0.113.123 , ");
+
+        String resolvedIp = HttpRequestUtil.getClientIp(request);
+
+        assertThat(resolvedIp).isEqualTo("203.0.113.123");
+    }
+
+    @Test
     @DisplayName("getClientIp() should return 127.0.0.1 default when request is null")
     void testNullRequest_ReturnsDefaultLocalhost() {
         String resolvedIp = HttpRequestUtil.getClientIp(null);
