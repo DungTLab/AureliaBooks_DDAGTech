@@ -331,9 +331,10 @@
                     <input type="password" id="password" th:field="*{password}"
                            required
                            minlength="8"
-                           placeholder="Tối thiểu 8 ký tự"
+                           maxlength="72"
+                           placeholder="8 - 72 ký tự"
                            class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
-                    <span class="text-[11px] text-carbon_black-500 mt-0.5 block">Mật khẩu phải chứa ít nhất 8 ký tự.</span>
+                    <span class="text-[11px] text-carbon_black-500 mt-0.5 block">Mật khẩu từ 8-72 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</span>
                 </div>
 
                 <!-- Mobile Phone -->
@@ -343,7 +344,7 @@
                     </label>
                     <input type="tel" id="phone" th:field="*{phone}"
                            required
-                           pattern="^(0|\+84)[3|5|7|8|9][0-9]{8}$"
+                           pattern="^(0|\+84)[35789][0-9]{8}$"
                            placeholder="0912345678"
                            class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
                     <span class="text-[11px] text-carbon_black-500 mt-0.5 block">Định dạng số điện thoại Việt Nam (10 chữ số).</span>

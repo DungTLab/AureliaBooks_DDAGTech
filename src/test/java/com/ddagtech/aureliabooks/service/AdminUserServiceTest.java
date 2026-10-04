@@ -232,6 +232,24 @@ class AdminUserServiceTest {
     }
 
     @Test
+    @DisplayName("create() should throw INVALID_INPUT_DATA when password exceeds 72 UTF-8 bytes")
+    void testCreateStaff_PasswordExceeds72Bytes_ThrowsException() {
+        String longPassword = "A".repeat(70) + "1@aA"; // 74 chars -> 74 bytes
+        UserCreateRequest request = new UserCreateRequest(
+                "new@aureliabook.vn", longPassword, "Staff Name", "0912345678", 2L
+        );
+        when(userRepository.existsByEmail("new@aureliabook.vn")).thenReturn(false);
+        when(userRepository.existsByPhone("0912345678")).thenReturn(false);
+
+        assertThatThrownBy(() -> adminUserService.create(1L, request))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
+
+        verify(userRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
     @DisplayName("setActive() should prevent self-lock and throw CANNOT_LOCK_SELF (BR-08-01)")
     void testPreventSelfLock_ThrowsCannotLockSelfException() {
         Long adminId = 5L;

@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,6 +102,10 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
         if (userRepository.existsByPhone(canonicalPhone)) {
             throw new AppException(ErrorCode.USER_EXISTED, "Số điện thoại đã được sử dụng trong hệ thống");
+        }
+
+        if (request.password() != null && request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mật khẩu không được vượt quá 72 byte theo chuẩn mã hóa BCrypt");
         }
 
         Role assignedRole = roleRepository.findById(request.roleId())
