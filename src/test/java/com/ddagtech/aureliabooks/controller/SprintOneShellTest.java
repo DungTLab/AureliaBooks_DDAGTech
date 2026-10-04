@@ -58,7 +58,11 @@ class SprintOneShellTest {
 
     @Test
     void adminUsersPageRendersForAdminRole() throws Exception {
-        org.mockito.Mockito.when(adminUserService.list(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+        org.mockito.Mockito.when(adminUserService.list(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
                 .thenReturn(org.springframework.data.domain.Page.empty());
         mvc.perform(get("/admin/users").with(user("admin-tester").roles("ADMIN")))
                 .andExpect(status().isOk())

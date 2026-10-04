@@ -93,7 +93,7 @@ class AdminUserServiceTest {
                 .build();
 
         Page<User> staffPage = new PageImpl<>(List.of(staff));
-        when(userRepository.findInternalStaff(eq("ROLE_SALE_STAFF"), any(Pageable.class)))
+        when(userRepository.findInternalStaff(eq("ROLE_SALE_STAFF"), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(staffPage);
 
         Page<UserSummary> result = adminUserService.list("ROLE_SALE_STAFF", PageRequest.of(0, 10));
@@ -106,6 +106,18 @@ class AdminUserServiceTest {
         assertThat(summary.roleId()).isEqualTo(3L);
         assertThat(summary.roleName()).isEqualTo("ROLE_SALE_STAFF");
         assertThat(summary.active()).isTrue();
+    }
+
+    @Test
+    @DisplayName("list() with active, keyword and role should pass filters to repository")
+    void testList_WithFilters() {
+        when(userRepository.findInternalStaff(eq("ROLE_MANAGER"), eq(true), eq("Nguyen"), any(Pageable.class)))
+                .thenReturn(Page.empty());
+
+        Page<UserSummary> result = adminUserService.list("ROLE_MANAGER", true, "Nguyen", PageRequest.of(0, 20));
+
+        assertThat(result).isNotNull();
+        verify(userRepository).findInternalStaff(eq("ROLE_MANAGER"), eq(true), eq("Nguyen"), any(Pageable.class));
     }
 
     @Test

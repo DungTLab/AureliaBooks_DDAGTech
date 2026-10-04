@@ -6,7 +6,11 @@ import org.springframework.data.domain.*;
 
 /** UC28. Owner: Trần Huỳnh Giác. Sprint 1 scaffold; business implementation pending. */
 public interface AdminUserService {
-    Page<UserSummary> list(String roleName, Pageable pageable);
+    default Page<UserSummary> list(String roleName, Pageable pageable) {
+        return list(roleName, null, null, pageable);
+    }
+
+    Page<UserSummary> list(String roleName, Boolean active, String keyword, Pageable pageable);
 
     default Long create(Long adminId, UserCreateRequest request) {
         return create(adminId, request, null);

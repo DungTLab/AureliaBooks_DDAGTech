@@ -47,23 +47,29 @@ public class AdminUserController {
     private final RoleRepository roleRepository;
 
     /**
-     * Displays the paginated staff user list filtered optionally by role.
+     * Displays the paginated staff user list filtered optionally by role, active status, and search keyword.
      *
      * @param role optional role name filter
+     * @param active optional account active state filter
+     * @param keyword optional search term matching name, email, or phone
      * @param page zero-based page index
-     * @param size page size (defaults to 10)
+     * @param size page size (defaults to 20 per wireframe design)
      * @param model MVC model
      * @return Thymeleaf view path
      */
     @GetMapping
     public String list(
             @RequestParam(required = false) String role,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "20") int size,
             Model model
     ) {
         Page<UserSummary> usersPage = adminUserService.list(
                 role,
+                active,
+                keyword,
                 PageRequest.of(page, size, Sort.by("id").descending())
         );
 
@@ -73,6 +79,8 @@ public class AdminUserController {
 
         model.addAttribute("usersPage", usersPage);
         model.addAttribute("selectedRole", role);
+        model.addAttribute("selectedActive", active);
+        model.addAttribute("keyword", keyword);
         model.addAttribute("roles", internalRoles);
         if (!model.containsAttribute("newUserForm")) {
             model.addAttribute("newUserForm", new UserCreateRequest("", "", "", "", null));

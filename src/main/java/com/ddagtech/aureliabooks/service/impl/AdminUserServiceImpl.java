@@ -53,18 +53,21 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final ReentrantLock adminMutationLock = new ReentrantLock();
 
     /**
-     * Retrieves paginated internal staff users filtered by optional role name.
+     * Retrieves paginated internal staff users filtered by optional role name, active status, and search keyword.
      * Eliminates N+1 queries by relying on UserRepository join fetch.
      *
      * @param roleName optional role filter name
+     * @param active optional active status filter
+     * @param keyword optional search term matching name, email, or phone
      * @param pageable pagination parameters
      * @return page of UserSummary DTOs
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<UserSummary> list(String roleName, Pageable pageable) {
+    public Page<UserSummary> list(String roleName, Boolean active, String keyword, Pageable pageable) {
         String filterRole = (roleName != null && !roleName.isBlank()) ? roleName.trim() : null;
-        Page<User> staffPage = userRepository.findInternalStaff(filterRole, pageable);
+        String filterKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        Page<User> staffPage = userRepository.findInternalStaff(filterRole, active, filterKeyword, pageable);
         return staffPage.map(user -> new UserSummary(
                 user.getId(),
                 user.getEmail(),

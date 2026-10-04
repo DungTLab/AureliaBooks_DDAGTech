@@ -70,14 +70,41 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /**
      * Retrieves paginated internal staff users filtered optionally by role name.
-     * Utilizes JOIN FETCH on the role relationship to strictly eliminate N+1 queries.
+     * Overload for backward compatibility.
      *
      * @param roleName optional role name filter (e.g. ROLE_ADMIN, ROLE_MANAGER, ROLE_SALE_STAFF)
      * @param pageable pagination and sorting parameters
      * @return page of matching internal user entities with loaded roles
      */
-    @Query(value = "SELECT u FROM User u JOIN FETCH u.role r WHERE (:roleName IS NULL OR r.roleName = :roleName) AND r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF')",
-           countQuery = "SELECT COUNT(u) FROM User u JOIN u.role r WHERE (:roleName IS NULL OR r.roleName = :roleName) AND r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF')")
-    Page<User> findInternalStaff(@Param("roleName") String roleName, Pageable pageable);
+    default Page<User> findInternalStaff(String roleName, Pageable pageable) {
+        return findInternalStaff(roleName, null, null, pageable);
+    }
+
+    /**
+     * Retrieves paginated internal staff users filtered by optional role name, active status, and search keyword.
+     * Utilizes JOIN FETCH on the role relationship to strictly eliminate N+1 queries.
+     *
+     * @param roleName optional role name filter (e.g. ROLE_ADMIN, ROLE_MANAGER, ROLE_SALE_STAFF)
+     * @param active optional account active state filter
+     * @param keyword optional search term matching fullName, email, or phone
+     * @param pageable pagination and sorting parameters
+     * @return page of matching internal user entities with loaded roles
+     */
+    @Query(value = "SELECT u FROM User u JOIN FETCH u.role r WHERE " +
+           "r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF') " +
+           "AND (:roleName IS NULL OR r.roleName = :roleName) " +
+           "AND (:active IS NULL OR u.isActive = :active) " +
+           "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))",
+           countQuery = "SELECT COUNT(u) FROM User u JOIN u.role r WHERE " +
+           "r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF') " +
+           "AND (:roleName IS NULL OR r.roleName = :roleName) " +
+           "AND (:active IS NULL OR u.isActive = :active) " +
+           "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))")
+    Page<User> findInternalStaff(
+            @Param("roleName") String roleName,
+            @Param("active") Boolean active,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }
 
