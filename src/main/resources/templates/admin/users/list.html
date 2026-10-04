@@ -53,6 +53,7 @@
                     <option value="ROLE_ADMIN" th:selected="${selectedRole == 'ROLE_ADMIN'}">Quản trị viên (ADMIN)</option>
                     <option value="ROLE_MANAGER" th:selected="${selectedRole == 'ROLE_MANAGER'}">Quản lý (MANAGER)</option>
                     <option value="ROLE_SALE_STAFF" th:selected="${selectedRole == 'ROLE_SALE_STAFF'}">Nhân viên (SALE_STAFF)</option>
+                    <option value="ROLE_CUSTOMER" th:selected="${selectedRole == 'ROLE_CUSTOMER'}">Khách hàng (CUSTOMER)</option>
                 </select>
 
                 <!-- Status Filter -->
@@ -150,11 +151,20 @@
                                 <i class="bi bi-person-badge-fill"></i>
                                 Nhân viên bán hàng
                             </span>
+                            <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
+                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                <i class="bi bi-person-fill"></i>
+                                Khách hàng
+                            </span>
                         </td>
 
                         <!-- Quick Role Change -->
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <form th:if="${#authentication.principal.id != user.id or user.roleName != 'ROLE_ADMIN'}"
+                            <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
+                                  class="text-xs text-carbon_black-400 italic">
+                                Khách hàng
+                            </span>
+                            <form th:if="${user.roleName != 'ROLE_CUSTOMER' and (#authentication.principal.id != user.id or user.roleName != 'ROLE_ADMIN')}"
                                   method="post"
                                   th:action="@{/admin/users/{id}/change-role(id=${user.id})}"
                                   class="flex items-center gap-1.5">
@@ -169,7 +179,7 @@
                                     </option>
                                 </select>
                             </form>
-                            <span th:if="${#authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
+                            <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
                                   class="text-xs text-carbon_black-400 italic"
                                   title="Không thể tự thu hồi quyền Admin của chính mình">
                                 Không thể đổi
@@ -240,7 +250,7 @@
                         <td colspan="8" class="px-6 py-12 text-center text-carbon_black-500">
                             <div class="flex flex-col items-center justify-center gap-2">
                                 <i class="bi bi-people text-4xl text-dust_grey"></i>
-                                <span class="font-semibold text-base">Không tìm thấy tài khoản nhân sự nào phù hợp.</span>
+                                <span class="font-semibold text-base">Không tìm thấy tài khoản người dùng nào phù hợp.</span>
                                 <span class="text-xs text-carbon_black-400">Hãy thử thay đổi tiêu chí lọc hoặc thêm nhân viên mới.</span>
                             </div>
                         </td>

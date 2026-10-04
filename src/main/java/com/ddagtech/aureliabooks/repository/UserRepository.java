@@ -91,13 +91,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return page of matching internal user entities with loaded roles
      */
     @Query(value = "SELECT u FROM User u JOIN FETCH u.role r WHERE " +
-           "r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF') " +
-           "AND (:roleName IS NULL OR r.roleName = :roleName) " +
+           "(:roleName IS NULL OR r.roleName = :roleName) " +
            "AND (:active IS NULL OR u.isActive = :active) " +
            "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))",
            countQuery = "SELECT COUNT(u) FROM User u JOIN u.role r WHERE " +
-           "r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF') " +
-           "AND (:roleName IS NULL OR r.roleName = :roleName) " +
+           "(:roleName IS NULL OR r.roleName = :roleName) " +
            "AND (:active IS NULL OR u.isActive = :active) " +
            "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))")
     Page<User> findInternalStaff(

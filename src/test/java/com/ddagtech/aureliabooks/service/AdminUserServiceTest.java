@@ -122,6 +122,53 @@ class AdminUserServiceTest {
     }
 
     @Test
+    @DisplayName("list() with ROLE_CUSTOMER should retrieve customer accounts")
+    void testList_CustomerRole_Success() {
+        User customer = User.builder()
+                .id(99L)
+                .email("customer@gmail.com")
+                .fullName("Le Customer")
+                .phone("0987654321")
+                .role(customerRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findInternalStaff(eq("ROLE_CUSTOMER"), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(customer)));
+
+        Page<UserSummary> result = adminUserService.list("ROLE_CUSTOMER", PageRequest.of(0, 20));
+
+        assertThat(result).isNotNull();
+        assertThat(result.getContent()).hasSize(1);
+        UserSummary summary = result.getContent().get(0);
+        assertThat(summary.id()).isEqualTo(99L);
+        assertThat(summary.roleName()).isEqualTo("ROLE_CUSTOMER");
+        assertThat(summary.email()).isEqualTo("customer@gmail.com");
+    }
+
+    @Test
+    @DisplayName("setActive() on customer account should lock abusive customer and expire sessions")
+    void testLockCustomerAccount_Success() {
+        Long adminId = 1L;
+        Long customerId = 99L;
+
+        User customer = User.builder()
+                .id(customerId)
+                .email("bomhang@gmail.com")
+                .role(customerRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(customerId)).thenReturn(Optional.of(customer));
+
+        adminUserService.setActive(adminId, customerId, false, "10.0.0.1");
+
+        assertThat(customer.getIsActive()).isFalse();
+        verify(userRepository).save(customer);
+        verify(auditLogService).record(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(customerId), anyString(), eq("10.0.0.1"));
+    }
+
+    @Test
     @DisplayName("create() should hash password, assign internal role, save user and write audit log")
     void testCreateStaff_Success() throws Exception {
         Long adminId = 1L;
