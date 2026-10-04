@@ -64,6 +64,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 user.getEmail(),
                 user.getFullName(),
                 user.getPhone(),
+                user.getRole() != null ? user.getRole().getId() : null,
                 user.getRole() != null ? user.getRole().getRoleName() : null,
                 user.getIsActive(),
                 user.getCreatedAt()
@@ -82,10 +83,13 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public Long create(Long adminId, UserCreateRequest request) {
+        String rawPhone = request.phone().trim();
+        String canonicalPhone = rawPhone.startsWith("+84") ? "0" + rawPhone.substring(3) : rawPhone;
+
         if (userRepository.existsByEmail(request.email())) {
             throw new AppException(ErrorCode.USER_EXISTED, "Email đã được sử dụng trong hệ thống");
         }
-        if (userRepository.existsByPhone(request.phone())) {
+        if (userRepository.existsByPhone(canonicalPhone)) {
             throw new AppException(ErrorCode.USER_EXISTED, "Số điện thoại đã được sử dụng trong hệ thống");
         }
 
@@ -100,7 +104,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .email(request.email().trim().toLowerCase())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .fullName(request.fullName().trim())
-                .phone(request.phone().trim())
+                .phone(canonicalPhone)
                 .role(assignedRole)
                 .authProvider(User.AuthProvider.LOCAL)
                 .isActive(true)

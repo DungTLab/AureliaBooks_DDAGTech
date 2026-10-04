@@ -25,6 +25,10 @@ public record UserCreateRequest(
 
         @NotBlank(message = "Mật khẩu không được để trống")
         @Size(min = 8, message = "Mật khẩu phải chứa ít nhất 8 ký tự")
+        @Pattern(
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,}$",
+                message = "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 chữ số và 1 ký tự đặc biệt"
+        )
         String password,
 
         @NotBlank(message = "Họ và tên không được để trống")
@@ -32,7 +36,7 @@ public record UserCreateRequest(
         String fullName,
 
         @NotBlank(message = "Số điện thoại không được để trống")
-        @Pattern(regexp = "^(0|\\+84)[3|5|7|8|9][0-9]{8}$", message = "Số điện thoại không đúng định dạng Việt Nam")
+        @Pattern(regexp = "^(0|\\+84)[35789][0-9]{8}$", message = "Số điện thoại không đúng định dạng Việt Nam (10 chữ số)")
         String phone,
 
         @NotNull(message = "Vui lòng chọn vai trò nhân viên")

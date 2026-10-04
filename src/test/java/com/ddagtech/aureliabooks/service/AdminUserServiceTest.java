@@ -97,6 +97,7 @@ class AdminUserServiceTest {
         UserSummary summary = result.getContent().get(0);
         assertThat(summary.id()).isEqualTo(10L);
         assertThat(summary.email()).isEqualTo("staff@aureliabook.vn");
+        assertThat(summary.roleId()).isEqualTo(3L);
         assertThat(summary.roleName()).isEqualTo("ROLE_SALE_STAFF");
         assertThat(summary.active()).isTrue();
     }
@@ -147,10 +148,37 @@ class AdminUserServiceTest {
     }
 
     @Test
+    @DisplayName("create() should canonicalize +84 phone number to 0xxxxxxxxx format")
+    void testCreateStaff_CanonicalizesPlus84Phone() {
+        Long adminId = 1L;
+        UserCreateRequest request = new UserCreateRequest(
+                "staff84@aureliabook.vn",
+                "SecretP@ss123",
+                "Staff 84",
+                "+84912345678",
+                2L
+        );
+
+        when(userRepository.existsByEmail("staff84@aureliabook.vn")).thenReturn(false);
+        when(userRepository.existsByPhone("0912345678")).thenReturn(false);
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        when(passwordEncoder.encode(anyString())).thenReturn("hashed");
+
+        User savedUser = User.builder().id(101L).build();
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+        adminUserService.create(adminId, request);
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getPhone()).isEqualTo("0912345678");
+    }
+
+    @Test
     @DisplayName("create() should throw USER_EXISTED when email already exists")
     void testCreateStaff_DuplicateEmail_ThrowsException() {
         UserCreateRequest request = new UserCreateRequest(
-                "duplicate@aureliabook.vn", "Pass123456", "Name", "0912345678", 2L
+                "duplicate@aureliabook.vn", "Pass123456@", "Name", "0912345678", 2L
         );
         when(userRepository.existsByEmail("duplicate@aureliabook.vn")).thenReturn(true);
 
