@@ -311,7 +311,7 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("setActive() should prevent deactivating the last active administrator")
+    @DisplayName("setActive() should prevent deactivating the last active administrator (UC28-R05)")
     void testPreventRevokingLastAdmin_Deactivation_ThrowsException() {
         Long adminId = 1L;
         Long targetAdminId = 2L;
@@ -324,7 +324,7 @@ class AdminUserServiceTest {
                 .build();
 
         when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
-        when(userRepository.countActiveAdmins()).thenReturn(1L);
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(targetAdmin));
 
         assertThatThrownBy(() -> adminUserService.setActive(adminId, targetAdminId, false))
                 .isInstanceOf(AppException.class)
@@ -370,7 +370,7 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("changeRole() should prevent demoting the last active administrator")
+    @DisplayName("changeRole() should prevent demoting the last active administrator (UC28-R05)")
     void testPreventRevokingLastAdmin_RoleDemotion_ThrowsException() {
         Long adminId = 1L;
         Long targetAdminId = 2L;
@@ -384,7 +384,7 @@ class AdminUserServiceTest {
 
         when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
         when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
-        when(userRepository.countActiveAdmins()).thenReturn(1L);
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(targetAdmin));
 
         assertThatThrownBy(() -> adminUserService.changeRole(adminId, targetAdminId, 2L))
                 .isInstanceOf(AppException.class)
@@ -465,12 +465,19 @@ class AdminUserServiceTest {
         when(userRepository.findById(targetAdmin1Id)).thenReturn(Optional.of(targetAdmin1));
         when(userRepository.findById(targetAdmin2Id)).thenReturn(Optional.of(targetAdmin2));
 
-        java.util.concurrent.atomic.AtomicInteger activeCount = new java.util.concurrent.atomic.AtomicInteger(2);
-        when(userRepository.countActiveAdmins()).thenAnswer(inv -> (long) activeCount.get());
+        java.util.Set<Long> activeAdminIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        activeAdminIds.add(targetAdmin1Id);
+        activeAdminIds.add(targetAdmin2Id);
+        when(userRepository.findActiveAdminsForUpdate()).thenAnswer(inv -> {
+            List<User> list = new java.util.ArrayList<>();
+            if (activeAdminIds.contains(targetAdmin1Id)) list.add(targetAdmin1);
+            if (activeAdminIds.contains(targetAdmin2Id)) list.add(targetAdmin2);
+            return list;
+        });
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             if (!Boolean.TRUE.equals(u.getIsActive())) {
-                activeCount.decrementAndGet();
+                activeAdminIds.remove(u.getId());
             }
             return u;
         });
@@ -514,7 +521,7 @@ class AdminUserServiceTest {
 
         assertThat(oneSucceeded).isTrue();
         assertThat(oneFailedWithAppException).isTrue();
-        assertThat(activeCount.get()).isEqualTo(1);
+        assertThat(activeAdminIds).hasSize(1);
     }
 
     @Test
@@ -522,6 +529,13 @@ class AdminUserServiceTest {
     void testPreventLastAdmin_AcrossSpringTransactionCommitBoundary() {
         Long adminId = 999L;
         Long targetAdminId = 2L;
+
+        User admin1 = User.builder()
+                .id(1L)
+                .email("admin1@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
 
         User targetAdmin = User.builder()
                 .id(targetAdminId)
@@ -531,7 +545,7 @@ class AdminUserServiceTest {
                 .build();
 
         when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
-        when(userRepository.countActiveAdmins()).thenReturn(2L);
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(admin1, targetAdmin));
 
         org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
         org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
@@ -550,5 +564,30 @@ class AdminUserServiceTest {
 
         verify(roleRepository).findByRoleNameForUpdate("ROLE_ADMIN");
         verify(userRepository).save(targetAdmin);
+    }
+
+    @Test
+    @DisplayName("setActive() locking read findActiveAdminsForUpdate() should strictly prevent last admin deactivation (UC28-R05)")
+    void testPreventRevokingLastAdmin_LockingReadBypassesStaleSnapshot() {
+        Long adminId = 999L;
+        Long targetAdminId = 2L;
+
+        User targetAdmin = User.builder()
+                .id(targetAdminId)
+                .email("admin2@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(targetAdmin));
+
+        assertThatThrownBy(() -> adminUserService.setActive(adminId, targetAdminId, false))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
+
+        verify(roleRepository).findByRoleNameForUpdate("ROLE_ADMIN");
+        verify(userRepository).findActiveAdminsForUpdate();
+        verify(userRepository, never()).save(any());
     }
 }

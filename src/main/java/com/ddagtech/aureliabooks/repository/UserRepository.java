@@ -1,13 +1,16 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -67,6 +70,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT COUNT(u) FROM User u JOIN u.role r WHERE r.roleName = 'ROLE_ADMIN' AND u.isActive = true")
     long countActiveAdmins();
+
+    /**
+     * Retrieves all currently active administrator accounts with a pessimistic write lock (FOR UPDATE).
+     * In MySQL InnoDB with REPEATABLE READ isolation, executing a Locking Read bypasses the transaction's
+     * consistent read snapshot (Read View) and always reads the latest committed database state,
+     * strictly preventing concurrent transactions from deactivating or revoking the last administrator (UC28-R05).
+     *
+     * @return list of active admin user entities with loaded roles
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u JOIN FETCH u.role r WHERE r.roleName = 'ROLE_ADMIN' AND u.isActive = true")
+    List<User> findActiveAdminsForUpdate();
 
     /**
      * Retrieves paginated internal staff users filtered optionally by role name.

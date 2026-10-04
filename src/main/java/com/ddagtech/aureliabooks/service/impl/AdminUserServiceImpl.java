@@ -176,8 +176,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (!active && user.getRole() != null && "ROLE_ADMIN".equals(user.getRole().getRoleName())) {
             executeWithAdminLock(() -> {
                 roleRepository.findByRoleNameForUpdate("ROLE_ADMIN");
-                long activeAdmins = userRepository.countActiveAdmins();
-                if (activeAdmins <= 1) {
+                List<User> activeAdmins = userRepository.findActiveAdminsForUpdate();
+                boolean targetIsActiveAdmin = activeAdmins.stream().anyMatch(u -> u.getId().equals(userId));
+                if (targetIsActiveAdmin && activeAdmins.size() <= 1) {
                     throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
                 }
                 user.setIsActive(active);
@@ -245,8 +246,9 @@ public class AdminUserServiceImpl implements AdminUserService {
             }
             executeWithAdminLock(() -> {
                 roleRepository.findByRoleNameForUpdate("ROLE_ADMIN");
-                long activeAdmins = userRepository.countActiveAdmins();
-                if (activeAdmins <= 1) {
+                List<User> activeAdmins = userRepository.findActiveAdminsForUpdate();
+                boolean targetIsActiveAdmin = activeAdmins.stream().anyMatch(u -> u.getId().equals(userId));
+                if (targetIsActiveAdmin && activeAdmins.size() <= 1) {
                     throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
                 }
                 user.setRole(newRole);
