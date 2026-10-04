@@ -3,13 +3,16 @@ package com.ddagtech.aureliabooks.service;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
+import com.ddagtech.aureliabooks.entity.AuditLog;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.repository.AuditLogRepository;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.impl.AdminUserServiceImpl;
+import com.ddagtech.aureliabooks.service.impl.AuditLogServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -589,5 +592,85 @@ class AdminUserServiceTest {
         verify(roleRepository).findByRoleNameForUpdate("ROLE_ADMIN");
         verify(userRepository).findActiveAdminsForUpdate();
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("setActive() with real AuditLogServiceImpl should record audit entry without lock contention (UC28-R11)")
+    void testSetActive_WithRealAuditLogService_Success() {
+        AuditLogRepository mockAuditLogRepo = mock(AuditLogRepository.class);
+        AuditLogService realAuditLogService = new AuditLogServiceImpl(mockAuditLogRepo, userRepository);
+
+        AdminUserServiceImpl serviceWithRealAudit = new AdminUserServiceImpl(
+                userRepository,
+                roleRepository,
+                passwordEncoder,
+                sessionRegistry,
+                realAuditLogService,
+                objectMapper
+        );
+
+        Long actorAdminId = 1L;
+        Long targetAdminId = 2L;
+
+        User actorAdmin = User.builder().id(actorAdminId).email("admin1@aureliabook.vn").role(adminRole).isActive(true).build();
+        User targetAdmin = User.builder().id(targetAdminId).email("admin2@aureliabook.vn").role(adminRole).isActive(true).build();
+
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(userRepository.findById(actorAdminId)).thenReturn(Optional.of(actorAdmin));
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(actorAdmin, targetAdmin));
+
+        serviceWithRealAudit.setActive(actorAdminId, targetAdminId, false, "127.0.0.1");
+
+        assertThat(targetAdmin.getIsActive()).isFalse();
+        verify(userRepository).save(targetAdmin);
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(mockAuditLogRepo).save(captor.capture());
+        AuditLog savedAudit = captor.getValue();
+        assertThat(savedAudit.getUser()).isEqualTo(actorAdmin);
+        assertThat(savedAudit.getAction()).isEqualTo("USER_STATUS_TOGGLE");
+        assertThat(savedAudit.getTargetId()).isEqualTo(targetAdminId);
+        assertThat(savedAudit.getTargetTable()).isEqualTo("users");
+        assertThat(savedAudit.getIpAddress()).isEqualTo("127.0.0.1");
+    }
+
+    @Test
+    @DisplayName("changeRole() with real AuditLogServiceImpl should record audit entry without lock contention (UC28-R11)")
+    void testChangeRole_WithRealAuditLogService_Success() {
+        AuditLogRepository mockAuditLogRepo = mock(AuditLogRepository.class);
+        AuditLogService realAuditLogService = new AuditLogServiceImpl(mockAuditLogRepo, userRepository);
+
+        AdminUserServiceImpl serviceWithRealAudit = new AdminUserServiceImpl(
+                userRepository,
+                roleRepository,
+                passwordEncoder,
+                sessionRegistry,
+                realAuditLogService,
+                objectMapper
+        );
+
+        Long actorAdminId = 1L;
+        Long targetAdminId = 2L;
+
+        User actorAdmin = User.builder().id(actorAdminId).email("admin1@aureliabook.vn").role(adminRole).isActive(true).build();
+        User targetAdmin = User.builder().id(targetAdminId).email("admin2@aureliabook.vn").role(adminRole).isActive(true).build();
+
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(userRepository.findById(actorAdminId)).thenReturn(Optional.of(actorAdmin));
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(staffRole));
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(actorAdmin, targetAdmin));
+
+        serviceWithRealAudit.changeRole(actorAdminId, targetAdminId, 3L, "127.0.0.1");
+
+        assertThat(targetAdmin.getRole()).isEqualTo(staffRole);
+        verify(userRepository).save(targetAdmin);
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(mockAuditLogRepo).save(captor.capture());
+        AuditLog savedAudit = captor.getValue();
+        assertThat(savedAudit.getUser()).isEqualTo(actorAdmin);
+        assertThat(savedAudit.getAction()).isEqualTo("USER_ROLE_UPDATE");
+        assertThat(savedAudit.getTargetId()).isEqualTo(targetAdminId);
+        assertThat(savedAudit.getTargetTable()).isEqualTo("users");
     }
 }

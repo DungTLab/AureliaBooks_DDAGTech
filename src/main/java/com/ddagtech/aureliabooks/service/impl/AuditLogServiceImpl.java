@@ -8,7 +8,6 @@ import com.ddagtech.aureliabooks.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -23,8 +22,22 @@ public class AuditLogServiceImpl implements AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
 
+    /**
+     * Records an immutable audit log entry for an administrative state mutation.
+     * Uses default transaction propagation (REQUIRED) so that the audit entry executes within the same
+     * database transaction as the business operation. This ensures ACID atomicity (state change and audit log
+     * commit/rollback together) and prevents lock wait timeouts (UC28-R11) caused by InnoDB foreign key shared lock
+     * verification when the caller holds an exclusive pessimistic lock on the actor user.
+     *
+     * @param authenticatedUserId user ID of the actor performing the operation
+     * @param action administrative action descriptor (e.g. USER_CREATE, USER_STATUS_TOGGLE, USER_ROLE_UPDATE)
+     * @param targetTable affected database table name (e.g. users)
+     * @param targetId primary key identifier of the modified entity
+     * @param detailsJson JSON payload diff containing state transition context
+     * @param ipAddress originating client IP address
+     */
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void record(Long authenticatedUserId, String action, String targetTable,
                        Long targetId, String detailsJson, String ipAddress) {
         try {
