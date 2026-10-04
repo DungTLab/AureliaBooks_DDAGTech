@@ -373,4 +373,69 @@ class AdminUserServiceTest {
         assertThat(root.get("before").get("role").asText()).isEqualTo("ROLE_SALE_STAFF");
         assertThat(root.get("after").get("role").asText()).isEqualTo("ROLE_MANAGER");
     }
+
+    @Test
+    @DisplayName("setActive() concurrency test: simultaneous deactivation of two admins allows only one to succeed")
+    void testConcurrentAdminDeactivation_PreventsZeroAdmins() throws Exception {
+        Long adminId = 999L;
+        Long targetAdmin1Id = 1L;
+        Long targetAdmin2Id = 2L;
+
+        User targetAdmin1 = User.builder().id(targetAdmin1Id).email("admin1@aureliabook.vn").role(adminRole).isActive(true).build();
+        User targetAdmin2 = User.builder().id(targetAdmin2Id).email("admin2@aureliabook.vn").role(adminRole).isActive(true).build();
+
+        when(userRepository.findById(targetAdmin1Id)).thenReturn(Optional.of(targetAdmin1));
+        when(userRepository.findById(targetAdmin2Id)).thenReturn(Optional.of(targetAdmin2));
+
+        java.util.concurrent.atomic.AtomicInteger activeCount = new java.util.concurrent.atomic.AtomicInteger(2);
+        when(userRepository.countActiveAdmins()).thenAnswer(inv -> (long) activeCount.get());
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            if (!Boolean.TRUE.equals(u.getIsActive())) {
+                activeCount.decrementAndGet();
+            }
+            return u;
+        });
+
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+        java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(2);
+        java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+
+        java.util.concurrent.Future<?> f1 = executor.submit(() -> {
+            readyLatch.countDown();
+            try {
+                startLatch.await();
+                adminUserService.setActive(adminId, targetAdmin1Id, false);
+                return true;
+            } catch (Exception e) {
+                return e;
+            }
+        });
+
+        java.util.concurrent.Future<?> f2 = executor.submit(() -> {
+            readyLatch.countDown();
+            try {
+                startLatch.await();
+                adminUserService.setActive(adminId, targetAdmin2Id, false);
+                return true;
+            } catch (Exception e) {
+                return e;
+            }
+        });
+
+        readyLatch.await();
+        startLatch.countDown();
+
+        Object r1 = f1.get();
+        Object r2 = f2.get();
+        executor.shutdown();
+
+        boolean oneSucceeded = Boolean.TRUE.equals(r1) || Boolean.TRUE.equals(r2);
+        boolean oneFailedWithAppException = (r1 instanceof AppException ae1 && ae1.getErrorCode() == ErrorCode.CANNOT_REVOKE_LAST_ADMIN)
+                || (r2 instanceof AppException ae2 && ae2.getErrorCode() == ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
+
+        assertThat(oneSucceeded).isTrue();
+        assertThat(oneFailedWithAppException).isTrue();
+        assertThat(activeCount.get()).isEqualTo(1);
+    }
 }

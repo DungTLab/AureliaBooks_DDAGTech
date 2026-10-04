@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Production implementation of {@link AdminUserService} managing internal accounts and RBAC (UC28).
@@ -49,6 +50,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final SessionRegistry sessionRegistry;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
+    private final ReentrantLock adminMutationLock = new ReentrantLock();
 
     /**
      * Retrieves paginated internal staff users filtered by optional role name.
@@ -162,14 +164,21 @@ public class AdminUserServiceImpl implements AdminUserService {
         boolean oldStatus = Boolean.TRUE.equals(user.getIsActive());
 
         if (!active && user.getRole() != null && "ROLE_ADMIN".equals(user.getRole().getRoleName())) {
-            long activeAdmins = userRepository.countActiveAdmins();
-            if (activeAdmins <= 1) {
-                throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
+            adminMutationLock.lock();
+            try {
+                long activeAdmins = userRepository.countActiveAdmins();
+                if (activeAdmins <= 1) {
+                    throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
+                }
+                user.setIsActive(active);
+                userRepository.save(user);
+            } finally {
+                adminMutationLock.unlock();
             }
+        } else {
+            user.setIsActive(active);
+            userRepository.save(user);
         }
-
-        user.setIsActive(active);
-        userRepository.save(user);
 
         if (!active) {
             expireUserSessions(userId);
@@ -226,14 +235,21 @@ public class AdminUserServiceImpl implements AdminUserService {
             if (adminId != null && adminId.equals(userId)) {
                 throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN, "Không thể tự thu hồi quyền Quản trị viên của chính mình");
             }
-            long activeAdmins = userRepository.countActiveAdmins();
-            if (activeAdmins <= 1) {
-                throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
+            adminMutationLock.lock();
+            try {
+                long activeAdmins = userRepository.countActiveAdmins();
+                if (activeAdmins <= 1) {
+                    throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
+                }
+                user.setRole(newRole);
+                userRepository.save(user);
+            } finally {
+                adminMutationLock.unlock();
             }
+        } else {
+            user.setRole(newRole);
+            userRepository.save(user);
         }
-
-        user.setRole(newRole);
-        userRepository.save(user);
 
         expireUserSessions(userId);
 
