@@ -127,14 +127,35 @@ public final class HttpRequestUtil {
         return trimmed.contains(":") && IPV6_PATTERN.matcher(trimmed).matches();
     }
 
+    private static final java.util.Set<String> CONFIGURED_TRUSTED_PROXIES = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /**
-     * Checks if an IP address belongs to a trusted proxy subnet:
-     * - Loopback addresses (127.0.0.1, 127.0.0.0/8, ::1)
-     * - RFC 1918 private subnets (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-     * - Link-local and IPv6 local subnets (169.254.0.0/16, fc00::/7, fe80::/10)
+     * Registers an explicit trusted proxy IP address into the application proxy allowlist.
+     *
+     * @param proxyIp trusted proxy IPv4 or IPv6 address
+     */
+    public static void registerTrustedProxy(String proxyIp) {
+        if (proxyIp != null && !proxyIp.isBlank()) {
+            CONFIGURED_TRUSTED_PROXIES.add(proxyIp.trim().toLowerCase());
+        }
+    }
+
+    /**
+     * Clears all registered trusted proxy IP addresses.
+     */
+    public static void clearTrustedProxies() {
+        CONFIGURED_TRUSTED_PROXIES.clear();
+    }
+
+    /**
+     * Checks if an IP address belongs to a trusted proxy:
+     * - Loopback addresses (127.0.0.1, 127.0.0.0/8, ::1, 0:0:0:0:0:0:0:1, localhost)
+     * - Explicitly registered proxy IP addresses in the proxy allowlist
+     * Note: Private LAN IP addresses (10.x, 172.x, 192.168.x) are strictly NOT trusted by default
+     * to eliminate internal LAN IP spoofing (CWE-290).
      *
      * @param ip IP address string
-     * @return true if the IP belongs to a trusted internal/proxy subnet
+     * @return true if the IP belongs to a trusted proxy
      */
     public static boolean isTrustedProxy(String ip) {
         if (ip == null || ip.isBlank()) {
@@ -142,43 +163,13 @@ public final class HttpRequestUtil {
         }
         String trimmed = ip.trim().toLowerCase();
 
-        // Loopback
+        // Loopback is always trusted for local reverse proxy (e.g. Nginx on same host)
         if ("127.0.0.1".equals(trimmed) || "::1".equals(trimmed) || "0:0:0:0:0:0:0:1".equals(trimmed)
                 || trimmed.startsWith("127.") || "localhost".equals(trimmed)) {
             return true;
         }
 
-        // RFC 1918: 10.0.0.0/8
-        if (trimmed.startsWith("10.")) {
-            return true;
-        }
-
-        // RFC 1918: 192.168.0.0/16
-        if (trimmed.startsWith("192.168.")) {
-            return true;
-        }
-
-        // RFC 3927: 169.254.0.0/16 (Link-Local)
-        if (trimmed.startsWith("169.254.")) {
-            return true;
-        }
-
-        // RFC 1918: 172.16.0.0/12 (172.16.x.x - 172.31.x.x)
-        if (trimmed.startsWith("172.")) {
-            String[] parts = trimmed.split("\\.");
-            if (parts.length >= 2) {
-                try {
-                    int secondOctet = Integer.parseInt(parts[1]);
-                    if (secondOctet >= 16 && secondOctet <= 31) {
-                        return true;
-                    }
-                } catch (NumberFormatException ignored) {
-                    // Not a valid integer octet
-                }
-            }
-        }
-
-        // IPv6 Unique Local (fc00::/7 -> fc.. or fd..) and Link-Local (fe80::/10)
-        return trimmed.startsWith("fc") || trimmed.startsWith("fd") || trimmed.startsWith("fe80");
+        // Explicitly configured proxy allowlist
+        return CONFIGURED_TRUSTED_PROXIES.contains(trimmed);
     }
 }

@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -21,14 +22,31 @@ class HttpRequestUtilTest {
     @Mock
     private HttpServletRequest request;
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        HttpRequestUtil.clearTrustedProxies();
+    }
+
     @Test
     @DisplayName("getClientIp() should ignore forwarded headers from untrusted direct public client")
     void testDirectUntrustedClient_IgnoresForwardedHeaders() {
         when(request.getRemoteAddr()).thenReturn("192.0.2.10");
+        lenient().when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.123");
 
         String resolvedIp = HttpRequestUtil.getClientIp(request);
 
         assertThat(resolvedIp).isEqualTo("192.0.2.10");
+    }
+
+    @Test
+    @DisplayName("getClientIp() should ignore forwarded headers from untrusted direct LAN client (UC28-R08)")
+    void testDirectLanClient_IgnoresForwardedHeadersByDefault() {
+        when(request.getRemoteAddr()).thenReturn("192.168.1.77");
+        lenient().when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.123");
+
+        String resolvedIp = HttpRequestUtil.getClientIp(request);
+
+        assertThat(resolvedIp).isEqualTo("192.168.1.77");
     }
 
     @Test
@@ -43,8 +61,9 @@ class HttpRequestUtilTest {
     }
 
     @Test
-    @DisplayName("getClientIp() should extract leftmost client IP from multi-hop X-Forwarded-For")
-    void testTrustedProxyPrivateSubnet_ParsesFirstHopInMultiHopHeader() {
+    @DisplayName("getClientIp() should extract leftmost client IP from multi-hop X-Forwarded-For via registered proxy")
+    void testRegisteredTrustedProxy_ParsesFirstHopInMultiHopHeader() {
+        HttpRequestUtil.registerTrustedProxy("10.0.0.1");
         when(request.getRemoteAddr()).thenReturn("10.0.0.1");
         when(request.getHeader("X-Forwarded-For")).thenReturn("203.0.113.123, 10.0.0.2");
 
@@ -54,8 +73,9 @@ class HttpRequestUtilTest {
     }
 
     @Test
-    @DisplayName("getClientIp() should fallback to X-Real-IP when X-Forwarded-For is missing")
-    void testTrustedProxy_FallbackToXRealIp() {
+    @DisplayName("getClientIp() should fallback to X-Real-IP when X-Forwarded-For is missing on registered proxy")
+    void testRegisteredTrustedProxy_FallbackToXRealIp() {
+        HttpRequestUtil.registerTrustedProxy("192.168.1.50");
         when(request.getRemoteAddr()).thenReturn("192.168.1.50");
         when(request.getHeader("X-Forwarded-For")).thenReturn(null);
         when(request.getHeader("X-Real-IP")).thenReturn("198.51.100.42");
