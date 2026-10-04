@@ -21,6 +21,8 @@ import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -172,17 +174,15 @@ public class AdminUserServiceImpl implements AdminUserService {
         boolean oldStatus = Boolean.TRUE.equals(user.getIsActive());
 
         if (!active && user.getRole() != null && "ROLE_ADMIN".equals(user.getRole().getRoleName())) {
-            adminMutationLock.lock();
-            try {
+            executeWithAdminLock(() -> {
+                roleRepository.findByRoleNameForUpdate("ROLE_ADMIN");
                 long activeAdmins = userRepository.countActiveAdmins();
                 if (activeAdmins <= 1) {
                     throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
                 }
                 user.setIsActive(active);
                 userRepository.save(user);
-            } finally {
-                adminMutationLock.unlock();
-            }
+            });
         } else {
             user.setIsActive(active);
             userRepository.save(user);
@@ -243,17 +243,15 @@ public class AdminUserServiceImpl implements AdminUserService {
             if (adminId != null && adminId.equals(userId)) {
                 throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN, "Không thể tự thu hồi quyền Quản trị viên của chính mình");
             }
-            adminMutationLock.lock();
-            try {
+            executeWithAdminLock(() -> {
+                roleRepository.findByRoleNameForUpdate("ROLE_ADMIN");
                 long activeAdmins = userRepository.countActiveAdmins();
                 if (activeAdmins <= 1) {
                     throw new AppException(ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
                 }
                 user.setRole(newRole);
                 userRepository.save(user);
-            } finally {
-                adminMutationLock.unlock();
-            }
+            });
         } else {
             user.setRole(newRole);
             userRepository.save(user);
@@ -311,6 +309,36 @@ public class AdminUserServiceImpl implements AdminUserService {
                     log.info("Expired active session [{}] for deactivated/re-roled user [{}]",
                             session.getSessionId(), userId);
                 }
+            }
+        }
+    }
+
+    /**
+     * Executes a critical administrative mutation under mutex protection.
+     * If an active Spring transaction is detected, the lock release is deferred
+     * via {@link TransactionSynchronization#afterCompletion(int)} until after the
+     * transaction has fully committed or rolled back. This eliminates TOCTOU race
+     * conditions across concurrent transactions.
+     *
+     * @param action critical logic to execute
+     */
+    private void executeWithAdminLock(Runnable action) {
+        adminMutationLock.lock();
+        boolean synchronizationRegistered = false;
+        try {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCompletion(int status) {
+                        adminMutationLock.unlock();
+                    }
+                });
+                synchronizationRegistered = true;
+            }
+            action.run();
+        } finally {
+            if (!synchronizationRegistered) {
+                adminMutationLock.unlock();
             }
         }
     }

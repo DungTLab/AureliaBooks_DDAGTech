@@ -78,6 +78,7 @@ class AdminUserServiceTest {
         managerRole = Role.builder().id(2L).roleName("ROLE_MANAGER").description("Store Manager").build();
         staffRole = Role.builder().id(3L).roleName("ROLE_SALE_STAFF").description("Sales Staff").build();
         customerRole = Role.builder().id(4L).roleName("ROLE_CUSTOMER").description("End Customer").build();
+        lenient().when(roleRepository.findByRoleNameForUpdate("ROLE_ADMIN")).thenReturn(Optional.of(adminRole));
     }
 
     @Test
@@ -467,5 +468,40 @@ class AdminUserServiceTest {
         assertThat(oneSucceeded).isTrue();
         assertThat(oneFailedWithAppException).isTrue();
         assertThat(activeCount.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("setActive() should defer lock release until transaction afterCompletion is triggered")
+    void testPreventLastAdmin_AcrossSpringTransactionCommitBoundary() {
+        Long adminId = 999L;
+        Long targetAdminId = 2L;
+
+        User targetAdmin = User.builder()
+                .id(targetAdminId)
+                .email("admin2@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(userRepository.countActiveAdmins()).thenReturn(2L);
+
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            adminUserService.setActive(adminId, targetAdminId, false);
+            List<org.springframework.transaction.support.TransactionSynchronization> synchronizations =
+                    org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations();
+            assertThat(synchronizations).isNotEmpty();
+
+            for (org.springframework.transaction.support.TransactionSynchronization sync : synchronizations) {
+                sync.afterCompletion(org.springframework.transaction.support.TransactionSynchronization.STATUS_COMMITTED);
+            }
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        verify(roleRepository).findByRoleNameForUpdate("ROLE_ADMIN");
+        verify(userRepository).save(targetAdmin);
     }
 }
