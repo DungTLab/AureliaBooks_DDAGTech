@@ -11,6 +11,7 @@ import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.AdminUserService;
 import com.ddagtech.aureliabooks.service.AuditLogService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -21,7 +22,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -45,6 +48,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final SessionRegistry sessionRegistry;
     private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Retrieves paginated internal staff users filtered by optional role name.
@@ -78,11 +82,12 @@ public class AdminUserServiceImpl implements AdminUserService {
      *
      * @param adminId authenticated administrator user ID performing the operation
      * @param request creation parameters DTO
+     * @param ipAddress originating client IP address
      * @return generated persistent user ID
      */
     @Override
     @Transactional
-    public Long create(Long adminId, UserCreateRequest request) {
+    public Long create(Long adminId, UserCreateRequest request, String ipAddress) {
         String rawPhone = request.phone().trim();
         String canonicalPhone = rawPhone.startsWith("+84") ? "0" + rawPhone.substring(3) : rawPhone;
 
@@ -112,17 +117,25 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         User savedUser = userRepository.save(user);
 
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("action", "USER_CREATE");
+        details.put("actor_id", adminId);
+        details.put("created_user_id", savedUser.getId());
+        details.put("email", savedUser.getEmail());
+        details.put("full_name", savedUser.getFullName());
+        details.put("role", assignedRole.getRoleName());
+
         auditLogService.record(
                 adminId,
                 "USER_CREATE",
                 "users",
                 savedUser.getId(),
-                "Created staff account: " + savedUser.getEmail() + " with role: " + assignedRole.getRoleName(),
-                null
+                toJson(details),
+                ipAddress
         );
 
-        log.info("Admin [{}] created staff user [{}] with role [{}]",
-                adminId, savedUser.getId(), assignedRole.getRoleName());
+        log.info("Admin [{}] created staff user [{}] with role [{}] from IP [{}]",
+                adminId, savedUser.getId(), assignedRole.getRoleName(), ipAddress);
         return savedUser.getId();
     }
 
@@ -134,16 +147,19 @@ public class AdminUserServiceImpl implements AdminUserService {
      * @param adminId authenticated administrator user ID
      * @param userId target user ID to update
      * @param active desired active state
+     * @param ipAddress originating client IP address
      */
     @Override
     @Transactional
-    public void setActive(Long adminId, Long userId, boolean active) {
+    public void setActive(Long adminId, Long userId, boolean active, String ipAddress) {
         if (adminId != null && adminId.equals(userId) && !active) {
             throw new AppException(ErrorCode.CANNOT_LOCK_SELF);
         }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        boolean oldStatus = Boolean.TRUE.equals(user.getIsActive());
 
         if (!active && user.getRole() != null && "ROLE_ADMIN".equals(user.getRole().getRoleName())) {
             long activeAdmins = userRepository.countActiveAdmins();
@@ -159,16 +175,24 @@ public class AdminUserServiceImpl implements AdminUserService {
             expireUserSessions(userId);
         }
 
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("action", "USER_STATUS_TOGGLE");
+        details.put("actor_id", adminId);
+        details.put("target_user_id", userId);
+        details.put("target_email", user.getEmail());
+        details.put("before", Map.of("active", oldStatus));
+        details.put("after", Map.of("active", active));
+
         auditLogService.record(
                 adminId,
                 "USER_STATUS_TOGGLE",
                 "users",
                 userId,
-                "Set active=" + active,
-                null
+                toJson(details),
+                ipAddress
         );
 
-        log.info("Admin [{}] updated user [{}] active status to [{}]", adminId, userId, active);
+        log.info("Admin [{}] updated user [{}] active status to [{}] from IP [{}]", adminId, userId, active, ipAddress);
     }
 
     /**
@@ -179,10 +203,11 @@ public class AdminUserServiceImpl implements AdminUserService {
      * @param adminId authenticated administrator user ID
      * @param userId target user ID to update
      * @param newRoleId target role ID to assign
+     * @param ipAddress originating client IP address
      */
     @Override
     @Transactional
-    public void changeRole(Long adminId, Long userId, Long newRoleId) {
+    public void changeRole(Long adminId, Long userId, Long newRoleId, String ipAddress) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
@@ -193,6 +218,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.INVALID_ROLE_ASSIGNMENT);
         }
 
+        String oldRoleName = user.getRole() != null ? user.getRole().getRoleName() : "UNKNOWN";
         boolean isCurrentlyAdmin = user.getRole() != null && "ROLE_ADMIN".equals(user.getRole().getRoleName());
         boolean isDemoting = isCurrentlyAdmin && !"ROLE_ADMIN".equals(newRole.getRoleName());
 
@@ -211,16 +237,40 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         expireUserSessions(userId);
 
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("action", "USER_ROLE_UPDATE");
+        details.put("actor_id", adminId);
+        details.put("target_user_id", userId);
+        details.put("target_email", user.getEmail());
+        details.put("before", Map.of("role", oldRoleName));
+        details.put("after", Map.of("role", newRole.getRoleName()));
+
         auditLogService.record(
                 adminId,
                 "USER_ROLE_UPDATE",
                 "users",
                 userId,
-                "Changed role to " + newRole.getRoleName(),
-                null
+                toJson(details),
+                ipAddress
         );
 
-        log.info("Admin [{}] changed role for user [{}] to [{}]", adminId, userId, newRole.getRoleName());
+        log.info("Admin [{}] changed role for user [{}] to [{}] from IP [{}]",
+                adminId, userId, newRole.getRoleName(), ipAddress);
+    }
+
+    /**
+     * Serializes any payload object into a JSON string for audit storage.
+     *
+     * @param value payload object
+     * @return serialized JSON string, or empty JSON object on serialization failure
+     */
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            log.error("Failed to serialize audit log details to JSON", ex);
+            return "{}";
+        }
     }
 
     /**

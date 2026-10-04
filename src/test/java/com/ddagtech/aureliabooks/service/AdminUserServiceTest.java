@@ -10,6 +10,8 @@ import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.impl.AdminUserServiceImpl;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -57,6 +60,9 @@ class AdminUserServiceTest {
 
     @Mock
     private AuditLogService auditLogService;
+
+    @Spy
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private AdminUserServiceImpl adminUserService;
@@ -104,7 +110,7 @@ class AdminUserServiceTest {
 
     @Test
     @DisplayName("create() should hash password, assign internal role, save user and write audit log")
-    void testCreateStaff_Success() {
+    void testCreateStaff_Success() throws Exception {
         Long adminId = 1L;
         UserCreateRequest request = new UserCreateRequest(
                 "manager@aureliabook.vn",
@@ -131,7 +137,8 @@ class AdminUserServiceTest {
                 .build();
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
-        Long createdId = adminUserService.create(adminId, request);
+        String clientIp = "192.168.1.100";
+        Long createdId = adminUserService.create(adminId, request, clientIp);
 
         assertThat(createdId).isEqualTo(100L);
 
@@ -144,7 +151,13 @@ class AdminUserServiceTest {
         assertThat(captured.getIsActive()).isTrue();
         assertThat(captured.getRole().getRoleName()).isEqualTo("ROLE_MANAGER");
 
-        verify(auditLogService).record(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), anyString(), isNull());
+        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogService).record(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), jsonCaptor.capture(), eq(clientIp));
+        JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
+        assertThat(root.get("action").asText()).isEqualTo("USER_CREATE");
+        assertThat(root.get("created_user_id").asLong()).isEqualTo(100L);
+        assertThat(root.get("email").asText()).isEqualTo("manager@aureliabook.vn");
+        assertThat(root.get("role").asText()).isEqualTo("ROLE_MANAGER");
     }
 
     @Test
@@ -244,7 +257,7 @@ class AdminUserServiceTest {
 
     @Test
     @DisplayName("setActive() with active=false should expire active sessions for target user")
-    void testLockUser_TriggersSessionExpiration() {
+    void testLockUser_TriggersSessionExpiration() throws Exception {
         Long adminId = 1L;
         Long targetUserId = 20L;
 
@@ -263,12 +276,19 @@ class AdminUserServiceTest {
         when(sessionRegistry.getAllPrincipals()).thenReturn(List.of(userDetails));
         when(sessionRegistry.getAllSessions(userDetails, false)).thenReturn(List.of(mockSession));
 
-        adminUserService.setActive(adminId, targetUserId, false);
+        String clientIp = "10.0.0.1";
+        adminUserService.setActive(adminId, targetUserId, false, clientIp);
 
         assertThat(targetUser.getIsActive()).isFalse();
         assertThat(mockSession.isExpired()).isTrue();
         verify(userRepository).save(targetUser);
-        verify(auditLogService).record(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(targetUserId), anyString(), isNull());
+
+        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogService).record(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
+        JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
+        assertThat(root.get("action").asText()).isEqualTo("USER_STATUS_TOGGLE");
+        assertThat(root.get("before").get("active").asBoolean()).isTrue();
+        assertThat(root.get("after").get("active").asBoolean()).isFalse();
     }
 
     @Test
@@ -319,7 +339,7 @@ class AdminUserServiceTest {
 
     @Test
     @DisplayName("changeRole() should update role and expire existing user sessions")
-    void testChangeRole_Success_TriggersSessionExpiration() {
+    void testChangeRole_Success_TriggersSessionExpiration() throws Exception {
         Long adminId = 1L;
         Long targetUserId = 30L;
 
@@ -339,11 +359,18 @@ class AdminUserServiceTest {
         when(sessionRegistry.getAllPrincipals()).thenReturn(List.of(userDetails));
         when(sessionRegistry.getAllSessions(userDetails, false)).thenReturn(List.of(mockSession));
 
-        adminUserService.changeRole(adminId, targetUserId, 2L);
+        String clientIp = "10.0.0.2";
+        adminUserService.changeRole(adminId, targetUserId, 2L, clientIp);
 
         assertThat(staffUser.getRole()).isEqualTo(managerRole);
         assertThat(mockSession.isExpired()).isTrue();
         verify(userRepository).save(staffUser);
-        verify(auditLogService).record(eq(adminId), eq("USER_ROLE_UPDATE"), eq("users"), eq(targetUserId), anyString(), isNull());
+
+        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogService).record(eq(adminId), eq("USER_ROLE_UPDATE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
+        JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
+        assertThat(root.get("action").asText()).isEqualTo("USER_ROLE_UPDATE");
+        assertThat(root.get("before").get("role").asText()).isEqualTo("ROLE_SALE_STAFF");
+        assertThat(root.get("after").get("role").asText()).isEqualTo("ROLE_MANAGER");
     }
 }

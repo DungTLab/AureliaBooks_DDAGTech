@@ -6,6 +6,8 @@ import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.AdminUserService;
+import com.ddagtech.aureliabooks.util.HttpRequestUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -93,6 +95,7 @@ public class AdminUserController {
             @AuthenticationPrincipal CustomUserDetails admin,
             @Valid @ModelAttribute("newUserForm") UserCreateRequest request,
             BindingResult bindingResult,
+            HttpServletRequest httpRequest,
             RedirectAttributes redirectAttributes
     ) {
         if (bindingResult.hasErrors()) {
@@ -103,7 +106,8 @@ public class AdminUserController {
         }
 
         Long adminId = admin != null ? admin.getId() : null;
-        adminUserService.create(adminId, request);
+        String clientIp = HttpRequestUtil.getClientIp(httpRequest);
+        adminUserService.create(adminId, request, clientIp);
         redirectAttributes.addFlashAttribute("successMessage", "Tạo tài khoản nhân viên thành công!");
         return "redirect:/admin/users";
     }
@@ -114,6 +118,7 @@ public class AdminUserController {
      * @param admin authenticated administrator principal
      * @param id target user identifier
      * @param active desired active state
+     * @param httpRequest incoming HTTP servlet request
      * @param redirectAttributes redirect attributes for flash messaging
      * @return redirect URL
      */
@@ -122,10 +127,12 @@ public class AdminUserController {
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable Long id,
             @RequestParam boolean active,
+            HttpServletRequest httpRequest,
             RedirectAttributes redirectAttributes
     ) {
         Long adminId = admin != null ? admin.getId() : null;
-        adminUserService.setActive(adminId, id, active);
+        String clientIp = HttpRequestUtil.getClientIp(httpRequest);
+        adminUserService.setActive(adminId, id, active, clientIp);
         String message = active ? "Mở khóa tài khoản thành công!" : "Khóa tài khoản thành công!";
         redirectAttributes.addFlashAttribute("successMessage", message);
         return "redirect:/admin/users";
@@ -137,6 +144,7 @@ public class AdminUserController {
      * @param admin authenticated administrator principal
      * @param id target user identifier
      * @param roleId target role identifier
+     * @param httpRequest incoming HTTP servlet request
      * @param redirectAttributes redirect attributes for flash messaging
      * @return redirect URL
      */
@@ -145,10 +153,12 @@ public class AdminUserController {
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable Long id,
             @RequestParam Long roleId,
+            HttpServletRequest httpRequest,
             RedirectAttributes redirectAttributes
     ) {
         Long adminId = admin != null ? admin.getId() : null;
-        adminUserService.changeRole(adminId, id, roleId);
+        String clientIp = HttpRequestUtil.getClientIp(httpRequest);
+        adminUserService.changeRole(adminId, id, roleId, clientIp);
         redirectAttributes.addFlashAttribute("successMessage", "Cập nhật vai trò thành công!");
         return "redirect:/admin/users";
     }
