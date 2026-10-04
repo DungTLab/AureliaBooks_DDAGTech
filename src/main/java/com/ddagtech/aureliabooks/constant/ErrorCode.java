@@ -5,34 +5,34 @@ import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 /**
- * Global Error Codes Enumeration as defined in RDS Section 3.2.
+ * Stable application error identifiers with Vietnamese user-facing messages.
+ * Business-rule references belong in documentation, not client messages.
  */
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
     // 9xxx: System & Infrastructure Errors
-    UNCATEGORIZED_EXCEPTION(9999, "Uncategorized system error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
-    INVALID_KEY(9001, "Invalid message or configuration key", HttpStatus.BAD_REQUEST),
+    UNCATEGORIZED_EXCEPTION(9999, "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_KEY(9001, "Dữ liệu yêu cầu không hợp lệ.", HttpStatus.BAD_REQUEST),
 
     // 1xxx: Authentication & Authorization (Phan he Auth / RBAC)
-    UNAUTHENTICATED(1001, "Unauthenticated access. Please log in", HttpStatus.UNAUTHORIZED),
-    UNAUTHORIZED(1002, "You do not have permission to access this resource", HttpStatus.FORBIDDEN),
-    USER_EXISTED(1003, "User with this phone number or email already exists", HttpStatus.CONFLICT),
-    USER_NOT_EXISTED(1004, "User account not found", HttpStatus.NOT_FOUND),
-    INVALID_CREDENTIALS(1005, "Incorrect username, email, or password", HttpStatus.UNAUTHORIZED),
-    ACCOUNT_LOCKED(1006, "User account is locked or deactivated", HttpStatus.FORBIDDEN),
-    PASSWORD_NOT_MATCH(1007, "Current password does not match", HttpStatus.BAD_REQUEST),
-    AGE_RESTRICTION_VIOLATED(1008, "User age must be at least 13 years old (BR-07-02)", HttpStatus.BAD_REQUEST),
-    DOB_IMMUTABLE(1009, "Date of birth cannot be modified after registration (BR-04-01)", HttpStatus.BAD_REQUEST),
+    UNAUTHENTICATED(1001, "Bạn cần đăng nhập để tiếp tục.", HttpStatus.UNAUTHORIZED),
+    UNAUTHORIZED(1002, "Bạn không có quyền truy cập nội dung này.", HttpStatus.FORBIDDEN),
+    USER_EXISTED(1003, "Email hoặc số điện thoại này đã được đăng ký.", HttpStatus.CONFLICT),
+    USER_NOT_EXISTED(1004, "Không tìm thấy tài khoản.", HttpStatus.NOT_FOUND),
+    INVALID_CREDENTIALS(1005, "Email, số điện thoại hoặc mật khẩu không đúng.", HttpStatus.UNAUTHORIZED),
+    ACCOUNT_LOCKED(1006, "Tài khoản đã bị khóa hoặc ngừng hoạt động.", HttpStatus.FORBIDDEN),
+    PASSWORD_NOT_MATCH(1007, "Mật khẩu hiện tại không đúng.", HttpStatus.BAD_REQUEST),
+    DOB_IMMUTABLE(1009, "Không thể thay đổi ngày sinh sau khi đăng ký.", HttpStatus.BAD_REQUEST),
 
     // 2xxx: Address & Shipping Constraints
-    ADDRESS_QUOTA_EXCEEDED(2001, "Maximum 5 shipping addresses allowed per customer (BR-21)", HttpStatus.BAD_REQUEST),
-    ADDRESS_NOT_FOUND(2002, "Shipping address not found", HttpStatus.NOT_FOUND),
-    ADDRESS_LOCKED_ACTIVE_ORDER(2003, "Cannot delete or edit address linked to active processing order (BR-21)", HttpStatus.BAD_REQUEST),
+    ADDRESS_QUOTA_EXCEEDED(2001, "Bạn chỉ có thể lưu tối đa 5 địa chỉ giao hàng đang hoạt động.", HttpStatus.BAD_REQUEST),
+    ADDRESS_NOT_FOUND(2002, "Không tìm thấy địa chỉ giao hàng.", HttpStatus.NOT_FOUND),
+    ADDRESS_LOCKED_ACTIVE_ORDER(2003, "Không thể xóa địa chỉ đang được sử dụng cho đơn hàng chưa hoàn tất.", HttpStatus.BAD_REQUEST),
 
     // 3xxx: Generic & Resource Validation
-    RESOURCE_NOT_FOUND(3001, "Requested resource not found", HttpStatus.NOT_FOUND),
-    INVALID_INPUT_DATA(3002, "Input validation failed", HttpStatus.BAD_REQUEST);
+    RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
+    INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
