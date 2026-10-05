@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.repository;
 import com.ddagtech.aureliabooks.entity.StockMovementLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -28,14 +29,14 @@ public interface StockMovementLogRepository extends Repository<StockMovementLog,
     @Query("SELECT s FROM StockMovementLog s JOIN FETCH s.product p LEFT JOIN FETCH s.performedBy u ORDER BY s.createdAt DESC")
     Page<StockMovementLog> findAllWithDetails(Pageable pageable);
 
-    @Query("SELECT s FROM StockMovementLog s JOIN FETCH s.product p LEFT JOIN FETCH s.performedBy u WHERE s.product.id = :productId ORDER BY s.createdAt DESC")
-    Page<StockMovementLog> findByProductId(@Param("productId") Long productId, Pageable pageable);
+    @EntityGraph(attributePaths = {"product", "performedBy"})
+    Page<StockMovementLog> findByProductId(Long productId, Pageable pageable);
 
-    @Query("SELECT s FROM StockMovementLog s JOIN FETCH s.product p LEFT JOIN FETCH s.performedBy u WHERE s.transactionType = :transactionType ORDER BY s.createdAt DESC")
-    Page<StockMovementLog> findByTransactionType(@Param("transactionType") StockMovementLog.TransactionType transactionType, Pageable pageable);
+    @EntityGraph(attributePaths = {"product", "performedBy"})
+    Page<StockMovementLog> findByTransactionType(StockMovementLog.TransactionType transactionType, Pageable pageable);
 
-    @Query("SELECT s FROM StockMovementLog s JOIN FETCH s.product p LEFT JOIN FETCH s.performedBy u WHERE s.referenceCode = :referenceCode ORDER BY s.createdAt DESC")
-    List<StockMovementLog> findByReferenceCode(@Param("referenceCode") String referenceCode);
+    @EntityGraph(attributePaths = {"product", "performedBy"})
+    List<StockMovementLog> findByReferenceCode(String referenceCode);
 
     @Query("SELECT s FROM StockMovementLog s JOIN FETCH s.product p LEFT JOIN FETCH s.performedBy u " +
            "WHERE (:transactionType IS NULL OR s.transactionType = :transactionType) " +
