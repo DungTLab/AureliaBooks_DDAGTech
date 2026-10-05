@@ -65,7 +65,7 @@ public class CartServiceImpl implements CartService {
 
         int resultingQuantity = quantity + (item==null ? 0 : item.getQuantity());
 
-        validateProductAndQuality(product,resultingQuantity);
+        validateProductAndQuantity(product,resultingQuantity);
 
         if (cart==null){
             cart = new Cart();
@@ -94,6 +94,19 @@ public class CartServiceImpl implements CartService {
         touchCart(cart);
     }
 
+    @Override
+    @Transactional
+    public void updateQuantity(Long userId, Long itemId, CartQuantityRequest request) {
+        int quantity = validatedQuantity((request));
+        requireCustomer(userId,true);
+
+        CartItem item = findOwnedItem(itemId,userId);
+        validateProductAndQuantity(item.getProduct(),quantity);
+
+        item.setQuantity(quantity);
+        cartItemRepository.save(item);
+        touchCart(item.getCart());
+    }
 
 
     private int validatedQuantity(CartQuantityRequest request) {
@@ -110,7 +123,7 @@ public class CartServiceImpl implements CartService {
         return request.getQuantity();
     }
 
-    private void validateProductAndQuality(Product product,int quantity){
+    private void validateProductAndQuantity(Product product,int quantity){
         if (!product.getIsActive()){
             throw new AppException(ErrorCode.INVALID_INPUT_DATA,"Sản phẩm hiện không được bán");
         }
