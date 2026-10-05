@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.dto.response.StockMovementLogResponse;
 import com.ddagtech.aureliabooks.entity.StockMovementLog;
 import com.ddagtech.aureliabooks.service.StockLedgerService;
+import com.ddagtech.aureliabooks.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class AdminReceiptController {
 
     private final ObjectProvider<StockLedgerService> stockLedgerServiceProvider;
+    private final ObjectProvider<ProductRepository> productRepositoryProvider;
 
     @GetMapping("/staff/receipts/new")
     public String draft() {
@@ -54,6 +56,10 @@ public class AdminReceiptController {
         if (service != null) {
             Page<StockMovementLogResponse> logs = service.getLedgerLogsWithFilter(type, productId, null, null, pageable);
             model.addAttribute("logs", logs);
+        }
+        ProductRepository productRepo = productRepositoryProvider.getIfAvailable();
+        if (productRepo != null) {
+            model.addAttribute("products", productRepo.findAll());
         }
         model.addAttribute("selectedType", type);
         model.addAttribute("selectedProductId", productId);
