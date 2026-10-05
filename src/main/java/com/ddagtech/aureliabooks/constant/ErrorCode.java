@@ -32,7 +32,15 @@ public enum ErrorCode {
 
     // 3xxx: Generic & Resource Validation
     RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
-    INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST);
+    INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST),
+
+    // 4xxx: Inventory & Stock Constraints (FND-03 / Subsystem 4)
+    PRODUCT_NOT_FOUND(4001, "Không tìm thấy sản phẩm trong kho.", HttpStatus.NOT_FOUND),
+    INSUFFICIENT_STOCK(4002, "Số lượng tồn kho khả dụng không đủ để thực hiện giao dịch.", HttpStatus.BAD_REQUEST),
+    NEGATIVE_STOCK_NOT_ALLOWED(4003, "Giao dịch bị từ chối: Số lượng tồn kho không được phép âm.", HttpStatus.BAD_REQUEST),
+    INVALID_QUANTITY_CHANGE(4004, "Biến động số lượng kho phải khác 0.", HttpStatus.BAD_REQUEST),
+    STOCK_LEDGER_BALANCE_MISMATCH(4005, "Vi phạm cân bằng thẻ kho: Tồn cuối phải bằng tồn đầu cộng số lượng biến động.", HttpStatus.BAD_REQUEST),
+    STOCK_LEDGER_IMMUTABLE(4006, "Thẻ kho là dữ liệu bất biến, không được phép chỉnh sửa hoặc xóa.", HttpStatus.FORBIDDEN);
 
     private final int code;
     private final String message;
