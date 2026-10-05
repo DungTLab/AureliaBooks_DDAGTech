@@ -275,4 +275,80 @@ class StockLedgerServiceTest {
         assertThat(result.getContent().get(0).getReferenceCode()).isEqualTo("GRN-01");
         assertThat(result.getContent().get(0).getPerformedByUserName()).isEqualTo("Nguyễn Trần Đức Anh");
     }
+
+    @Test
+    @DisplayName("Sanity Check: processMovement should reject null productId")
+    void testProcessMovement_NullProductId_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.processMovement(
+                null, StockMovementLog.TransactionType.IMPORT, 10, "REF-001", 1L, "Null ID"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+    }
+
+    @Test
+    @DisplayName("Sanity Check: processMovement should reject null transaction type")
+    void testProcessMovement_NullType_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.processMovement(
+                100L, null, 10, "REF-001", 1L, "Null type"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+    }
+
+    @Test
+    @DisplayName("Sanity Check: processMovement should reject empty referenceCode")
+    void testProcessMovement_BlankReferenceCode_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.processMovement(
+                100L, StockMovementLog.TransactionType.IMPORT, 10, "   ", 1L, "Blank ref"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+    }
+
+    @Test
+    @DisplayName("Sanity Check: processMovement should reject operations on inactive product")
+    void testProcessMovement_InactiveProduct_ThrowsException() {
+        sampleProduct.setIsActive(false);
+        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
+
+        assertThatThrownBy(() -> stockLedgerService.recordOrderDeduct(100L, 5, "ORD-INACTIVE", 1L, "Sản phẩm ngừng bán"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.PRODUCT_INACTIVE);
+
+        verify(productRepository, never()).save(any());
+        verify(stockMovementLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Sanity Check: processMovement should reject stock overflow exceeding Integer.MAX_VALUE")
+    void testProcessMovement_StockOverflow_ThrowsException() {
+        sampleProduct.setStockQuantity(Integer.MAX_VALUE - 5);
+        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
+
+        assertThatThrownBy(() -> stockLedgerService.processMovement(
+                100L, StockMovementLog.TransactionType.IMPORT, 10, "GRN-OVERFLOW", 1L, "Vượt trần tồn kho"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.STOCK_OVERFLOW);
+
+        verify(productRepository, never()).save(any());
+        verify(stockMovementLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Sanity Check: append should reject operations on inactive product")
+    void testAppend_InactiveProduct_ThrowsException() {
+        sampleProduct.setIsActive(false);
+        when(productRepository.findById(100L)).thenReturn(Optional.of(sampleProduct));
+
+        assertThatThrownBy(() -> stockLedgerService.append(
+                100L, StockMovementLog.TransactionType.IMPORT, 10, 50, 60, "REF-INACTIVE", 1L, "Inactive"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.PRODUCT_INACTIVE);
+
+        verify(stockMovementLogRepository, never()).save(any());
+    }
 }

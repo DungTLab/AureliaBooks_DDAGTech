@@ -40,7 +40,9 @@ public enum ErrorCode {
     NEGATIVE_STOCK_NOT_ALLOWED(4003, "Giao dịch bị từ chối: Số lượng tồn kho không được phép âm.", HttpStatus.BAD_REQUEST),
     INVALID_QUANTITY_CHANGE(4004, "Biến động số lượng kho phải khác 0.", HttpStatus.BAD_REQUEST),
     STOCK_LEDGER_BALANCE_MISMATCH(4005, "Vi phạm cân bằng thẻ kho: Tồn cuối phải bằng tồn đầu cộng số lượng biến động.", HttpStatus.BAD_REQUEST),
-    STOCK_LEDGER_IMMUTABLE(4006, "Thẻ kho là dữ liệu bất biến, không được phép chỉnh sửa hoặc xóa.", HttpStatus.FORBIDDEN);
+    STOCK_LEDGER_IMMUTABLE(4006, "Thẻ kho là dữ liệu bất biến, không được phép chỉnh sửa hoặc xóa.", HttpStatus.FORBIDDEN),
+    PRODUCT_INACTIVE(4007, "Sản phẩm hiện đang bị vô hiệu hóa hoặc ngừng kinh doanh.", HttpStatus.BAD_REQUEST),
+    STOCK_OVERFLOW(4008, "Số lượng tồn kho vượt quá giới hạn lưu trữ tối đa.", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

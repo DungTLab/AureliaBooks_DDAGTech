@@ -44,13 +44,22 @@ public class StockLedgerServiceImpl implements StockLedgerService {
     public void append(Long productId, StockMovementLog.TransactionType type,
                        int quantityChange, int previousStock, int currentStock,
                        String referenceCode, Long performedByUserId, String note) {
+        if (productId == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mã sản phẩm không được để trống.");
+        }
+        if (type == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Loại giao dịch biến động kho không được để trống.");
+        }
+        if (referenceCode == null || referenceCode.trim().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mã chứng từ tham chiếu (referenceCode) không được để trống.");
+        }
         if (quantityChange == 0) {
             throw new AppException(ErrorCode.INVALID_QUANTITY_CHANGE, "Biến động số lượng kho phải khác 0 (quantity_change <> 0).");
         }
         if (previousStock < 0 || currentStock < 0) {
             throw new AppException(ErrorCode.NEGATIVE_STOCK_NOT_ALLOWED, "Số lượng tồn kho không được phép âm (chk_slog_stocks).");
         }
-        if (currentStock != previousStock + quantityChange) {
+        if ((long) previousStock + quantityChange != (long) currentStock) {
             throw new AppException(ErrorCode.STOCK_LEDGER_BALANCE_MISMATCH,
                     String.format("Vi phạm cân bằng thẻ kho (BR-01-04): Tồn mới (%d) != Tồn cũ (%d) + Biến động (%d)",
                             currentStock, previousStock, quantityChange));
@@ -58,6 +67,10 @@ public class StockLedgerServiceImpl implements StockLedgerService {
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND, "Không tìm thấy sản phẩm có ID: " + productId));
+
+        if (Boolean.FALSE.equals(product.getIsActive())) {
+            throw new AppException(ErrorCode.PRODUCT_INACTIVE, "Sản phẩm hiện đang bị vô hiệu hóa hoặc ngừng kinh doanh.");
+        }
 
         User performedBy = null;
         if (performedByUserId != null) {
@@ -84,6 +97,15 @@ public class StockLedgerServiceImpl implements StockLedgerService {
     @Transactional
     public StockMovementLog processMovement(Long productId, StockMovementLog.TransactionType type,
                                             int quantityChange, String referenceCode, Long performedByUserId, String note) {
+        if (productId == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mã sản phẩm không được để trống.");
+        }
+        if (type == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Loại giao dịch biến động kho không được để trống.");
+        }
+        if (referenceCode == null || referenceCode.trim().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mã chứng từ tham chiếu (referenceCode) không được để trống.");
+        }
         if (quantityChange == 0) {
             throw new AppException(ErrorCode.INVALID_QUANTITY_CHANGE, "Biến động số lượng kho phải khác 0.");
         }
@@ -92,15 +114,37 @@ public class StockLedgerServiceImpl implements StockLedgerService {
         Product product = productRepository.findByIdForUpdate(productId)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND, "Không tìm thấy sản phẩm có ID: " + productId));
 
+        // Sanity check: inactive product cannot undergo stock movements
+        if (Boolean.FALSE.equals(product.getIsActive())) {
+            log.warn("Stock movement rejected: product {} is inactive.", productId);
+            throw new AppException(ErrorCode.PRODUCT_INACTIVE, "Sản phẩm hiện đang bị vô hiệu hóa hoặc ngừng kinh doanh.");
+        }
+
         int previousStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
-        int currentStock = previousStock + quantityChange;
+        long resultingStock = (long) previousStock + quantityChange;
+
+        // Overflow check (Integer.MAX_VALUE)
+        if (resultingStock > Integer.MAX_VALUE) {
+            log.error("Stock overflow detected for product {}: previous={}, change={}, resulting={}",
+                    productId, previousStock, quantityChange, resultingStock);
+            throw new AppException(ErrorCode.STOCK_OVERFLOW,
+                    String.format("Số lượng tồn kho vượt quá giới hạn tối đa (%d).", Integer.MAX_VALUE));
+        }
 
         // 2. Strict non-negative inventory check (BR-04-03, chk_prod_stock)
-        if (currentStock < 0) {
+        if (resultingStock < 0) {
             log.warn("Stock underflow rejected for product {}: previousStock={}, requestedChange={}, resultingStock={}",
-                    productId, previousStock, quantityChange, currentStock);
+                    productId, previousStock, quantityChange, resultingStock);
             throw new AppException(ErrorCode.INSUFFICIENT_STOCK,
                     String.format("Không đủ tồn kho. Tồn hiện tại: %d, yêu cầu giảm: %d.", previousStock, Math.abs(quantityChange)));
+        }
+
+        int currentStock = (int) resultingStock;
+
+        // Invariant double-check: current_stock = previous_stock + quantity_change
+        if (currentStock != previousStock + quantityChange) {
+            throw new AppException(ErrorCode.STOCK_LEDGER_BALANCE_MISMATCH,
+                    "Vi phạm cân bằng thẻ kho (current_stock = previous_stock + quantity_change)");
         }
 
         // 3. Update physical product stock
