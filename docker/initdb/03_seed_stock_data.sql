@@ -20,9 +20,23 @@ INSERT INTO products (id, barcode, title, category_id, product_type, price, orig
 (6, '8935212345683', 'Sổ Da Bìa Còng Cao Cấp Deli A5', 7, 'STATIONERY', 85000.00, 48000.00, 350, 50, TRUE)
 ON DUPLICATE KEY UPDATE stock_quantity=VALUES(stock_quantity);
 
--- 3. Seed immutable stock movement ledger logs (FND-03 / SCR-DB-08)
+-- 3. Seed books child table
+INSERT INTO books (product_id, isbn, publisher_id, series_name, volume_number, is_textbook, publication_year, edition, page_count, language, cover_type) VALUES
+(1, '978-0132350884', 1, NULL, NULL, FALSE, 2020, '1st Edition', 464, 'Tiếng Việt', 'PAPERBACK'),
+(2, '978-6045890001', 1, NULL, NULL, FALSE, 2021, 'Tái bản đặc biệt', 320, 'Tiếng Việt', 'PAPERBACK'),
+(3, '978-6045890002', 1, NULL, NULL, FALSE, 2022, 'Tái bản lần 10', 250, 'Tiếng Việt', 'PAPERBACK'),
+(4, '978-6045890003', 2, NULL, NULL, FALSE, 2023, 'Bìa cứng màu', 140, 'Tiếng Việt', 'HARDCOVER')
+ON DUPLICATE KEY UPDATE isbn=VALUES(isbn);
+
+-- 4. Seed stationeries child table
+INSERT INTO stationeries (product_id, brand_id, material, color, warranty_months) VALUES
+(5, 1, 'Kim loại sơn tĩnh điện', 'Xanh đen', 6),
+(6, 2, 'Da PU cao cấp', 'Nâu cổ điển', 12)
+ON DUPLICATE KEY UPDATE material=VALUES(material);
+
+-- 5. Seed immutable stock movement ledger logs (FND-03 / SCR-DB-08)
 -- Strict invariant: current_stock = previous_stock + quantity_change
-INSERT INTO stock_movement_logs (id, product_id, transaction_type, quantity_change, previous_stock, current_stock, reference_code, performed_by_user_id, note, created_at) VALUES
+INSERT INTO stock_logs (id, product_id, transaction_type, quantity_change, previous_stock, current_stock, reference_code, performed_by_user_id, note, created_at) VALUES
 (1, 1, 'IMPORT', 50, 0, 50, 'GRN-202610-001', 2, 'Nhập kho đợt 1 từ Nhà Xuất Bản Trẻ', DATE_SUB(NOW(), INTERVAL 5 DAY)),
 (2, 1, 'ORDER_DEDUCT', -5, 50, 45, 'ORD-202610-101', 3, 'Xuất kho giao đơn hàng trực tuyến #101', DATE_SUB(NOW(), INTERVAL 4 DAY)),
 (3, 2, 'IMPORT', 150, 0, 150, 'GRN-202610-002', 2, 'Nhập bổ sung sách bestseller tựu trường', DATE_SUB(NOW(), INTERVAL 4 DAY)),
