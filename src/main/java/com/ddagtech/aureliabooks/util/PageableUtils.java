@@ -48,8 +48,8 @@ public final class PageableUtils {
                     Sort.by(Sort.Direction.ASC, "price").and(Sort.by(Sort.Direction.DESC, "id"));
             case "price_desc", "price-desc" ->
                     Sort.by(Sort.Direction.DESC, "price").and(Sort.by(Sort.Direction.DESC, "id"));
-            case "create_at_desc", "newest" -> DEFAULT_SORT;
-            case "name_asc", "title_asc", "alpla_asc" ->
+            case "created_at_desc", "newest" -> DEFAULT_SORT;
+            case "name_asc", "title_asc", "alpha_asc" ->
                     Sort.by(Sort.Direction.ASC, "title").and(Sort.by(Sort.Direction.DESC, "id"));
             default -> DEFAULT_SORT;
         };
