@@ -27,7 +27,6 @@ import org.springframework.data.domain.Pageable;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,12 +36,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit test suite for {@link StockLedgerService} (FND-03).
- * Verifies DoD:
+ * Comprehensive Unit Test Suite for {@link StockLedgerService} (FND-03).
+ * Exhaustively tests all DoD items, boundary values, error scenarios, and invariants:
  * 1. current_stock = previous_stock + quantity_change.
  * 2. Strict prevention of negative inventory & rollback on insufficient stock.
  * 3. Immutable append-only ledger (zero UPDATE/DELETE capability).
  * 4. Correct execution for all 4 transaction types: IMPORT, ORDER_DEDUCT, ORDER_CANCELLED_RESTOCK, MANUAL_ADJUSTMENT.
+ * 5. Boundary testing (exact deduction to 0, overflow guards, inactive products, null safety).
  */
 @ExtendWith(MockitoExtension.class)
 class StockLedgerServiceTest {
@@ -86,6 +86,10 @@ class StockLedgerServiceTest {
                 .build();
     }
 
+    // ==========================================
+    // 1. RECORD IMPORT (Nhập Kho)
+    // ==========================================
+
     @Test
     @DisplayName("DoD 1: recordImport should increase stock and satisfy current_stock = previous_stock + quantity_change")
     void testRecordImport_IncreasesStockAndSatisfiesInvariant() {
@@ -107,6 +111,61 @@ class StockLedgerServiceTest {
         verify(productRepository).save(sampleProduct);
         verify(stockMovementLogRepository).save(any(StockMovementLog.class));
     }
+
+    @Test
+    @DisplayName("recordImport should default null initial stockQuantity to 0")
+    void testRecordImport_NullStockQuantityInProduct_DefaultsToZero() {
+        sampleProduct.setStockQuantity(null);
+        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
+        when(stockMovementLogRepository.save(any(StockMovementLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StockMovementLog result = stockLedgerService.recordImport(100L, 10, "GRN-INITIAL", null, "Nhập lần đầu");
+
+        assertThat(result.getPreviousStock()).isEqualTo(0);
+        assertThat(result.getCurrentStock()).isEqualTo(10);
+        assertThat(sampleProduct.getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("recordImport should reject non-positive quantities (0 or negative)")
+    void testRecordImport_NonPositiveQuantity_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.recordImport(100L, 0, "GRN-0", 1L, "Zero"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
+
+        assertThatThrownBy(() -> stockLedgerService.recordImport(100L, -5, "GRN-NEG", 1L, "Negative"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
+    }
+
+    @Test
+    @DisplayName("recordImport should throw PRODUCT_NOT_FOUND if product does not exist")
+    void testRecordImport_ProductNotFound_ThrowsException() {
+        when(productRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> stockLedgerService.recordImport(999L, 10, "GRN-NONE", 1L, "Not found"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("recordImport with null acting user should record log with null performedBy")
+    void testRecordImport_NullUser_RecordsWithNullPerformedBy() {
+        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
+        when(stockMovementLogRepository.save(any(StockMovementLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StockMovementLog result = stockLedgerService.recordImport(100L, 10, "GRN-SYSTEM", null, "Hệ thống tự động nhập");
+
+        assertThat(result.getPerformedBy()).isNull();
+        verify(userRepository, never()).findById(any());
+    }
+
+    // ==========================================
+    // 2. RECORD ORDER DEDUCT (Xuất Kho Bán Hàng)
+    // ==========================================
 
     @Test
     @DisplayName("DoD 1: recordOrderDeduct should decrease stock and satisfy current_stock = previous_stock + quantity_change")
@@ -148,6 +207,49 @@ class StockLedgerServiceTest {
     }
 
     @Test
+    @DisplayName("Boundary Test: recordOrderDeduct exact available stock to 0 should succeed")
+    void testRecordOrderDeduct_ExactBalanceToZero_Succeeds() {
+        sampleProduct.setStockQuantity(10);
+        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
+        when(stockMovementLogRepository.save(any(StockMovementLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StockMovementLog result = stockLedgerService.recordOrderDeduct(100L, 10, "ORD-EXACT-0", null, "Xuất hết hàng tồn");
+
+        assertThat(result.getCurrentStock()).isEqualTo(0);
+        assertThat(sampleProduct.getStockQuantity()).isEqualTo(0);
+        verify(productRepository).save(sampleProduct);
+    }
+
+    @Test
+    @DisplayName("recordOrderDeduct should reject non-positive quantities (0 or negative)")
+    void testRecordOrderDeduct_NonPositiveQuantity_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.recordOrderDeduct(100L, 0, "ORD-0", 1L, "Zero"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
+
+        assertThatThrownBy(() -> stockLedgerService.recordOrderDeduct(100L, -10, "ORD-NEG", 1L, "Neg"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
+    }
+
+    @Test
+    @DisplayName("recordOrderDeduct should throw PRODUCT_NOT_FOUND if product does not exist")
+    void testRecordOrderDeduct_ProductNotFound_ThrowsException() {
+        when(productRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> stockLedgerService.recordOrderDeduct(999L, 5, "ORD-NOT-FOUND", 1L, "None"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+    }
+
+    // ==========================================
+    // 3. RECORD ORDER CANCELLED RESTOCK (Hoàn Kho)
+    // ==========================================
+
+    @Test
     @DisplayName("DoD 1 & 4: recordOrderCancelledRestock should increase stock upon order cancellation")
     void testRecordOrderCancelledRestock_IncreasesStock() {
         when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
@@ -162,6 +264,36 @@ class StockLedgerServiceTest {
         assertThat(result.getCurrentStock()).isEqualTo(53);
         assertThat(sampleProduct.getStockQuantity()).isEqualTo(53);
     }
+
+    @Test
+    @DisplayName("recordOrderCancelledRestock should reject non-positive quantities (0 or negative)")
+    void testRecordOrderCancelledRestock_NonPositiveQuantity_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.recordOrderCancelledRestock(100L, 0, "ORD-CAN-0", 1L, "Zero"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
+
+        assertThatThrownBy(() -> stockLedgerService.recordOrderCancelledRestock(100L, -2, "ORD-CAN-NEG", 1L, "Neg"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
+    }
+
+    @Test
+    @DisplayName("recordOrderCancelledRestock should reject operations on inactive product")
+    void testRecordOrderCancelledRestock_InactiveProduct_ThrowsException() {
+        sampleProduct.setIsActive(false);
+        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
+
+        assertThatThrownBy(() -> stockLedgerService.recordOrderCancelledRestock(100L, 2, "ORD-CAN-INACT", 1L, "Inactive"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.PRODUCT_INACTIVE);
+    }
+
+    // ==========================================
+    // 4. RECORD MANUAL ADJUSTMENT (Kiểm Kê / Điều Chỉnh)
+    // ==========================================
 
     @Test
     @DisplayName("DoD 4: recordManualAdjustment should handle positive and negative adjustments safely")
@@ -191,6 +323,32 @@ class StockLedgerServiceTest {
     }
 
     @Test
+    @DisplayName("Boundary Test: recordManualAdjustment exactly reducing stock to 0 should succeed")
+    void testRecordManualAdjustment_ExactReductionToZero_Succeeds() {
+        sampleProduct.setStockQuantity(8);
+        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
+        when(stockMovementLogRepository.save(any(StockMovementLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        StockMovementLog result = stockLedgerService.recordManualAdjustment(100L, -8, "ADJ-ZERO", 1L, "Thanh lý toàn bộ");
+
+        assertThat(result.getCurrentStock()).isEqualTo(0);
+        assertThat(sampleProduct.getStockQuantity()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("recordManualAdjustment should reject zero quantity change")
+    void testRecordManualAdjustment_ZeroChange_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.recordManualAdjustment(100L, 0, "ADJ-0", 1L, "Zero change"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
+    }
+
+    // ==========================================
+    // 5. AUDIT TRANSACTIONS HELPER (append)
+    // ==========================================
+
+    @Test
     @DisplayName("DoD 1: append should reject mismatched balance invariant (current != previous + change)")
     void testAppend_MismatchedBalance_ThrowsException() {
         assertThatThrownBy(() -> stockLedgerService.append(
@@ -218,7 +376,71 @@ class StockLedgerServiceTest {
                 .isInstanceOf(AppException.class)
                 .extracting(ex -> ((AppException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.NEGATIVE_STOCK_NOT_ALLOWED);
+
+        assertThatThrownBy(() -> stockLedgerService.append(
+                100L, StockMovementLog.TransactionType.IMPORT, 10, -5, 5, "REF", 1L, "Tồn đầu âm"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.NEGATIVE_STOCK_NOT_ALLOWED);
     }
+
+    @Test
+    @DisplayName("append should reject null inputs (productId, transactionType, referenceCode)")
+    void testAppend_NullInputs_ThrowsException() {
+        assertThatThrownBy(() -> stockLedgerService.append(null, StockMovementLog.TransactionType.IMPORT, 10, 0, 10, "REF", 1L, "Null ID"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+
+        assertThatThrownBy(() -> stockLedgerService.append(100L, null, 10, 0, 10, "REF", 1L, "Null Type"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+
+        assertThatThrownBy(() -> stockLedgerService.append(100L, StockMovementLog.TransactionType.IMPORT, 10, 0, 10, "   ", 1L, "Blank Ref"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+    }
+
+    @Test
+    @DisplayName("append should succeed and save exact values when valid")
+    void testAppend_ValidParameters_Succeeds() {
+        when(productRepository.findById(100L)).thenReturn(Optional.of(sampleProduct));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleUser));
+
+        stockLedgerService.append(100L, StockMovementLog.TransactionType.IMPORT, 20, 50, 70, "AUDIT-01", 1L, "Ghi sổ kiểm toán");
+
+        ArgumentCaptor<StockMovementLog> captor = ArgumentCaptor.forClass(StockMovementLog.class);
+        verify(stockMovementLogRepository).save(captor.capture());
+        StockMovementLog saved = captor.getValue();
+
+        assertThat(saved.getProduct().getId()).isEqualTo(100L);
+        assertThat(saved.getTransactionType()).isEqualTo(StockMovementLog.TransactionType.IMPORT);
+        assertThat(saved.getQuantityChange()).isEqualTo(20);
+        assertThat(saved.getPreviousStock()).isEqualTo(50);
+        assertThat(saved.getCurrentStock()).isEqualTo(70);
+        assertThat(saved.getReferenceCode()).isEqualTo("AUDIT-01");
+        assertThat(saved.getPerformedBy()).isEqualTo(sampleUser);
+        assertThat(saved.getNote()).isEqualTo("Ghi sổ kiểm toán");
+    }
+
+    @Test
+    @DisplayName("append when user is not found in database should save with null performedBy")
+    void testAppend_UserNotFound_SavesWithNullUser() {
+        when(productRepository.findById(100L)).thenReturn(Optional.of(sampleProduct));
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        stockLedgerService.append(100L, StockMovementLog.TransactionType.IMPORT, 10, 50, 60, "AUDIT-02", 999L, "User missing");
+
+        ArgumentCaptor<StockMovementLog> captor = ArgumentCaptor.forClass(StockMovementLog.class);
+        verify(stockMovementLogRepository).save(captor.capture());
+        assertThat(captor.getValue().getPerformedBy()).isNull();
+    }
+
+    // ==========================================
+    // 6. IMMUTABILITY & REPOSITORY VERIFICATION
+    // ==========================================
 
     @Test
     @DisplayName("DoD 3: StockMovementLog entity must throw UnsupportedOperationException on preUpdate and preRemove")
@@ -245,6 +467,10 @@ class StockLedgerServiceTest {
                     .doesNotStartWith("remove");
         }
     }
+
+    // ==========================================
+    // 7. QUERIES & PRESENTATION
+    // ==========================================
 
     @Test
     @DisplayName("Query: getLedgerLogsWithFilter should return paginated StockMovementLogResponse")
@@ -275,6 +501,55 @@ class StockLedgerServiceTest {
         assertThat(result.getContent().get(0).getReferenceCode()).isEqualTo("GRN-01");
         assertThat(result.getContent().get(0).getPerformedByUserName()).isEqualTo("Nguyễn Trần Đức Anh");
     }
+
+    @Test
+    @DisplayName("Query: getLogsByReferenceCode should return matching logs list")
+    void testGetLogsByReferenceCode() {
+        StockMovementLog log1 = StockMovementLog.builder()
+                .id(1L)
+                .product(sampleProduct)
+                .transactionType(StockMovementLog.TransactionType.IMPORT)
+                .quantityChange(20)
+                .previousStock(50)
+                .currentStock(70)
+                .referenceCode("REF-ABC")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(stockMovementLogRepository.findByReferenceCode("REF-ABC")).thenReturn(List.of(log1));
+
+        List<StockMovementLogResponse> responses = stockLedgerService.getLogsByReferenceCode("REF-ABC");
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).getReferenceCode()).isEqualTo("REF-ABC");
+        assertThat(responses.get(0).getPerformedByUserName()).isEqualTo("Hệ thống (SYSTEM)");
+    }
+
+    @Test
+    @DisplayName("Query: getLedgerLogs should return paged logs via findAllWithDetails")
+    void testGetLedgerLogs_Paged() {
+        StockMovementLog log1 = StockMovementLog.builder()
+                .id(1L)
+                .product(sampleProduct)
+                .transactionType(StockMovementLog.TransactionType.ORDER_DEDUCT)
+                .quantityChange(-5)
+                .previousStock(50)
+                .currentStock(45)
+                .referenceCode("ORD-100")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(stockMovementLogRepository.findAllWithDetails(pageable)).thenReturn(new PageImpl<>(List.of(log1)));
+
+        Page<StockMovementLogResponse> page = stockLedgerService.getLedgerLogs(pageable);
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent().get(0).getCurrentStock()).isEqualTo(45);
+    }
+
+    // ==========================================
+    // 8. SANITY CHECKS & OVERFLOW GUARDS
+    // ==========================================
 
     @Test
     @DisplayName("Sanity Check: processMovement should reject null productId")
