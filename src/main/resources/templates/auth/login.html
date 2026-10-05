@@ -1,60 +1,13 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Đăng Nhập - AureliaBooks', ~{::#main-content})}">
-<head>
-    <title>Đăng Nhập - AureliaBooks</title>
-</head>
+      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
+<head><title>auth / login</title></head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div class="max-w-lg mx-auto bg-white rounded-3xl p-8 border border-dust_grey/80 shadow-soft space-y-6">
-        <!-- Status Badge -->
-        <div class="text-center space-y-2">
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                <i class="bi bi-tools text-amber-700"></i> MÔI TRƯỜNG PHÁT TRIỂN (DEV ENVIRONMENT)
-            </span>
-            <h1 class="font-serif font-bold text-2xl text-carbon_black">Đăng Nhập Hệ Thống</h1>
-            <!-- Important: preserves SprintOneShellTest assertion string -->
-            <p class="text-xs text-carbon_black-500">
-                Chức năng đăng nhập tự động (UC05/06/07) đang được phát triển bởi nhóm phụ trách Auth. Trang đang được xây dựng.
-            </p>
-        </div>
-
-        <!-- Dev Quick Access Section -->
-        <div class="bg-gradient-to-br from-[#faf7f0] to-[#f2ebd9] rounded-2xl p-5 border border-dust_grey/70 space-y-4">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg bg-blazing_flame text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                    <i class="bi bi-shield-lock"></i>
-                </div>
-                <div>
-                    <h3 class="font-serif font-bold text-sm text-carbon_black">Cấp Quyền Kiểm Thử Nhanh (Dev Bypass)</h3>
-                    <p class="text-[11px] text-carbon_black-500">Kích hoạt quyền Admin/Manager ngay lập tức để kiểm tra Sổ cái thẻ kho</p>
-                </div>
-            </div>
-
-            <div class="space-y-2.5 pt-1">
-                <!-- 1-Click Admin Button -->
-                <a th:href="@{/dev/login-admin(redirect='/manager/stock/ledger')}"
-                   class="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl font-bold text-sm bg-blazing_flame hover:bg-blazing_flame-600 text-white shadow-flame transition-all transform hover:-translate-y-0.5">
-                    <i class="bi bi-shield-check text-lg"></i>
-                    <span>⚡ Cấp Quyền Admin & Đến Sổ Cái Thẻ Kho</span>
-                </a>
-
-                <!-- 1-Click Manager Button -->
-                <a th:href="@{/dev/login-manager(redirect='/manager/stock/ledger')}"
-                   class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-white hover:bg-parchment-200 text-carbon_black border border-dust_grey transition-all shadow-sm">
-                    <i class="bi bi-box-seam text-sky-700"></i>
-                    <span>Cấp Quyền Quản Lý Kho (ROLE_MANAGER)</span>
-                </a>
-            </div>
-        </div>
-
-        <!-- Fallback Standard Mock Form -->
-        <div class="pt-2 text-center border-t border-dust_grey/50">
-            <a th:href="@{/}" class="text-xs font-semibold text-carbon_black-500 hover:text-blazing_flame transition-colors inline-flex items-center gap-1">
-                <i class="bi bi-arrow-left"></i> Quay lại trang chủ
-            </a>
-        </div>
-    </div>
+<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
+    <!-- TODO UC05/06/07; Owner: Lê Tiến Dũng. Build fields, validation and service binding here. -->
+    <h1 class="text-2xl font-bold">auth / login</h1>
+    <p class="mt-4">Trang đang được xây dựng.</p>
+    <!-- No data mutation or successful workflow is implemented in this page shell. -->
 </section>
 </body>
 </html>

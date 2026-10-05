@@ -85,12 +85,6 @@
 
                 <!-- Guest Actions (Unauthenticated) -->
                 <div sec:authorize="!isAuthenticated()" class="hidden sm:flex items-center space-x-2">
-                    <a th:href="@{/dev/login-admin(redirect='/manager/stock/ledger')}"
-                       class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-blazing_flame bg-blazing_flame-100 hover:bg-blazing_flame-200 border border-blazing_flame-300 rounded-xl transition-colors shadow-sm"
-                       title="Cấp quyền Admin để kiểm thử trong môi trường Dev">
-                        <i class="bi bi-shield-lock-fill"></i>
-                        <span>Cấp Quyền Admin (Dev)</span>
-                    </a>
                     <a th:href="@{/auth/login}"
                        class="inline-flex items-center px-4 py-2 text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 rounded-xl transition-colors">
                         Đăng Nhập
@@ -261,10 +255,6 @@
 
         <!-- Guest Mobile Actions -->
         <div sec:authorize="!isAuthenticated()" class="pt-3 border-t border-dust_grey/50 flex flex-col gap-2">
-            <a th:href="@{/dev/login-admin(redirect='/manager/stock/ledger')}"
-               class="w-full text-center px-4 py-2.5 rounded-xl bg-blazing_flame-100 border border-blazing_flame-300 text-blazing_flame font-bold text-sm hover:bg-blazing_flame-200 transition-colors">
-                <i class="bi bi-shield-lock-fill mr-1.5"></i>Cấp Quyền Admin (Dev)
-            </a>
             <a th:href="@{/auth/login}" class="w-full text-center px-4 py-2.5 rounded-xl border border-dust_grey text-carbon_black font-bold text-sm hover:bg-parchment-200 transition-colors">
                 Đăng Nhập
             </a>

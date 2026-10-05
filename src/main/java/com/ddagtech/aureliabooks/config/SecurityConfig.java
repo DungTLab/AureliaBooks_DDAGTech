@@ -111,7 +111,6 @@ public class SecurityConfig {
                     "/home",
                     "/products/**",
                     "/auth/**",
-                    "/dev/**",
                     "/css/**",
                     "/js/**",
                     "/images/**",
