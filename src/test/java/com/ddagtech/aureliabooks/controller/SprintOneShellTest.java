@@ -20,12 +20,14 @@ import static org.hamcrest.Matchers.containsString;
         SupplierController.class, AdminReceiptController.class, AuditLogController.class})
 @Import(SecurityConfig.class)
 class SprintOneShellTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.RegistrationService registration;
     @Autowired
     private MockMvc mvc;
 
     @Test
     void publicShellsRenderWithoutAuthentication() throws Exception {
-        for (String route : new String[]{"/auth/login", "/auth/register", "/products",
+        for (String route : new String[]{"/auth/login", "/products",
                 "/products/search", "/products/1"}) {
             mvc.perform(get(route)).andExpect(status().isOk())
                     .andExpect(content().string(containsString("Trang đang được xây dựng.")));

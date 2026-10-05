@@ -1,0 +1,101 @@
+{
+  "totals": {
+    "tests": 69,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1
+  },
+  "suites": [
+    {
+      "suite": "com.ddagtech.aureliabooks.AureliaBooksApplicationTests",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.HomeControllerTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.RegistrationControllerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.SprintOneShellTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.exception.GlobalExceptionHandlerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.CustomOAuth2UserServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.CustomUserDetailsServiceTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.GoogleRegistrationSecurityTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.SecurityConfigIntegrationTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.RegistrationServiceTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "checks": {
+    "test_failures_zero": true,
+    "22_tables": true,
+    "schema_unchanged": true,
+    "docker_schema_matches": true,
+    "one_role_fk": true,
+    "email_phone_identity_unique": true,
+    "customer_seed_exists": true,
+    "jar_exists": true,
+    "responsive_widths": true,
+    "no_horizontal_overflow": true,
+    "button_matches_brand": true,
+    "no_browser_page_errors": true
+  },
+  "rds_sha256": "94711a7018f7b2838cec55836768e09e875cf283f393b790885b8ebc094227e1",
+  "limitations": [
+    "MySQL persistence and concurrent race NOT_RUN: daemon unavailable; port 3306 closed",
+    "Google Cloud real client/token round trip NOT_RUN: no live credential flow exercised",
+    "Browser checks use Thymeleaf-rendered HTML from MockMvc, not a live database-backed server",
+    "Existing contextLoads database test remains disabled"
+  ]
+}

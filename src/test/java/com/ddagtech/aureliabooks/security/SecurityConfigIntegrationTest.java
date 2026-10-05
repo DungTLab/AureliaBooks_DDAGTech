@@ -198,7 +198,7 @@ class SecurityConfigIntegrationTest {
                         .param("password", "Password123!"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(1002))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("CSRF token is missing")));
+                .andExpect(jsonPath("$.message").value("Thiếu mã bảo vệ biểu mẫu. Vui lòng tải lại trang và thử lại."));
     }
 
     @Test

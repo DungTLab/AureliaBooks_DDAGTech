@@ -1,0 +1,176 @@
+{
+  "results": [
+    {
+      "width": 375,
+      "bodyWidth": 375,
+      "overflow": false,
+      "heading": "Tạo tài khoản",
+      "inputs": [
+        {
+          "name": "_csrf",
+          "width": 0
+        },
+        {
+          "name": "fullName",
+          "width": 293
+        },
+        {
+          "name": "email",
+          "width": 293
+        },
+        {
+          "name": "phone",
+          "width": 293
+        },
+        {
+          "name": "dob",
+          "width": 293
+        },
+        {
+          "name": "password",
+          "width": 293
+        },
+        {
+          "name": "confirmPassword",
+          "width": 293
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "agreeTerms",
+          "width": 13
+        },
+        {
+          "name": "_agreeTerms",
+          "width": 0
+        }
+      ],
+      "buttonColor": "rgb(217, 74, 38)"
+    },
+    {
+      "width": 768,
+      "bodyWidth": 768,
+      "overflow": false,
+      "heading": "Tạo tài khoản",
+      "inputs": [
+        {
+          "name": "_csrf",
+          "width": 0
+        },
+        {
+          "name": "fullName",
+          "width": 261
+        },
+        {
+          "name": "email",
+          "width": 261
+        },
+        {
+          "name": "phone",
+          "width": 261
+        },
+        {
+          "name": "dob",
+          "width": 261
+        },
+        {
+          "name": "password",
+          "width": 261
+        },
+        {
+          "name": "confirmPassword",
+          "width": 261
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "agreeTerms",
+          "width": 13
+        },
+        {
+          "name": "_agreeTerms",
+          "width": 0
+        }
+      ],
+      "buttonColor": "rgb(217, 74, 38)"
+    },
+    {
+      "width": 1440,
+      "bodyWidth": 1440,
+      "overflow": false,
+      "heading": "Tạo tài khoản",
+      "inputs": [
+        {
+          "name": "_csrf",
+          "width": 0
+        },
+        {
+          "name": "fullName",
+          "width": 261
+        },
+        {
+          "name": "email",
+          "width": 261
+        },
+        {
+          "name": "phone",
+          "width": 261
+        },
+        {
+          "name": "dob",
+          "width": 261
+        },
+        {
+          "name": "password",
+          "width": 261
+        },
+        {
+          "name": "confirmPassword",
+          "width": 261
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "gender",
+          "width": 13
+        },
+        {
+          "name": "agreeTerms",
+          "width": 13
+        },
+        {
+          "name": "_agreeTerms",
+          "width": 0
+        }
+      ],
+      "buttonColor": "rgb(217, 74, 38)"
+    }
+  ],
+  "errors": []
+}
