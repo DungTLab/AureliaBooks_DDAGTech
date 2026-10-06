@@ -150,4 +150,36 @@ public abstract class ProductSpecification implements Specification<Product> {
             return cb.equal(root.get("isActive"),isActive);
         };
     }
+
+    /**
+     * Filters products by product type (e.g., BOOK, STATIONERY).
+     *
+     * @param productType product classification type
+     * @return Specification matching the product type, or conjunction if null
+     */
+    public static Specification<Product> hasProductType(Product.ProductType productType) {
+        return (root, query, cb) -> productType == null ? cb.conjunction() : cb.equal(root.get("productType"), productType);
+    }
+
+    /**
+     * Filters book products by textbook status using a subquery.
+     *
+     * @param isTextbook flag indicating whether the book is a textbook
+     * @return Specification matching books with the textbook flag, or conjunction if null
+     */
+    public static Specification<Product> isTextbook(Boolean isTextbook) {
+        return (root, query, cb) -> {
+            if (isTextbook == null) {
+                return cb.conjunction();
+            }
+            Subquery<Long> subquery = query.subquery(Long.class);
+            Root<Book> bookRoot = subquery.from(Book.class);
+            subquery.select(bookRoot.get("productId"));
+            subquery.where(
+                    cb.equal(bookRoot.get("productId"), root.get("id")),
+                    cb.equal(bookRoot.get("isTextbook"), isTextbook)
+            );
+            return root.get("id").in(subquery);
+        };
+    }
 }

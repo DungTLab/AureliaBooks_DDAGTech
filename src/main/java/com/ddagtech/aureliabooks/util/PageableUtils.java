@@ -51,6 +51,9 @@ public final class PageableUtils {
             case "created_at_desc", "newest" -> DEFAULT_SORT;
             case "name_asc", "title_asc", "alpha_asc" ->
                     Sort.by(Sort.Direction.ASC, "title").and(Sort.by(Sort.Direction.DESC, "id"));
+            case "best_sellers", "best-sellers", "bestseller", "sold_desc" ->
+                    Sort.by(Sort.Direction.DESC, "totalSold").and(Sort.by(Sort.Direction.DESC, "id"));
+            
             default -> DEFAULT_SORT;
         };
     }

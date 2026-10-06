@@ -108,6 +108,23 @@ class PageableUtilsTest {
         }
 
         @Test
+        @DisplayName("Should resolve best sellers sort")
+        void shouldResolveBestSellersSort() {
+            // Act
+            Sort sort = PageableUtils.resolveSort("best_sellers");
+            Sort hyphenSort = PageableUtils.resolveSort("best-sellers");
+
+            // Assert
+            assertThat(sort.getOrderFor("totalSold")).isNotNull();
+            assertThat(sort.getOrderFor("totalSold").getDirection()).isEqualTo(Sort.Direction.DESC);
+            assertThat(sort.getOrderFor("id")).isNotNull();
+            assertThat(sort.getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
+
+            assertThat(hyphenSort.getOrderFor("totalSold")).isNotNull();
+            assertThat(hyphenSort.getOrderFor("totalSold").getDirection()).isEqualTo(Sort.Direction.DESC);
+        }
+
+        @Test
         @DisplayName("Should fallback to default sort (createdAt DESC, id DESC) for unknown or null key")
         void shouldFallbackToDefaultSort() {
             // Act

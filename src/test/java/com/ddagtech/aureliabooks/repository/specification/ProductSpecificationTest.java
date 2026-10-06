@@ -306,4 +306,104 @@ class ProductSpecificationTest {
             verify(cb).equal(isActivePath, true);
         }
     }
+
+    @Nested
+    @DisplayName("Product type filtering tests")
+    class ProductTypeFilterTests {
+
+        @Test
+        @DisplayName("Should return conjunction when productType parameter is null")
+        void shouldReturnConjunctionWhenProductTypeNull() {
+            Specification<Product> spec = ProductSpecification.hasProductType(null);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(conjunctionPredicate);
+        }
+
+        @Test
+        @DisplayName("Should build equality predicate when productType is provided")
+        void shouldBuildEqualPredicateWhenProductTypeProvided() {
+            Path productTypePath = mock(Path.class);
+            when(root.get("productType")).thenReturn(productTypePath);
+            when(cb.equal(productTypePath, Product.ProductType.BOOK)).thenReturn(simplePredicate);
+
+            Specification<Product> spec = ProductSpecification.hasProductType(Product.ProductType.BOOK);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(simplePredicate);
+            verify(cb).equal(productTypePath, Product.ProductType.BOOK);
+        }
+    }
+
+    @Nested
+    @DisplayName("Textbook filtering tests")
+    class TextbookFilterTests {
+
+        @Test
+        @DisplayName("Should return conjunction when isTextbook parameter is null")
+        void shouldReturnConjunctionWhenIsTextbookNull() {
+            Specification<Product> spec = ProductSpecification.isTextbook(null);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(conjunctionPredicate);
+        }
+
+        @Test
+        @DisplayName("Should build subquery predicate when isTextbook is provided")
+        void shouldBuildSubqueryWhenIsTextbookProvided() {
+            Path bookProductIdPath = mock(Path.class);
+            Path isTextbookPath = mock(Path.class);
+            Predicate idEqualPredicate = mock(Predicate.class);
+            Predicate textbookEqualPredicate = mock(Predicate.class);
+
+            when(query.subquery(Long.class)).thenReturn(subquery);
+            when(subquery.from(Book.class)).thenReturn(bookRoot);
+            when(bookRoot.get("productId")).thenReturn(bookProductIdPath);
+            when(bookRoot.get("isTextbook")).thenReturn(isTextbookPath);
+            when(root.get("id")).thenReturn((Path) idPath);
+
+            when(cb.equal(bookProductIdPath, (Path) idPath)).thenReturn(idEqualPredicate);
+            when(cb.equal(isTextbookPath, true)).thenReturn(textbookEqualPredicate);
+
+            when(root.get("id")).thenReturn((Path) idPath);
+            when(idPath.in(subquery)).thenReturn(simplePredicate);
+
+            Specification<Product> spec = ProductSpecification.isTextbook(true);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(simplePredicate);
+            verify(subquery).where(idEqualPredicate, textbookEqualPredicate);
+        }
+    }
+
+    @Nested
+    @DisplayName("Combined AND specification tests")
+    class CombinedSpecificationTests {
+
+        @Test
+        @DisplayName("Should combine multiple specifications using conjunction and AND conditions")
+        void shouldCombineSpecificationsWithAnd() {
+            Predicate pred1 = mock(Predicate.class);
+            Predicate pred2 = mock(Predicate.class);
+            Predicate combinedPredicate = mock(Predicate.class);
+
+            when(root.get("isActive")).thenReturn((Path) isActivePath);
+            when(cb.equal(isActivePath, true)).thenReturn(pred1);
+
+            Path productTypePath = mock(Path.class);
+            when(root.get("productType")).thenReturn(productTypePath);
+            when(cb.equal(productTypePath, Product.ProductType.BOOK)).thenReturn(pred2);
+
+            when(cb.and(pred1, pred2)).thenReturn(combinedPredicate);
+
+            Specification<Product> combinedSpec = Specification
+                    .where(ProductSpecification.isActive(true))
+                    .and(ProductSpecification.hasProductType(Product.ProductType.BOOK));
+
+            Predicate result = combinedSpec.toPredicate(root, query, cb);
+
+            assertThat(result).isNotNull();
+            verify(cb).and(pred1, pred2);
+        }
+    }
 }
