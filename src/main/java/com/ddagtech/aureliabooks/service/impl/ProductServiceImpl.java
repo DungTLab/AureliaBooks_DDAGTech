@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
+import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
@@ -10,8 +11,12 @@ import com.ddagtech.aureliabooks.service.ProductService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
+@Service
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
@@ -25,12 +30,52 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     @Override
     public Page<ProductSummary> browse(ProductFilterRequest filter, Pageable pageable) {
-//        Specification<Product> spec = ProductSpecification.isA
-        return null;
+        Specification<Product> spec = ProductSpecification.isActive(true);
+        spec = spec.and((root, query, cb) -> cb.greaterThan(root.get("stockQuantity"), 0));
+        if (filter != null) {
+            if (filter.categoryId() != null) {
+                spec = spec.and(ProductSpecification.hasCategoryIn(List.of(filter.categoryId())));
+            }
+            if (filter.minPrice() != null || filter.maxPrice() != null) {
+                spec = spec.and(ProductSpecification.priceBetween(filter.minPrice(), filter.maxPrice()));
+            }
+            if (filter.authorId() != null) {
+                spec = spec.and(ProductSpecification.hasAuthor(filter.authorId()));
+            }
+            if (filter.publisherId() != null) {
+                spec = spec.and(ProductSpecification.hasPublisher(filter.publisherId()));
+            }
+            if (filter.brandId() != null) {
+                spec = spec.and(ProductSpecification.hasBrand(filter.brandId()));
+            }
+            if (filter.coverType() != null) {
+                spec = spec.and(ProductSpecification.hasCoverType(filter.coverType()));
+            }
+        }
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+        return productPage.map(p -> new ProductSummary(
+                p.getId(),
+                p.getTitle(),
+                p.getPrice(),
+                p.getStockQuantity(),
+                p.getMainImageUrl()
+        ));
     }
 
     @Override
     public ProductSummary viewDetail(Long productId) {
+        // Will implement in UC03
         return null;
+    }
+
+    @Override
+    public List<CategorySummary> getActiveCategories() {
+        return categoryRepository.findAll().stream()
+                .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+                .map(c -> new CategorySummary(
+                        c.getId(),
+                        c.getName(),
+                        c.getParent() !=null ? c.getParent().getId() : null
+                )).toList();
     }
 }
