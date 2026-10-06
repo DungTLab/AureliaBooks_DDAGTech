@@ -204,15 +204,6 @@ public class StockLedgerServiceImpl implements StockLedgerService {
     }
 
     @Override
-    @Transactional
-    public StockMovementLog recordManualAdjustment(Long productId, int quantityChange, String referenceCode, Long performedByUserId, String note) {
-        if (quantityChange == 0) {
-            throw new AppException(ErrorCode.INVALID_QUANTITY_CHANGE, "Biến động số lượng kiểm kê phải khác 0.");
-        }
-        return processMovement(productId, StockMovementLog.TransactionType.MANUAL_ADJUSTMENT, quantityChange, referenceCode, performedByUserId, note);
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public Page<StockMovementLogResponse> getLedgerLogs(Pageable pageable) {
         return stockMovementLogRepository.findAllWithDetails(pageable).map(StockMovementLogResponse::fromEntity);

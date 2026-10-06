@@ -56,12 +56,6 @@ public interface StockLedgerService {
     StockMovementLog recordOrderCancelledRestock(Long productId, int quantity, String referenceCode, Long performedByUserId, String note);
 
     /**
-     * Convenience method for MANUAL_ADJUSTMENT (cycle count / damage adjustment).
-     * Adjusts stock by quantityChange (+/-). Fails and rolls back if resulting stock < 0.
-     */
-    StockMovementLog recordManualAdjustment(Long productId, int quantityChange, String referenceCode, Long performedByUserId, String note);
-
-    /**
      * Retrieves paginated stock movement ledger records.
      */
     Page<StockMovementLogResponse> getLedgerLogs(Pageable pageable);

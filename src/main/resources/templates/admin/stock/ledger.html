@@ -131,9 +131,6 @@
                         <option value="ORDER_CANCELLED_RESTOCK" th:selected="${selectedType != null and selectedType.name() == 'ORDER_CANCELLED_RESTOCK'}">
                             Hoàn kho hủy đơn
                         </option>
-                        <option value="MANUAL_ADJUSTMENT" th:selected="${selectedType != null and selectedType.name() == 'MANUAL_ADJUSTMENT'}">
-                            Điều chỉnh kiểm kê
-                        </option>
                     </select>
                 </div>
 
@@ -269,10 +266,6 @@
                                     <span th:if="${log.transactionType.name() == 'ORDER_CANCELLED_RESTOCK'}"
                                           class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 border border-sky-300">
                                         <i class="bi bi-arrow-counterclockwise"></i> Hoàn kho hủy đơn
-                                    </span>
-                                    <span th:if="${log.transactionType.name() == 'MANUAL_ADJUSTMENT'}"
-                                          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-                                        <i class="bi bi-sliders"></i> Điều chỉnh kiểm kê
                                     </span>
                                 </th:block>
                                 <span th:if="${log.transactionType == null}" class="text-carbon_black-400 italic">

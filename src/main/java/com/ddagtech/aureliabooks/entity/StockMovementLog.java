@@ -52,8 +52,7 @@ public class StockMovementLog {
     public enum TransactionType {
         IMPORT,
         ORDER_DEDUCT,
-        ORDER_CANCELLED_RESTOCK,
-        MANUAL_ADJUSTMENT
+        ORDER_CANCELLED_RESTOCK
     }
 
     @CreationTimestamp

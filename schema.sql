@@ -20,7 +20,7 @@
 -- - Subsystem 1 (Accounts & Addresses): roles, users, shipping_addresses -> UC05, UC06, UC07, UC08, UC09, UC28
 -- - Subsystem 2 (Promotions): vouchers, order_vouchers -> UC11.2, UC13
 -- - Subsystem 3 (Catalog & AI): categories, products, publishers, books, authors, book_authors, brands, stationeries -> UC01, UC02, UC03, UC04, UC15, UC16, UC17, UC18, UC19, UC20, UC21
--- - Subsystem 4 (Inbound Logistics & Inventory): suppliers, goods_receipts, goods_receipt_items, stock_logs -> UC21, UC22, UC23, UC24, UC25, UC27, UC30
+-- - Subsystem 4 (Inbound Logistics & Inventory): suppliers, goods_receipts, goods_receipt_items, stock_logs -> UC21, UC22, UC23, UC25, UC27, UC30
 -- - Subsystem 5 (Cart, Orders & Payments): carts, cart_items, orders, order_items, order_vouchers -> UC10, UC11, UC11.1, UC12, UC12.1, UC14, UC14.1, UC26
 -- - Subsystem 6 (Security & Audit): audit_logs -> UC29
 -- =============================================================================
@@ -262,7 +262,7 @@ CREATE TABLE goods_receipt_items (
 CREATE TABLE stock_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     product_id BIGINT NOT NULL,
-    transaction_type ENUM('IMPORT','ORDER_DEDUCT','ORDER_CANCELLED_RESTOCK','MANUAL_ADJUSTMENT') NOT NULL,
+    transaction_type ENUM('IMPORT','ORDER_DEDUCT','ORDER_CANCELLED_RESTOCK') NOT NULL,
     quantity_change INT NOT NULL,
     previous_stock INT NOT NULL,
     current_stock INT NOT NULL,
@@ -275,7 +275,7 @@ CREATE TABLE stock_logs (
     CONSTRAINT chk_slog_stocks CHECK (previous_stock >= 0 AND current_stock >= 0),
     CONSTRAINT chk_slog_change CHECK (quantity_change <> 0),
     CONSTRAINT chk_slog_balance CHECK (current_stock = previous_stock + quantity_change)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Immutable stock ledger for inventory auditing and accounting (Maps to Use Cases: UC21, UC23, UC24, UC25, UC27)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Immutable stock ledger for inventory auditing and accounting (Maps to Use Cases: UC21, UC23, UC25, UC27)';
 
 CREATE INDEX idx_slog_prod_time ON stock_logs(product_id, created_at);
 
