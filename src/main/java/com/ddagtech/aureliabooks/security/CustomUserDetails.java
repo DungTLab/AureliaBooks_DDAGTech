@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.security;
 
 import com.ddagtech.aureliabooks.entity.User;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,8 +16,10 @@ import java.util.stream.Collectors;
 /**
  * Custom implementation of Spring Security {@link UserDetails}.
  * Wraps the domain {@link User} entity and exposes identity attributes for SSR templates.
+ * Enforces identity equality based on persistent user ID for SessionRegistry tracking.
  */
 @Getter
+@EqualsAndHashCode(of = "id")
 public class CustomUserDetails implements UserDetails {
 
     @Serial
