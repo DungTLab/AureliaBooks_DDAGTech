@@ -1,13 +1,88 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>auth / register</title></head>
+      th:replace="~{layout/base :: layout('Đăng ký tài khoản', ~{::#main-content})}">
+<head><title>Đăng ký tài khoản</title></head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC05/06/07; Owner: Lê Tiến Dũng. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">auth / register</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
+<section id="main-content" class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <div class="bg-white rounded-2xl border border-dust_grey shadow-soft p-6 sm:p-10">
+        <div class="text-center mb-7">
+            <span class="text-blazing_flame text-3xl" aria-hidden="true"><i class="bi bi-book"></i></span>
+            <h1 class="font-serif text-3xl text-carbon_black font-bold mt-3">Tạo tài khoản</h1>
+            <p class="text-carbon_black-500 mt-2">Chào mừng bạn đến với AureliaBook</p>
+        </div>
+        <a th:if="${googleEnabled}" th:href="@{/oauth2/authorization/google}"
+           class="flex items-center justify-center gap-3 border border-dust_grey rounded-xl px-4 py-3 font-semibold hover:bg-parchment-100">
+            <i class="bi bi-google" aria-hidden="true"></i> Tiếp tục với Google
+        </a>
+        <button th:unless="${googleEnabled}" type="button" disabled
+                class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
+        <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
+        <form th:action="@{/auth/register}" method="post" th:object="${registerRequest}" class="space-y-5">
+            <div th:if="${#fields.hasErrors('*')}" role="alert" class="bg-red-50 text-red-800 border border-red-200 rounded-xl p-4">
+                <p class="font-semibold">Vui lòng kiểm tra lại thông tin:</p>
+                <ul class="list-disc pl-5 mt-2"><li th:each="message : ${#fields.errors('*')}" th:text="${message}"></li></ul>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="fullName" class="block font-semibold text-sm mb-2">Họ và tên <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <input th:field="*{fullName}" type="text" autocomplete="name" required minlength="2" maxlength="100"
+                           th:attr="aria-invalid=${#fields.hasErrors('fullName')}"
+                           th:classappend="${#fields.hasErrors('fullName')} ? 'border-red-600'"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+                <div>
+                    <label for="email" class="block font-semibold text-sm mb-2">Email <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <input th:field="*{email}" type="email" autocomplete="email" required maxlength="100"
+                           th:attr="aria-invalid=${#fields.hasErrors('email')}"
+                           th:classappend="${#fields.hasErrors('email')} ? 'border-red-600'"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+                <div>
+                    <label for="phone" class="block font-semibold text-sm mb-2">Số điện thoại <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <input th:field="*{phone}" type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
+                           th:attr="aria-invalid=${#fields.hasErrors('phone')}"
+                           th:classappend="${#fields.hasErrors('phone')} ? 'border-red-600'"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+                <div>
+                    <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
+                    <input th:field="*{dob}" type="date" autocomplete="bday" th:max="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}"
+                           th:attr="aria-invalid=${#fields.hasErrors('dob')}"
+                           th:classappend="${#fields.hasErrors('dob')} ? 'border-red-600'"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+                <div>
+                    <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <input name="password" id="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help"
+                           th:attr="aria-invalid=${#fields.hasErrors('password')}"
+                           th:classappend="${#fields.hasErrors('password')} ? 'border-red-600'"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+                <div>
+                    <label for="confirmPassword" class="block font-semibold text-sm mb-2">Xác nhận mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <input name="confirmPassword" id="confirmPassword" type="password" autocomplete="new-password" required
+                           th:attr="aria-invalid=${#fields.hasErrors('confirmPassword')}"
+                           th:classappend="${#fields.hasErrors('confirmPassword')} ? 'border-red-600'"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+            </div>
+            <p id="password-help" class="text-sm text-carbon_black-500">Mật khẩu từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Ngày sinh không dùng để xét tuổi.</p>
+            <fieldset>
+                <legend class="font-semibold text-sm mb-2">Giới tính (không bắt buộc)</legend>
+                <div class="flex flex-wrap gap-5 text-sm">
+                    <label><input type="radio" th:field="*{gender}" value="MALE" class="accent-blazing_flame"> Nam</label>
+                    <label><input type="radio" th:field="*{gender}" value="FEMALE" class="accent-blazing_flame"> Nữ</label>
+                    <label><input type="radio" th:field="*{gender}" value="OTHER" class="accent-blazing_flame"> Khác / Không cung cấp</label>
+                </div>
+            </fieldset>
+            <label class="flex items-start gap-3 text-sm leading-relaxed">
+                <input type="checkbox" th:field="*{agreeTerms}" required class="mt-1 accent-blazing_flame">
+                <span>Tôi đồng ý với điều khoản sử dụng của AureliaBook.</span>
+            </label>
+            <button type="submit" class="w-full bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold py-3 rounded-xl transition-colors">Đăng ký</button>
+        </form>
+        <p class="text-center text-sm mt-6 text-carbon_black-500">Đã có tài khoản? <a th:href="@{/auth/login}" class="text-blazing_flame font-bold hover:underline">Đăng nhập</a></p>
+    </div>
 </section>
 </body>
 </html>

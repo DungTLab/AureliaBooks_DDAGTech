@@ -4,6 +4,11 @@ import com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationFailureHandler;
 import com.ddagtech.aureliabooks.security.CustomUserDetailsService;
+import com.ddagtech.aureliabooks.security.CustomOAuth2UserService;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.web.servlet.FlashMap;
+import org.springframework.web.servlet.support.SessionFlashMapManager;
 import com.ddagtech.aureliabooks.security.RoleBasedAuthenticationSuccessHandler;
 import org.springframework.beans.factory.ObjectProvider;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +45,8 @@ public class SecurityConfig {
     private final ObjectProvider<CustomAuthenticationFailureHandler> authenticationFailureHandlerProvider;
     private final ObjectProvider<CustomAccessDeniedHandler> accessDeniedHandlerProvider;
     private final ObjectProvider<CustomAuthenticationEntryPoint> authenticationEntryPointProvider;
+    private final ObjectProvider<ClientRegistrationRepository> clientRegistrations;
+    private final ObjectProvider<CustomOAuth2UserService> oauthUsers;
 
     /**
      * Password encoder utilizing BCrypt hashing with work factor (cost) of 12.
@@ -190,6 +197,31 @@ public class SecurityConfig {
         http.headers(headers -> headers
             .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
         );
+
+        // Enable Google only when the opt-in google profile supplies a client registration.
+        if (clientRegistrations.getIfAvailable() != null) {
+            http.oauth2Login(oauth -> {
+                oauth.loginPage("/auth/login")
+                        .userInfoEndpoint(info -> info.userService(oauthUsers.getObject())
+                                .oidcUserService(oauthUsers.getObject()::loadOidcUser))
+                        .failureHandler((request, response, exception) -> {
+                            String message = "Không thể đăng ký bằng Google. Vui lòng thử lại.";
+                            if (exception instanceof OAuth2AuthenticationException failure
+                                    && "registration_failed".equals(failure.getError().getErrorCode())) {
+                                message = failure.getMessage();
+                            }
+                            // OAuth filters execute before DispatcherServlet creates its output flash map.
+                            FlashMap flash = new FlashMap();
+                            flash.put("errorMessage", message);
+                            flash.setTargetRequestPath(request.getContextPath() + "/auth/register");
+                            new SessionFlashMapManager().saveOutputFlashMap(flash, request, response);
+                            response.sendRedirect(request.getContextPath() + "/auth/register");
+                        });
+                var success = authenticationSuccessHandlerProvider.getIfAvailable();
+                if (success != null) oauth.successHandler(success);
+                else oauth.defaultSuccessUrl("/", true);
+            });
+        }
 
         return http.build();
     }
