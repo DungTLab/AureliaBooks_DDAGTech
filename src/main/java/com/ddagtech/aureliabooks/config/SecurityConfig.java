@@ -114,7 +114,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authorize -> authorize
                 // 1. Public Storefront Catalog, Auth Entry, and Static Assets
                 .requestMatchers(
-                    "/",
+                +    "/",
                     "/home",
                     "/products/**",
                     "/auth/**",
