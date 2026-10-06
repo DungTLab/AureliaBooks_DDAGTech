@@ -24,6 +24,9 @@ public enum ErrorCode {
     ACCOUNT_LOCKED(1006, "Tài khoản đã bị khóa hoặc ngừng hoạt động.", HttpStatus.FORBIDDEN),
     PASSWORD_NOT_MATCH(1007, "Mật khẩu hiện tại không đúng.", HttpStatus.BAD_REQUEST),
     DOB_IMMUTABLE(1009, "Không thể thay đổi ngày sinh sau khi đăng ký.", HttpStatus.BAD_REQUEST),
+    INVALID_ROLE_ASSIGNMENT(1010, "Vai trò được chọn không hợp lệ cho tài khoản nhân viên.", HttpStatus.BAD_REQUEST),
+    CANNOT_LOCK_SELF(1011, "Bạn không thể tự vô hiệu hóa tài khoản của mình.", HttpStatus.BAD_REQUEST),
+    CANNOT_REVOKE_LAST_ADMIN(1012, "Không thể vô hiệu hóa hoặc đổi vai trò của quản trị viên cuối cùng đang hoạt động.", HttpStatus.CONFLICT),
 
     // 2xxx: Address & Shipping Constraints
     ADDRESS_QUOTA_EXCEEDED(2001, "Bạn chỉ có thể lưu tối đa 5 địa chỉ giao hàng đang hoạt động.", HttpStatus.BAD_REQUEST),
