@@ -68,14 +68,13 @@ class StockMovementLogTest {
     }
 
     @Test
-    @DisplayName("Enum: TransactionType must contain exactly the 4 required business transaction types")
+    @DisplayName("Enum: TransactionType must contain exactly the 3 required business transaction types")
     void testTransactionType_EnumValues() {
         StockMovementLog.TransactionType[] types = StockMovementLog.TransactionType.values();
         assertThat(types).containsExactlyInAnyOrder(
                 StockMovementLog.TransactionType.IMPORT,
                 StockMovementLog.TransactionType.ORDER_DEDUCT,
-                StockMovementLog.TransactionType.ORDER_CANCELLED_RESTOCK,
-                StockMovementLog.TransactionType.MANUAL_ADJUSTMENT
+                StockMovementLog.TransactionType.ORDER_CANCELLED_RESTOCK
         );
     }
 

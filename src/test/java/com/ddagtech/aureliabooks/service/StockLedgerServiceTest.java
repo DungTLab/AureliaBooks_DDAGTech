@@ -41,7 +41,7 @@ import static org.mockito.Mockito.*;
  * 1. current_stock = previous_stock + quantity_change.
  * 2. Strict prevention of negative inventory & rollback on insufficient stock.
  * 3. Immutable append-only ledger (zero UPDATE/DELETE capability).
- * 4. Correct execution for all 4 transaction types: IMPORT, ORDER_DEDUCT, ORDER_CANCELLED_RESTOCK, MANUAL_ADJUSTMENT.
+ * 4. Correct execution for all 3 transaction types: IMPORT, ORDER_DEDUCT, ORDER_CANCELLED_RESTOCK.
  * 5. Boundary testing (exact deduction to 0, overflow guards, inactive products, null safety).
  */
 @ExtendWith(MockitoExtension.class)
@@ -292,60 +292,7 @@ class StockLedgerServiceTest {
     }
 
     // ==========================================
-    // 4. RECORD MANUAL ADJUSTMENT (Kiểm Kê / Điều Chỉnh)
-    // ==========================================
-
-    @Test
-    @DisplayName("DoD 4: recordManualAdjustment should handle positive and negative adjustments safely")
-    void testRecordManualAdjustment_PositiveAndNegative() {
-        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
-        when(stockMovementLogRepository.save(any(StockMovementLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // 1. Positive adjustment (dư kho kiểm kê)
-        StockMovementLog plusResult = stockLedgerService.recordManualAdjustment(100L, 5, "ADJ-2026-01", 1L, "Kiểm kê phát hiện thừa");
-        assertThat(plusResult.getCurrentStock()).isEqualTo(55);
-
-        // 2. Negative adjustment (hao hụt hư hỏng)
-        StockMovementLog minusResult = stockLedgerService.recordManualAdjustment(100L, -10, "ADJ-2026-02", 1L, "Hàng ẩm mốc rách bìa");
-        assertThat(minusResult.getCurrentStock()).isEqualTo(45);
-    }
-
-    @Test
-    @DisplayName("DoD 2: recordManualAdjustment should reject negative stock result")
-    void testRecordManualAdjustment_NegativeResult_ThrowsException() {
-        sampleProduct.setStockQuantity(3);
-        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
-
-        assertThatThrownBy(() -> stockLedgerService.recordManualAdjustment(100L, -5, "ADJ-FAIL", 1L, "Hao hụt vượt tồn"))
-                .isInstanceOf(AppException.class)
-                .extracting(ex -> ((AppException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.INSUFFICIENT_STOCK);
-    }
-
-    @Test
-    @DisplayName("Boundary Test: recordManualAdjustment exactly reducing stock to 0 should succeed")
-    void testRecordManualAdjustment_ExactReductionToZero_Succeeds() {
-        sampleProduct.setStockQuantity(8);
-        when(productRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(sampleProduct));
-        when(stockMovementLogRepository.save(any(StockMovementLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        StockMovementLog result = stockLedgerService.recordManualAdjustment(100L, -8, "ADJ-ZERO", 1L, "Thanh lý toàn bộ");
-
-        assertThat(result.getCurrentStock()).isEqualTo(0);
-        assertThat(sampleProduct.getStockQuantity()).isEqualTo(0);
-    }
-
-    @Test
-    @DisplayName("recordManualAdjustment should reject zero quantity change")
-    void testRecordManualAdjustment_ZeroChange_ThrowsException() {
-        assertThatThrownBy(() -> stockLedgerService.recordManualAdjustment(100L, 0, "ADJ-0", 1L, "Zero change"))
-                .isInstanceOf(AppException.class)
-                .extracting(ex -> ((AppException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.INVALID_QUANTITY_CHANGE);
-    }
-
-    // ==========================================
-    // 5. AUDIT TRANSACTIONS HELPER (append)
+    // 4. AUDIT TRANSACTIONS HELPER (append)
     // ==========================================
 
     @Test
@@ -439,7 +386,7 @@ class StockLedgerServiceTest {
     }
 
     // ==========================================
-    // 6. IMMUTABILITY & REPOSITORY VERIFICATION
+    // 5. IMMUTABILITY & REPOSITORY VERIFICATION
     // ==========================================
 
     @Test
@@ -469,7 +416,7 @@ class StockLedgerServiceTest {
     }
 
     // ==========================================
-    // 7. QUERIES & PRESENTATION
+    // 6. QUERIES & PRESENTATION
     // ==========================================
 
     @Test
@@ -548,7 +495,7 @@ class StockLedgerServiceTest {
     }
 
     // ==========================================
-    // 8. SANITY CHECKS & OVERFLOW GUARDS
+    // 7. SANITY CHECKS & OVERFLOW GUARDS
     // ==========================================
 
     @Test
