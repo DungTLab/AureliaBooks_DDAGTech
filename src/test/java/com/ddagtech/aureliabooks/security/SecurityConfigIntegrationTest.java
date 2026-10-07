@@ -126,7 +126,7 @@ class SecurityConfigIntegrationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string("Content-Type", "application/json;charset=UTF-8"))
                 .andExpect(jsonPath("$.code").value(1001))
-                .andExpect(jsonPath("$.message").value("Unauthenticated access. Please log in"));
+                .andExpect(jsonPath("$.message").value("Bạn cần đăng nhập để tiếp tục."));
     }
 
     @Test
@@ -138,7 +138,7 @@ class SecurityConfigIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(header().string("Content-Type", "application/json;charset=UTF-8"))
                 .andExpect(jsonPath("$.code").value(1002))
-                .andExpect(jsonPath("$.message").value("You do not have permission to access this resource"));
+                .andExpect(jsonPath("$.message").value("Bạn không có quyền truy cập nội dung này."));
     }
 
     @Test
@@ -198,7 +198,7 @@ class SecurityConfigIntegrationTest {
                         .param("password", "Password123!"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(1002))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("CSRF token is missing")));
+                .andExpect(jsonPath("$.message").value("Thiếu mã bảo vệ biểu mẫu. Vui lòng tải lại trang và thử lại."));
     }
 
     @Test

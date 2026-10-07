@@ -50,11 +50,11 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
         if (isCsrfException) {
             String csrfErrorMessage;
             if (accessDeniedException instanceof MissingCsrfTokenException) {
-                csrfErrorMessage = "CSRF token is missing: " + accessDeniedException.getMessage();
+                csrfErrorMessage = "Thiếu mã bảo vệ biểu mẫu. Vui lòng tải lại trang và thử lại.";
             } else if (accessDeniedException instanceof InvalidCsrfTokenException) {
-                csrfErrorMessage = "CSRF token is invalid: " + accessDeniedException.getMessage();
+                csrfErrorMessage = "Mã bảo vệ biểu mẫu không hợp lệ. Vui lòng tải lại trang và thử lại.";
             } else {
-                csrfErrorMessage = "CSRF verification failed: " + accessDeniedException.getMessage();
+                csrfErrorMessage = "Không thể xác thực biểu mẫu. Vui lòng tải lại trang và thử lại.";
             }
 
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
