@@ -43,11 +43,14 @@ class ProductServiceImplTest {
     @Mock
     private CategoryRepository categoryRepository;
 
+    @Mock
+    private com.ddagtech.aureliabooks.repository.BookRepository bookRepository;
+
     private ProductServiceImpl productService;
 
     @BeforeEach
     void setUp() {
-        productService = new ProductServiceImpl(productRepository, categoryRepository);
+        productService = new ProductServiceImpl(productRepository, categoryRepository, bookRepository);
     }
 
     @Test
@@ -172,5 +175,43 @@ class ProductServiceImplTest {
         assertThat(activeCategories.get(0).parentId()).isNull();
         assertThat(activeCategories.get(1).id()).isEqualTo(2L);
         assertThat(activeCategories.get(1).parentId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("Should batch fetch book details with findAllById and avoid N+1 queries when browsing books")
+    void shouldBatchFetchBooksAndAvoidNPlusOne() {
+        // Arrange
+        Pageable pageable = PageableUtils.create(1, 12, "newest");
+        Product book1 = Product.builder().id(101L).title("Book 1").productType(Product.ProductType.BOOK).price(BigDecimal.valueOf(100000)).stockQuantity(10).build();
+        Product book2 = Product.builder().id(102L).title("Book 2").productType(Product.ProductType.BOOK).price(BigDecimal.valueOf(120000)).stockQuantity(15).build();
+        Product stationery = Product.builder().id(201L).title("Pen").productType(Product.ProductType.STATIONERY).price(BigDecimal.valueOf(20000)).stockQuantity(50).build();
+
+        Page<Product> productPage = new PageImpl<>(List.of(book1, book2, stationery), pageable, 3);
+        when(productRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(productPage);
+
+        Book detail1 = Book.builder().productId(101L).seriesName("Harry Potter").volumeNumber(1).build();
+        Book detail2 = Book.builder().productId(102L).seriesName("Harry Potter").volumeNumber(2).build();
+        when(bookRepository.findAllById(List.of(101L, 102L))).thenReturn(List.of(detail1, detail2));
+
+        // Act
+        Page<ProductSummary> result = productService.browse(null, pageable);
+
+        // Assert
+        assertThat(result).hasSize(3);
+        ProductSummary summary1 = result.getContent().get(0);
+        assertThat(summary1.seriesName()).isEqualTo("Harry Potter");
+        assertThat(summary1.volumeNumber()).isEqualTo(1);
+
+        ProductSummary summary2 = result.getContent().get(1);
+        assertThat(summary2.seriesName()).isEqualTo("Harry Potter");
+        assertThat(summary2.volumeNumber()).isEqualTo(2);
+
+        ProductSummary summary3 = result.getContent().get(2);
+        assertThat(summary3.seriesName()).isNull();
+        assertThat(summary3.volumeNumber()).isNull();
+
+        // Verify N+1 elimination: findAllById called exactly once, findById never called
+        verify(bookRepository, times(1)).findAllById(List.of(101L, 102L));
+        verify(bookRepository, never()).findById(any());
     }
 }
