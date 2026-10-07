@@ -9,6 +9,7 @@ public interface GoodsReceiptService {
     Long createDraft(Long staffId, GoodsReceiptForm form);
     void updateDraft(Long staffId, Long receiptId, GoodsReceiptForm form);
     void deleteDraft(Long staffId, Long receiptId);
+    /** Post once through StockMutationService; persist receiver/time and immutable receipt lines. */
     void receive(Long managerId, Long receiptId);
     Page<ProductSummary> lowStock(int threshold, Pageable pageable);
 }

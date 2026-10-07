@@ -1,7 +1,7 @@
 # AURELIABOOK — SPRINT 1 DEVELOPER KICKOFF RUNBOOK
 **Dự án:** AureliaBook (SWP391 - Fall 2026 | FPT University)  
 **Tài liệu dành cho:** 5 thành viên nhóm phát triển (Dũng, Duy, Đức Anh, Trọng, Giác)  
-**Thời gian Sprint 1:** Tuần 1 - Tuần 2 (37 Story Points)
+**Thời gian Sprint 1:** Tuần 1 - Tuần 2 (39 Story Points)
 
 ---
 
@@ -13,7 +13,7 @@ Mỗi thành viên chỉ cần mở Terminal tại thư mục `Project/AureliaBo
 ```bash
 docker compose up -d
 ```
-> *Container sẽ tự động khởi tạo database `bookstore_ecommerce_v2_db` và nạp toàn bộ 23 bảng SQL cùng 4 vai trò RBAC (`ADMIN`, `MANAGER`, `SALE_STAFF`, `CUSTOMER`) từ thư mục `docker/initdb/`.*
+> *Với volume mới, container khởi tạo database `aurelia_books_db`, 21 bảng và view đọc `inventory_movements` từ `docker/initdb/`. Seed dữ liệu và các role thực hiện riêng. Volume đã có dữ liệu không tự chạy lại init SQL; không xóa volume để cập nhật schema.*
 
 ### Bước 2: Khởi động ứng dụng Spring Boot
 ```bash
@@ -71,14 +71,17 @@ Truy cập trình duyệt: `http://localhost:8080` để thấy trang chủ Stor
   - `templates/product/catalog.html` & `product-detail.html` (Hiển thị thẻ Card sản phẩm, giá bán, tồn kho).
 
 ### 👤 Nguyễn Trần Đức Anh (Warehouse & Inventory)
-* **Nhiệm vụ:** `UC22` (Lập phiếu nhập kho DRAFT), `FND-03` (Stock Ledger Service).
+* **Nhiệm vụ:** `UC22/UC23` (Lập/xác nhận phiếu nhập), `FND-03` (StockMutationService theo chứng từ).
 * **Nhánh làm việc:** `feature/UC22-goods-receipt`
 * **Các file cần code:**
-  - `entity/GoodsReceipt.java`, `GoodsReceiptItem.java`, `StockMovementLog.java`.
+  - `entity/GoodsReceipt.java`, `GoodsReceiptItem.java` (phiếu RECEIVED có thời điểm và người xác nhận).
   - `repository/GoodsReceiptRepository.java`.
-  - `service/StockLedgerService.java` (Ghi thẻ kho bất biến: IMPORT, EXPORT).
-  - `controller/admin/AdminGoodsReceiptController.java` (Mapping `/admin/receipts/create`).
-  - `templates/admin/goods-receipt-form.html`.
+  - `service/StockMutationService.java`: tăng/trừ/hoàn tồn theo receipt/order trong transaction, chống thực hiện hai lần; triển khai ở task nghiệp vụ tương ứng.
+  - `InventoryHistoryService.java`, `InventoryMovementRepository.java`: hợp đồng đọc view cho UC25; UC27 tổng hợp cùng nguồn chứng từ.
+  - `controller/admin/AdminReceiptController.java` (`/staff/receipts/new`, `/manager/receipts`).
+  - `templates/admin/receipts/form.html`, `list.html`.
+  - Đơn có `stock_deducted_at` và bộ thông tin `stock_restored_at/reason/by_user_id`. Hủy chỉ hoàn tồn đã trừ; staff xác nhận trả hàng thành công tự hoàn toàn bộ các dòng đúng một lần. Payment REFUNDED không tự hoàn tồn.
+  - Không sửa tồn trực tiếp, không có phiếu xuất sách hỏng/mất hàng. UC25 đọc lịch sử chứng từ, không có API ghi lịch sử riêng. Seed tồn ban đầu phải đi qua phiếu nhập để UC27 đối soát được.
 
 ### 👤 Trần Huỳnh Giác (Security & Exception Lead)
 * **Nhiệm vụ:** `FND-04` (Spring Security Filter Chain & RBAC), `UC29` (AOP Audit Log).

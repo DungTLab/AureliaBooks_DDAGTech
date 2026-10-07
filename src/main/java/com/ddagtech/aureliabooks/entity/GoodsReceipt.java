@@ -33,5 +33,8 @@ public class GoodsReceipt extends BaseEntity {
     private String note;
     @Column(name = "received_at")
     private LocalDateTime receivedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "received_by_user_id")
+    private User receivedBy;
     public enum Status { DRAFT, RECEIVED }
 }
