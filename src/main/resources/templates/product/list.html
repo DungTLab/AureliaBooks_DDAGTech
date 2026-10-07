@@ -1,13 +1,271 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>product / list</title></head>
+      th:replace="~{layout/base :: layout('Danh Mục Sản Phẩm | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Danh Mục Sản Phẩm</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC01/02/03; Owner: Huỳnh Nhật Duy. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">product / list</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
+<section id="main-content" class="py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Breadcrumb Navigation -->
+        <nav aria-label="Breadcrumb" class="mb-6">
+            <ol class="flex items-center space-x-2 text-xs sm:text-sm text-carbon_black-500">
+                <li>
+                    <a th:href="@{/}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 font-medium">
+                        <i class="bi bi-house-door"></i>
+                        <span>Trang chủ</span>
+                    </a>
+                </li>
+                <li><i class="bi bi-chevron-right text-[10px] text-dust_grey-600"></i></li>
+                <li class="font-bold text-carbon_black" aria-current="page">Danh mục sản phẩm</li>
+            </ol>
+        </nav>
+
+        <!-- Main Layout: 2 Columns (Sidebar Filter & Product Grid) -->
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
+
+            <!-- LEFT COLUMN: Faceted Search & Filter Sidebar (w-full lg:w-1/4) -->
+            <aside class="w-full lg:w-1/4 flex-shrink-0">
+                <div class="bg-white rounded-2xl border border-dust_grey p-5 sm:p-6 shadow-soft sticky top-24">
+                    <div class="flex items-center justify-between pb-4 border-b border-dust_grey/60 mb-5">
+                        <div class="flex items-center gap-2">
+                            <i class="bi bi-funnel-fill text-blazing_flame text-lg"></i>
+                            <h2 class="font-serif font-bold text-lg text-carbon_black">Bộ Lọc Tìm Kiếm</h2>
+                        </div>
+                        <a th:href="@{/products}" class="text-xs font-semibold text-carbon_black-400 hover:text-blazing_flame transition-colors" title="Xóa tất cả bộ lọc">
+                            Đặt lại
+                        </a>
+                    </div>
+
+                    <!-- Faceted Filter Form -->
+                    <form th:action="@{/products}" method="get" id="facetFilterForm" class="space-y-6">
+                        <!-- Preserve current sort parameter -->
+                        <input type="hidden" name="sort" th:value="${currentSort}">
+
+                        <!-- Category Hierarchy Facet -->
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Danh Mục</span>
+                                <i class="bi bi-folder2-open text-xs"></i>
+                            </h3>
+                            <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                                <!-- Option All Categories -->
+                                <label class="flex items-center justify-between p-2 rounded-xl text-sm cursor-pointer transition-colors"
+                                       th:classappend="${filter == null or filter.categoryId() == null} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                    <span class="flex items-center gap-2.5">
+                                        <input type="radio" name="categoryId" value=""
+                                               th:checked="${filter == null or filter.categoryId() == null}"
+                                               onchange="this.form.submit()"
+                                               class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey">
+                                        <span>Tất cả danh mục</span>
+                                    </span>
+                                </label>
+
+                                <!-- Iterate Active Categories -->
+                                <div th:each="cat : ${categories}">
+                                    <label class="flex items-center justify-between p-2 rounded-xl text-sm cursor-pointer transition-colors"
+                                           th:classappend="${filter != null and filter.categoryId() == cat.id} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                        <span class="flex items-center gap-2.5 truncate">
+                                            <input type="radio" name="categoryId" th:value="${cat.id}"
+                                                   th:checked="${filter != null and filter.categoryId() == cat.id}"
+                                                   onchange="this.form.submit()"
+                                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey">
+                                            <span class="truncate" th:text="${cat.name}">Tên danh mục</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="border-dust_grey/60">
+
+                        <!-- Price Range Boundary Filter -->
+                        <div>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Khoảng Giá (VNĐ)</span>
+                                <i class="bi bi-tag text-xs"></i>
+                            </h3>
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <label for="minPriceInput" class="block text-[11px] text-carbon_black-400 mb-1">Từ</label>
+                                    <input type="number" id="minPriceInput" name="minPrice" min="0" step="5000"
+                                           th:value="${filter != null ? filter.minPrice : ''}"
+                                           placeholder="0"
+                                           class="w-full bg-parchment-100 text-carbon_black text-xs rounded-xl px-3 py-2 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all">
+                                </div>
+                                <div>
+                                    <label for="maxPriceInput" class="block text-[11px] text-carbon_black-400 mb-1">Đến</label>
+                                    <input type="number" id="maxPriceInput" name="maxPrice" min="0" step="5000"
+                                           th:value="${filter != null ? filter.maxPrice : ''}"
+                                           placeholder="Tối đa"
+                                           class="w-full bg-parchment-100 text-carbon_black text-xs rounded-xl px-3 py-2 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all">
+                                </div>
+                            </div>
+                            <button type="submit"
+                                    class="w-full py-2 px-3 bg-carbon_black hover:bg-carbon_black-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                                <i class="bi bi-check2"></i>
+                                <span>Áp Dụng Giá</span>
+                            </button>
+                        </div>
+
+                        <!-- Reset Filter CTA -->
+                        <div class="pt-2">
+                            <a th:href="@{/products}"
+                               class="w-full py-2 px-3 bg-parchment-200 hover:bg-dust_grey text-carbon_black text-xs font-semibold rounded-xl transition-colors block text-center">
+                                Xóa Tất Cả Bộ Lọc
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </aside>
+
+            <!-- RIGHT COLUMN: Products Grid & Header Control Bar (w-full lg:w-3/4) -->
+            <div class="w-full lg:w-3/4 flex-grow">
+
+                <!-- Control Bar: Total Count & Sort Select -->
+                <div class="bg-white rounded-2xl border border-dust_grey p-4 mb-6 shadow-soft flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 class="font-serif font-bold text-xl text-carbon_black">Tất Cả Sản Phẩm</h1>
+                        <p class="text-xs text-carbon_black-400 mt-0.5">
+                            Tìm thấy <span class="font-bold text-blazing_flame" th:text="${products != null ? products.totalElements : 0}">0</span> sản phẩm sẵn sàng giao
+                        </p>
+                    </div>
+
+                    <!-- Sort Switcher -->
+                    <div class="flex items-center gap-2 sm:self-auto self-end">
+                        <label for="sortSelect" class="text-xs text-carbon_black-500 font-medium whitespace-nowrap">Sắp xếp:</label>
+                        <select id="sortSelect"
+                                onchange="location.href=this.value"
+                                class="bg-parchment-100 text-carbon_black text-xs font-semibold rounded-xl px-3 py-2 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all cursor-pointer">
+                            <option th:value="@{/products(categoryId=${filter != null ? filter.categoryId : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, sort='newest')}"
+                                    th:selected="${currentSort == 'newest' or currentSort == null}">Mới nhất</option>
+                            <option th:value="@{/products(categoryId=${filter != null ? filter.categoryId : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, sort='price_asc')}"
+                                    th:selected="${currentSort == 'price_asc'}">Giá: Thấp đến Cao</option>
+                            <option th:value="@{/products(categoryId=${filter != null ? filter.categoryId : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, sort='price_desc')}"
+                                    th:selected="${currentSort == 'price_desc'}">Giá: Cao đến Thấp</option>
+                            <option th:value="@{/products(categoryId=${filter != null ? filter.categoryId : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, sort='title_asc')}"
+                                    th:selected="${currentSort == 'title_asc'}">Tựa đề: A - Z</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Product Grid (Cards) -->
+                <div th:if="${products != null and !products.isEmpty()}"
+                     class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                    <div th:each="product : ${products.content}"
+                         class="group bg-white rounded-2xl border border-dust_grey hover:border-blazing_flame/60 shadow-soft hover:shadow-flame transition-all duration-300 flex flex-col overflow-hidden">
+                        
+                        <!-- Product Thumbnail Container -->
+                        <a th:href="@{'/products/' + ${product.id}}" class="relative block overflow-hidden bg-parchment-100 aspect-[3/4]">
+                            <img th:if="${product.mainImageUrl != null and !product.mainImageUrl.isBlank()}"
+                                 th:src="${product.mainImageUrl}"
+                                 th:alt="${product.title}"
+                                 loading="lazy"
+                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                            <!-- Fallback Mock Thumbnail if Image is Empty -->
+                            <div th:if="${product.mainImageUrl == null or product.mainImageUrl.isBlank()}"
+                                 class="w-full h-full flex flex-col items-center justify-center text-carbon_black-300 p-4 text-center">
+                                <i class="bi bi-book text-4xl mb-2 text-dust_grey"></i>
+                                <span class="text-[10px] uppercase font-bold tracking-wider">AureliaBook</span>
+                            </div>
+
+                            <!-- Stock Status Badge (BR-01-02 ATP Stock) -->
+                            <span th:if="${product.stockQuantity != null and product.stockQuantity > 0}"
+                                  class="absolute bottom-2 left-2 bg-emerald-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                                <span>Còn hàng</span>
+                            </span>
+                        </a>
+
+                        <!-- Product Information Details -->
+                        <div class="p-3.5 sm:p-4 flex flex-col flex-grow justify-between">
+                            <div>
+                                <a th:href="@{'/products/' + ${product.id}}"
+                                   class="font-medium text-xs sm:text-sm text-carbon_black group-hover:text-blazing_flame transition-colors line-clamp-2 leading-snug"
+                                   th:title="${product.title}"
+                                   th:text="${product.title}">
+                                    Tựa đề sản phẩm
+                                </a>
+                            </div>
+
+                            <div class="mt-3 pt-3 border-t border-dust_grey/40 flex items-baseline justify-between">
+                                <div class="text-sm sm:text-base font-extrabold text-blazing_flame font-sans">
+                                    <span th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')}">100.000</span>
+                                    <span class="text-xs font-semibold">đ</span>
+                                </div>
+                                <span class="text-[10px] text-carbon_black-400 font-medium">Kho: [[${product.stockQuantity}]]</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State (No Products Found) -->
+                <div th:if="${products == null or products.isEmpty()}"
+                     class="bg-white rounded-2xl border border-dust_grey p-12 text-center shadow-soft">
+                    <div class="w-16 h-16 rounded-full bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-3xl mb-4">
+                        <i class="bi bi-inbox"></i>
+                    </div>
+                    <h3 class="font-serif font-bold text-lg text-carbon_black">Không tìm thấy sản phẩm phù hợp</h3>
+                    <p class="text-xs text-carbon_black-400 max-w-md mx-auto mt-1 mb-6">
+                        Hiện không có cuốn sách hoặc văn phòng phẩm nào thỏa mãn các điều kiện bộ lọc bạn đã chọn.
+                    </p>
+                    <a th:href="@{/products}"
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                        <i class="bi bi-arrow-repeat"></i>
+                        <span>Đặt Lại Bộ Lọc</span>
+                    </a>
+                </div>
+
+                <!-- Pagination Control (Thymeleaf URL Parameters Preservation) -->
+                <div th:if="${products != null and products.totalPages > 1}"
+                     class="mt-8 flex items-center justify-center space-x-1 sm:space-x-2">
+                    
+                    <!-- Prev Page Button -->
+                    <a th:if="${products.hasPrevious()}"
+                       th:href="@{/products(page=${products.number}, categoryId=${filter != null ? filter.categoryId : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, sort=${currentSort})}"
+                       class="px-3 py-2 bg-white hover:bg-parchment-200 border border-dust_grey text-carbon_black text-xs font-bold rounded-xl transition-colors shadow-soft flex items-center gap-1">
+                        <i class="bi bi-chevron-left"></i>
+                        <span class="hidden sm:inline">Trước</span>
+                    </a>
+                    <span th:unless="${products.hasPrevious()}"
+                          class="px-3 py-2 bg-parchment-200 border border-dust_grey/60 text-carbon_black-300 text-xs font-bold rounded-xl cursor-not-allowed flex items-center gap-1">
+                        <i class="bi bi-chevron-left"></i>
+                        <span class="hidden sm:inline">Trước</span>
+                    </span>
+
+                    <!-- Page Numbers Loop -->
+                    <th:block th:each="pageNum : ${#numbers.sequence(1, products.totalPages)}">
+                        <a th:if="${pageNum != (products.number + 1)}"
+                           th:href="@{/products(page=${pageNum}, categoryId=${filter != null ? filter.categoryId : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, sort=${currentSort})}"
+                           th:text="${pageNum}"
+                           class="w-9 h-9 flex items-center justify-center bg-white hover:bg-parchment-200 border border-dust_grey text-carbon_black text-xs font-bold rounded-xl transition-colors shadow-soft">
+                            1
+                        </a>
+                        <span th:if="${pageNum == (products.number + 1)}"
+                              th:text="${pageNum}"
+                              class="w-9 h-9 flex items-center justify-center bg-blazing_flame text-white text-xs font-extrabold rounded-xl shadow-flame">
+                            1
+                        </span>
+                    </th:block>
+
+                    <!-- Next Page Button -->
+                    <a th:if="${products.hasNext()}"
+                       th:href="@{/products(page=${products.number + 2}, categoryId=${filter != null ? filter.categoryId : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, sort=${currentSort})}"
+                       class="px-3 py-2 bg-white hover:bg-parchment-200 border border-dust_grey text-carbon_black text-xs font-bold rounded-xl transition-colors shadow-soft flex items-center gap-1">
+                        <span class="hidden sm:inline">Sau</span>
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                    <span th:unless="${products.hasNext()}"
+                          class="px-3 py-2 bg-parchment-200 border border-dust_grey/60 text-carbon_black-300 text-xs font-bold rounded-xl cursor-not-allowed flex items-center gap-1">
+                        <span class="hidden sm:inline">Sau</span>
+                        <i class="bi bi-chevron-right"></i>
+                    </span>
+                </div>
+
+            </div>
+        </div>
+    </div>
 </section>
 </body>
 </html>
