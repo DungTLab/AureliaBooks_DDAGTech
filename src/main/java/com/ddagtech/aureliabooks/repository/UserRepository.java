@@ -40,7 +40,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     /**
      * Finds a user by either email or phone number with role eagerly fetched.
-     * Eliminates LazyInitializationException and solves N+1 queries during authentication in 22-table schema.
+     * Loads the single assigned role with the account in the 21-table schema.
      *
      * @param identifier user email or phone number
      * @return Optional containing the user with populated role if found
