@@ -115,7 +115,7 @@
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full bg-blazing_flame/10 text-blazing_flame flex items-center justify-center font-bold text-sm">
-                                    <span th:text="${#strings.substring(user.fullName, 0, 1)}">A</span>
+                                    <span th:text="${user.fullName != null and !#strings.isEmpty(user.fullName) ? #strings.substring(user.fullName, 0, 1) : 'U'}">A</span>
                                 </div>
                                 <div>
                                     <div class="font-semibold text-carbon_black flex items-center gap-2">
@@ -292,7 +292,10 @@
 
     <!-- Create Staff Modal Dialog -->
     <div id="createStaffModal"
-         class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+         class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="createStaffModalTitle">
         <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-dust_grey overflow-hidden animate-fade-in-down">
             <!-- Modal Header -->
             <div class="px-6 py-4 bg-parchment/60 border-b border-dust_grey flex items-center justify-between">
@@ -300,10 +303,11 @@
                     <div class="w-8 h-8 rounded-lg bg-blazing_flame/10 text-blazing_flame flex items-center justify-center font-bold">
                         <i class="bi bi-person-plus-fill"></i>
                     </div>
-                    <h3 class="font-bold text-lg text-carbon_black">Thêm nhân viên nội bộ mới</h3>
+                    <h3 id="createStaffModalTitle" class="font-bold text-lg text-carbon_black">Thêm nhân viên nội bộ mới</h3>
                 </div>
                 <button type="button"
                         onclick="closeModal('createStaffModal')"
+                        aria-label="Đóng"
                         class="text-carbon_black-400 hover:text-carbon_black p-1.5 rounded-lg hover:bg-dust_grey/20 transition">
                     <i class="bi bi-x-lg text-sm"></i>
                 </button>
@@ -399,13 +403,17 @@
         </div>
     </div>
 
-    <!-- Vanilla Modal Controller Script -->
-    <script>
+    <!-- Vanilla Modal Controller Script with A11y & Auto-Reopen -->
+    <script th:inline="javascript">
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.classList.remove('hidden');
                 document.body.classList.add('overflow-hidden');
+                const firstInput = modal.querySelector('input:not([type="hidden"])');
+                if (firstInput) {
+                    firstInput.focus();
+                }
             }
         }
 
@@ -423,6 +431,20 @@
             if (e.target === modal) {
                 closeModal('createStaffModal');
             }
+        });
+
+        // Close modal when Escape key is pressed (W3C A11y Pattern)
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeModal('createStaffModal');
+            }
+        });
+
+        // Auto re-open modal if redirected with validation errors
+        document.addEventListener('DOMContentLoaded', function () {
+            /*[# th:if="${errorMessage != null and newUserForm != null and newUserForm.email != null and newUserForm.email != ''}"]*/
+            openModal('createStaffModal');
+            /*[/]*/
         });
     </script>
 </div>

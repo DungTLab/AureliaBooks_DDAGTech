@@ -129,7 +129,7 @@
                         <!-- Role-based Administrative Navigation Links -->
                         <div sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" class="py-1">
                             <div class="px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-carbon_black-400">Khu vực nghiệp vụ</div>
-                            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-rose-700 hover:bg-rose-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-rose-700 hover:bg-rose-50 transition-colors font-semibold">
                                 <i class="bi bi-shield-lock"></i> Quản trị hệ thống
                             </a>
                             <a sec:authorize="hasRole('MANAGER')" th:href="@{/admin/products}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">

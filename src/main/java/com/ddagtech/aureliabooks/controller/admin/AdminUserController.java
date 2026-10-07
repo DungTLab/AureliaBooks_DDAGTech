@@ -32,7 +32,7 @@ import java.util.Set;
  */
 @Slf4j
 @Controller
-@RequestMapping("/admin/users")
+@RequestMapping({"/admin/users", "/admin"})
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AdminUserController {
