@@ -333,6 +333,20 @@ class ProductSpecificationTest {
             assertThat(predicate).isSameAs(simplePredicate);
             verify(cb).equal(productTypePath, Product.ProductType.BOOK);
         }
+
+        @Test
+        @DisplayName("Should build equality predicate when productType is STATIONERY")
+        void shouldBuildEqualPredicateWhenProductTypeStationery() {
+            Path productTypePath = mock(Path.class);
+            when(root.get("productType")).thenReturn(productTypePath);
+            when(cb.equal(productTypePath, Product.ProductType.STATIONERY)).thenReturn(simplePredicate);
+
+            Specification<Product> spec = ProductSpecification.hasProductType(Product.ProductType.STATIONERY);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(simplePredicate);
+            verify(cb).equal(productTypePath, Product.ProductType.STATIONERY);
+        }
     }
 
     @Nested
@@ -374,6 +388,32 @@ class ProductSpecificationTest {
             assertThat(predicate).isSameAs(simplePredicate);
             verify(subquery).where(idEqualPredicate, textbookEqualPredicate);
         }
+
+        @Test
+        @DisplayName("Should build subquery predicate when isTextbook is false")
+        void shouldBuildSubqueryWhenIsTextbookFalse() {
+            Path bookProductIdPath = mock(Path.class);
+            Path isTextbookPath = mock(Path.class);
+            Predicate idEqualPredicate = mock(Predicate.class);
+            Predicate textbookEqualPredicate = mock(Predicate.class);
+
+            when(query.subquery(Long.class)).thenReturn(subquery);
+            when(subquery.from(Book.class)).thenReturn(bookRoot);
+            when(bookRoot.get("productId")).thenReturn(bookProductIdPath);
+            when(bookRoot.get("isTextbook")).thenReturn(isTextbookPath);
+            when(root.get("id")).thenReturn((Path) idPath);
+
+            when(cb.equal(bookProductIdPath, (Path) idPath)).thenReturn(idEqualPredicate);
+            when(cb.equal(isTextbookPath, false)).thenReturn(textbookEqualPredicate);
+
+            when(idPath.in(subquery)).thenReturn(simplePredicate);
+
+            Specification<Product> spec = ProductSpecification.isTextbook(false);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(simplePredicate);
+            verify(subquery).where(idEqualPredicate, textbookEqualPredicate);
+        }
     }
 
     @Nested
@@ -404,6 +444,39 @@ class ProductSpecificationTest {
 
             assertThat(result).isNotNull();
             verify(cb).and(pred1, pred2);
+        }
+
+        @Test
+        @DisplayName("Should combine multiple filter specifications with AND clauses")
+        void shouldCombineMultipleFiltersWithAnd() {
+            Predicate predActive = mock(Predicate.class);
+            Predicate predType = mock(Predicate.class);
+            Predicate predPrice = mock(Predicate.class);
+
+            when(root.get("isActive")).thenReturn((Path) isActivePath);
+            when(cb.equal(isActivePath, true)).thenReturn(predActive);
+
+            Path productTypePath = mock(Path.class);
+            when(root.get("productType")).thenReturn(productTypePath);
+            when(cb.equal(productTypePath, Product.ProductType.BOOK)).thenReturn(predType);
+
+            Path pricePath = mock(Path.class);
+            when(root.get("price")).thenReturn(pricePath);
+            BigDecimal min = new BigDecimal("10000");
+            BigDecimal max = new BigDecimal("50000");
+            when(cb.between(pricePath, min, max)).thenReturn(predPrice);
+
+            Specification<Product> multiSpec = Specification
+                    .where(ProductSpecification.isActive(true))
+                    .and(ProductSpecification.hasProductType(Product.ProductType.BOOK))
+                    .and(ProductSpecification.priceBetween(min, max));
+
+            Predicate result = multiSpec.toPredicate(root, query, cb);
+
+            assertThat(result).isNotNull();
+            verify(cb).equal(isActivePath, true);
+            verify(cb).equal(productTypePath, Product.ProductType.BOOK);
+            verify(cb).between(pricePath, min, max);
         }
     }
 }

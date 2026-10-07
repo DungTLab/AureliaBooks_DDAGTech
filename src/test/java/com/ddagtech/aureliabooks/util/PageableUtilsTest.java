@@ -109,12 +109,13 @@ class PageableUtilsTest {
 
         @Test
         @DisplayName("Should resolve best sellers sort")
-        void shouldResolveBestSellersSort() {
+        void shouldResolveBestSellersSort() throws NoSuchFieldException {
             // Act
             Sort sort = PageableUtils.resolveSort("best_sellers");
             Sort hyphenSort = PageableUtils.resolveSort("best-sellers");
 
             // Assert
+            assertThat(com.ddagtech.aureliabooks.entity.Product.class.getDeclaredField("totalSold")).isNotNull();
             assertThat(sort.getOrderFor("totalSold")).isNotNull();
             assertThat(sort.getOrderFor("totalSold").getDirection()).isEqualTo(Sort.Direction.DESC);
             assertThat(sort.getOrderFor("id")).isNotNull();

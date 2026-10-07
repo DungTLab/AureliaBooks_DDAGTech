@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Formula;
 
 import java.math.BigDecimal;
 
@@ -63,6 +64,14 @@ public class Product extends BaseEntity {
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "embedding", columnDefinition = "JSON")
     private String embedding;
+
+    /**
+     * Total quantity of items sold in confirmed, shipping, or delivered orders.
+     * Evaluated dynamically via Hibernate formula subquery from order_items and orders tables.
+     */
+    @Formula("(SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = id AND o.order_status IN ('CONFIRMED', 'SHIPPING', 'DELIVERED'))")
+    @Builder.Default
+    private Long totalSold = 0L;
 
     public enum ProductType {
         BOOK, STATIONERY

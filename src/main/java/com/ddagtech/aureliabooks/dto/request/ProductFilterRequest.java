@@ -2,8 +2,11 @@ package com.ddagtech.aureliabooks.dto.request;
 
 import java.math.BigDecimal;
 import com.ddagtech.aureliabooks.entity.Book;
+import com.ddagtech.aureliabooks.entity.Product;
 
-/** FND-02 / UC01-02. Owner: Huỳnh Nhật Duy. Sprint 1 scaffold; business implementation pending. */
+/**
+ * Filter request parameters for catalog browsing and search (FND-02 / UC01-02).
+ */
 public record ProductFilterRequest(
         String keyword,
         Long categoryId,
@@ -12,6 +15,19 @@ public record ProductFilterRequest(
         Long authorId,
         Long publisherId,
         Long brandId,
-        Book.CoverType coverType) {
-    // TODO: field validation and business validation are owned by the assigned developer.
+        Book.CoverType coverType,
+        Product.ProductType productType,
+        Boolean isTextbook) {
+
+    public ProductFilterRequest(
+            String keyword,
+            Long categoryId,
+            BigDecimal minPrice,
+            BigDecimal maxPrice,
+            Long authorId,
+            Long publisherId,
+            Long brandId,
+            Book.CoverType coverType) {
+        this(keyword, categoryId, minPrice, maxPrice, authorId, publisherId, brandId, coverType, null, null);
+    }
 }
