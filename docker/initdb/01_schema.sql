@@ -1,7 +1,7 @@
 -- =============================================================================
 -- E-COMMERCE DATABASE SYSTEM FOR BOOKSTORE (AURELIABOOK)
 -- Database Engine: MySQL 8.0.16+ InnoDB | Charset: utf8mb4 | Collation: utf8mb4_0900_ai_ci
--- Scale: 22 Normalized Tables
+-- Scale: 21 Normalized Tables
 -- 
 -- KEY ARCHITECTURAL STREAMLINING DECISIONS:
 -- 1. Dropped user_vouchers table: Transitioned to manual public voucher code entry,
@@ -15,12 +15,14 @@
 -- 5. Dropped payment_logs table: Merged VNPay reconciliation reference into orders table (vnpay_txn_ref),
 --    storing full raw callback JSON in audit_logs.
 -- 6. Dropped book_series table: Merged into series_name column in books table as MVP does not sell bundled combos.
+-- 7. Inventory history is derived from posted receipts and orders; no manual stock adjustment workflow.
+--    inventory_movements is a read-only view, not an additional table.
 -- 
 -- USE CASE TRACEABILITY MATRIX (100% COVERAGE):
 -- - Subsystem 1 (Accounts & Addresses): roles, users, shipping_addresses -> UC05, UC06, UC07, UC08, UC09, UC28
 -- - Subsystem 2 (Promotions): vouchers, order_vouchers -> UC11.2, UC13
 -- - Subsystem 3 (Catalog & AI): categories, products, publishers, books, authors, book_authors, brands, stationeries -> UC01, UC02, UC03, UC04, UC15, UC16, UC17, UC18, UC19, UC20, UC21
--- - Subsystem 4 (Inbound Logistics & Inventory): suppliers, goods_receipts, goods_receipt_items, stock_logs -> UC21, UC22, UC23, UC24, UC25, UC27, UC30
+-- - Subsystem 4 (Inbound Logistics & Inventory): suppliers, goods_receipts, goods_receipt_items; inventory_movements view -> UC21, UC22, UC23, UC25, UC27, UC30
 -- - Subsystem 5 (Cart, Orders & Payments): carts, cart_items, orders, order_items, order_vouchers -> UC10, UC11, UC11.1, UC12, UC12.1, UC14, UC14.1, UC26
 -- - Subsystem 6 (Security & Audit): audit_logs -> UC29
 -- =============================================================================
@@ -239,11 +241,17 @@ CREATE TABLE goods_receipts (
     total_amount DECIMAL(14,2) NOT NULL DEFAULT 0.00,
     note VARCHAR(500) NULL,
     received_at DATETIME NULL COMMENT 'Timestamp when Manager finalizes receipt (Immutable lock)',
+    received_by_user_id BIGINT NULL COMMENT 'Manager who posts this receipt',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT uk_gr_code UNIQUE (receipt_code),
     CONSTRAINT fk_gr_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT,
     CONSTRAINT fk_gr_creator FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_gr_receiver FOREIGN KEY (received_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_gr_posting CHECK (
+        (status = 'DRAFT' AND received_at IS NULL AND received_by_user_id IS NULL)
+        OR (status = 'RECEIVED' AND received_at IS NOT NULL AND received_by_user_id IS NOT NULL)
+    ),
     CONSTRAINT chk_gr_total CHECK (total_amount >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Inbound goods receipts becoming immutable once marked RECEIVED (Maps to Use Cases: UC22, UC23)';
 
@@ -258,26 +266,6 @@ CREATE TABLE goods_receipt_items (
     CONSTRAINT chk_gri_qty CHECK (received_quantity > 0),
     CONSTRAINT chk_gri_cost CHECK (unit_cost >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Line items contained in an inbound goods receipt (Maps to Use Cases: UC22, UC23)';
-
-CREATE TABLE stock_logs (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    product_id BIGINT NOT NULL,
-    transaction_type ENUM('IMPORT','ORDER_DEDUCT','ORDER_CANCELLED_RESTOCK','MANUAL_ADJUSTMENT') NOT NULL,
-    quantity_change INT NOT NULL,
-    previous_stock INT NOT NULL,
-    current_stock INT NOT NULL,
-    reference_code VARCHAR(50) NULL,
-    performed_by_user_id BIGINT NULL COMMENT 'Nullable if executed by automated background job',
-    note VARCHAR(500) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_slog_prod FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_slog_user FOREIGN KEY (performed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
-    CONSTRAINT chk_slog_stocks CHECK (previous_stock >= 0 AND current_stock >= 0),
-    CONSTRAINT chk_slog_change CHECK (quantity_change <> 0),
-    CONSTRAINT chk_slog_balance CHECK (current_stock = previous_stock + quantity_change)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Immutable stock ledger for inventory auditing and accounting (Maps to Use Cases: UC21, UC23, UC24, UC25, UC27)';
-
-CREATE INDEX idx_slog_prod_time ON stock_logs(product_id, created_at);
 
 -- -----------------------------------------------------------------------------
 -- SUBSYSTEM 5: CART, ORDERS & PAYMENTS (FE-3, FE-4)
@@ -319,6 +307,13 @@ CREATE TABLE orders (
     tracking_number VARCHAR(100) NULL,
     cancel_reason VARCHAR(255) NULL,
     
+    -- Stock posting markers on the source order: independent of payment/refund status.
+    -- Set together with the stock update in the same transaction, once per operation.
+    stock_deducted_at DATETIME NULL,
+    stock_restored_at DATETIME NULL,
+    stock_restore_reason ENUM('CANCELLED','RETURNED') NULL,
+    stock_restored_by_user_id BIGINT NULL COMMENT 'Actor confirming cancellation or successful full return; NULL for automation',
+
     -- Status progression milestones (Replaces order_status_history table)
     confirmed_at DATETIME NULL COMMENT 'Timestamp when staff confirms order',
     shipped_at DATETIME NULL COMMENT 'Timestamp when handed over to courier',
@@ -335,6 +330,13 @@ CREATE TABLE orders (
     CONSTRAINT uk_orders_code UNIQUE (order_code),
     CONSTRAINT uk_orders_id_user UNIQUE (id, user_id),
     CONSTRAINT fk_ord_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_ord_stock_restorer FOREIGN KEY (stock_restored_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    CONSTRAINT chk_ord_stock_restore CHECK (
+        (stock_restored_at IS NULL AND stock_restore_reason IS NULL AND stock_restored_by_user_id IS NULL)
+        OR (stock_restored_at IS NOT NULL AND stock_deducted_at IS NOT NULL
+            AND stock_restored_at >= stock_deducted_at AND stock_restore_reason IS NOT NULL
+            AND (stock_restore_reason <> 'RETURNED' OR stock_restored_by_user_id IS NOT NULL))
+    ),
     CONSTRAINT chk_ord_fee CHECK (shipping_fee >= 0),
     CONSTRAINT chk_ord_total CHECK (final_total_amount >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Primary orders table (Incorporates lifecycle timeline and VNPay reconciliation) (Maps to Use Cases: UC11, UC11.1, UC12, UC12.1, UC14, UC14.1, UC26)';
@@ -381,7 +383,7 @@ CREATE TABLE order_vouchers (
 CREATE TABLE audit_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NULL,
-    action VARCHAR(50) NOT NULL COMMENT 'e.g., UPDATE_ORDER_STATUS, VNPAY_IPN_CALLBACK, MANUAL_STOCK_ADJUST',
+    action VARCHAR(50) NOT NULL COMMENT 'e.g., UPDATE_ORDER_STATUS, VNPAY_IPN_CALLBACK, RECEIVE_GOODS, ORDER_RETURN_CONFIRMED',
     target_table VARCHAR(50) NOT NULL,
     target_id BIGINT NULL,
     details_json JSON NULL COMMENT 'Stores raw JSON payload, before/after state diff, or VNPay IPN response',
@@ -390,8 +392,35 @@ CREATE TABLE audit_logs (
     CONSTRAINT fk_al_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Security audit log tracking CRUD events and transaction reconciliations (Maps to Use Cases: UC29)';
 
+-- Read-only history for UC25 and period aggregates for UC27.
+-- Draft receipts and orders without actual stock posting are excluded.
+-- Successful full returns and eligible cancellations restore the original line quantities once.
+-- Payment REFUNDED alone never creates a stock movement.
+CREATE VIEW inventory_movements AS
+SELECT gri.product_id, 'IMPORT' AS movement_type, gr.received_at AS occurred_at,
+       gri.received_quantity AS quantity_change, 'goods_receipts' AS source_table,
+       gr.id AS source_id, gri.id AS source_line_id, gr.receipt_code AS reference_code,
+       gr.received_by_user_id AS actor_user_id
+FROM goods_receipts gr JOIN goods_receipt_items gri ON gri.receipt_id = gr.id
+WHERE gr.status = 'RECEIVED' AND gr.received_at IS NOT NULL
+UNION ALL
+SELECT oi.product_id, 'ORDER_DEDUCT', o.stock_deducted_at,
+       -oi.quantity, 'orders', o.id, oi.id, o.order_code, o.user_id
+FROM orders o JOIN order_items oi ON oi.order_id = o.id
+WHERE o.stock_deducted_at IS NOT NULL
+UNION ALL
+SELECT oi.product_id, 'ORDER_CANCELLED_RESTOCK', o.stock_restored_at,
+       oi.quantity, 'orders', o.id, oi.id, o.order_code, o.stock_restored_by_user_id
+FROM orders o JOIN order_items oi ON oi.order_id = o.id
+WHERE o.stock_restored_at IS NOT NULL AND o.stock_restore_reason = 'CANCELLED'
+UNION ALL
+SELECT oi.product_id, 'ORDER_RETURNED_RESTOCK', o.stock_restored_at,
+       oi.quantity, 'orders', o.id, oi.id, o.order_code, o.stock_restored_by_user_id
+FROM orders o JOIN order_items oi ON oi.order_id = o.id
+WHERE o.stock_restored_at IS NOT NULL AND o.stock_restore_reason = 'RETURNED';
+
 -- =============================================================================
--- END OF SCHEMA (TOTAL: EXACTLY 22 TABLES | MySQL 8.0.16+ | InnoDB)
+-- END OF SCHEMA (TOTAL: EXACTLY 21 TABLES | MySQL 8.0.16+ | InnoDB)
 -- Non-cyclic inter-table foreign key dependencies guaranteed across all tables.
 -- (Only categories table possesses a self-referencing parent_id hierarchy)
 -- =============================================================================
