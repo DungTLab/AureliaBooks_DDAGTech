@@ -51,6 +51,12 @@ public class ProductServiceImpl implements ProductService {
             if (filter.coverType() != null) {
                 spec = spec.and(ProductSpecification.hasCoverType(filter.coverType()));
             }
+            if (filter.productType() != null) {
+                spec = spec.and(ProductSpecification.hasProductType(filter.productType()));
+            }
+            if (filter.isTextbook() != null) {
+                spec = spec.and(ProductSpecification.isTextbook(filter.isTextbook()));
+            }
         }
         Page<Product> productPage = productRepository.findAll(spec, pageable);
         return productPage.map(p -> new ProductSummary(
