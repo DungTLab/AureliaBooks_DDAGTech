@@ -3,7 +3,9 @@ package com.ddagtech.aureliabooks.service.impl;
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
+import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.repository.BookRepository;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.specification.ProductSpecification;
@@ -14,17 +16,26 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final BookRepository bookRepository;
 
-    public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository) {
+    public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository, BookRepository bookRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
+        this.bookRepository = bookRepository;
     }
 
     @Transactional(readOnly = true)
@@ -59,13 +70,43 @@ public class ProductServiceImpl implements ProductService {
             }
         }
         Page<Product> productPage = productRepository.findAll(spec, pageable);
-        return productPage.map(p -> new ProductSummary(
-                p.getId(),
-                p.getTitle(),
-                p.getPrice(),
-                p.getStockQuantity(),
-                p.getMainImageUrl()
-        ));
+
+        // Batch fetch book details in a single query to eliminate N+1 problem
+        List<Long> bookProductIds = new ArrayList<>();
+        for (Product p : productPage) {
+            if (p.getProductType() == Product.ProductType.BOOK) {
+                bookProductIds.add(p.getId());
+            }
+        }
+
+        Map<Long, Book> bookMap = new HashMap<>();
+        if (!bookProductIds.isEmpty()) {
+            for (Book book : bookRepository.findAllById(bookProductIds)) {
+                bookMap.put(book.getProductId(), book);
+            }
+        }
+
+        return productPage.map(p -> {
+            String seriesName = null;
+            Integer volumeNumber = null;
+            if (p.getProductType() == Product.ProductType.BOOK) {
+                Book book = bookMap.get(p.getId());
+                if (book != null) {
+                    seriesName = book.getSeriesName();
+                    volumeNumber = book.getVolumeNumber();
+                }
+            }
+            return new ProductSummary(
+                    p.getId(),
+                    p.getTitle(),
+                    p.getPrice(),
+                    p.getStockQuantity(),
+                    p.getMainImageUrl(),
+                    p.getProductType(),
+                    seriesName,
+                    volumeNumber
+            );
+        });
     }
 
     @Override

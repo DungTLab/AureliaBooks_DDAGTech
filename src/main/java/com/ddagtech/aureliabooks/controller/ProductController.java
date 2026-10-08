@@ -43,6 +43,7 @@ public class ProductController {
         model.addAttribute("products",productSummaryPage);
         model.addAttribute("categories", categorySummaryList);
         model.addAttribute("currentSort", sort);
+        model.addAttribute("currentSize", size);
 
         return "product/list";
     }
