@@ -204,6 +204,8 @@ class SecurityConfigIntegrationTest {
     @Test
     @DisplayName("QA-03: Should accept state-changing POST request when accompanied by valid CSRF token")
     void testCsrfProtection_PostWithValidCsrfToken_Processed() throws Exception {
+        org.mockito.Mockito.when(userDetailsService.loadUserByUsername("test@aureliabook.vn"))
+                .thenThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("missing"));
         mockMvc.perform(post("/auth/login")
                         .with(csrf())
                         .param("username", "test@aureliabook.vn")

@@ -26,10 +26,11 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final RegistrationService registration;
     private final OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate;
     private final OAuth2UserService<OidcUserRequest, OidcUser> oidcDelegate;
+    private final LoginAttemptService attempts;
 
     @Autowired
-    public CustomOAuth2UserService(RegistrationService registration) {
-        this(registration, new DefaultOAuth2UserService());
+    public CustomOAuth2UserService(RegistrationService registration, LoginAttemptService attempts) {
+        this(registration, new DefaultOAuth2UserService(), new OidcUserService(), attempts);
     }
 
     CustomOAuth2UserService(RegistrationService registration,
@@ -40,9 +41,16 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     CustomOAuth2UserService(RegistrationService registration,
                            OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate,
                            OAuth2UserService<OidcUserRequest, OidcUser> oidcDelegate) {
+        this(registration, delegate, oidcDelegate, new LoginAttemptService());
+    }
+
+    CustomOAuth2UserService(RegistrationService registration,
+                           OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate,
+                           OAuth2UserService<OidcUserRequest, OidcUser> oidcDelegate, LoginAttemptService attempts) {
         this.registration = registration;
         this.delegate = delegate;
         this.oidcDelegate = oidcDelegate;
+        this.attempts = attempts;
     }
 
     @Override
@@ -52,8 +60,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         }
         OAuth2User claims = delegate.loadUser(request);
         User account = registerClaims(claims);
-        return new DefaultOAuth2User(List.of(new SimpleGrantedAuthority(account.getRole().getRoleName())),
-                claims.getAttributes(), "sub");
+        return authenticateGoogle(account, () -> new DefaultOAuth2User(List.of(authority(account)),
+                claims.getAttributes(), "sub"));
     }
 
     /** Spring validates ID-token signature, issuer, audience and nonce before this hook. */
@@ -63,8 +71,25 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         }
         OidcUser claims = oidcDelegate.loadUser(request);
         User account = registerClaims(claims);
-        return new DefaultOidcUser(List.of(new SimpleGrantedAuthority(account.getRole().getRoleName())),
-                claims.getIdToken(), claims.getUserInfo(), "sub");
+        return authenticateGoogle(account, () -> new DefaultOidcUser(List.of(authority(account)),
+                claims.getIdToken(), claims.getUserInfo(), "sub"));
+    }
+
+    private <T> T authenticateGoogle(User account, java.util.function.Supplier<T> principal) {
+        try {
+            return attempts.authenticate(account.getId(), principal);
+        } catch (TemporaryLoginLockException locked) {
+            throw failure(locked.getMessage());
+        }
+    }
+
+    private SimpleGrantedAuthority authority(User account) {
+        if (account.getRole() == null || account.getRole().getRoleName() == null
+                || !java.util.Set.of("ROLE_CUSTOMER", "ROLE_SALE_STAFF", "ROLE_MANAGER", "ROLE_ADMIN")
+                    .contains(account.getRole().getRoleName())) {
+            throw failure("Tài khoản chưa được cấp vai trò hợp lệ. Vui lòng liên hệ quản trị viên.");
+        }
+        return new SimpleGrantedAuthority(account.getRole().getRoleName());
     }
 
     private User registerClaims(OAuth2User claims) {
