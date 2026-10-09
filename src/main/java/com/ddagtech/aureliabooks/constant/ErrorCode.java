@@ -35,7 +35,12 @@ public enum ErrorCode {
 
     // 3xxx: Generic & Resource Validation
     RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
-    INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST);
+    INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST),
+
+    // 4xxx: Inventory & Stock Posting Constraints (FND-03)
+    INSUFFICIENT_STOCK(4001, "Số lượng tồn kho không đủ để thực hiện trừ kho.", HttpStatus.BAD_REQUEST),
+    ORDER_STOCK_NOT_DEDUCTED(4002, "Đơn hàng chưa từng bị trừ tồn kho, không thể hoàn tồn.", HttpStatus.BAD_REQUEST),
+    STAFF_REQUIRED_FOR_RETURN(4003, "Cần định danh nhân viên hợp lệ khi xác nhận trả hàng.", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
