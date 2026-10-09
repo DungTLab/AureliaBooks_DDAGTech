@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <header th:fragment="navbar" class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300">
     <!-- Top Utility Announcement Bar (Grounding Warm Espresso Anchor) -->
@@ -46,7 +46,7 @@
             <!-- Global Search Bar (UC02 - Search by Keyword, Author, ISBN) -->
             <form class="hidden md:flex flex-1 max-w-xl mx-6" th:action="@{/products/search}" method="get">
                 <div class="relative w-full">
-                    <input type="search"
+                    <input type="search" aria-label="Tìm kiếm sản phẩm"
                            name="keyword"
                            th:value="${param.keyword}"
                            placeholder="Tìm tựa sách, tác giả, ISBN, văn phòng phẩm..."
@@ -90,7 +90,7 @@
                         Đăng Nhập
                     </a>
                     <a th:href="@{/auth/register}"
-                       class="inline-flex items-center px-4.5 py-2 text-sm font-bold text-white bg-blazing_flame hover:bg-blazing_flame-600 rounded-xl shadow-flame transition-all transform hover:-translate-y-0.5">
+                       class="inline-flex items-center px-4 py-2 text-sm font-bold text-white bg-blazing_flame hover:bg-blazing_flame-600 rounded-xl shadow-flame transition-all transform hover:-translate-y-0.5">
                         Đăng Ký
                     </a>
                 </div>
@@ -100,9 +100,9 @@
                     <button id="userMenuBtn"
                             type="button"
                             class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-parchment-200 focus:outline-none focus:ring-2 focus:ring-blazing_flame transition-colors">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                        <span class="w-8 h-8 rounded-full bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 text-white font-bold flex items-center justify-center text-sm shadow-sm">
                             <i class="bi bi-person-fill"></i>
-                        </div>
+                        </span>
                         <span class="hidden md:inline-block text-sm font-bold text-carbon_black truncate max-w-[120px]"
                               sec:authentication="name">
                             Tài khoản
@@ -166,7 +166,7 @@
         <!-- Mobile Search Bar (Visible on mobile viewports) -->
         <div class="md:hidden pb-3">
             <form th:action="@{/products/search}" method="get" class="relative">
-                <input type="search"
+                <input type="search" aria-label="Tìm kiếm sản phẩm"
                        name="keyword"
                        th:value="${param.keyword}"
                        placeholder="Tìm kiếm sách, tác giả..."

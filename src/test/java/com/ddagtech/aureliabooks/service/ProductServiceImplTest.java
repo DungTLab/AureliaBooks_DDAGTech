@@ -21,7 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -43,7 +42,7 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit test suite for {@link ProductServiceImpl} (FND-02, UC01, UC02, UC03).
- * Verifies filter building, pagination delegation, entity-to-DTO mapping, and detail retrieval.
+ * Verifies filter building, pagination delegation, entity-to-DTO mapping, N+1 query elimination, and detail retrieval.
  */
 @ExtendWith(MockitoExtension.class)
 class ProductServiceImplTest {
@@ -103,6 +102,35 @@ class ProductServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should browse products with comprehensive filters including productType and isTextbook")
+    void shouldBrowseProductsWithAllFilters() {
+        // Arrange
+        Pageable pageable = PageableUtils.create(1, 20, "price_asc");
+        ProductFilterRequest filter = new ProductFilterRequest(
+                "Java",
+                5L,
+                new BigDecimal("50000"),
+                new BigDecimal("200000"),
+                10L,
+                20L,
+                null,
+                Book.CoverType.PAPERBACK,
+                Product.ProductType.BOOK,
+                true
+        );
+
+        when(productRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty());
+
+        // Act
+        Page<ProductSummary> result = productService.browse(filter, pageable);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.isEmpty()).isTrue();
+        verify(productRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
     @DisplayName("Should browse products with category and its child categories")
     void shouldBrowseWithCategoryAndChildren() {
         // Arrange
@@ -141,7 +169,7 @@ class ProductServiceImplTest {
 
     @Test
     @DisplayName("Should browse stationery products and map type without book lookups")
-    void shouldBrowseStationeryProducts() {
+    void shouldBrowseStationeryProductsWithoutBookLookups() {
         // Arrange
         Pageable pageable = PageableUtils.create(1, 12, "newest");
         Product stationery = Product.builder()
@@ -170,6 +198,34 @@ class ProductServiceImplTest {
         assertThat(summary.volumeNumber()).isNull();
 
         verify(bookRepository, never()).findAllById(any());
+    }
+
+    @Test
+    @DisplayName("Should browse products for stationery items with brand filter")
+    void shouldBrowseStationeryProductsWithFilter() {
+        // Arrange
+        Pageable pageable = PageableUtils.create(1, 12, "best_sellers");
+        ProductFilterRequest filter = new ProductFilterRequest(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                7L,
+                null,
+                Product.ProductType.STATIONERY,
+                null
+        );
+
+        when(productRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty());
+
+        // Act
+        Page<ProductSummary> result = productService.browse(filter, pageable);
+
+        // Assert
+        assertThat(result).isNotNull();
+        verify(productRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test

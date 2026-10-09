@@ -18,11 +18,12 @@ import static org.mockito.Mockito.*;
 
 class CustomOAuth2UserServiceTest {
     RegistrationService registration; MockRestServiceServer server; CustomOAuth2UserService service;
+    DefaultOAuth2UserService trustedDelegate;
     @BeforeEach void setup() {
         registration=mock(RegistrationService.class);
         RestTemplate rest=new RestTemplate(); server=MockRestServiceServer.createServer(rest);
-        var delegate=new DefaultOAuth2UserService(); delegate.setRestOperations(rest);
-        service=new CustomOAuth2UserService(registration,delegate);
+        trustedDelegate=new DefaultOAuth2UserService(); trustedDelegate.setRestOperations(rest);
+        service=new CustomOAuth2UserService(registration,trustedDelegate);
     }
     OAuth2UserRequest request() {
         var client=ClientRegistration.withRegistrationId("google").clientId("test-client").clientSecret("test-secret")
@@ -41,7 +42,7 @@ class CustomOAuth2UserServiceTest {
     }
     @Test void fetchesTrustedClaimsAndUsesOnlyDatabaseRoleAuthority() {
         claims(); when(registration.registerGoogle("google-sub","a@example.com",true,"Google User","https://example.com/picture"))
-                .thenReturn(User.builder().role(Role.builder().roleName("ROLE_CUSTOMER").build()).build());
+                .thenReturn(User.builder().id(1L).role(Role.builder().roleName("ROLE_CUSTOMER").build()).build());
         var principal=service.loadUser(request());
         assertEquals("google-sub",principal.getName());
         assertEquals(1,principal.getAuthorities().size());
@@ -60,10 +61,7 @@ class CustomOAuth2UserServiceTest {
         assertFalse(error.getMessage().contains("private SQL")); server.verify();
     }
     @Test void oidcClaimsCreateDatabaseRolePrincipalAndRetainValidatedIdToken() {
-        org.springframework.security.oauth2.client.userinfo.OAuth2UserService<
-                org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest,
-                org.springframework.security.oauth2.core.oidc.user.OidcUser> oidc = mock(
-                        org.springframework.security.oauth2.client.userinfo.OAuth2UserService.class);
+        var oidc = mock(org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService.class);
         var id = new org.springframework.security.oauth2.core.oidc.OidcIdToken("test-id-token", Instant.now(),
                 Instant.now().plusSeconds(60), java.util.Map.of("sub", "google-sub", "email", "a@example.com",
                 "email_verified", true, "name", "Google User"));
@@ -72,10 +70,35 @@ class CustomOAuth2UserServiceTest {
         when(oidc.loadUser(oidcRequest)).thenReturn(new org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser(
                 java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("OIDC_USER")), id));
         when(registration.registerGoogle("google-sub", "a@example.com", true, "Google User", null))
-                .thenReturn(User.builder().role(Role.builder().roleName("ROLE_CUSTOMER").build()).build());
+                .thenReturn(User.builder().id(1L).role(Role.builder().roleName("ROLE_CUSTOMER").build()).build());
         var result = new CustomOAuth2UserService(registration, new DefaultOAuth2UserService(), oidc).loadOidcUser(oidcRequest);
         assertSame(id, result.getIdToken());
         assertEquals("ROLE_CUSTOMER", result.getAuthorities().iterator().next().getAuthority());
         assertEquals(1, result.getAuthorities().size());
     }
+
+    @Test void googleCannotBypassTemporaryAccountLock() {
+        var attempts = new LoginAttemptService();
+        for (int i=0;i<5;i++) {
+            try { attempts.authenticate(80L, () -> { throw new org.springframework.security.authentication.BadCredentialsException("wrong"); }); }
+            catch (org.springframework.security.core.AuthenticationException expected) { }
+        }
+        claims();
+        when(registration.registerGoogle(any(),any(),any(),any(),any()))
+                .thenReturn(User.builder().id(80L).role(Role.builder().roleName("ROLE_CUSTOMER").build()).build());
+        var guarded = new CustomOAuth2UserService(registration, trustedDelegate,
+                new org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService(), attempts);
+        var error=assertThrows(OAuth2AuthenticationException.class, () -> guarded.loadUser(request()));
+        assertTrue(error.getMessage().contains("15 phút"));
+        server.verify();
+    }
+
+    @Test void googleRejectsAnUnsupportedDatabaseRole() {
+        claims();
+        when(registration.registerGoogle(any(),any(),any(),any(),any()))
+                .thenReturn(User.builder().id(81L).role(Role.builder().roleName("ROLE_UNKNOWN").build()).build());
+        assertThrows(OAuth2AuthenticationException.class, () -> service.loadUser(request()));
+        server.verify();
+    }
+
 }

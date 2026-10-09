@@ -23,6 +23,20 @@ public class AuthController {
     @GetMapping("/auth/login")
     public String login() { return "auth/login"; }
 
+    @GetMapping("/auth/google/login")
+    public String googleLogin(jakarta.servlet.http.HttpServletRequest request) {
+        if (!googleEnabled()) return "redirect:/auth/login?error=google";
+        request.getSession().setAttribute("GOOGLE_AUTH_ORIGIN", "login");
+        return "redirect:/oauth2/authorization/google";
+    }
+
+    @GetMapping("/auth/google/register")
+    public String googleRegister(jakarta.servlet.http.HttpServletRequest request) {
+        if (!googleEnabled()) return "redirect:/auth/register";
+        request.getSession().setAttribute("GOOGLE_AUTH_ORIGIN", "register");
+        return "redirect:/oauth2/authorization/google";
+    }
+
     @ModelAttribute("googleEnabled")
     public boolean googleEnabled() {
         var repository = clients.getIfAvailable();

@@ -33,9 +33,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        log.debug("Attempting authentication lookup for identifier: {}", identifier);
+        String normalizedIdentifier = identifier == null ? "" : identifier.strip().toLowerCase(java.util.Locale.ROOT);
 
-        User user = userRepository.findByIdentifierWithRoles(identifier)
+        User user = userRepository.findByIdentifierWithRoles(normalizedIdentifier)
                 .orElseThrow(() -> {
                     log.warn("Authentication failed: No user found for identifier '{}'", identifier);
                     return new UsernameNotFoundException("User not found with email or phone: " + identifier);
@@ -44,6 +44,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             log.warn("Authentication rejected: Account for '{}' is deactivated (is_active = false)", identifier);
             throw new LockedException("User account is locked or deactivated");
+        }
+
+        if (user.getRole() == null || user.getRole().getRoleName() == null
+                || !java.util.Set.of("ROLE_CUSTOMER", "ROLE_SALE_STAFF", "ROLE_MANAGER", "ROLE_ADMIN")
+                .contains(user.getRole().getRoleName())) {
+            throw new org.springframework.security.authentication.DisabledException("Account has no supported assigned role");
         }
 
         return new CustomUserDetails(user);
