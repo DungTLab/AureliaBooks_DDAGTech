@@ -29,15 +29,22 @@ class SprintOneShellTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.AdminUserService adminUserService;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.ProductService productService;
+
     @Test
     void publicShellsRenderWithoutAuthentication() throws Exception {
+        org.mockito.Mockito.when(productService.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(productService.getActiveCategories())
+                .thenReturn(java.util.List.of());
         mvc.perform(get("/auth/login")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Email hoặc số điện thoại")));
-        for (String route : new String[]{"/products",
-                "/products/search", "/products/1"}) {
+        for (String route : new String[]{"/products/search", "/products/1"}) {
             mvc.perform(get(route)).andExpect(status().isOk())
                     .andExpect(content().string(containsString("Trang đang được xây dựng.")));
         }
+        mvc.perform(get("/products")).andExpect(status().isOk());
     }
 
     @Test
