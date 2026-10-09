@@ -1,8 +1,7 @@
 package com.ddagtech.aureliabooks.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import java.math.BigDecimal;
 
 /** UC22/UC23. Owner: Nguyễn Trần Đức Anh. Sprint 1 scaffold; business implementation pending. */
@@ -10,6 +9,9 @@ import java.math.BigDecimal;
 @Table(name = "goods_receipt_items")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GoodsReceiptItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
