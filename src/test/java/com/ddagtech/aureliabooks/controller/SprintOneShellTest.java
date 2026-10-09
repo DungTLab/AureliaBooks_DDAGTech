@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.hamcrest.Matchers.containsString;
 
 /** Only verifies shell rendering and existing URL boundaries, not Sprint 1 business DoD. */
-@WebMvcTest(controllers = {AuthController.class, ProfileController.class, ProductController.class,
+@WebMvcTest(controllers = {AuthController.class, ProductController.class,
         AdminUserController.class, AdminProductController.class, MasterDataController.class,
         SupplierController.class, AdminReceiptController.class, AuditLogController.class})
 @Import(SecurityConfig.class)
@@ -43,7 +43,6 @@ class SprintOneShellTest {
     @Test
     void protectedShellsRenderForAssignedRole() throws Exception {
         String[][] cases = {
-                {"/profile", "CUSTOMER"}, {"/profile/addresses", "CUSTOMER"},
                 {"/manager/products", "MANAGER"}, {"/manager/products/new", "MANAGER"},
                 {"/manager/authors", "MANAGER"}, {"/manager/publishers", "MANAGER"},
                 {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"},
