@@ -18,7 +18,28 @@ import java.util.Collection;
 public abstract class ProductSpecification implements Specification<Product> {
     // TODO FND-02: Duy implements typed filter factories, predicates and joins.
     // Abstract by design: no always-true predicate pretending filtering is complete.
+    /**
+     * Filters products by matching search keyword against product title or barcode.
+     *
+     * @param keyword search keyword
+     * @return Specification matching title or barcode, or conjunction if null or blank
+     */
+    public static Specification<Product> hasKeyword(String keyword) {
+        return (root, query, cb) -> {
+            if (keyword == null || keyword.isBlank()) {
+                return cb.conjunction();
+            }
+            String pattern = "%" + keyword.trim().toLowerCase() + "%";
+            return cb.or(
+                    cb.like(cb.lower(root.get("title")), pattern),
+                    cb.like(cb.lower(root.get("barcode")), pattern)
+            );
+        };
+    }
 
+    public static Specification<Product> hasKeyWord(String keyword) {
+        return hasKeyword(keyword);
+    }
     /**
      * Filters products belonging to the specified category IDs (including child and descendant categories).
      *
