@@ -5,6 +5,9 @@ import com.ddagtech.aureliabooks.security.CustomAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationFailureHandler;
 import com.ddagtech.aureliabooks.security.CustomUserDetailsService;
 import com.ddagtech.aureliabooks.security.CustomOAuth2UserService;
+import com.ddagtech.aureliabooks.security.LoginAttemptService;
+import com.ddagtech.aureliabooks.security.ThrottledAuthenticationProvider;
+import com.ddagtech.aureliabooks.security.LogoutAuditHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.web.servlet.FlashMap;
@@ -15,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -47,6 +49,8 @@ public class SecurityConfig {
     private final ObjectProvider<CustomAuthenticationEntryPoint> authenticationEntryPointProvider;
     private final ObjectProvider<ClientRegistrationRepository> clientRegistrations;
     private final ObjectProvider<CustomOAuth2UserService> oauthUsers;
+    private final ObjectProvider<LoginAttemptService> loginAttempts;
+    private final ObjectProvider<LogoutAuditHandler> logoutAudit;
 
     /**
      * Password encoder utilizing BCrypt hashing with work factor (cost) of 12.
@@ -105,8 +109,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         CustomUserDetailsService userDetailsService = userDetailsServiceProvider.getIfAvailable();
         if (userDetailsService != null) {
-            DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-            authProvider.setPasswordEncoder(passwordEncoder());
+            var authProvider = new ThrottledAuthenticationProvider(userDetailsService, passwordEncoder(),
+                    loginAttempts.getIfAvailable(LoginAttemptService::new));
             http.authenticationProvider(authProvider);
         }
 
@@ -167,14 +171,17 @@ public class SecurityConfig {
                     login.failureUrl("/auth/login?error=true");
                 }
             })
-            .logout(logout -> logout
+            .logout(logout -> {
+                logout
                 .logoutUrl("/auth/logout")
-                .logoutSuccessUrl("/auth/login?logout=true")
+                .logoutSuccessUrl("/")
                 .invalidateHttpSession(true)
                 .clearAuthentication(true)
                 .deleteCookies("JSESSIONID")
-                .permitAll()
-            )
+                .permitAll();
+                var audit=logoutAudit.getIfAvailable();
+                if (audit != null) logout.addLogoutHandler(audit);
+            })
             .sessionManagement(session -> session
                 .sessionFixation(fixation -> fixation.migrateSession())
                 .maximumSessions(5)
@@ -205,7 +212,7 @@ public class SecurityConfig {
                         .userInfoEndpoint(info -> info.userService(oauthUsers.getObject())
                                 .oidcUserService(oauthUsers.getObject()::loadOidcUser))
                         .failureHandler((request, response, exception) -> {
-                            String message = "Không thể đăng ký bằng Google. Vui lòng thử lại.";
+                            String message = "Không thể xác thực bằng Google. Vui lòng thử lại.";
                             if (exception instanceof OAuth2AuthenticationException failure
                                     && "registration_failed".equals(failure.getError().getErrorCode())) {
                                 message = failure.getMessage();
@@ -213,9 +220,13 @@ public class SecurityConfig {
                             // OAuth filters execute before DispatcherServlet creates its output flash map.
                             FlashMap flash = new FlashMap();
                             flash.put("errorMessage", message);
-                            flash.setTargetRequestPath(request.getContextPath() + "/auth/register");
+                            Object origin = request.getSession(false) == null ? null
+                                    : request.getSession(false).getAttribute("GOOGLE_AUTH_ORIGIN");
+                            String destination = "login".equals(origin) ? "/auth/login" : "/auth/register";
+                            if (request.getSession(false) != null) request.getSession(false).removeAttribute("GOOGLE_AUTH_ORIGIN");
+                            flash.setTargetRequestPath(request.getContextPath() + destination);
                             new SessionFlashMapManager().saveOutputFlashMap(flash, request, response);
-                            response.sendRedirect(request.getContextPath() + "/auth/register");
+                            response.sendRedirect(request.getContextPath() + destination);
                         });
                 var success = authenticationSuccessHandlerProvider.getIfAvailable();
                 if (success != null) oauth.successHandler(success);

@@ -6,7 +6,7 @@
     <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
     
     <!-- Spring Security CSRF Meta Tokens -->
-    <meta name="_csrf" content="zs6DE8-VSUJs02Hn0kR1j2ITedOz2ukKI0eePHhXf-xfQwyw-Pezdf-nfydB41jf42lBvAAiVOqE44onFXOrDRwzG9tvdzTS">
+    <meta name="_csrf" content="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G">
     <meta name="_csrf_header" content="X-CSRF-TOKEN">
 
     <title>Đăng ký tài khoản - AureliaBook</title>
@@ -208,7 +208,7 @@
             <!-- Global Search Bar (UC02 - Search by Keyword, Author, ISBN) -->
             <form class="hidden md:flex flex-1 max-w-xl mx-6" action="/products/search" method="get">
                 <div class="relative w-full">
-                    <input type="search"
+                    <input type="search" aria-label="Tìm kiếm sản phẩm"
                            name="keyword"
                            value=""
                            placeholder="Tìm tựa sách, tác giả, ISBN, văn phòng phẩm..."
@@ -249,7 +249,7 @@
                         Đăng Nhập
                     </a>
                     <a href="/auth/register"
-                       class="inline-flex items-center px-4.5 py-2 text-sm font-bold text-white bg-blazing_flame hover:bg-blazing_flame-600 rounded-xl shadow-flame transition-all transform hover:-translate-y-0.5">
+                       class="inline-flex items-center px-4 py-2 text-sm font-bold text-white bg-blazing_flame hover:bg-blazing_flame-600 rounded-xl shadow-flame transition-all transform hover:-translate-y-0.5">
                         Đăng Ký
                     </a>
                 </div>
@@ -272,7 +272,7 @@
         <!-- Mobile Search Bar (Visible on mobile viewports) -->
         <div class="md:hidden pb-3">
             <form action="/products/search" method="get" class="relative">
-                <input type="search"
+                <input type="search" aria-label="Tìm kiếm sản phẩm"
                        name="keyword"
                        value=""
                        placeholder="Tìm kiếm sách, tác giả..."
@@ -460,28 +460,28 @@
         <button type="button" disabled
                 class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
         <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
-        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="zs6DE8-VSUJs02Hn0kR1j2ITedOz2ukKI0eePHhXf-xfQwyw-Pezdf-nfydB41jf42lBvAAiVOqE44onFXOrDRwzG9tvdzTS"/>
+        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G"/>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                     <label for="fullName" class="block font-semibold text-sm mb-2">Họ và tên <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input type="text" autocomplete="name" required minlength="2" maxlength="100"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" id="fullName" name="fullName" value="">
+                    <input id="fullName" type="text" autocomplete="name" required minlength="2" maxlength="100"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="fullName" value="">
                 </div>
                 <div>
                     <label for="email" class="block font-semibold text-sm mb-2">Email <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input type="email" autocomplete="email" required maxlength="100"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" id="email" name="email" value="">
+                    <input id="email" type="email" autocomplete="email" required maxlength="100"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="email" value="">
                 </div>
                 <div>
                     <label for="phone" class="block font-semibold text-sm mb-2">Số điện thoại <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" id="phone" name="phone" value="">
+                    <input id="phone" type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="phone" value="">
                 </div>
                 <div>
                     <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
-                    <input type="date" autocomplete="bday" max="2026-10-06"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" id="dob" name="dob" value="">
+                    <input id="dob" type="date" autocomplete="bday" max="2026-10-07"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="dob" value="">
                 </div>
                 <div>
                     <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>

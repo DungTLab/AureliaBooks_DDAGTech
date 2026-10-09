@@ -19,19 +19,17 @@ import static org.hamcrest.Matchers.containsString;
         AdminUserController.class, AdminProductController.class, MasterDataController.class,
         SupplierController.class, AdminReceiptController.class, AuditLogController.class})
 @Import(SecurityConfig.class)
+@org.springframework.test.context.bean.override.mockito.MockitoBean(types = com.ddagtech.aureliabooks.repository.RoleRepository.class)
 class SprintOneShellTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.RegistrationService registration;
     @Autowired
     private MockMvc mvc;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.AdminUserService adminUserService;
 
-    @org.springframework.boot.test.mock.mockito.MockBean
-    private com.ddagtech.aureliabooks.repository.RoleRepository roleRepository;
-
-    @org.springframework.boot.test.mock.mockito.MockBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.ProductService productService;
 
     @Test
@@ -40,8 +38,9 @@ class SprintOneShellTest {
                 .thenReturn(org.springframework.data.domain.Page.empty());
         org.mockito.Mockito.when(productService.getActiveCategories())
                 .thenReturn(java.util.List.of());
-
-        for (String route : new String[]{"/auth/login", "/products/search", "/products/1"}) {
+        mvc.perform(get("/auth/login")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Email hoặc số điện thoại")));
+        for (String route : new String[]{"/products/search", "/products/1"}) {
             mvc.perform(get(route)).andExpect(status().isOk())
                     .andExpect(content().string(containsString("Trang đang được xây dựng.")));
         }
