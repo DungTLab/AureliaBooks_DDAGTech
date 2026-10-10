@@ -63,7 +63,7 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
                 "  AND (:keyword IS NULL OR (" +
                 "      LOWER(a.action) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
                 "      OR LOWER(a.targetTable) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-                "      OR LOWER(a.detailsJson) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+                "      OR LOWER(CAST(a.detailsJson AS string)) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
                 "      OR LOWER(a.ipAddress) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
                 "      OR (u IS NOT NULL AND (" +
                 "          LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
@@ -79,7 +79,7 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
                 "  AND (:keyword IS NULL OR (" +
                 "      LOWER(a.action) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
                 "      OR LOWER(a.targetTable) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-                "      OR LOWER(a.detailsJson) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+                "      OR LOWER(CAST(a.detailsJson AS string)) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
                 "      OR LOWER(a.ipAddress) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
                 "      OR (u IS NOT NULL AND (" +
                 "          LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
