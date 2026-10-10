@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
 import java.util.Locale;
 
 /** UC05 only; profile/password-change contracts remain separate. */
@@ -25,7 +26,12 @@ public class RegistrationService {
 
     @Transactional
     public Long registerLocal(RegisterRequest request) {
-        if (!validator.validate(request).isEmpty()) throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        if (!validator.validate(request).isEmpty()) {
+            if (request.dob() != null && request.dob().isAfter(LocalDate.now().minusYears(13))) {
+                throw new AppException(ErrorCode.AGE_RESTRICTION_VIOLATED);
+            }
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        }
         if (users.existsByEmail(request.email()) || users.existsByPhone(request.phone())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }

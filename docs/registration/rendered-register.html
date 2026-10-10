@@ -6,7 +6,7 @@
     <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
     
     <!-- Spring Security CSRF Meta Tokens -->
-    <meta name="_csrf" content="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G">
+    <meta name="_csrf" content="IXgDIAljNysiDhSlFXlf0bS63cNU_MMNvX_U6hgDiCFijjenRR02GTBaURoPa3WXcVRrtNGJ8KJky_Yg2EznjHpm7hIA7AbB">
     <meta name="_csrf_header" content="X-CSRF-TOKEN">
 
     <title>Đăng ký tài khoản - AureliaBook</title>
@@ -180,7 +180,7 @@
             <div class="flex items-center space-x-4">
                 <span class="text-[#ff8a5c] font-bold inline-flex items-center gap-1.5">
                     <i class="bi bi-lightning-charge-fill text-[#ff7c4d]"></i>
-                    <span>Miễn phí giao hàng toàn quốc cho đơn từ 250.000đ</span>
+                    <span>Miễn phí giao hàng: từ 250k (Miền Nam) &amp; 350k (Toàn quốc)</span>
                 </span>
             </div>
         </div>
@@ -299,37 +299,37 @@
                     </a>
                 </li>
                 <li>
-                    <a href="/products?type=BOOK" class="hover:text-blazing_flame transition-colors py-1">
+                    <a href="/products?productType=BOOK" class="hover:text-blazing_flame transition-colors py-1">
                         Sách Tiếng Việt
                     </a>
                 </li>
                 <li>
-                    <a href="/products?category=2" class="hover:text-blazing_flame transition-colors py-1">
+                    <a href="/products?categoryId=2" class="hover:text-blazing_flame transition-colors py-1">
                         Văn Học & Tiểu Thuyết
                     </a>
                 </li>
                 <li>
-                    <a href="/products?category=3" class="hover:text-blazing_flame transition-colors py-1">
+                    <a href="/products?categoryId=3" class="hover:text-blazing_flame transition-colors py-1">
                         Kinh Tế - Khởi Nghiệp
                     </a>
                 </li>
                 <li>
-                    <a href="/products?category=4" class="hover:text-blazing_flame transition-colors py-1">
+                    <a href="/products?categoryId=4" class="hover:text-blazing_flame transition-colors py-1">
                         Khoa Học - Công Nghệ
                     </a>
                 </li>
                 <li>
-                    <a href="/products?type=STATIONERY" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
+                    <a href="/products?productType=STATIONERY" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
                         <i class="bi bi-pencil-fill text-blazing_flame"></i>Văn Phòng Phẩm
                     </a>
                 </li>
                 <li>
-                    <a href="/products?category=6" class="hover:text-blazing_flame transition-colors py-1">
+                    <a href="/products?categoryId=6" class="hover:text-blazing_flame transition-colors py-1">
                         Bút Ký Cao Cấp
                     </a>
                 </li>
                 <li>
-                    <a href="/products?category=7" class="hover:text-blazing_flame transition-colors py-1">
+                    <a href="/products?categoryId=7" class="hover:text-blazing_flame transition-colors py-1">
                         Sổ Tay & Planner
                     </a>
                 </li>
@@ -345,10 +345,10 @@
         <a href="/products" class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-grid me-2 text-blazing_flame"></i>Tất Cả Danh Mục
         </a>
-        <a href="/products?type=BOOK" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a href="/products?productType=BOOK" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-book me-2 text-blazing_flame"></i>Sách Tiếng Việt
         </a>
-        <a href="/products?type=STATIONERY" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a href="/products?productType=STATIONERY" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-pencil me-2 text-blazing_flame"></i>Văn Phòng Phẩm
         </a>
         <a href="/cart" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
@@ -460,7 +460,7 @@
         <button type="button" disabled
                 class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
         <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
-        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G"/>
+        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="IXgDIAljNysiDhSlFXlf0bS63cNU_MMNvX_U6hgDiCFijjenRR02GTBaURoPa3WXcVRrtNGJ8KJky_Yg2EznjHpm7hIA7AbB"/>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
@@ -480,7 +480,7 @@
                 </div>
                 <div>
                     <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
-                    <input id="dob" type="date" autocomplete="bday" max="2026-10-07"
+                    <input id="dob" type="date" autocomplete="bday" max="2013-10-10"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="dob" value="">
                 </div>
                 <div>
@@ -494,7 +494,7 @@
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
                 </div>
             </div>
-            <p id="password-help" class="text-sm text-carbon_black-500">Mật khẩu từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Ngày sinh không dùng để xét tuổi.</p>
+            <p id="password-help" class="text-sm text-carbon_black-500">Mật khẩu từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Khách hàng phải đủ từ 13 tuổi trở lên.</p>
             <fieldset>
                 <legend class="font-semibold text-sm mb-2">Giới tính (không bắt buộc)</legend>
                 <div class="flex flex-wrap gap-5 text-sm">

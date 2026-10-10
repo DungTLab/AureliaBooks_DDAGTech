@@ -40,6 +40,11 @@ public record RegisterRequest(
         return password == null || password.getBytes(StandardCharsets.UTF_8).length <= 72;
     }
 
+    @AssertTrue(message = "Khách hàng phải đủ từ 13 tuổi trở lên theo quy định (BR-07-02).")
+    public boolean isAgeValid() {
+        return dob == null || !dob.isAfter(LocalDate.now().minusYears(13));
+    }
+
     @Override
     public String toString() { return "RegisterRequest[credentials redacted]"; }
 }
