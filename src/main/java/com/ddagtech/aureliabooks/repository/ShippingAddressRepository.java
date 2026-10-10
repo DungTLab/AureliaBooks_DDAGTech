@@ -4,5 +4,6 @@ import com.ddagtech.aureliabooks.entity.ShippingAddress;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ShippingAddressRepository extends JpaRepository<ShippingAddress, Long> {
-    // TODO: owner adds only queries required by their Sprint 1 use cases.
+    java.util.List<ShippingAddress> findByUserIdAndIsActiveTrueOrderByIdAsc(Long userId);
+    java.util.Optional<ShippingAddress> findByIdAndUserIdAndIsActiveTrue(Long id, Long userId);
 }
