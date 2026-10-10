@@ -44,6 +44,9 @@ public class ProductServiceImpl implements ProductService {
         Specification<Product> spec = ProductSpecification.isActive(true);
         spec = spec.and((root, query, cb) -> cb.greaterThan(root.get("stockQuantity"), 0));
         if (filter != null) {
+            if (filter.keyword() != null && !filter.keyword().isBlank()) {
+                spec = spec.and(ProductSpecification.hasKeyword(filter.keyword()));
+            }
             if (filter.categoryId() != null) {
                 spec = spec.and(ProductSpecification.hasCategoryIn(List.of(filter.categoryId())));
             }
@@ -117,12 +120,11 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<CategorySummary> getActiveCategories() {
-        return categoryRepository.findAll().stream()
-                .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+        return categoryRepository.findByIsActiveTrue().stream()
                 .map(c -> new CategorySummary(
                         c.getId(),
                         c.getName(),
-                        c.getParent() !=null ? c.getParent().getId() : null
+                        c.getParent() != null ? c.getParent().getId() : null
                 )).toList();
     }
 }

@@ -20,6 +20,25 @@ public abstract class ProductSpecification implements Specification<Product> {
     // Abstract by design: no always-true predicate pretending filtering is complete.
 
     /**
+     * Filters products by keyword matching product title or barcode (case-insensitive).
+     *
+     * @param keyword search keyword
+     * @return Specification matching products whose title or barcode contains keyword, or conjunction if blank/null
+     */
+    public static Specification<Product> hasKeyword(String keyword) {
+        return (root, query, cb) -> {
+            if (keyword == null || keyword.isBlank()) {
+                return cb.conjunction();
+            }
+            String pattern = "%" + keyword.trim().toLowerCase() + "%";
+            return cb.or(
+                    cb.like(cb.lower(root.get("title")), pattern),
+                    cb.like(cb.lower(root.get("barcode")), pattern)
+            );
+        };
+    }
+
+    /**
      * Filters products belonging to the specified category IDs (including child and descendant categories).
      *
      * @param categoryIds collection of category IDs to match against
