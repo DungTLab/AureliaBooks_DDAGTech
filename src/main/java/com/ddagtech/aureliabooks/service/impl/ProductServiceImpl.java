@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
+import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
 import com.ddagtech.aureliabooks.entity.Author;
@@ -17,6 +18,7 @@ import com.ddagtech.aureliabooks.repository.specification.ProductSpecification;
 import com.ddagtech.aureliabooks.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -261,6 +263,30 @@ public class ProductServiceImpl implements ProductService {
                         c.getId(),
                         c.getName(),
                         c.getParent() != null ? c.getParent().getId() : null
+                )).toList();
+    }
+
+    @Override
+    public List<ProductAutoCompleteResponse> autocomplete(String keyword) {
+        if(keyword == null || keyword.trim().length() < 2){
+            return List.of();
+        }
+
+        Specification<Product> spec = ProductSpecification.isActive(true)
+                .and((root, query, cb) -> cb.greaterThan(root.get("stockQuantity"), 0))
+                .and(ProductSpecification.hasKeyWord(keyword.trim()))
+                .and(ProductSpecification.prioritizeExactIdentifier(keyword.trim()));
+
+        Pageable limitFive = PageRequest.of(0,5);
+        Page<Product> products = productRepository.findAll(spec,limitFive);
+
+        return products.getContent().stream()
+                .map(p -> new ProductAutoCompleteResponse(
+                        p.getId(),
+                        p.getTitle(),
+                        p.getPrice(),
+                        p.getMainImageUrl(),
+                        p.getBarcode()
                 )).toList();
     }
 }

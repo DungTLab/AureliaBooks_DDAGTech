@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
+import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.service.ProductService;
@@ -9,12 +10,10 @@ import com.ddagtech.aureliabooks.util.PageableUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -55,15 +54,38 @@ public class ProductController {
             @RequestParam(defaultValue = "newest") String sort,
             Model model) {
         Pageable pageable = PageableUtils.create(page, size, sort);
-
-        Page<ProductSummary> products = productService.browse(filterRequest, pageable);
         List<CategorySummary> categories = productService.getActiveCategories();
 
+        String rawKeyword = filterRequest != null ? filterRequest.keyword() : null;
+        boolean isBlankKeyWord = rawKeyword == null || rawKeyword.trim().isBlank();
+
+
+
+//        Page<ProductSummary> products = productService.browse(filterRequest, pageable);
+        Page<ProductSummary> products;
+        if(isBlankKeyWord){
+            products = Page.empty(pageable);
+            model.addAttribute("keywordMessage","Vui lòng nhập từ khóa để tìm kiếm sản phẩm");
+        } else {
+            ProductFilterRequest sanitizedFilter = new ProductFilterRequest(
+                    rawKeyword.trim(),
+                    filterRequest.categoryId(),
+                    filterRequest.minPrice(),
+                    filterRequest.maxPrice(),
+                    filterRequest.authorId(),
+                    filterRequest.publisherId(),
+                    filterRequest.brandId(),
+                    filterRequest.coverType(),
+                    filterRequest.productType(),
+                    filterRequest.isTextbook()
+            );
+            products = productService.browse(sanitizedFilter,pageable);
+        }
         model.addAttribute("products", products);
         model.addAttribute("categories", categories);
         model.addAttribute("currentSort", sort);
         model.addAttribute("currentSize", size);
-        model.addAttribute("keyword", filterRequest.keyword());
+        model.addAttribute("keyword", isBlankKeyWord ? "" : rawKeyword.trim());
 
         return "product/search";
     }
@@ -76,5 +98,14 @@ public class ProductController {
         } catch (java.util.NoSuchElementException ex) {
             return "redirect:/products";
         }
+    }
+
+    @GetMapping("/products/autocomplete")
+    @ResponseBody
+    public List<ProductAutoCompleteResponse> autoCompleteResponses(@RequestParam(required = false) String keyword){
+        if(keyword==null||keyword.trim().length()<2){
+            return List.of();
+        }
+        return productService.autocomplete(keyword.trim());
     }
 }

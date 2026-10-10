@@ -11,4 +11,6 @@ public interface ProductService {
     Page<ProductSummary> browse(ProductFilterRequest filter, Pageable pageable);
     ProductDetailResponse viewDetail(Long productId);
     List<CategorySummary> getActiveCategories();
+
+    List<ProductAutoCompleteResponse> autocomplete(String keyword);
 }
