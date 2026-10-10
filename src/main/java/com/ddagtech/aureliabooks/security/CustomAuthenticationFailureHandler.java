@@ -1,6 +1,5 @@
 package com.ddagtech.aureliabooks.security;
 
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -29,10 +28,12 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
     @Override
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response,
-                                        AuthenticationException exception) throws IOException, ServletException {
+                                        AuthenticationException exception) throws IOException {
         String errorParam;
 
-        if (exception instanceof LockedException) {
+        if (exception instanceof TemporaryLoginLockException) {
+            errorParam = "throttled";
+        } else if (exception instanceof LockedException) {
             log.warn("Authentication rejected - account locked: {}", exception.getMessage());
             errorParam = "locked";
         } else if (exception instanceof DisabledException) {

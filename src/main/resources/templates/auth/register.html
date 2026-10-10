@@ -10,7 +10,7 @@
             <h1 class="font-serif text-3xl text-carbon_black font-bold mt-3">Tạo tài khoản</h1>
             <p class="text-carbon_black-500 mt-2">Chào mừng bạn đến với AureliaBook</p>
         </div>
-        <a th:if="${googleEnabled}" th:href="@{/oauth2/authorization/google}"
+        <a th:if="${googleEnabled}" th:href="@{/auth/google/register}"
            class="flex items-center justify-center gap-3 border border-dust_grey rounded-xl px-4 py-3 font-semibold hover:bg-parchment-100">
             <i class="bi bi-google" aria-hidden="true"></i> Tiếp tục với Google
         </a>
@@ -25,28 +25,28 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                     <label for="fullName" class="block font-semibold text-sm mb-2">Họ và tên <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input th:field="*{fullName}" type="text" autocomplete="name" required minlength="2" maxlength="100"
+                    <input id="fullName" th:field="*{fullName}" type="text" autocomplete="name" required minlength="2" maxlength="100"
                            th:attr="aria-invalid=${#fields.hasErrors('fullName')}"
                            th:classappend="${#fields.hasErrors('fullName')} ? 'border-red-600'"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
                 <div>
                     <label for="email" class="block font-semibold text-sm mb-2">Email <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input th:field="*{email}" type="email" autocomplete="email" required maxlength="100"
+                    <input id="email" th:field="*{email}" type="email" autocomplete="email" required maxlength="100"
                            th:attr="aria-invalid=${#fields.hasErrors('email')}"
                            th:classappend="${#fields.hasErrors('email')} ? 'border-red-600'"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
                 <div>
                     <label for="phone" class="block font-semibold text-sm mb-2">Số điện thoại <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input th:field="*{phone}" type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
+                    <input id="phone" th:field="*{phone}" type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
                            th:attr="aria-invalid=${#fields.hasErrors('phone')}"
                            th:classappend="${#fields.hasErrors('phone')} ? 'border-red-600'"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
                 <div>
                     <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
-                    <input th:field="*{dob}" type="date" autocomplete="bday" th:max="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}"
+                    <input id="dob" th:field="*{dob}" type="date" autocomplete="bday" th:max="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}"
                            th:attr="aria-invalid=${#fields.hasErrors('dob')}"
                            th:classappend="${#fields.hasErrors('dob')} ? 'border-red-600'"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">

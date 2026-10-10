@@ -1,6 +1,5 @@
 package com.ddagtech.aureliabooks.security;
 
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +31,7 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
+                                        Authentication authentication) throws IOException {
         String targetUrl = determineTargetUrl(request, response, authentication);
 
         if (response.isCommitted()) {
@@ -41,6 +40,10 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
         }
 
         log.info("User '{}' logged in successfully. Redirecting to: {}", authentication.getName(), targetUrl);
+        if (request.getSession(false) != null) {
+            request.getSession(false).removeAttribute("GOOGLE_AUTH_ORIGIN");
+            request.getSession(false).removeAttribute(org.springframework.security.web.WebAttributes.AUTHENTICATION_EXCEPTION);
+        }
         redirectStrategy.sendRedirect(request, response, targetUrl);
     }
 
@@ -72,16 +75,34 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
         SavedRequest savedRequest = requestCache.getRequest(request, response);
         if (savedRequest != null) {
             String redirectUrl = savedRequest.getRedirectUrl();
-            if (isValidRedirect(redirectUrl)) {
+            if (isValidRedirect(request, redirectUrl)) {
                 requestCache.removeRequest(request, response);
                 return redirectUrl;
             }
         }
 
+        requestCache.removeRequest(request, response);
         return "/";
     }
 
-    private boolean isValidRedirect(String url) {
-        return url != null && !url.contains("/auth/") && !url.contains("/favicon.ico");
+    private boolean isValidRedirect(HttpServletRequest request, String url) {
+        if (url == null) return false;
+        try {
+            java.net.URI target=java.net.URI.create(url);
+            java.net.URI origin=java.net.URI.create(request.getRequestURL().toString());
+            String path=target.getPath();
+            int targetPort=target.getPort() == -1 ? ("https".equalsIgnoreCase(target.getScheme()) ? 443 : 80) : target.getPort();
+            int originPort=origin.getPort() == -1 ? ("https".equalsIgnoreCase(origin.getScheme()) ? 443 : 80) : origin.getPort();
+            if (!origin.getScheme().equalsIgnoreCase(target.getScheme()) || target.getHost() == null
+                    || !origin.getHost().equalsIgnoreCase(target.getHost()) || targetPort != originPort
+                    || target.getUserInfo() != null || path == null) return false;
+            String context=request.getContextPath();
+            return path.equals(context+"/cart") || path.startsWith(context+"/cart/")
+                    || path.equals(context+"/checkout") || path.startsWith(context+"/checkout/")
+                    || path.equals(context+"/orders") || path.startsWith(context+"/orders/")
+                    || path.equals(context+"/profile") || path.startsWith(context+"/profile/")
+                    || path.equals(context+"/account") || path.startsWith(context+"/account/")
+                    || path.equals(context+"/products") || path.startsWith(context+"/products/");
+        } catch (IllegalArgumentException invalid) { return false; }
     }
 }
