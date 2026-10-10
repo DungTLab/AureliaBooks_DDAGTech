@@ -38,12 +38,19 @@ class SprintOneShellTest {
                 .thenReturn(org.springframework.data.domain.Page.empty());
         org.mockito.Mockito.when(productService.getActiveCategories())
                 .thenReturn(java.util.List.of());
+        org.mockito.Mockito.when(productService.viewDetail(1L))
+                .thenReturn(new com.ddagtech.aureliabooks.dto.response.ProductDetailResponse(
+                        1L, "SKU1", "Test Book", java.math.BigDecimal.valueOf(100000), null, 10,
+                        null, "Desc", 200, com.ddagtech.aureliabooks.entity.Product.ProductType.BOOK,
+                        1L, "Cat", "ISBN1", 1L, "Pub", java.util.List.of("Author"), "Series", 1, false,
+                        2023, "1", 200, com.ddagtech.aureliabooks.entity.Book.CoverType.PAPERBACK, "Tiếng Việt",
+                        null, null, null, null, null
+                ));
+
         mvc.perform(get("/auth/login")).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Email hoặc số điện thoại")));
-        for (String route : new String[]{"/products/search", "/products/1"}) {
-            mvc.perform(get(route)).andExpect(status().isOk())
-                    .andExpect(content().string(containsString("Trang đang được xây dựng.")));
-        }
+        mvc.perform(get("/products/search")).andExpect(status().isOk());
+        mvc.perform(get("/products/1")).andExpect(status().isOk());
         mvc.perform(get("/products")).andExpect(status().isOk());
     }
 

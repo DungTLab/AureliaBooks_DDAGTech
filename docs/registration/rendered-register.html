@@ -6,7 +6,7 @@
     <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
     
     <!-- Spring Security CSRF Meta Tokens -->
-    <meta name="_csrf" content="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G">
+    <meta name="_csrf" content="OCRBEO7cSqsL7kygsqe_8AE-ydFJOGG-L1aKMYeyzEFoaGlICUF3KNzlepMmjSqTgoqLwWUH5LB8D1iTSjK6A7LT-SRdXF94">
     <meta name="_csrf_header" content="X-CSRF-TOKEN">
 
     <title>Đăng ký tài khoản - AureliaBook</title>
@@ -206,14 +206,16 @@
             </a>
 
             <!-- Global Search Bar (UC02 - Search by Keyword, Author, ISBN) -->
-            <form class="hidden md:flex flex-1 max-w-xl mx-6" action="/products/search" method="get">
+            <form class="hidden md:flex flex-1 max-w-xl mx-6 relative" action="/products/search" method="get" autocomplete="off">
                 <div class="relative w-full">
                     <input type="search" aria-label="Tìm kiếm sản phẩm"
+                           id="globalSearchInput"
                            name="keyword"
                            value=""
                            placeholder="Tìm tựa sách, tác giả, ISBN, văn phòng phẩm..."
                            class="w-full bg-parchment-100 text-carbon_black placeholder-carbon_black-400 text-sm rounded-full pl-11 pr-24 py-2.5 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all shadow-inner"
-                           required>
+                           required
+                           autocomplete="off">
                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-carbon_black-400">
                         <i class="bi bi-search text-base"></i>
                     </div>
@@ -221,6 +223,13 @@
                             class="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-xs rounded-full transition-colors flex items-center gap-1.5 shadow-sm">
                         <span>Tìm</span>
                     </button>
+                    <!-- Autocomplete Suggestions Dropdown (UC02 - Max 5 items) -->
+                    <div id="autocompleteDropdown"
+                         class="hidden absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border border-dust_grey shadow-xl overflow-hidden z-50">
+                        <div id="autocompleteList" class="divide-y divide-dust_grey/40">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
                 </div>
             </form>
 
@@ -271,13 +280,15 @@
 
         <!-- Mobile Search Bar (Visible on mobile viewports) -->
         <div class="md:hidden pb-3">
-            <form action="/products/search" method="get" class="relative">
+            <form action="/products/search" method="get" class="relative" autocomplete="off">
                 <input type="search" aria-label="Tìm kiếm sản phẩm"
+                       id="mobileSearchInput"
                        name="keyword"
                        value=""
                        placeholder="Tìm kiếm sách, tác giả..."
                        class="w-full bg-parchment-100 text-carbon_black placeholder-carbon_black-400 text-sm rounded-lg pl-10 pr-20 py-2.5 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame"
-                       required>
+                       required
+                       autocomplete="off">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-carbon_black-400">
                     <i class="bi bi-search"></i>
                 </div>
@@ -285,6 +296,13 @@
                         class="absolute right-1 top-1 bottom-1 px-3.5 bg-blazing_flame text-white font-bold text-xs rounded-md">
                     Tìm
                 </button>
+                <!-- Mobile Autocomplete Suggestions Dropdown -->
+                <div id="mobileAutocompleteDropdown"
+                     class="hidden absolute left-0 right-0 top-full mt-2 bg-white rounded-xl border border-dust_grey shadow-xl overflow-hidden z-50">
+                    <div id="mobileAutocompleteList" class="divide-y divide-dust_grey/40">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
             </form>
         </div>
     </nav>
@@ -406,6 +424,73 @@
                 mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
             });
         }
+
+        // Setup Search Autocomplete (UC02 - Max 5 suggestions when query >= 2 characters)
+        function setupAutocomplete(inputId, dropdownId, listId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            const list = document.getElementById(listId);
+            if (!input || !dropdown || !list) return;
+
+            let timer = null;
+
+            input.addEventListener('input', function () {
+                clearTimeout(timer);
+                const query = this.value.trim();
+
+                if (query.length < 2) {
+                    dropdown.classList.add('hidden');
+                    list.innerHTML = '';
+                    return;
+                }
+
+                timer = setTimeout(() => {
+                    fetch('/products/autocomplete?keyword=' + encodeURIComponent(query))
+                        .then(res => res.json())
+                        .then(items => {
+                            if (!items || items.length === 0) {
+                                dropdown.classList.add('hidden');
+                                list.innerHTML = '';
+                                return;
+                            }
+
+                            list.innerHTML = items.map(item => `
+                                <a href="/products/${item.id}" class="flex items-center gap-3 p-3 hover:bg-parchment-100 transition-colors">
+                                    <div class="w-10 h-12 bg-parchment-200 rounded-lg overflow-hidden flex-shrink-0 border border-dust_grey/60 flex items-center justify-center">
+                                        ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-book text-carbon_black-400\\'></i>'">` : `<i class="bi bi-book text-carbon_black-400"></i>`}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs font-bold text-carbon_black truncate">${item.title}</p>
+                                        <p class="text-xs font-extrabold text-blazing_flame mt-0.5">${new Intl.NumberFormat('vi-VN').format(item.price)} đ</p>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-xs text-dust_grey-600"></i>
+                                </a>
+                            `).join('');
+                            dropdown.classList.remove('hidden');
+                        })
+                        .catch(() => {
+                            dropdown.classList.add('hidden');
+                        });
+                }, 200);
+            });
+
+            // Hide when click outside
+            document.addEventListener('click', function (e) {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+
+            // Hide on escape
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        setupAutocomplete('globalSearchInput', 'autocompleteDropdown', 'autocompleteList');
+        setupAutocomplete('mobileSearchInput', 'mobileAutocompleteDropdown', 'mobileAutocompleteList');
     });
 </script>
 </header>
@@ -460,7 +545,7 @@
         <button type="button" disabled
                 class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
         <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
-        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G"/>
+        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="OCRBEO7cSqsL7kygsqe_8AE-ydFJOGG-L1aKMYeyzEFoaGlICUF3KNzlepMmjSqTgoqLwWUH5LB8D1iTSjK6A7LT-SRdXF94"/>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
@@ -480,7 +565,7 @@
                 </div>
                 <div>
                     <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
-                    <input id="dob" type="date" autocomplete="bday" max="2026-10-07"
+                    <input id="dob" type="date" autocomplete="bday" max="2026-10-10"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="dob" value="">
                 </div>
                 <div>

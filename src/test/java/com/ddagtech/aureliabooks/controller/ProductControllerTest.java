@@ -145,18 +145,34 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("GET /products/search renders search placeholder template")
+    @DisplayName("GET /products/search renders search template with model attributes")
     void getSearchPage() throws Exception {
-        mockMvc.perform(get("/products/search"))
+        when(productService.browse(any(), any())).thenReturn(Page.empty());
+        when(productService.getActiveCategories()).thenReturn(List.of());
+
+        mockMvc.perform(get("/products/search").param("keyword", "Harry Potter"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("product/search"));
+                .andExpect(view().name("product/search"))
+                .andExpect(model().attributeExists("products"))
+                .andExpect(model().attribute("keyword", "Harry Potter"));
     }
 
     @Test
-    @DisplayName("GET /products/1 renders detail placeholder template")
+    @DisplayName("GET /products/1 renders detail template with product details")
     void getDetailPage() throws Exception {
+        com.ddagtech.aureliabooks.dto.response.ProductDetailResponse detail =
+                new com.ddagtech.aureliabooks.dto.response.ProductDetailResponse(
+                        1L, "BARCODE123", "Harry Potter", new BigDecimal("150000"),
+                        new BigDecimal("200000"), 10, "http://image.jpg", "Great book", 350,
+                        Product.ProductType.BOOK, 2L, "Văn Học", "978-1234567890", 1L, "NXB Trẻ",
+                        List.of("J.K. Rowling"), "Harry Potter", 1, false, 2020, "1", 350,
+                        Book.CoverType.PAPERBACK, "Tiếng Việt", null, null, null, null, null
+                );
+        when(productService.viewDetail(1L)).thenReturn(detail);
+
         mockMvc.perform(get("/products/1"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("product/detail"));
+                .andExpect(view().name("product/detail"))
+                .andExpect(model().attributeExists("product"));
     }
 }

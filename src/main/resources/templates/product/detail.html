@@ -1,13 +1,301 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>product / detail</title></head>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout(${product != null ? product.title : 'Chi Tiết Sản Phẩm'}, ~{::#main-content})}">
+<head>
+    <title>Chi Tiết Sản Phẩm - AureliaBook</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC01/02/03; Owner: Huỳnh Nhật Duy. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">product / detail</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
+<section id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- 1. Breadcrumbs Trail -->
+    <nav class="flex items-center space-x-2 text-xs text-carbon_black-400 mb-6 font-medium overflow-x-auto whitespace-nowrap pb-1" aria-label="Breadcrumb">
+        <a th:href="@{/}" class="hover:text-blazing_flame transition-colors flex items-center gap-1">
+            <i class="bi bi-house-door"></i>
+            <span>Trang Chủ</span>
+        </a>
+        <i class="bi bi-chevron-right text-[10px]"></i>
+        <a th:href="@{/products}" class="hover:text-blazing_flame transition-colors">
+            <span>Danh Mục Sản Phẩm</span>
+        </a>
+        <th:block th:if="${product != null and product.categoryName != null}">
+            <i class="bi bi-chevron-right text-[10px]"></i>
+            <a th:href="@{/products(categoryId=${product.categoryId})}"
+               th:text="${product.categoryName}"
+               class="hover:text-blazing_flame transition-colors">Danh Mục Con</a>
+        </th:block>
+        <i class="bi bi-chevron-right text-[10px]"></i>
+        <span class="text-carbon_black font-bold truncate max-w-xs sm:max-w-md"
+              th:text="${product != null ? product.title : 'Chi Tiết'}">Tên Sản Phẩm</span>
+    </nav>
+
+    <!-- 2. Product Showcase & Detail Card -->
+    <div th:if="${product != null}" class="bg-white rounded-3xl border border-dust_grey p-6 sm:p-8 lg:p-10 shadow-soft mb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            
+            <!-- Left Column: Product Image Gallery (5 cols) -->
+            <div class="lg:col-span-5 flex flex-col items-center">
+                <div class="relative w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden bg-parchment-100 border border-dust_grey flex items-center justify-center shadow-inner group">
+                    <img th:src="${product.mainImageUrl != null and !product.mainImageUrl.isBlank() ? product.mainImageUrl : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80'}"
+                         th:alt="${product.title}"
+                         onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80';"
+                         class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Type Badge -->
+                    <span class="absolute top-4 left-4 px-3 py-1 text-xs font-extrabold uppercase tracking-wider rounded-lg shadow-sm"
+                          th:classappend="${product.productType?.name() == 'BOOK'} ? 'bg-carbon_black text-white' : 'bg-parchment-200 text-carbon_black border border-dust_grey'"
+                          th:text="${product.productType?.name() == 'BOOK'} ? 'Sách' : 'VPP'">
+                        Sách
+                    </span>
+
+                    <!-- Out-of-Stock Overlay -->
+                    <div th:if="${product.stockQuantity <= 0}"
+                         class="absolute inset-0 bg-carbon_black/60 backdrop-blur-xs flex items-center justify-center p-4">
+                        <span class="px-5 py-2.5 rounded-xl bg-dust_grey text-carbon_black font-bold text-sm tracking-wider uppercase shadow-md">
+                            Tạm Hết Hàng
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Safe Shopping Highlights -->
+                <div class="w-full max-w-md grid grid-cols-3 gap-2 mt-4 text-center">
+                    <div class="p-2.5 rounded-xl bg-parchment-100 border border-dust_grey/60 text-carbon_black">
+                        <i class="bi bi-shield-check text-blazing_flame text-base block mb-0.5"></i>
+                        <span class="text-[11px] font-bold block">Chính Hãng 100%</span>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-parchment-100 border border-dust_grey/60 text-carbon_black">
+                        <i class="bi bi-truck text-blazing_flame text-base block mb-0.5"></i>
+                        <span class="text-[11px] font-bold block">Giao Toàn Quốc</span>
+                    </div>
+                    <div class="p-2.5 rounded-xl bg-parchment-100 border border-dust_grey/60 text-carbon_black">
+                        <i class="bi bi-arrow-repeat text-blazing_flame text-base block mb-0.5"></i>
+                        <span class="text-[11px] font-bold block">Đổi Trả 7 Ngày</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Product Meta & Purchase Panel (7 cols) -->
+            <div class="lg:col-span-7 flex flex-col justify-between space-y-6">
+                <div>
+                    <!-- Series Badge per Invariant [Inv-7] -->
+                    <div th:if="${product.seriesName != null and !product.seriesName.isBlank()}" class="mb-3">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blazing_flame-50 text-blazing_flame border border-blazing_flame/30 text-xs font-bold">
+                            <i class="bi bi-collection-fill"></i>
+                            <span th:text="'Bộ: ' + ${product.seriesName} + (${product.volumeNumber != null} ? ' (Tập ' + ${product.volumeNumber} + ')' : '')"></span>
+                        </span>
+                    </div>
+
+                    <!-- Main Title -->
+                    <h1 class="text-2xl sm:text-3xl font-serif font-bold text-carbon_black leading-tight"
+                        th:text="${product.title}">
+                        Tên Sản Phẩm Mẫu
+                    </h1>
+
+                    <!-- Key Metadata Row -->
+                    <div class="mt-3 flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-carbon_black-400">
+                        <!-- Barcode / SKU -->
+                        <span>Mã SKU: <strong class="text-carbon_black font-mono" th:text="${product.barcode}">SKU-12345</strong></span>
+
+                        <!-- Authors for Books -->
+                        <span th:if="${product.authorNames != null and !product.authorNames.isEmpty()}">
+                            Tác giả: 
+                            <strong class="text-carbon_black" th:text="${#strings.listJoin(product.authorNames, ', ')}">Tên Tác Giả</strong>
+                        </span>
+
+                        <!-- Publisher for Books -->
+                        <span th:if="${product.publisherName != null}">
+                            NXB: <strong class="text-carbon_black" th:text="${product.publisherName}">Kim Đồng</strong>
+                        </span>
+
+                        <!-- Brand for Stationery -->
+                        <span th:if="${product.brandName != null}">
+                            Thương hiệu: <strong class="text-carbon_black" th:text="${product.brandName}">Thiên Long</strong>
+                        </span>
+                    </div>
+
+                    <!-- Pricing Banner -->
+                    <div class="mt-6 p-4 rounded-2xl bg-parchment-100 border border-dust_grey flex items-baseline gap-4">
+                        <div class="text-3xl sm:text-4xl font-extrabold text-blazing_flame font-sans">
+                            <span th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')}">150.000</span>
+                            <span class="text-base font-semibold">đ</span>
+                        </div>
+                        <div th:if="${product.originalCost != null and product.originalCost > product.price}"
+                             class="text-sm text-carbon_black-400 line-through">
+                            <span th:text="${#numbers.formatDecimal(product.originalCost, 0, 'COMMA', 0, 'POINT')}">200.000</span> đ
+                        </div>
+                        <div class="ml-auto">
+                            <span th:if="${product.stockQuantity > 0}"
+                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Còn hàng (Kho: [[${product.stockQuantity}]])</span>
+                            </span>
+                            <span th:unless="${product.stockQuantity > 0}"
+                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                <span>Tạm hết hàng</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Short Description Excerpt -->
+                    <div class="mt-6">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-400 mb-2">Giới thiệu ngắn:</h3>
+                        <p class="text-sm text-carbon_black-500 leading-relaxed line-clamp-3"
+                           th:text="${product.description != null and !product.description.isBlank() ? product.description : 'Sản phẩm chính hãng được phân phối độc quyền tại AureliaBook.'}">
+                            Mô tả tóm tắt...
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 3. Add to Cart & Purchase Area -->
+                <div class="pt-6 border-t border-dust_grey/60">
+                    <form th:action="@{/cart/add}" method="post" class="space-y-4">
+                        <input type="hidden" name="productId" th:value="${product.id}">
+
+                        <!-- Quantity Selector & Action Button -->
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                            <!-- Quantity Box -->
+                            <div class="flex items-center justify-between border border-dust_grey rounded-2xl bg-white px-3 py-1.5 w-full sm:w-36">
+                                <button type="button"
+                                        onclick="let q = document.getElementById('qtyInput'); if(q.value > 1) q.value--;"
+                                        class="w-8 h-8 rounded-lg hover:bg-parchment-200 text-carbon_black font-bold flex items-center justify-center transition-colors">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <input type="number" id="qtyInput" name="quantity" value="1" min="1" th:max="${product.stockQuantity}"
+                                       class="w-12 text-center text-sm font-bold text-carbon_black focus:outline-none border-none bg-transparent">
+                                <button type="button"
+                                        th:onclick="'let q = document.getElementById(\'qtyInput\'); if(q.value < ' + ${product.stockQuantity} + ') q.value++;'"
+                                        class="w-8 h-8 rounded-lg hover:bg-parchment-200 text-carbon_black font-bold flex items-center justify-center transition-colors">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+
+                            <!-- Add to Cart CTA (Enforcing Invariant [Inv-1] No Guest Cart) -->
+                            <th:block sec:authorize="isAuthenticated()">
+                                <button type="submit"
+                                        th:disabled="${product.stockQuantity <= 0}"
+                                        class="flex-1 py-3.5 px-6 rounded-2xl bg-blazing_flame hover:bg-blazing_flame-600 disabled:bg-dust_grey disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide shadow-flame transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                                    <i class="bi bi-bag-plus-fill text-lg"></i>
+                                    <span>Thêm Vào Giỏ Hàng</span>
+                                </button>
+                            </th:block>
+                            <th:block sec:authorize="!isAuthenticated()">
+                                <a th:href="@{/auth/login}"
+                                   class="flex-1 py-3.5 px-6 rounded-2xl bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-sm tracking-wide shadow-flame transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                                    <i class="bi bi-box-arrow-in-right text-lg"></i>
+                                    <span>Đăng Nhập Để Mua Hàng</span>
+                                </a>
+                            </th:block>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Detailed Specifications & Description Tabs -->
+    <div th:if="${product != null}" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Pane: Technical Specifications Table (7 cols) -->
+        <div class="lg:col-span-7 bg-white rounded-3xl border border-dust_grey p-6 sm:p-8 shadow-soft">
+            <h2 class="text-base font-bold uppercase tracking-wider text-carbon_black mb-6 flex items-center gap-2 border-b border-dust_grey/60 pb-3">
+                <i class="bi bi-card-checklist text-blazing_flame text-lg"></i>
+                <span>Thông Số Kỹ Thuật</span>
+            </h2>
+
+            <dl class="divide-y divide-dust_grey/50 text-xs sm:text-sm">
+                <!-- Book Specific Specifications -->
+                <th:block th:if="${product.productType?.name() == 'BOOK'}">
+                    <div th:if="${product.isbn != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Mã ISBN</dt>
+                        <dd class="text-carbon_black font-bold font-mono" th:text="${product.isbn}">-</dd>
+                    </div>
+                    <div th:if="${product.publisherName != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Nhà xuất bản</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.publisherName}">-</dd>
+                    </div>
+                    <div th:if="${product.publicationYear != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Năm xuất bản</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.publicationYear}">-</dd>
+                    </div>
+                    <div th:if="${product.coverType != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Hình thức bìa</dt>
+                        <dd class="text-carbon_black font-semibold"
+                            th:text="${product.coverType?.name() == 'HARDCOVER'} ? 'Bìa cứng (Hardcover)' : 'Bìa mềm (Paperback)'">-</dd>
+                    </div>
+                    <div th:if="${product.pageCount != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Số trang</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.pageCount} + ' trang'">-</dd>
+                    </div>
+                    <div th:if="${product.language != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Ngôn ngữ</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.language}">-</dd>
+                    </div>
+                    <div th:if="${product.isTextbook != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Phân loại giáo khoa</dt>
+                        <dd class="text-carbon_black font-semibold"
+                            th:text="${product.isTextbook} ? 'Sách giáo khoa / Tham khảo' : 'Sách thông thường'">-</dd>
+                    </div>
+                </th:block>
+
+                <!-- Stationery Specific Specifications -->
+                <th:block th:if="${product.productType?.name() == 'STATIONERY'}">
+                    <div th:if="${product.brandName != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Thương hiệu</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.brandName}">-</dd>
+                    </div>
+                    <div th:if="${product.material != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Chất liệu</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.material}">-</dd>
+                    </div>
+                    <div th:if="${product.color != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Màu sắc</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.color}">-</dd>
+                    </div>
+                    <div th:if="${product.warrantyMonths != null}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Thời hạn bảo hành</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.warrantyMonths} + ' tháng'">-</dd>
+                    </div>
+                </th:block>
+
+                <!-- Common Specifications -->
+                <div th:if="${product.weightGrams != null}" class="py-3 flex justify-between">
+                    <dt class="text-carbon_black-400 font-medium">Trọng lượng vận chuyển</dt>
+                    <dd class="text-carbon_black font-semibold" th:text="${product.weightGrams} + ' g'">-</dd>
+                </div>
+                <div th:if="${product.categoryName != null}" class="py-3 flex justify-between">
+                    <dt class="text-carbon_black-400 font-medium">Danh mục chính</dt>
+                    <dd class="text-carbon_black font-semibold" th:text="${product.categoryName}">-</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Right Pane: Full Description (5 cols) -->
+        <div class="lg:col-span-5 bg-white rounded-3xl border border-dust_grey p-6 sm:p-8 shadow-soft">
+            <h2 class="text-base font-bold uppercase tracking-wider text-carbon_black mb-6 flex items-center gap-2 border-b border-dust_grey/60 pb-3">
+                <i class="bi bi-file-text text-blazing_flame text-lg"></i>
+                <span>Nội Dung Chi Tiết</span>
+            </h2>
+            <div class="prose prose-sm text-carbon_black-500 leading-relaxed whitespace-pre-line"
+                 th:text="${product.description != null and !product.description.isBlank() ? product.description : 'Hiện chưa có mô tả chi tiết cho sản phẩm này.'}">
+                Mô tả chi tiết sản phẩm...
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Product Not Found Fallback -->
+    <div th:if="${product == null}" class="bg-white rounded-3xl border border-dust_grey p-12 text-center shadow-soft max-w-lg mx-auto">
+        <div class="w-16 h-16 rounded-2xl bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-3xl mb-4">
+            <i class="bi bi-exclamation-triangle text-amber-500"></i>
+        </div>
+        <h2 class="font-serif font-bold text-xl text-carbon_black">Không Tìm Thấy Sản Phẩm</h2>
+        <p class="text-xs text-carbon_black-400 mt-2 mb-6">Sản phẩm này có thể đã bị ngừng kinh doanh hoặc không tồn tại.</p>
+        <a th:href="@{/products}" class="px-6 py-2.5 bg-blazing_flame text-white text-xs font-bold rounded-xl shadow-flame hover:bg-blazing_flame-600 transition-colors inline-block">
+            Quay Lại Danh Mục
+        </a>
+    </div>
+
 </section>
 </body>
 </html>
