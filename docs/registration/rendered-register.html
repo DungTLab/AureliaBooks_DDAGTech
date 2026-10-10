@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
-    
+
     <!-- Spring Security CSRF Meta Tokens -->
     <meta name="_csrf" content="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G">
     <meta name="_csrf_header" content="X-CSRF-TOKEN">
@@ -162,8 +162,8 @@
     </style>
 </head>
 <body class="min-h-full flex flex-col bg-parchment text-carbon_black font-sans antialiased selection:bg-blazing_flame selection:text-white">
-    <!-- Main Global Navbar Header -->
-    <header class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300">
+<!-- Main Global Navbar Header -->
+<header class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300">
     <!-- Top Utility Announcement Bar (Grounding Warm Espresso Anchor) -->
     <div class="hidden sm:block bg-[#1f1c19] text-[#ded7cc] text-xs py-2 px-4 border-b border-[#2d2824]">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
@@ -189,7 +189,7 @@
     <!-- Main Navigation Bar -->
     <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-18 lg:h-20 gap-4">
-            
+
             <!-- Brand Logo with Warm Terracotta Identity -->
             <a href="/" class="flex items-center gap-3 group flex-shrink-0">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 flex items-center justify-center text-white shadow-flame group-hover:scale-105 transition-transform duration-200">
@@ -255,7 +255,7 @@
                 </div>
 
                 <!-- Authenticated User Menu Dropdown -->
-                
+
 
                 <!-- Mobile Hamburger Drawer Toggle Button -->
                 <button id="mobileMenuBtn"
@@ -366,63 +366,63 @@
             </a>
         </div>
     </div>
-<!-- Interactive Vanilla JS for Navigation & Dropdowns -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // User profile dropdown toggle
-        const userMenuBtn = document.getElementById('userMenuBtn');
-        const userDropdown = document.getElementById('userDropdown');
+    <!-- Interactive Vanilla JS for Navigation & Dropdowns -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // User profile dropdown toggle
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            const userDropdown = document.getElementById('userDropdown');
 
-        if (userMenuBtn && userDropdown) {
-            userMenuBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                userDropdown.classList.toggle('hidden');
-            });
+            if (userMenuBtn && userDropdown) {
+                userMenuBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('hidden');
+                });
 
-            document.addEventListener('click', function (e) {
-                if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
-                    userDropdown.classList.add('hidden');
-                }
-            });
+                document.addEventListener('click', function (e) {
+                    if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
+                        userDropdown.classList.add('hidden');
+                    }
+                });
 
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') {
-                    userDropdown.classList.add('hidden');
-                }
-            });
-        }
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        userDropdown.classList.add('hidden');
+                    }
+                });
+            }
 
-        // Mobile drawer toggle
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const mobileMenu = document.getElementById('mobileMenu');
-        const menuIconClosed = document.getElementById('menuIconClosed');
-        const menuIconOpen = document.getElementById('menuIconOpen');
+            // Mobile drawer toggle
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileMenu = document.getElementById('mobileMenu');
+            const menuIconClosed = document.getElementById('menuIconClosed');
+            const menuIconOpen = document.getElementById('menuIconOpen');
 
-        if (mobileMenuBtn && mobileMenu) {
-            mobileMenuBtn.addEventListener('click', function () {
-                const isExpanded = mobileMenu.classList.toggle('hidden');
-                menuIconClosed.classList.toggle('hidden');
-                menuIconOpen.classList.toggle('hidden');
-                mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
-            });
-        }
-    });
-</script>
+            if (mobileMenuBtn && mobileMenu) {
+                mobileMenuBtn.addEventListener('click', function () {
+                    const isExpanded = mobileMenu.classList.toggle('hidden');
+                    menuIconClosed.classList.toggle('hidden');
+                    menuIconOpen.classList.toggle('hidden');
+                    mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
+                });
+            }
+        });
+    </script>
 </header>
 
-    <!-- Global Floating Toast Alerts Container -->
-    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 w-full max-w-sm pointer-events-none px-4 sm:px-0">
+<!-- Global Floating Toast Alerts Container -->
+<div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 w-full max-w-sm pointer-events-none px-4 sm:px-0">
     <!-- Success Toast Alert -->
-    
+
 
     <!-- Error Toast Alert with Terracotta Accent -->
-    
+
 
     <!-- Warning Toast Alert -->
-    
+
 
     <!-- Info Toast Alert -->
-    
+
 
     <!-- Toast Auto-Dismiss Client Script -->
     <script>
@@ -447,78 +447,78 @@
     </script>
 </div>
 
-    <!-- Dynamic Main Content Slot -->
-    <main class="flex-1 w-full">
-        <section id="main-content" class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-    <div class="bg-white rounded-2xl border border-dust_grey shadow-soft p-6 sm:p-10">
-        <div class="text-center mb-7">
-            <span class="text-blazing_flame text-3xl" aria-hidden="true"><i class="bi bi-book"></i></span>
-            <h1 class="font-serif text-3xl text-carbon_black font-bold mt-3">Tạo tài khoản</h1>
-            <p class="text-carbon_black-500 mt-2">Chào mừng bạn đến với AureliaBook</p>
-        </div>
-        
-        <button type="button" disabled
-                class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
-        <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
-        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G"/>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                    <label for="fullName" class="block font-semibold text-sm mb-2">Họ và tên <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input id="fullName" type="text" autocomplete="name" required minlength="2" maxlength="100"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="fullName" value="">
-                </div>
-                <div>
-                    <label for="email" class="block font-semibold text-sm mb-2">Email <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input id="email" type="email" autocomplete="email" required maxlength="100"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="email" value="">
-                </div>
-                <div>
-                    <label for="phone" class="block font-semibold text-sm mb-2">Số điện thoại <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input id="phone" type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="phone" value="">
-                </div>
-                <div>
-                    <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
-                    <input id="dob" type="date" autocomplete="bday" max="2026-10-07"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="dob" value="">
-                </div>
-                <div>
-                    <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input name="password" id="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
-                </div>
-                <div>
-                    <label for="confirmPassword" class="block font-semibold text-sm mb-2">Xác nhận mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input name="confirmPassword" id="confirmPassword" type="password" autocomplete="new-password" required
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
-                </div>
+<!-- Dynamic Main Content Slot -->
+<main class="flex-1 w-full">
+    <section id="main-content" class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        <div class="bg-white rounded-2xl border border-dust_grey shadow-soft p-6 sm:p-10">
+            <div class="text-center mb-7">
+                <span class="text-blazing_flame text-3xl" aria-hidden="true"><i class="bi bi-book"></i></span>
+                <h1 class="font-serif text-3xl text-carbon_black font-bold mt-3">Tạo tài khoản</h1>
+                <p class="text-carbon_black-500 mt-2">Chào mừng bạn đến với AureliaBook</p>
             </div>
-            <p id="password-help" class="text-sm text-carbon_black-500">Mật khẩu từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Ngày sinh không dùng để xét tuổi.</p>
-            <fieldset>
-                <legend class="font-semibold text-sm mb-2">Giới tính (không bắt buộc)</legend>
-                <div class="flex flex-wrap gap-5 text-sm">
-                    <label><input type="radio" value="MALE" class="accent-blazing_flame" id="gender1" name="gender"> Nam</label>
-                    <label><input type="radio" value="FEMALE" class="accent-blazing_flame" id="gender2" name="gender"> Nữ</label>
-                    <label><input type="radio" value="OTHER" class="accent-blazing_flame" id="gender3" name="gender" checked="checked"> Khác / Không cung cấp</label>
-                </div>
-            </fieldset>
-            <label class="flex items-start gap-3 text-sm leading-relaxed">
-                <input type="checkbox" required class="mt-1 accent-blazing_flame" id="agreeTerms1" name="agreeTerms" value="true"><input type="hidden" name="_agreeTerms" value="on"/>
-                <span>Tôi đồng ý với điều khoản sử dụng của AureliaBook.</span>
-            </label>
-            <button type="submit" class="w-full bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold py-3 rounded-xl transition-colors">Đăng ký</button>
-        </form>
-        <p class="text-center text-sm mt-6 text-carbon_black-500">Đã có tài khoản? <a href="/auth/login" class="text-blazing_flame font-bold hover:underline">Đăng nhập</a></p>
-    </div>
-</section>
-    </main>
 
-    <!-- Global Footer -->
-    <footer class="bg-[#1a1715] text-[#d6d0c7] pt-16 pb-8 border-t border-[#2e2925] mt-auto">
+            <button type="button" disabled
+                    class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
+            <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
+            <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="CbjG5BAikqs3XKSBoKFcRKVq-OlLadFQMmFMc7WgmPhEpn4_bNnz1XRE9JoaZJexxoxoJ5cI1dAoX7B9ClF6RtORq5l0xB0G"/>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="fullName" class="block font-semibold text-sm mb-2">Họ và tên <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                        <input id="fullName" type="text" autocomplete="name" required minlength="2" maxlength="100"
+                               class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="fullName" value="">
+                    </div>
+                    <div>
+                        <label for="email" class="block font-semibold text-sm mb-2">Email <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                        <input id="email" type="email" autocomplete="email" required maxlength="100"
+                               class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="email" value="">
+                    </div>
+                    <div>
+                        <label for="phone" class="block font-semibold text-sm mb-2">Số điện thoại <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                        <input id="phone" type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
+                               class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="phone" value="">
+                    </div>
+                    <div>
+                        <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
+                        <input id="dob" type="date" autocomplete="bday" max="2026-10-07"
+                               class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="dob" value="">
+                    </div>
+                    <div>
+                        <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                        <input name="password" id="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help"
+                               class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+                    </div>
+                    <div>
+                        <label for="confirmPassword" class="block font-semibold text-sm mb-2">Xác nhận mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                        <input name="confirmPassword" id="confirmPassword" type="password" autocomplete="new-password" required
+                               class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+                    </div>
+                </div>
+                <p id="password-help" class="text-sm text-carbon_black-500">Mật khẩu từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Ngày sinh không dùng để xét tuổi.</p>
+                <fieldset>
+                    <legend class="font-semibold text-sm mb-2">Giới tính (không bắt buộc)</legend>
+                    <div class="flex flex-wrap gap-5 text-sm">
+                        <label><input type="radio" value="MALE" class="accent-blazing_flame" id="gender1" name="gender"> Nam</label>
+                        <label><input type="radio" value="FEMALE" class="accent-blazing_flame" id="gender2" name="gender"> Nữ</label>
+                        <label><input type="radio" value="OTHER" class="accent-blazing_flame" id="gender3" name="gender" checked="checked"> Khác / Không cung cấp</label>
+                    </div>
+                </fieldset>
+                <label class="flex items-start gap-3 text-sm leading-relaxed">
+                    <input type="checkbox" required class="mt-1 accent-blazing_flame" id="agreeTerms1" name="agreeTerms" value="true"><input type="hidden" name="_agreeTerms" value="on"/>
+                    <span>Tôi đồng ý với điều khoản sử dụng của AureliaBook.</span>
+                </label>
+                <button type="submit" class="w-full bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold py-3 rounded-xl transition-colors">Đăng ký</button>
+            </form>
+            <p class="text-center text-sm mt-6 text-carbon_black-500">Đã có tài khoản? <a href="/auth/login" class="text-blazing_flame font-bold hover:underline">Đăng nhập</a></p>
+        </div>
+    </section>
+</main>
+
+<!-- Global Footer -->
+<footer class="bg-[#1a1715] text-[#d6d0c7] pt-16 pb-8 border-t border-[#2e2925] mt-auto">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
-            
+
             <!-- Column 1: Brand & Identity -->
             <div class="space-y-4">
                 <div class="flex items-center gap-3">
@@ -530,7 +530,7 @@
                     </span>
                 </div>
                 <p class="text-[#aba398] text-sm leading-relaxed">
-                    Hệ thống bán lẻ Sách và Văn phòng phẩm cao cấp trực tuyến. 
+                    Hệ thống bán lẻ Sách và Văn phòng phẩm cao cấp trực tuyến.
                     Nền tảng thương mại điện tử hiện đại, tích hợp tra cứu thông minh và thanh toán VNPay bảo mật.
                 </p>
                 <div class="flex items-center space-x-3 pt-2">

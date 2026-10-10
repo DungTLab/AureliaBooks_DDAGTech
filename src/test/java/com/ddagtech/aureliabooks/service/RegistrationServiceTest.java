@@ -1,4 +1,5 @@
 package com.ddagtech.aureliabooks.service;
+import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.repository.*;
@@ -51,8 +52,18 @@ class RegistrationServiceTest {
         assertFalse(validator.validate(request("A1!"+"é".repeat(35),"A1!"+"é".repeat(35),"0912345678",null)).isEmpty());
         assertTrue(validator.validate(request("A1!"+"x".repeat(69),"A1!"+"x".repeat(69),"0912345678",null)).isEmpty());
     }
-    @Test void optionalDobHasNoAgeRestrictionButMustBePast() {
-        assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusDays(1))).isEmpty());
+    @Test void ageMustBeAtLeast13YearsOldWhenDobProvided() {
+        // Dob exactly 13 years ago is valid
+        assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusYears(13))).isEmpty());
+        // Dob 20 years ago is valid
+        assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusYears(20))).isEmpty());
+        // Null dob is valid (optional field)
+        assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",null)).isEmpty());
+        // Dob 12 years ago (under 13) is rejected by validator and service
+        assertFalse(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusYears(12))).isEmpty());
+        var ex = assertThrows(AppException.class, () -> service.registerLocal(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusYears(12))));
+        assertEquals(ErrorCode.AGE_RESTRICTION_VIOLATED, ex.getErrorCode());
+        // Dob today or in the future is rejected
         assertFalse(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now())).isEmpty());
         assertFalse(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().plusDays(1))).isEmpty());
     }

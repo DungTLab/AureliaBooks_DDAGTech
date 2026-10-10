@@ -164,7 +164,7 @@ class ProductServiceImplTest {
         inactiveCat.setName("Danh Mục Cũ");
         inactiveCat.setIsActive(false);
 
-        when(categoryRepository.findAll()).thenReturn(List.of(parentCat, childCat, inactiveCat));
+        when(categoryRepository.findByIsActiveTrue()).thenReturn(List.of(parentCat, childCat));
 
         // Act
         List<CategorySummary> activeCategories = productService.getActiveCategories();
@@ -175,6 +175,7 @@ class ProductServiceImplTest {
         assertThat(activeCategories.get(0).parentId()).isNull();
         assertThat(activeCategories.get(1).id()).isEqualTo(2L);
         assertThat(activeCategories.get(1).parentId()).isEqualTo(1L);
+        verify(categoryRepository).findByIsActiveTrue();
     }
 
     @Test
