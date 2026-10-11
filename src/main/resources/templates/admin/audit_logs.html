@@ -368,76 +368,85 @@
         </div>
     </div>
 
-</div>
+    <!-- Modal & JSON Formatting JavaScript -->
+    <script>
+        function openAuditJsonModal(button) {
+            const id = button.getAttribute('data-id');
+            const action = button.getAttribute('data-action');
+            const target = button.getAttribute('data-target');
+            const targetId = button.getAttribute('data-target-id');
+            const operator = button.getAttribute('data-operator');
+            const ip = button.getAttribute('data-ip');
+            const time = button.getAttribute('data-time');
+            const rawPayload = button.getAttribute('data-payload');
 
-<!-- Modal & JSON Formatting JavaScript -->
-<script>
-    function openAuditJsonModal(button) {
-        const id = button.getAttribute('data-id');
-        const action = button.getAttribute('data-action');
-        const target = button.getAttribute('data-target');
-        const targetId = button.getAttribute('data-target-id');
-        const operator = button.getAttribute('data-operator');
-        const ip = button.getAttribute('data-ip');
-        const time = button.getAttribute('data-time');
-        const rawPayload = button.getAttribute('data-payload');
+            document.getElementById('modalEventId').textContent = '#' + id;
+            document.getElementById('modalActionBadge').textContent = action;
+            document.getElementById('modalTargetTable').textContent = target;
+            document.getElementById('modalTargetId').textContent = targetId;
+            document.getElementById('modalOperator').textContent = operator || 'Hệ thống';
+            document.getElementById('modalTime').textContent = time;
+            document.getElementById('modalIp').textContent = ip;
 
-        document.getElementById('modalEventId').textContent = '#' + id;
-        document.getElementById('modalActionBadge').textContent = action;
-        document.getElementById('modalTargetTable').textContent = target;
-        document.getElementById('modalTargetId').textContent = targetId;
-        document.getElementById('modalOperator').textContent = operator || 'Hệ thống';
-        document.getElementById('modalTime').textContent = time;
-        document.getElementById('modalIp').textContent = ip;
+            let formattedJson = '{\n  "info": "Không có dữ liệu payload chi tiết ghi nhận cho sự kiện này"\n}';
+            if (rawPayload && rawPayload.trim() !== '' && rawPayload.trim() !== 'null') {
+                try {
+                    const parsed = JSON.parse(rawPayload);
+                    formattedJson = JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    formattedJson = rawPayload;
+                }
+            }
+            document.getElementById('modalJsonCode').textContent = formattedJson;
 
-        let formattedJson = '{}';
-        if (rawPayload && rawPayload.trim() !== '') {
-            try {
-                const parsed = JSON.parse(rawPayload);
-                formattedJson = JSON.stringify(parsed, null, 2);
-            } catch (e) {
-                formattedJson = rawPayload;
+            // Reset copy button state
+            document.getElementById('copyText').textContent = 'Sao chép';
+            document.getElementById('copyIcon').className = 'bi bi-clipboard';
+
+            const modal = document.getElementById('auditJsonModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.body.classList.add('overflow-hidden');
             }
         }
-        document.getElementById('modalJsonCode').textContent = formattedJson;
 
-        // Reset copy button state
-        document.getElementById('copyText').textContent = 'Sao chép';
-        document.getElementById('copyIcon').className = 'bi bi-clipboard';
+        function closeAuditJsonModal() {
+            const modal = document.getElementById('auditJsonModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.body.classList.remove('overflow-hidden');
+            }
+        }
 
-        document.getElementById('auditJsonModal').classList.remove('hidden');
-    }
+        function copyModalJson() {
+            const text = document.getElementById('modalJsonCode').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                document.getElementById('copyText').textContent = 'Đã chép!';
+                document.getElementById('copyIcon').className = 'bi bi-check-lg text-emerald-600';
+                setTimeout(() => {
+                    document.getElementById('copyText').textContent = 'Sao chép';
+                    document.getElementById('copyIcon').className = 'bi bi-clipboard';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
 
-    function closeAuditJsonModal() {
-        document.getElementById('auditJsonModal').classList.add('hidden');
-    }
-
-    function copyModalJson() {
-        const text = document.getElementById('modalJsonCode').textContent;
-        navigator.clipboard.writeText(text).then(() => {
-            document.getElementById('copyText').textContent = 'Đã chép!';
-            document.getElementById('copyIcon').className = 'bi bi-check-lg text-emerald-600';
-            setTimeout(() => {
-                document.getElementById('copyText').textContent = 'Sao chép';
-                document.getElementById('copyIcon').className = 'bi bi-clipboard';
-            }, 2000);
-        }).catch(err => {
-            console.error('Failed to copy: ', err);
+        // Close modal on Escape key press or backdrop click
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeAuditJsonModal();
+            }
         });
-    }
 
-    // Close modal on Escape key press or backdrop click
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeAuditJsonModal();
-        }
-    });
-
-    document.getElementById('auditJsonModal').addEventListener('click', function(event) {
-        if (event.target === this) {
-            closeAuditJsonModal();
-        }
-    });
-</script>
+        document.getElementById('auditJsonModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeAuditJsonModal();
+            }
+        });
+    </script>
+</div>
 </body>
 </html>
