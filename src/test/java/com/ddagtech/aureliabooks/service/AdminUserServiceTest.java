@@ -395,7 +395,7 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("changeRole() should prevent self-demotion from ROLE_ADMIN for non-root admin")
+    @DisplayName("changeRole() should prevent self-demotion from ROLE_ADMIN")
     void testPreventSelfDemotion_ThrowsException() {
         Long adminId = 2L;
 
@@ -417,37 +417,77 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("setActive() should prevent deactivating Root Admin (ID: 1) by any admin (CANNOT_MODIFY_ROOT_ADMIN)")
-    void testPreventModifyRootAdmin_Deactivation_ThrowsException() {
-        Long otherAdminId = 2L;
-        Long rootAdminId = 1L;
+    @DisplayName("setActive() should allow deactivating a non-admin account even if ID is 1 (reviewer probe case)")
+    void testDeactivateUser_UserId1_StaffRole_Success() {
+        Long adminId = 2L;
+        Long targetUserId = 1L;
 
-        assertThatThrownBy(() -> adminUserService.setActive(otherAdminId, rootAdminId, false, "127.0.0.1"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_MODIFY_ROOT_ADMIN);
+        User staffUser = User.builder()
+                .id(targetUserId)
+                .email("staff1@aureliabook.vn")
+                .role(staffRole)
+                .isActive(true)
+                .build();
 
-        verify(userRepository, never()).save(any());
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(staffUser));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        adminUserService.setActive(adminId, targetUserId, false, "127.0.0.1");
+
+        assertThat(staffUser.getIsActive()).isFalse();
+        verify(userRepository).save(staffUser);
     }
 
     @Test
-    @DisplayName("changeRole() should prevent demoting or changing role of Root Admin (ID: 1) by any admin (CANNOT_MODIFY_ROOT_ADMIN)")
-    void testPreventModifyRootAdmin_RoleChange_ThrowsException() {
+    @DisplayName("changeRole() should allow changing role of user ID 1 when other active admins exist")
+    void testChangeRole_UserId1_AdminRole_WhenOtherAdminsExist_Success() {
         Long otherAdminId = 2L;
-        Long rootAdminId = 1L;
+        Long targetAdminId = 1L;
 
-        User rootAdmin = User.builder()
-                .id(rootAdminId)
-                .email("rootadmin@aureliabook.vn")
+        User targetAdmin = User.builder()
+                .id(targetAdminId)
+                .email("admin1@aureliabook.vn")
                 .role(adminRole)
                 .isActive(true)
                 .build();
 
-        when(userRepository.findById(rootAdminId)).thenReturn(Optional.of(rootAdmin));
-        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        User otherAdmin = User.builder()
+                .id(otherAdminId)
+                .email("admin2@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
 
-        assertThatThrownBy(() -> adminUserService.changeRole(otherAdminId, rootAdminId, 2L, "127.0.0.1"))
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(targetAdmin, otherAdmin));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        adminUserService.changeRole(otherAdminId, targetAdminId, 2L, "127.0.0.1");
+
+        assertThat(targetAdmin.getRole()).isEqualTo(managerRole);
+        verify(userRepository).save(targetAdmin);
+    }
+
+    @Test
+    @DisplayName("setActive() should prevent deactivating the last active administrator regardless of user ID")
+    void testPreventDeactivateLastAdmin_ThrowsException() {
+        Long callerAdminId = 2L;
+        Long targetAdminId = 1L;
+
+        User targetAdmin = User.builder()
+                .id(targetAdminId)
+                .email("admin1@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(targetAdmin));
+
+        assertThatThrownBy(() -> adminUserService.setActive(callerAdminId, targetAdminId, false, "127.0.0.1"))
                 .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_MODIFY_ROOT_ADMIN);
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
 
         verify(userRepository, never()).save(any());
     }
