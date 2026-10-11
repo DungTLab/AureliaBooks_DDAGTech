@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Spring Data Repository for the immutable {@code audit_logs} ledger (Table 22 - UC29).
+ * Spring Data Repository for the immutable {@code audit_logs} ledger (Table 21 - UC29).
  * Extends directly from {@link Repository} rather than {@link org.springframework.data.jpa.repository.JpaRepository}
  * to prevent accidental exposure of mutation and deletion methods, enforcing invariant [BR-08-02].
  */

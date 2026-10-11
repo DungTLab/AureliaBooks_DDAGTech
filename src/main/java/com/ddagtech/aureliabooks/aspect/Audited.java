@@ -12,7 +12,7 @@ import java.lang.annotation.*;
 public @interface Audited {
 
     /**
-     * Audit action descriptor (e.g. "USER_CREATE", "MANUAL_ADJUSTMENT", "GOODS_RECEIPT_FINALIZE").
+     * Audit action descriptor (e.g. "USER_CREATE", "ORDER_RETURN_CONFIRMED", "GOODS_RECEIPT_FINALIZE").
      *
      * @return action string
      */
