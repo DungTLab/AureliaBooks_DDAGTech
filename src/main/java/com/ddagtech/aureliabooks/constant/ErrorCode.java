@@ -28,6 +28,7 @@ public enum ErrorCode {
     INVALID_ROLE_ASSIGNMENT(1010, "Vai trò được chọn không hợp lệ cho tài khoản nhân viên.", HttpStatus.BAD_REQUEST),
     CANNOT_LOCK_SELF(1011, "Bạn không thể tự vô hiệu hóa tài khoản của mình.", HttpStatus.BAD_REQUEST),
     CANNOT_REVOKE_LAST_ADMIN(1012, "Không thể vô hiệu hóa hoặc đổi vai trò của quản trị viên cuối cùng đang hoạt động.", HttpStatus.CONFLICT),
+    CANNOT_MODIFY_ROOT_ADMIN(1013, "Không thể vô hiệu hóa hoặc thay đổi vai trò của Quản trị viên gốc hệ thống (ID: 1).", HttpStatus.BAD_REQUEST),
 
     // 2xxx: Address & Shipping Constraints
     ADDRESS_QUOTA_EXCEEDED(2001, "Bạn chỉ có thể lưu tối đa 5 địa chỉ giao hàng đang hoạt động.", HttpStatus.BAD_REQUEST),
