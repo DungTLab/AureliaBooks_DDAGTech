@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 /**
  * Request DTO for provisioning internal staff accounts (UC28).
@@ -29,7 +30,7 @@ public record UserCreateRequest(
         @NotBlank(message = "Mật khẩu không được để trống")
         @Size(min = 8, max = 72, message = "Mật khẩu phải từ 8 đến 72 ký tự")
         @Pattern(
-                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,72}$",
+                regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^()_+\\-=\\[\\]{};':\"\\\\|,.<>/]).{8,72}$",
                 message = "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 chữ số và 1 ký tự đặc biệt"
         )
         String password,
@@ -45,17 +46,30 @@ public record UserCreateRequest(
         @NotNull(message = "Vui lòng chọn vai trò nhân viên")
         Long roleId
 ) {
+    public UserCreateRequest {
+        email = email != null ? email.strip().toLowerCase(Locale.ROOT) : null;
+        fullName = fullName != null ? fullName.strip() : null;
+        phone = phone != null ? phone.strip() : null;
+    }
+
     /**
      * Validates that the password does not exceed the 72-byte limit of the BCrypt algorithm in UTF-8.
      *
      * @return true if password is null or byte length <= 72, false otherwise
      */
     @AssertTrue(message = "Mật khẩu không được vượt quá 72 byte theo chuẩn mã hóa BCrypt")
+    @SuppressWarnings("unused")
     public boolean isPasswordByteLengthValid() {
         if (password == null) {
             return true;
         }
         return password.getBytes(StandardCharsets.UTF_8).length <= 72;
+    }
+
+    @Override
+    @SuppressWarnings("NullableProblems")
+    public String toString() {
+        return "UserCreateRequest[email=" + email + ", fullName=" + fullName + ", phone=" + phone + ", roleId=" + roleId + ", password=PROTECTED]";
     }
 }
 
