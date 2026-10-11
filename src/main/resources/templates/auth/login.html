@@ -41,8 +41,14 @@
             </div>
             <div>
                 <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu</label>
-                <input id="password" name="password" type="password" autocomplete="current-password" required
-                       class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                <div class="relative" data-password-field>
+<input id="password" name="password" type="password" autocomplete="current-password" required
+                       class="w-full min-w-0 border border-dust_grey rounded-xl pl-3 pr-14 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+<button type="button" data-password-toggle data-password-label="mật khẩu"
+ aria-controls="password" aria-label="Hiện mật khẩu" aria-pressed="false" title="Hiện mật khẩu"
+ class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+ <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+</button></div>
             </div>
             <button type="submit" class="w-full rounded-xl bg-blazing_flame text-white font-semibold px-4 py-3 hover:bg-blazing_flame-600 focus:outline-none focus:ring-2 focus:ring-blazing_flame">Đăng nhập</button>
         </form>
