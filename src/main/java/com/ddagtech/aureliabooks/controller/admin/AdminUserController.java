@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
 import com.ddagtech.aureliabooks.entity.Role;
+import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.AdminUserService;
@@ -32,7 +33,7 @@ import java.util.Set;
  */
 @Slf4j
 @Controller
-@RequestMapping("/admin/users")
+@RequestMapping({"/admin/users", "/admin"})
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AdminUserController {
@@ -107,17 +108,26 @@ public class AdminUserController {
             RedirectAttributes redirectAttributes
     ) {
         if (bindingResult.hasErrors()) {
-            String firstError = bindingResult.getAllErrors().get(0).getDefaultMessage();
+            String firstError = bindingResult.getAllErrors().getFirst().getDefaultMessage();
             redirectAttributes.addFlashAttribute("errorMessage", firstError);
             redirectAttributes.addFlashAttribute("newUserForm", request);
+            redirectAttributes.addFlashAttribute("openCreateModal", true);
             return "redirect:/admin/users";
         }
 
-        Long adminId = admin != null ? admin.getId() : null;
-        String clientIp = HttpRequestUtil.getClientIp(httpRequest);
-        adminUserService.create(adminId, request, clientIp);
-        redirectAttributes.addFlashAttribute("successMessage", "Tạo tài khoản nhân viên thành công!");
-        return "redirect:/admin/users";
+        try {
+            Long adminId = admin != null ? admin.getId() : null;
+            String clientIp = HttpRequestUtil.getClientIp(httpRequest);
+            adminUserService.create(adminId, request, clientIp);
+            redirectAttributes.addFlashAttribute("successMessage", "Tạo tài khoản nhân viên thành công!");
+            return "redirect:/admin/users";
+        } catch (AppException ex) {
+            log.warn("Failed to provision internal staff account: {}", ex.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+            redirectAttributes.addFlashAttribute("newUserForm", request);
+            redirectAttributes.addFlashAttribute("openCreateModal", true);
+            return "redirect:/admin/users";
+        }
     }
 
     /**

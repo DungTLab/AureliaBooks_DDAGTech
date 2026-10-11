@@ -32,8 +32,6 @@ import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -104,7 +102,7 @@ class AdminUserServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(1);
-        UserSummary summary = result.getContent().get(0);
+        UserSummary summary = result.getContent().getFirst();
         assertThat(summary.id()).isEqualTo(10L);
         assertThat(summary.email()).isEqualTo("staff@aureliabook.vn");
         assertThat(summary.roleId()).isEqualTo(3L);
@@ -143,7 +141,7 @@ class AdminUserServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(1);
-        UserSummary summary = result.getContent().get(0);
+        UserSummary summary = result.getContent().getFirst();
         assertThat(summary.id()).isEqualTo(99L);
         assertThat(summary.roleName()).isEqualTo("ROLE_CUSTOMER");
         assertThat(summary.email()).isEqualTo("customer@gmail.com");
@@ -399,11 +397,11 @@ class AdminUserServiceTest {
     @Test
     @DisplayName("changeRole() should prevent self-demotion from ROLE_ADMIN")
     void testPreventSelfDemotion_ThrowsException() {
-        Long adminId = 1L;
+        Long adminId = 2L;
 
         User adminUser = User.builder()
                 .id(adminId)
-                .email("admin@aureliabook.vn")
+                .email("admin2@aureliabook.vn")
                 .role(adminRole)
                 .isActive(true)
                 .build();
@@ -412,6 +410,82 @@ class AdminUserServiceTest {
         when(roleRepository.findById(3L)).thenReturn(Optional.of(staffRole));
 
         assertThatThrownBy(() -> adminUserService.changeRole(adminId, adminId, 3L))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("setActive() should allow deactivating a non-admin account even if ID is 1 (reviewer probe case)")
+    void testDeactivateUser_UserId1_StaffRole_Success() {
+        Long adminId = 2L;
+        Long targetUserId = 1L;
+
+        User staffUser = User.builder()
+                .id(targetUserId)
+                .email("staff1@aureliabook.vn")
+                .role(staffRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(staffUser));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        adminUserService.setActive(adminId, targetUserId, false, "127.0.0.1");
+
+        assertThat(staffUser.getIsActive()).isFalse();
+        verify(userRepository).save(staffUser);
+    }
+
+    @Test
+    @DisplayName("changeRole() should allow changing role of user ID 1 when other active admins exist")
+    void testChangeRole_UserId1_AdminRole_WhenOtherAdminsExist_Success() {
+        Long otherAdminId = 2L;
+        Long targetAdminId = 1L;
+
+        User targetAdmin = User.builder()
+                .id(targetAdminId)
+                .email("admin1@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
+
+        User otherAdmin = User.builder()
+                .id(otherAdminId)
+                .email("admin2@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(targetAdmin, otherAdmin));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        adminUserService.changeRole(otherAdminId, targetAdminId, 2L, "127.0.0.1");
+
+        assertThat(targetAdmin.getRole()).isEqualTo(managerRole);
+        verify(userRepository).save(targetAdmin);
+    }
+
+    @Test
+    @DisplayName("setActive() should prevent deactivating the last active administrator regardless of user ID")
+    void testPreventDeactivateLastAdmin_ThrowsException() {
+        Long callerAdminId = 2L;
+        Long targetAdminId = 1L;
+
+        User targetAdmin = User.builder()
+                .id(targetAdminId)
+                .email("admin1@aureliabook.vn")
+                .role(adminRole)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetAdminId)).thenReturn(Optional.of(targetAdmin));
+        when(userRepository.findActiveAdminsForUpdate()).thenReturn(List.of(targetAdmin));
+
+        assertThatThrownBy(() -> adminUserService.setActive(callerAdminId, targetAdminId, false, "127.0.0.1"))
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_REVOKE_LAST_ADMIN);
 
@@ -459,11 +533,11 @@ class AdminUserServiceTest {
     @DisplayName("setActive() concurrency test: simultaneous deactivation of two admins allows only one to succeed")
     void testConcurrentAdminDeactivation_PreventsZeroAdmins() throws Exception {
         Long adminId = 999L;
-        Long targetAdmin1Id = 1L;
-        Long targetAdmin2Id = 2L;
+        Long targetAdmin1Id = 2L;
+        Long targetAdmin2Id = 3L;
 
-        User targetAdmin1 = User.builder().id(targetAdmin1Id).email("admin1@aureliabook.vn").role(adminRole).isActive(true).build();
-        User targetAdmin2 = User.builder().id(targetAdmin2Id).email("admin2@aureliabook.vn").role(adminRole).isActive(true).build();
+        User targetAdmin1 = User.builder().id(targetAdmin1Id).email("admin2@aureliabook.vn").role(adminRole).isActive(true).build();
+        User targetAdmin2 = User.builder().id(targetAdmin2Id).email("admin3@aureliabook.vn").role(adminRole).isActive(true).build();
 
         when(userRepository.findById(targetAdmin1Id)).thenReturn(Optional.of(targetAdmin1));
         when(userRepository.findById(targetAdmin2Id)).thenReturn(Optional.of(targetAdmin2));
@@ -485,38 +559,40 @@ class AdminUserServiceTest {
             return u;
         });
 
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(2);
         java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(2);
         java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+        Object r1;
+        Object r2;
 
-        java.util.concurrent.Future<?> f1 = executor.submit(() -> {
-            readyLatch.countDown();
-            try {
-                startLatch.await();
-                adminUserService.setActive(adminId, targetAdmin1Id, false);
-                return true;
-            } catch (Exception e) {
-                return e;
-            }
-        });
+        try (java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Future<?> f1 = executor.submit(() -> {
+                readyLatch.countDown();
+                try {
+                    startLatch.await();
+                    adminUserService.setActive(adminId, targetAdmin1Id, false);
+                    return true;
+                } catch (Exception e) {
+                    return e;
+                }
+            });
 
-        java.util.concurrent.Future<?> f2 = executor.submit(() -> {
-            readyLatch.countDown();
-            try {
-                startLatch.await();
-                adminUserService.setActive(adminId, targetAdmin2Id, false);
-                return true;
-            } catch (Exception e) {
-                return e;
-            }
-        });
+            java.util.concurrent.Future<?> f2 = executor.submit(() -> {
+                readyLatch.countDown();
+                try {
+                    startLatch.await();
+                    adminUserService.setActive(adminId, targetAdmin2Id, false);
+                    return true;
+                } catch (Exception e) {
+                    return e;
+                }
+            });
 
-        readyLatch.await();
-        startLatch.countDown();
+            readyLatch.await();
+            startLatch.countDown();
 
-        Object r1 = f1.get();
-        Object r2 = f2.get();
-        executor.shutdown();
+            r1 = f1.get();
+            r2 = f2.get();
+        }
 
         boolean oneSucceeded = Boolean.TRUE.equals(r1) || Boolean.TRUE.equals(r2);
         boolean oneFailedWithAppException = (r1 instanceof AppException ae1 && ae1.getErrorCode() == ErrorCode.CANNOT_REVOKE_LAST_ADMIN)
