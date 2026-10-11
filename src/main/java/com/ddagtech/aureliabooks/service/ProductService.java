@@ -12,5 +12,5 @@ public interface ProductService {
     ProductDetailResponse viewDetail(Long productId);
     List<CategorySummary> getActiveCategories();
 
-    List<ProductAutoCompleteResponse> autocomplete(String keyword);
+    List<ProductAutoCompleteResponse> autoComplete(String keyword);
 }

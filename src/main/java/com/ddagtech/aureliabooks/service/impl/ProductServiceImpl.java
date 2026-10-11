@@ -268,7 +268,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public List<ProductAutoCompleteResponse> autocomplete(String keyword) {
+    public List<ProductAutoCompleteResponse> autoComplete(String keyword) {
         if(keyword == null || keyword.trim().length() < 2){
             return List.of();
         }
