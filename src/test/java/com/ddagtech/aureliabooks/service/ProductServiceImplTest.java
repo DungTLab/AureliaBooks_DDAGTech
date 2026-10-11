@@ -420,9 +420,9 @@ class ProductServiceImplTest {
     @Test
     @DisplayName("Should return empty autocomplete list when keyword is null or shorter than 2 chars")
     void shouldReturnEmptyAutocompleteWhenKeywordTooShort() {
-        assertThat(productService.autocomplete(null)).isEmpty();
-        assertThat(productService.autocomplete("")).isEmpty();
-        assertThat(productService.autocomplete(" a ")).isEmpty();
+        assertThat(productService.autoComplete(null)).isEmpty();
+        assertThat(productService.autoComplete("")).isEmpty();
+        assertThat(productService.autoComplete(" a ")).isEmpty();
         verifyNoInteractions(productRepository);
     }
 
@@ -443,7 +443,7 @@ class ProductServiceImplTest {
         when(productRepository.findAll(any(Specification.class), eq(org.springframework.data.domain.PageRequest.of(0, 5))))
                 .thenReturn(productPage);
 
-        List<com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse> results = productService.autocomplete("Conan");
+        List<com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse> results = productService.autoComplete("Conan");
 
         assertThat(results).hasSize(1);
         com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse item = results.get(0);

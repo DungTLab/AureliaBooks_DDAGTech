@@ -182,7 +182,7 @@ class ProductControllerTest {
         var suggestion = new com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse(
                 1L, "Harry Potter", new BigDecimal("150000"), "http://image.jpg", "BARCODE123"
         );
-        when(productService.autocomplete("Har")).thenReturn(List.of(suggestion));
+        when(productService.autoComplete("Har")).thenReturn(List.of(suggestion));
 
         mockMvc.perform(get("/products/autocomplete").param("keyword", "Har"))
                 .andExpect(status().isOk())

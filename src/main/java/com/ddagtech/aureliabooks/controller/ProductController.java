@@ -106,6 +106,6 @@ public class ProductController {
         if(keyword==null||keyword.trim().length()<2){
             return List.of();
         }
-        return productService.autocomplete(keyword.trim());
+        return productService.autoComplete(keyword.trim());
     }
 }
