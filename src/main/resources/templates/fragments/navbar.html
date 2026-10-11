@@ -327,44 +327,128 @@
             if (!input || !dropdown || !list) return;
 
             let timer = null;
+            let activeAbortController = null;
+
+            function clearAndHide() {
+                dropdown.classList.add('hidden');
+                while (list.firstChild) {
+                    list.removeChild(list.firstChild);
+                }
+            }
+
+            function abortInFlight() {
+                if (activeAbortController) {
+                    activeAbortController.abort();
+                    activeAbortController = null;
+                }
+            }
 
             input.addEventListener('input', function () {
                 clearTimeout(timer);
+                abortInFlight();
+
                 const query = this.value.trim();
 
                 if (query.length < 2) {
-                    dropdown.classList.add('hidden');
-                    list.innerHTML = '';
+                    clearAndHide();
                     return;
                 }
 
-                timer = setTimeout(() => {
-                    fetch('/products/autocomplete?keyword=' + encodeURIComponent(query))
-                        .then(res => res.json())
-                        .then(items => {
-                            if (!items || items.length === 0) {
-                                dropdown.classList.add('hidden');
-                                list.innerHTML = '';
-                                return;
+                timer = setTimeout(async () => {
+                    activeAbortController = new AbortController();
+                    const currentController = activeAbortController;
+
+                    try {
+                        const response = await fetch('/products/autocomplete?keyword=' + encodeURIComponent(query), {
+                            signal: currentController.signal
+                        });
+
+                        if (!response.ok) {
+                            clearAndHide();
+                            return;
+                        }
+
+                        const items = await response.json();
+
+                        // Discard stale responses if input value changed while request was in-flight
+                        if (input.value.trim() !== query) {
+                            return;
+                        }
+
+                        if (!items || items.length === 0) {
+                            clearAndHide();
+                            return;
+                        }
+
+                        // Render using safe DOM APIs (P1: DOM XSS mitigation)
+                        while (list.firstChild) {
+                            list.removeChild(list.firstChild);
+                        }
+
+                        items.forEach(item => {
+                            const a = document.createElement('a');
+                            a.href = '/products/' + encodeURIComponent(item.id);
+                            a.className = 'flex items-center gap-3 p-3 hover:bg-parchment-100 transition-colors';
+
+                            const imgWrapper = document.createElement('div');
+                            imgWrapper.className = 'w-10 h-12 bg-parchment-200 rounded-lg overflow-hidden flex-shrink-0 border border-dust_grey/60 flex items-center justify-center';
+
+                            if (item.imageUrl) {
+                                const img = document.createElement('img');
+                                img.src = item.imageUrl;
+                                img.alt = item.title || '';
+                                img.className = 'w-full h-full object-cover';
+                                img.onerror = function () {
+                                    while (imgWrapper.firstChild) {
+                                        imgWrapper.removeChild(imgWrapper.firstChild);
+                                    }
+                                    const fallbackIcon = document.createElement('i');
+                                    fallbackIcon.className = 'bi bi-book text-carbon_black-400';
+                                    imgWrapper.appendChild(fallbackIcon);
+                                };
+                                imgWrapper.appendChild(img);
+                            } else {
+                                const fallbackIcon = document.createElement('i');
+                                fallbackIcon.className = 'bi bi-book text-carbon_black-400';
+                                imgWrapper.appendChild(fallbackIcon);
                             }
 
-                            list.innerHTML = items.map(item => `
-                                <a href="/products/${item.id}" class="flex items-center gap-3 p-3 hover:bg-parchment-100 transition-colors">
-                                    <div class="w-10 h-12 bg-parchment-200 rounded-lg overflow-hidden flex-shrink-0 border border-dust_grey/60 flex items-center justify-center">
-                                        ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.title}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<i class=\\'bi bi-book text-carbon_black-400\\'></i>'">` : `<i class="bi bi-book text-carbon_black-400"></i>`}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-xs font-bold text-carbon_black truncate">${item.title}</p>
-                                        <p class="text-xs font-extrabold text-blazing_flame mt-0.5">${new Intl.NumberFormat('vi-VN').format(item.price)} đ</p>
-                                    </div>
-                                    <i class="bi bi-chevron-right text-xs text-dust_grey-600"></i>
-                                </a>
-                            `).join('');
-                            dropdown.classList.remove('hidden');
-                        })
-                        .catch(() => {
-                            dropdown.classList.add('hidden');
+                            const infoDiv = document.createElement('div');
+                            infoDiv.className = 'flex-1 min-w-0';
+
+                            const titleP = document.createElement('p');
+                            titleP.className = 'text-xs font-bold text-carbon_black truncate';
+                            titleP.textContent = item.title || '';
+
+                            const priceP = document.createElement('p');
+                            priceP.className = 'text-xs font-extrabold text-blazing_flame mt-0.5';
+                            const formattedPrice = item.price != null ? new Intl.NumberFormat('vi-VN').format(item.price) : '0';
+                            priceP.textContent = formattedPrice + ' đ';
+
+                            infoDiv.appendChild(titleP);
+                            infoDiv.appendChild(priceP);
+
+                            const arrowIcon = document.createElement('i');
+                            arrowIcon.className = 'bi bi-chevron-right text-xs text-dust_grey-600';
+
+                            a.appendChild(imgWrapper);
+                            a.appendChild(infoDiv);
+                            a.appendChild(arrowIcon);
+
+                            list.appendChild(a);
                         });
+
+                        dropdown.classList.remove('hidden');
+                    } catch (err) {
+                        if (err.name === 'AbortError') {
+                            return;
+                        }
+                        clearAndHide();
+                    } finally {
+                        if (activeAbortController === currentController) {
+                            activeAbortController = null;
+                        }
+                    }
                 }, 200);
             });
 

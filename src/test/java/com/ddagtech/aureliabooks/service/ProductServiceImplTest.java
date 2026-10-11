@@ -416,4 +416,41 @@ class ProductServiceImplTest {
         assertThatThrownBy(() -> productService.viewDetail(999L))
                 .isInstanceOf(NoSuchElementException.class);
     }
+
+    @Test
+    @DisplayName("Should return empty autocomplete list when keyword is null or shorter than 2 chars")
+    void shouldReturnEmptyAutocompleteWhenKeywordTooShort() {
+        assertThat(productService.autocomplete(null)).isEmpty();
+        assertThat(productService.autocomplete("")).isEmpty();
+        assertThat(productService.autocomplete(" a ")).isEmpty();
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    @DisplayName("Should return top 5 autocomplete results when valid keyword is provided")
+    void shouldReturnTop5AutocompleteResults() {
+        Product product = Product.builder()
+                .id(10L)
+                .title("Thám tử lừng danh Conan")
+                .price(new BigDecimal("25000.00"))
+                .barcode("8935244861617")
+                .mainImageUrl("https://example.com/conan.jpg")
+                .stockQuantity(50)
+                .isActive(true)
+                .build();
+
+        Page<Product> productPage = new PageImpl<>(List.of(product), org.springframework.data.domain.PageRequest.of(0, 5), 1);
+        when(productRepository.findAll(any(Specification.class), eq(org.springframework.data.domain.PageRequest.of(0, 5))))
+                .thenReturn(productPage);
+
+        List<com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse> results = productService.autocomplete("Conan");
+
+        assertThat(results).hasSize(1);
+        com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse item = results.get(0);
+        assertThat(item.id()).isEqualTo(10L);
+        assertThat(item.title()).isEqualTo("Thám tử lừng danh Conan");
+        assertThat(item.price()).isEqualByComparingTo(new BigDecimal("25000.00"));
+        assertThat(item.barcode()).isEqualTo("8935244861617");
+        assertThat(item.imageUrl()).isEqualTo("https://example.com/conan.jpg");
+    }
 }

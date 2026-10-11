@@ -175,4 +175,31 @@ class ProductControllerTest {
                 .andExpect(view().name("product/detail"))
                 .andExpect(model().attributeExists("product"));
     }
+
+    @Test
+    @DisplayName("GET /products/autocomplete with keyword >= 2 returns suggestion list JSON")
+    void getAutocompleteSuggestions() throws Exception {
+        var suggestion = new com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse(
+                1L, "Harry Potter", new BigDecimal("150000"), "http://image.jpg", "BARCODE123"
+        );
+        when(productService.autocomplete("Har")).thenReturn(List.of(suggestion));
+
+        mockMvc.perform(get("/products/autocomplete").param("keyword", "Har"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].title").value("Harry Potter"))
+                .andExpect(jsonPath("$[0].price").value(150000))
+                .andExpect(jsonPath("$[0].imageUrl").value("http://image.jpg"))
+                .andExpect(jsonPath("$[0].barcode").value("BARCODE123"));
+    }
+
+    @Test
+    @DisplayName("GET /products/autocomplete with keyword < 2 returns empty list without calling service")
+    void getAutocompleteShortKeywordReturnsEmptyList() throws Exception {
+        mockMvc.perform(get("/products/autocomplete").param("keyword", "H"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(content().json("[]"));
+    }
 }

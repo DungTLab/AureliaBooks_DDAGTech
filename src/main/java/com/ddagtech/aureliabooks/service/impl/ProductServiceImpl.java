@@ -67,6 +67,7 @@ public class ProductServiceImpl implements ProductService {
         if (filter != null) {
             if (filter.keyword() != null && !filter.keyword().isBlank()) {
                 spec = spec.and(ProductSpecification.hasKeyword(filter.keyword()));
+                spec = spec.and(ProductSpecification.prioritizeExactIdentifier(filter.keyword()));
             }
             if (filter.categoryId() != null) {
                 List<Long> targetCategoryIds = new ArrayList<>();
