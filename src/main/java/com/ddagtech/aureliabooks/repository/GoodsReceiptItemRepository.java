@@ -3,6 +3,9 @@ package com.ddagtech.aureliabooks.repository;
 import com.ddagtech.aureliabooks.entity.GoodsReceiptItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface GoodsReceiptItemRepository extends JpaRepository<GoodsReceiptItem, Long> {
-    // TODO: owner adds only queries required by their Sprint 1 use cases.
+
+    List<GoodsReceiptItem> findByReceiptId(Long receiptId);
 }
