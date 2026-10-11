@@ -47,6 +47,9 @@ public class AdminUserServiceImpl implements AdminUserService {
             "ROLE_SALE_STAFF"
     );
 
+    /** Primary system administrator account ID that cannot be deactivated or re-roled. */
+    private static final Long ROOT_ADMIN_ID = 1L;
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -164,6 +167,10 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public void setActive(Long adminId, Long userId, boolean active, String ipAddress) {
+        if (ROOT_ADMIN_ID.equals(userId) && !active) {
+            throw new AppException(ErrorCode.CANNOT_MODIFY_ROOT_ADMIN);
+        }
+
         if (adminId != null && adminId.equals(userId) && !active) {
             throw new AppException(ErrorCode.CANNOT_LOCK_SELF);
         }
@@ -234,6 +241,10 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         if (!ALLOWED_INTERNAL_ROLES.contains(newRole.getRoleName())) {
             throw new AppException(ErrorCode.INVALID_ROLE_ASSIGNMENT);
+        }
+
+        if (ROOT_ADMIN_ID.equals(userId)) {
+            throw new AppException(ErrorCode.CANNOT_MODIFY_ROOT_ADMIN);
         }
 
         String oldRoleName = user.getRole() != null ? user.getRole().getRoleName() : "UNKNOWN";
