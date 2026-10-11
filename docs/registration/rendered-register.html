@@ -6,7 +6,7 @@
     <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
     
     <!-- Spring Security CSRF Meta Tokens -->
-    <meta name="_csrf" content="Qj-1G8FgLtHH_b8eWhpeJ2EyCXEMKYjmNblKmPjgyErulQkUcAmFLaRSHrXqzIktPDdqH1lQJEhtS77LAdp_-ZrW_iyM9jpy">
+    <meta name="_csrf" content="6BbaaASoKoaiNpGZRj5JkN9eVPuMDg-MAnKUbv0EUFdf6uxIiXToXzDNE76PBKH8cRN9pO04eZrpPj-hM0CiWMswZ2U83NR6">
     <meta name="_csrf_header" content="X-CSRF-TOKEN">
 
     <title>Đăng ký tài khoản - AureliaBook</title>
@@ -460,7 +460,7 @@
         <button type="button" disabled
                 class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
         <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
-        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="Qj-1G8FgLtHH_b8eWhpeJ2EyCXEMKYjmNblKmPjgyErulQkUcAmFLaRSHrXqzIktPDdqH1lQJEhtS77LAdp_-ZrW_iyM9jpy"/>
+        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="6BbaaASoKoaiNpGZRj5JkN9eVPuMDg-MAnKUbv0EUFdf6uxIiXToXzDNE76PBKH8cRN9pO04eZrpPj-hM0CiWMswZ2U83NR6"/>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
@@ -480,18 +480,30 @@
                 </div>
                 <div>
                     <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
-                    <input id="dob" type="date" autocomplete="bday" max="2026-10-10"
+                    <input id="dob" type="date" autocomplete="bday" max="2026-10-11"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="dob" value="">
                 </div>
                 <div>
                     <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input name="password" id="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+                    <div class="relative" data-password-field>
+<input name="password" id="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl pl-3 pr-14 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+<button type="button" data-password-toggle data-password-label="mật khẩu"
+ aria-controls="password" aria-label="Hiện mật khẩu" aria-pressed="false" title="Hiện mật khẩu"
+ class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+ <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+</button></div>
                 </div>
                 <div>
                     <label for="confirmPassword" class="block font-semibold text-sm mb-2">Xác nhận mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input name="confirmPassword" id="confirmPassword" type="password" autocomplete="new-password" required
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+                    <div class="relative" data-password-field>
+<input name="confirmPassword" id="confirmPassword" type="password" autocomplete="new-password" required
+                           class="w-full min-w-0 border border-dust_grey rounded-xl pl-3 pr-14 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+<button type="button" data-password-toggle data-password-label="mật khẩu xác nhận"
+ aria-controls="confirmPassword" aria-label="Hiện mật khẩu xác nhận" aria-pressed="false" title="Hiện mật khẩu xác nhận"
+ class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+ <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+</button></div>
                 </div>
             </div>
             <p id="password-help" class="text-sm text-carbon_black-500">Mật khẩu từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Ngày sinh không dùng để xét tuổi.</p>
@@ -662,5 +674,6 @@
         </div>
     </div>
 </footer>
+    <script src="/js/password-visibility.js" defer></script>
 </body>
 </html>
