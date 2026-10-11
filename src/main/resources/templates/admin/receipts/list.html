@@ -1,13 +1,445 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>admin / receipts / list</title></head>
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout('Quản lý Phiếu Nhập Kho', ~{::#main-content})}">
+<head>
+    <title>Quản lý Phiếu Nhập Kho - AureliaBooks</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC22/23/21; Owner: Nguyễn Trần Đức Anh. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">admin / receipts / list</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
-</section>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header & Action Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Quản trị kho</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Phiếu nhập kho</span>
+            </div>
+            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-journal-arrow-down text-blazing_flame"></i>
+                <span>Quản lý Phiếu Nhập Kho (UC22 / UC23)</span>
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Theo dõi các chứng từ nhập hàng, lập phiếu nháp (Sale Staff) và phê duyệt nhập kho tăng tồn (Manager).
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a th:href="@{/manager/stock/alerts}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-semibold rounded-xl transition">
+                <i class="bi bi-bell-fill text-amber-600"></i>
+                <span>Cảnh báo tồn kho (UC21)</span>
+            </a>
+
+            <a th:href="@{/staff/receipts/new}"
+               class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition">
+                <i class="bi bi-plus-circle-fill text-lg"></i>
+                <span>Lập phiếu nhập mới</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Toolbar -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
+        <form method="get" th:action="@{/manager/receipts}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Status Filter -->
+                <select name="status"
+                        onchange="this.form.submit()"
+                        class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <option value="" th:selected="${selectedStatus == null}">-- Tất cả trạng thái --</option>
+                    <option value="DRAFT" th:selected="${selectedStatus != null && selectedStatus.name() == 'DRAFT'}">Chờ duyệt (DRAFT)</option>
+                    <option value="RECEIVED" th:selected="${selectedStatus != null && selectedStatus.name() == 'RECEIVED'}">Đã nhập kho (RECEIVED)</option>
+                </select>
+
+                <!-- Supplier Filter -->
+                <select name="supplierId"
+                        onchange="this.form.submit()"
+                        class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <option value="" th:selected="${selectedSupplierId == null}">-- Tất cả Nhà cung cấp --</option>
+                    <option th:each="sup : ${suppliers}"
+                            th:value="${sup.id}"
+                            th:text="${sup.name}"
+                            th:selected="${selectedSupplierId == sup.id}">
+                        Nhà Xuất Bản Trẻ
+                    </option>
+                </select>
+
+                <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black text-white text-sm font-semibold rounded-xl hover:bg-carbon_black-800 transition shadow-sm">
+                    <i class="bi bi-funnel-fill text-xs"></i>
+                    <span>Lọc</span>
+                </button>
+
+                <a th:href="@{/manager/receipts}" class="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-carbon_black-600 hover:text-blazing_flame transition">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    <span>Đặt lại</span>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Receipts Table -->
+    <div class="bg-white border border-dust_grey rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="bg-parchment-100 text-carbon_black-700 border-b border-dust_grey text-xs uppercase tracking-wider font-semibold">
+                        <th class="py-3.5 px-4">Mã phiếu</th>
+                        <th class="py-3.5 px-4">Nhà cung cấp</th>
+                        <th class="py-3.5 px-4">Người lập / Ngày lập</th>
+                        <th class="py-3.5 px-4 text-center">Số dòng SP</th>
+                        <th class="py-3.5 px-4 text-right">Tổng tiền (đ)</th>
+                        <th class="py-3.5 px-4 text-center">Trạng thái</th>
+                        <th class="py-3.5 px-4 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/60">
+                    <tr th:if="${receiptsPage.empty}" class="hover:bg-parchment-50">
+                        <td colspan="7" class="py-12 text-center text-carbon_black-400">
+                            <i class="bi bi-inbox text-4xl block mb-2"></i>
+                            <p class="font-medium">Chưa có phiếu nhập kho nào phù hợp với bộ lọc.</p>
+                        </td>
+                    </tr>
+
+                    <tr th:each="r : ${receiptsPage.content}" class="hover:bg-parchment-50 transition">
+                        <!-- Code -->
+                        <td class="py-3.5 px-4 font-mono font-bold text-carbon_black" th:text="${r.receiptCode}">
+                            GR-20261011-0001
+                        </td>
+
+                        <!-- Supplier -->
+                        <td class="py-3.5 px-4 font-semibold text-carbon_black" th:text="${r.supplierName}">
+                            Nhà Xuất Bản Trẻ
+                        </td>
+
+                        <!-- Creator & Date -->
+                        <td class="py-3.5 px-4">
+                            <div class="font-medium text-carbon_black" th:text="${r.createdByName}">Đức Anh</div>
+                            <div class="text-xs text-carbon_black-400"
+                                 th:text="${r.createdAt != null ? #temporals.format(r.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">
+                                11/10/2026 14:00
+                            </div>
+                        </td>
+
+                        <!-- Item Count -->
+                        <td class="py-3.5 px-4 text-center font-bold text-carbon_black-700" th:text="${r.totalItems}">
+                            3
+                        </td>
+
+                        <!-- Total Amount -->
+                        <td class="py-3.5 px-4 text-right font-extrabold text-blazing_flame"
+                            th:text="${r.totalAmount != null ? #numbers.formatDecimal(r.totalAmount, 0, 'COMMA', 0, 'POINT') + ' đ' : '0 đ'}">
+                            1.500.000 đ
+                        </td>
+
+                        <!-- Status Badge -->
+                        <td class="py-3.5 px-4 text-center">
+                            <span th:if="${r.status == 'DRAFT'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                <i class="bi bi-hourglass-split"></i>
+                                <span>Chờ duyệt (Nháp)</span>
+                            </span>
+                            <span th:if="${r.status == 'RECEIVED'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <span>Đã nhập kho</span>
+                            </span>
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="py-3.5 px-4 text-right space-x-1 whitespace-nowrap">
+                            <!-- View Detail Button -->
+                            <button type="button"
+                                    th:onclick="'viewReceiptDetail(' + ${r.id} + ')'"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 font-semibold rounded-lg text-xs transition"
+                                    title="Xem chi tiết phiếu nhập">
+                                <i class="bi bi-eye-fill"></i>
+                                <span>Chi tiết</span>
+                            </button>
+
+                            <!-- Edit Button (Only for DRAFT) -->
+                            <a th:if="${r.status == 'DRAFT'}"
+                               th:href="@{'/staff/receipts/' + ${r.id} + '/edit'}"
+                               class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-800 hover:bg-amber-100 font-semibold rounded-lg text-xs transition"
+                               title="Chỉnh sửa bản nháp">
+                                <i class="bi bi-pencil-fill"></i>
+                                <span>Sửa</span>
+                            </a>
+
+                            <!-- Delete Button (Only for DRAFT) -->
+                            <button th:if="${r.status == 'DRAFT'}"
+                                    type="button"
+                                    th:onclick="'openDeleteModal(' + ${r.id} + ', \'' + ${r.receiptCode} + '\')'"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold rounded-lg text-xs transition"
+                                    title="Xóa bản nháp">
+                                <i class="bi bi-trash-fill"></i>
+                                <span>Xóa</span>
+                            </button>
+
+                            <!-- Finalize Button (Only for DRAFT and Manager/Admin role) -->
+                            <button th:if="${r.status == 'DRAFT'}"
+                                    sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
+                                    type="button"
+                                    th:onclick="'openFinalizeModal(' + ${r.id} + ', \'' + ${r.receiptCode} + '\')'"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm transition"
+                                    title="Duyệt nhập kho &amp; Tăng tồn kho">
+                                <i class="bi bi-check-lg"></i>
+                                <span>Duyệt</span>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div th:if="${receiptsPage.totalPages > 1}"
+             class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-parchment-100 border-t border-dust_grey text-xs text-carbon_black-600">
+            <div>
+                Hiển thị trang <span class="font-bold" th:text="${receiptsPage.number + 1}">1</span> /
+                <span class="font-bold" th:text="${receiptsPage.totalPages}">10</span>
+                (Tổng cộng <span class="font-bold" th:text="${receiptsPage.totalElements}">50</span> phiếu)
+            </div>
+
+            <div class="flex items-center gap-1">
+                <a th:if="${receiptsPage.hasPrevious()}"
+                   th:href="@{/manager/receipts(page=${receiptsPage.number - 1}, status=${selectedStatus}, supplierId=${selectedSupplierId})}"
+                   class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg hover:bg-parchment-200 font-semibold transition">
+                    &laquo; Trước
+                </a>
+                <a th:if="${receiptsPage.hasNext()}"
+                   th:href="@{/manager/receipts(page=${receiptsPage.number + 1}, status=${selectedStatus}, supplierId=${selectedSupplierId})}"
+                   class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg hover:bg-parchment-200 font-semibold transition">
+                    Sau &raquo;
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- Modal 1: Receipt Detail View Modal                                        -->
+<!-- ========================================================================= -->
+<div id="receiptDetailModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-dust_grey rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden animate-fade-in-down">
+        <div class="flex items-center justify-between p-5 bg-parchment-100 border-b border-dust_grey">
+            <h3 class="text-lg font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-receipt text-blazing_flame"></i>
+                <span>Chi tiết Phiếu Nhập Kho: <span id="modalReceiptCode" class="font-mono text-blazing_flame"></span></span>
+            </h3>
+            <button type="button" onclick="closeModal('receiptDetailModal')" class="text-carbon_black-400 hover:text-carbon_black p-1">
+                <i class="bi bi-x-lg text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+            <!-- Header Meta Info Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-parchment-50 p-4 rounded-xl text-xs">
+                <div>
+                    <span class="text-carbon_black-500 block">Nhà cung cấp:</span>
+                    <strong id="modalSupplierName" class="text-sm text-carbon_black block">-</strong>
+                </div>
+                <div>
+                    <span class="text-carbon_black-500 block">Trạng thái:</span>
+                    <span id="modalStatusBadge" class="inline-block mt-0.5">-</span>
+                </div>
+                <div>
+                    <span class="text-carbon_black-500 block">Tổng tiền:</span>
+                    <strong id="modalTotalAmount" class="text-sm text-blazing_flame block">0 đ</strong>
+                </div>
+                <div>
+                    <span class="text-carbon_black-500 block">Người lập:</span>
+                    <span id="modalCreatedBy" class="text-carbon_black font-medium">-</span>
+                </div>
+                <div>
+                    <span class="text-carbon_black-500 block">Thời gian lập:</span>
+                    <span id="modalCreatedAt" class="text-carbon_black font-medium">-</span>
+                </div>
+                <div>
+                    <span class="text-carbon_black-500 block">Người duyệt:</span>
+                    <span id="modalReceivedBy" class="text-carbon_black font-medium">-</span>
+                </div>
+                <div class="col-span-2 sm:col-span-3" id="modalNoteContainer">
+                    <span class="text-carbon_black-500 block">Ghi chú:</span>
+                    <span id="modalNote" class="text-carbon_black italic">-</span>
+                </div>
+            </div>
+
+            <!-- Items Table in Modal -->
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-2">Danh sách sản phẩm nhập:</h4>
+                <div class="border border-dust_grey rounded-xl overflow-hidden">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-parchment-100 text-carbon_black-700 font-semibold border-b border-dust_grey">
+                            <tr>
+                                <th class="py-2.5 px-3">STT</th>
+                                <th class="py-2.5 px-3">Tên sản phẩm</th>
+                                <th class="py-2.5 px-3">Mã vạch</th>
+                                <th class="py-2.5 px-3 text-center">Loại / SGK</th>
+                                <th class="py-2.5 px-3 text-right">Đơn giá (đ)</th>
+                                <th class="py-2.5 px-3 text-center">Số lượng</th>
+                                <th class="py-2.5 px-3 text-right">Thành tiền (đ)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalItemsTableBody" class="divide-y divide-dust_grey/50">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-parchment-100 border-t border-dust_grey flex justify-end">
+            <button type="button" onclick="closeModal('receiptDetailModal')"
+                    class="px-4 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl text-sm transition">
+                Đóng
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- Modal 2: Finalize Receipt Confirmation Modal                              -->
+<!-- ========================================================================= -->
+<div id="finalizeModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-dust_grey rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-4 animate-fade-in-down">
+        <div class="flex items-center gap-3 text-emerald-600">
+            <i class="bi bi-check-circle-fill text-3xl"></i>
+            <h3 class="text-lg font-bold text-carbon_black">Xác nhận duyệt nhập kho</h3>
+        </div>
+        <p class="text-sm text-carbon_black-600">
+            Bạn có chắc chắn muốn duyệt nhập kho cho phiếu <strong id="finalizeReceiptCode" class="font-mono text-carbon_black"></strong>?
+        </p>
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+            <p class="font-bold flex items-center gap-1">
+                <i class="bi bi-shield-lock-fill text-amber-700"></i>
+                Khóa bất biến (Immutable Lock):
+            </p>
+            <p>Sau khi duyệt, số lượng tồn kho sẽ được cộng ngay lập tức, giá vốn sản phẩm được cập nhật và phiếu nhập <strong>không thể sửa hoặc xóa</strong>.</p>
+        </div>
+        <form id="finalizeForm" method="post" action="">
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeModal('finalizeModal')"
+                        class="px-4 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl text-sm transition">
+                    Hủy bỏ
+                </button>
+                <button type="submit"
+                        class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition">
+                    Xác nhận duyệt (RECEIVED)
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- Modal 3: Delete Draft Receipt Confirmation Modal                          -->
+<!-- ========================================================================= -->
+<div id="deleteModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-dust_grey rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-4 animate-fade-in-down">
+        <div class="flex items-center gap-3 text-rose-600">
+            <i class="bi bi-exclamation-triangle-fill text-3xl"></i>
+            <h3 class="text-lg font-bold text-carbon_black">Xác nhận xóa phiếu nháp</h3>
+        </div>
+        <p class="text-sm text-carbon_black-600">
+            Bạn có chắc chắn muốn xóa phiếu nhập nháp <strong id="deleteReceiptCode" class="font-mono text-carbon_black"></strong>?
+            Hành động này không thể hoàn tác.
+        </p>
+        <form id="deleteForm" method="post" action="">
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeModal('deleteModal')"
+                        class="px-4 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl text-sm transition">
+                    Hủy bỏ
+                </button>
+                <button type="submit"
+                        class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm shadow-md transition">
+                    Xóa phiếu
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+
+    function openFinalizeModal(id, code) {
+        document.getElementById('finalizeReceiptCode').textContent = code;
+        document.getElementById('finalizeForm').action = '/manager/receipts/' + id + '/finalize';
+        openModal('finalizeModal');
+    }
+
+    function openDeleteModal(id, code) {
+        document.getElementById('deleteReceiptCode').textContent = code;
+        document.getElementById('deleteForm').action = '/staff/receipts/' + id + '/delete';
+        openModal('deleteModal');
+    }
+
+    function viewReceiptDetail(id) {
+        fetch('/api/receipts/' + id)
+            .then(res => {
+                if (!res.ok) throw new Error('Không thể tải chi tiết phiếu.');
+                return res.json();
+            })
+            .then(data => {
+                document.getElementById('modalReceiptCode').textContent = data.receiptCode;
+                document.getElementById('modalSupplierName').textContent = data.supplierName;
+                document.getElementById('modalTotalAmount').textContent =
+                    (data.totalAmount ? Number(data.totalAmount).toLocaleString('vi-VN') : '0') + ' đ';
+                document.getElementById('modalCreatedBy').textContent = data.createdByName || '-';
+                document.getElementById('modalCreatedAt').textContent =
+                    data.createdAt ? new Date(data.createdAt).toLocaleString('vi-VN') : '-';
+                document.getElementById('modalReceivedBy').textContent =
+                    data.receivedByName ? (data.receivedByName + ' (' + new Date(data.receivedAt).toLocaleString('vi-VN') + ')') : 'Chưa duyệt';
+                document.getElementById('modalNote').textContent = data.note || 'Không có';
+
+                const badge = document.getElementById('modalStatusBadge');
+                if (data.status === 'RECEIVED') {
+                    badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+                    badge.textContent = 'Đã nhập kho (RECEIVED)';
+                } else {
+                    badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300';
+                    badge.textContent = 'Chờ duyệt (DRAFT)';
+                }
+
+                const tbody = document.getElementById('modalItemsTableBody');
+                tbody.innerHTML = '';
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach((item, index) => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-parchment-50';
+                        const sgkBadge = item.isTextbook
+                            ? '<span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 font-bold rounded text-[10px]">SGK</span>'
+                            : '<span class="text-carbon_black-400 text-[10px]">Tiêu chuẩn</span>';
+
+                        tr.innerHTML = `
+                            <td class="py-2 px-3 text-center text-carbon_black-500">${index + 1}</td>
+                            <td class="py-2 px-3 font-medium text-carbon_black">${item.productTitle}</td>
+                            <td class="py-2 px-3 font-mono text-carbon_black-600">${item.productBarcode}</td>
+                            <td class="py-2 px-3 text-center">${sgkBadge}</td>
+                            <td class="py-2 px-3 text-right">${Number(item.unitCost).toLocaleString('vi-VN')} đ</td>
+                            <td class="py-2 px-3 text-center font-bold text-carbon_black">${item.receivedQuantity}</td>
+                            <td class="py-2 px-3 text-right font-bold text-blazing_flame">${Number(item.subtotal).toLocaleString('vi-VN')} đ</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-carbon_black-400">Không có dữ liệu sản phẩm.</td></tr>';
+                }
+
+                openModal('receiptDetailModal');
+            })
+            .catch(err => {
+                alert('Lỗi: ' + err.message);
+            });
+    }
+</script>
 </body>
 </html>

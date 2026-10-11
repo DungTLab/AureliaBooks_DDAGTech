@@ -99,7 +99,14 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
 
-        // Atomic multi-line stock mutation
+        // Atomic multi-line stock mutation & cost update (UC23 / FND-03)
+        for (GoodsReceiptItem item : items) {
+            Product product = productMap.get(item.getProduct().getId());
+            if (product != null && item.getUnitCost() != null) {
+                product.setOriginalCost(item.getUnitCost());
+            }
+        }
+
         for (Map.Entry<Long, Integer> entry : receivedQtyPerProduct.entrySet()) {
             Long productId = entry.getKey();
             Integer quantityToAdd = entry.getValue();

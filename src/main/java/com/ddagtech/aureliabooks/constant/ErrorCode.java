@@ -37,10 +37,16 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
     INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST),
 
-    // 4xxx: Inventory & Stock Posting Constraints (FND-03)
+    // 4xxx: Inventory & Stock Posting Constraints (FND-03 / UC21-23)
     INSUFFICIENT_STOCK(4001, "Số lượng tồn kho không đủ để thực hiện trừ kho.", HttpStatus.BAD_REQUEST),
     ORDER_STOCK_NOT_DEDUCTED(4002, "Đơn hàng chưa từng bị trừ tồn kho, không thể hoàn tồn.", HttpStatus.BAD_REQUEST),
-    STAFF_REQUIRED_FOR_RETURN(4003, "Cần định danh nhân viên hợp lệ khi xác nhận trả hàng.", HttpStatus.BAD_REQUEST);
+    STAFF_REQUIRED_FOR_RETURN(4003, "Cần định danh nhân viên hợp lệ khi xác nhận trả hàng.", HttpStatus.BAD_REQUEST),
+    RECEIPT_ALREADY_RECEIVED(4004, "Phiếu nhập kho đã hoàn tất (RECEIVED), không thể chỉnh sửa hoặc xóa.", HttpStatus.CONFLICT),
+    RECEIPT_IMPORT_LIMIT_EXCEEDED(4005, "Số lượng nhập vượt quá giới hạn BR-01-01 (tối đa 100 cho hàng thường, 500 cho sách giáo khoa khi nhập đợt đầu).", HttpStatus.BAD_REQUEST),
+    RECEIPT_ITEM_QUANTITY_INVALID(4006, "Số lượng nhập của từng sản phẩm phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+    RECEIPT_ITEM_COST_INVALID(4007, "Đơn giá nhập không được âm.", HttpStatus.BAD_REQUEST),
+    SUPPLIER_INACTIVE(4008, "Nhà cung cấp đã ngừng hoạt động hoặc không tồn tại.", HttpStatus.BAD_REQUEST),
+    RECEIPT_EMPTY_ITEMS(4009, "Phiếu nhập kho phải có ít nhất một dòng sản phẩm.", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

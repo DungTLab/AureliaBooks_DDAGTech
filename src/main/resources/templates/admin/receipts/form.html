@@ -1,13 +1,368 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>admin / receipts / form</title></head>
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout(${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho DRAFT'}, ~{::#main-content})}">
+<head>
+    <title th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho DRAFT'} + ' - AureliaBooks'">Lập Phiếu Nhập Kho - AureliaBooks</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC22/23/21; Owner: Nguyễn Trần Đức Anh. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">admin / receipts / form</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
-</section>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Breadcrumb & Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <a th:href="@{/manager/receipts}" class="hover:text-blazing_flame transition">Quản trị kho</a>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <a th:href="@{/manager/receipts}" class="hover:text-blazing_flame transition">Phiếu nhập kho</a>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold" th:text="${isEdit ? 'Chỉnh sửa phiếu' : 'Lập phiếu mới'}">Lập phiếu mới</span>
+            </div>
+            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2.5">
+                <i class="bi bi-file-earmark-plus text-blazing_flame"></i>
+                <span th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho Nháp' : 'Lập Phiếu Nhập Kho DRAFT (UC22)'}">Lập Phiếu Nhập Kho DRAFT (UC22)</span>
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Tạo lập chứng từ nhập hàng nháp từ Nhà cung cấp. Tồn kho sản phẩm <strong>chưa bị thay đổi</strong> cho đến khi được duyệt hoàn tất (RECEIVED).
+            </p>
+        </div>
+
+        <a th:href="@{/manager/receipts}"
+           class="inline-flex items-center gap-2 px-4 py-2 bg-parchment-200 hover:bg-parchment-300 text-carbon_black font-semibold rounded-xl transition">
+            <i class="bi bi-arrow-left"></i>
+            <span>Quay lại danh sách</span>
+        </a>
+    </div>
+
+    <!-- BR-01-01 Business Rule Guide Alert -->
+    <div class="bg-amber-50 border-l-4 border-amber-500 rounded-xl p-4 shadow-sm flex items-start gap-3">
+        <i class="bi bi-info-circle-fill text-amber-600 text-xl flex-shrink-0 mt-0.5"></i>
+        <div class="text-sm text-amber-900 space-y-1">
+            <p class="font-bold">Quy tắc nghiệp vụ kiểm soát nhập kho ban đầu (BR-01-01):</p>
+            <ul class="list-disc list-inside space-y-0.5 text-xs">
+                <li>Đối với sản phẩm nhập đợt đầu (chưa từng có phiếu nhập hoặc tồn = 0): Giới hạn tối đa <strong>100 đơn vị</strong> cho sản phẩm thông thường (Sách tiêu chuẩn, Văn phòng phẩm).</li>
+                <li>Đối với <strong>Sách giáo khoa (SGK)</strong> nhập đợt đầu: Giới hạn tối đa <strong>500 đơn vị</strong>.</li>
+                <li>Đơn giá nhập hợp lệ theo quy định là <strong>&ge; 0 đ</strong> (cho phép giá 0đ cho hàng mẫu, biếu tặng).</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Receipt Form -->
+    <form id="goodsReceiptForm"
+          th:action="${isEdit ? '/staff/receipts/' + receiptId + '/update' : '/staff/receipts'}"
+          th:object="${receiptForm}"
+          method="post"
+          class="space-y-6">
+
+        <!-- CSRF Token (handled by Spring Security) -->
+
+        <!-- Section 1: Header Information -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
+            <h2 class="text-lg font-bold text-carbon_black border-b border-dust_grey/60 pb-3 flex items-center gap-2">
+                <i class="bi bi-building text-blazing_flame"></i>
+                <span>1. Thông tin Nhà cung cấp &amp; Chứng từ</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Supplier Selection -->
+                <div>
+                    <label for="supplierId" class="block text-sm font-semibold text-carbon_black mb-1.5">
+                        Nhà cung cấp <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="supplierId"
+                            name="supplierId"
+                            th:field="*{supplierId}"
+                            required
+                            class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
+                        <option value="">-- Chọn Nhà cung cấp --</option>
+                        <option th:each="sup : ${suppliers}"
+                                th:value="${sup.id}"
+                                th:text="${sup.name + ' (' + sup.phone + ')'}">
+                            Nhà Xuất Bản Trẻ
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Note / Reason -->
+                <div>
+                    <label for="note" class="block text-sm font-semibold text-carbon_black mb-1.5">
+                        Ghi chú nhập hàng
+                    </label>
+                    <input type="text"
+                           id="note"
+                           name="note"
+                           th:field="*{note}"
+                           maxlength="500"
+                           placeholder="Ví dụ: Nhập hàng đợt 1 quý 4, hàng mẫu SGK..."
+                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Line Items -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-dust_grey/60 pb-3">
+                <h2 class="text-lg font-bold text-carbon_black flex items-center gap-2">
+                    <i class="bi bi-box-seam text-blazing_flame"></i>
+                    <span>2. Danh mục sản phẩm nhập kho</span>
+                </h2>
+                <button type="button"
+                        id="addRowBtn"
+                        onclick="addNewItemRow()"
+                        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Thêm sản phẩm</span>
+                </button>
+            </div>
+
+            <!-- Items Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-parchment-100 text-carbon_black-700 border-b border-dust_grey text-xs uppercase tracking-wider font-semibold">
+                            <th class="py-3 px-4 w-12 text-center">STT</th>
+                            <th class="py-3 px-4 min-w-[280px]">Sản phẩm <span class="text-rose-500">*</span></th>
+                            <th class="py-3 px-4 w-44">Đơn giá nhập (đ) <span class="text-rose-500">*</span></th>
+                            <th class="py-3 px-4 w-36">Số lượng <span class="text-rose-500">*</span></th>
+                            <th class="py-3 px-4 w-44 text-right">Thành tiền (đ)</th>
+                            <th class="py-3 px-4 w-16 text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsTableBody" class="divide-y divide-dust_grey/60">
+                        <!-- Populated by Thymeleaf if editing or JS dynamically -->
+                        <tr th:each="item, itemStat : ${receiptForm.items}"
+                            th:id="'item-row-' + ${itemStat.index}"
+                            class="item-row hover:bg-parchment-50 transition">
+                            <td class="py-3 px-4 text-center font-semibold text-carbon_black-500 row-index" th:text="${itemStat.count}">1</td>
+                            <td class="py-3 px-4">
+                                <select th:name="|items[${itemStat.index}].productId|"
+                                        required
+                                        onchange="onProductSelected(this)"
+                                        class="product-select w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame">
+                                    <option value="">-- Chọn sản phẩm --</option>
+                                    <option th:each="p : ${products}"
+                                            th:value="${p.id}"
+                                            th:data-price="${p.originalCost}"
+                                            th:data-barcode="${p.barcode}"
+                                            th:selected="${p.id == item.productId}"
+                                            th:text="${p.title + ' [' + p.barcode + ']'}">
+                                        Đắc nhân tâm [BOOK001]
+                                    </option>
+                                </select>
+                            </td>
+                            <td class="py-3 px-4">
+                                <input type="number"
+                                       th:name="|items[${itemStat.index}].unitCost|"
+                                       th:value="${item.unitCost}"
+                                       step="1000" min="0" required
+                                       oninput="calculateRowSubtotal(this)"
+                                       placeholder="0"
+                                       class="unit-cost-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
+                            </td>
+                            <td class="py-3 px-4">
+                                <input type="number"
+                                       th:name="|items[${itemStat.index}].receivedQuantity|"
+                                       th:value="${item.receivedQuantity}"
+                                       min="1" required
+                                       oninput="calculateRowSubtotal(this)"
+                                       placeholder="1"
+                                       class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
+                            </td>
+                            <td class="py-3 px-4 text-right font-bold text-carbon_black row-subtotal">
+                                0 đ
+                            </td>
+                            <td class="py-3 px-4 text-center">
+                                <button type="button"
+                                        onclick="removeRow(this)"
+                                        class="text-rose-500 hover:text-rose-700 p-1 rounded transition"
+                                        title="Xóa dòng">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty Items Prompt -->
+            <div id="noItemsAlert" class="hidden text-center py-8 text-carbon_black-400">
+                <i class="bi bi-inbox text-3xl mb-2 block"></i>
+                <p>Chưa có sản phẩm nào trong phiếu nhập. Bấm <strong>"Thêm sản phẩm"</strong> để bắt đầu.</p>
+            </div>
+
+            <!-- Total Amount Summary Card -->
+            <div class="flex flex-col sm:flex-row items-center justify-between bg-parchment-100 border border-dust_grey rounded-xl p-4 mt-4">
+                <div class="text-xs text-carbon_black-600">
+                    <span id="totalItemsCount" class="font-bold text-carbon_black">0</span> dòng sản phẩm |
+                    Tổng số lượng nhập: <span id="totalQuantityCount" class="font-bold text-carbon_black">0</span> cuốn/cái
+                </div>
+                <div class="flex items-center gap-2 mt-2 sm:mt-0">
+                    <span class="text-sm font-semibold text-carbon_black-700">Tổng tiền dự tính:</span>
+                    <span id="receiptTotalDisplay" class="text-xl font-extrabold text-blazing_flame">0 đ</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Submission Buttons -->
+        <div class="flex items-center justify-end gap-3 pt-2">
+            <a th:href="@{/manager/receipts}"
+               class="px-5 py-2.5 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl transition">
+                Hủy bỏ
+            </a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-6 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition">
+                <i class="bi bi-floppy-fill"></i>
+                <span th:text="${isEdit ? 'Cập nhật bản nháp' : 'Lưu phiếu nháp (DRAFT)'}">Lưu phiếu nháp (DRAFT)</span>
+            </button>
+        </div>
+    </form>
+
+</div>
+
+<!-- Template Product Options (JSON storage for dynamic JS rows) -->
+<template id="productOptionsTemplate">
+    <option value="">-- Chọn sản phẩm --</option>
+    <option th:each="p : ${products}"
+            th:value="${p.id}"
+            th:data-price="${p.originalCost}"
+            th:data-barcode="${p.barcode}"
+            th:text="${p.title + ' [' + p.barcode + ']'}">
+        Sản phẩm mẫu
+    </option>
+</template>
+
+<script>
+    let rowIndex = document.querySelectorAll('.item-row').length;
+
+    function addNewItemRow() {
+        const tbody = document.getElementById('itemsTableBody');
+        const template = document.getElementById('productOptionsTemplate');
+        const tr = document.createElement('tr');
+        tr.className = 'item-row hover:bg-parchment-50 transition';
+        tr.id = 'item-row-' + rowIndex;
+
+        tr.innerHTML = `
+            <td class="py-3 px-4 text-center font-semibold text-carbon_black-500 row-index">1</td>
+            <td class="py-3 px-4">
+                <select name="items[${rowIndex}].productId" required onchange="onProductSelected(this)"
+                        class="product-select w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame">
+                    ${template.innerHTML}
+                </select>
+            </td>
+            <td class="py-3 px-4">
+                <input type="number" name="items[${rowIndex}].unitCost" step="1000" min="0" required
+                       oninput="calculateRowSubtotal(this)" placeholder="0"
+                       class="unit-cost-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
+            </td>
+            <td class="py-3 px-4">
+                <input type="number" name="items[${rowIndex}].receivedQuantity" min="1" required
+                       oninput="calculateRowSubtotal(this)" placeholder="1"
+                       class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
+            </td>
+            <td class="py-3 px-4 text-right font-bold text-carbon_black row-subtotal">0 đ</td>
+            <td class="py-3 px-4 text-center">
+                <button type="button" onclick="removeRow(this)" class="text-rose-500 hover:text-rose-700 p-1 rounded transition" title="Xóa dòng">
+                    <i class="bi bi-trash-fill"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+        rowIndex++;
+        updateRowIndices();
+        recalculateTotal();
+    }
+
+    function removeRow(btn) {
+        const row = btn.closest('tr');
+        if (row) {
+            row.remove();
+            updateRowIndices();
+            recalculateTotal();
+        }
+    }
+
+    function updateRowIndices() {
+        const rows = document.querySelectorAll('.item-row');
+        const alert = document.getElementById('noItemsAlert');
+        if (rows.length === 0) {
+            alert.classList.remove('hidden');
+        } else {
+            alert.classList.add('hidden');
+        }
+
+        rows.forEach((row, idx) => {
+            const indexCell = row.querySelector('.row-index');
+            if (indexCell) indexCell.textContent = idx + 1;
+
+            const select = row.querySelector('.product-select');
+            if (select) select.name = `items[${idx}].productId`;
+
+            const costInput = row.querySelector('.unit-cost-input');
+            if (costInput) costInput.name = `items[${idx}].unitCost`;
+
+            const qtyInput = row.querySelector('.quantity-input');
+            if (qtyInput) qtyInput.name = `items[${idx}].receivedQuantity`;
+        });
+    }
+
+    function onProductSelected(select) {
+        const row = select.closest('tr');
+        const selectedOption = select.options[select.selectedIndex];
+        const defaultCost = selectedOption.getAttribute('data-price');
+        const costInput = row.querySelector('.unit-cost-input');
+
+        if (defaultCost && (!costInput.value || costInput.value === '0')) {
+            costInput.value = defaultCost;
+        }
+        calculateRowSubtotal(select);
+    }
+
+    function calculateRowSubtotal(elem) {
+        const row = elem.closest('tr');
+        const costInput = row.querySelector('.unit-cost-input');
+        const qtyInput = row.querySelector('.quantity-input');
+        const subtotalCell = row.querySelector('.row-subtotal');
+
+        const cost = parseFloat(costInput.value) || 0;
+        const qty = parseInt(qtyInput.value) || 0;
+        const subtotal = cost * qty;
+
+        subtotalCell.textContent = subtotal.toLocaleString('vi-VN') + ' đ';
+        recalculateTotal();
+    }
+
+    function recalculateTotal() {
+        let total = 0;
+        let totalQty = 0;
+        const rows = document.querySelectorAll('.item-row');
+
+        rows.forEach(row => {
+            const costInput = row.querySelector('.unit-cost-input');
+            const qtyInput = row.querySelector('.quantity-input');
+            const cost = parseFloat(costInput.value) || 0;
+            const qty = parseInt(qtyInput.value) || 0;
+            total += cost * qty;
+            totalQty += qty;
+        });
+
+        document.getElementById('totalItemsCount').textContent = rows.length;
+        document.getElementById('totalQuantityCount').textContent = totalQty.toLocaleString('vi-VN');
+        document.getElementById('receiptTotalDisplay').textContent = total.toLocaleString('vi-VN') + ' đ';
+    }
+
+    // Initialize initial calculation upon page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const rows = document.querySelectorAll('.item-row');
+        if (rows.length === 0) {
+            addNewItemRow();
+        } else {
+            rows.forEach(r => {
+                const costInput = r.querySelector('.unit-cost-input');
+                if (costInput) calculateRowSubtotal(costInput);
+            });
+        }
+    });
+</script>
 </body>
 </html>

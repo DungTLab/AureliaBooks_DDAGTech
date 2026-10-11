@@ -27,4 +27,19 @@ public interface GoodsReceiptRepository extends JpaRepository<GoodsReceipt, Long
      * Counts the total number of goods receipts linked to a supplier.
      */
     long countBySupplierId(Long supplierId);
+
+    boolean existsByReceiptCode(String receiptCode);
+
+    org.springframework.data.domain.Page<GoodsReceipt> findAllByOrderByCreatedAtDesc(org.springframework.data.domain.Pageable pageable);
+
+    org.springframework.data.domain.Page<GoodsReceipt> findByStatusOrderByCreatedAtDesc(GoodsReceipt.Status status, org.springframework.data.domain.Pageable pageable);
+
+    long countByStatus(GoodsReceipt.Status status);
+
+    @Query("SELECT gr FROM GoodsReceipt gr WHERE (:status IS NULL OR gr.status = :status) " +
+           "AND (:supplierId IS NULL OR gr.supplier.id = :supplierId) ORDER BY gr.createdAt DESC")
+    org.springframework.data.domain.Page<GoodsReceipt> findWithFilters(
+            @Param("status") GoodsReceipt.Status status,
+            @Param("supplierId") Long supplierId,
+            org.springframework.data.domain.Pageable pageable);
 }

@@ -21,4 +21,14 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id IN :ids ORDER BY p.id ASC")
     List<Product> findAllByIdInWithLock(@Param("ids") Collection<Long> ids);
+
+    org.springframework.data.domain.Page<Product> findByStockQuantityLessThanEqual(Integer maxStock, org.springframework.data.domain.Pageable pageable);
+
+    long countByStockQuantityEquals(Integer stockQuantity);
+
+    long countByStockQuantityBetween(Integer minStock, Integer maxStock);
+
+    long countByStockQuantityGreaterThan(Integer minStock);
+
+    List<Product> findByIsActiveTrueOrderByTitleAsc();
 }
