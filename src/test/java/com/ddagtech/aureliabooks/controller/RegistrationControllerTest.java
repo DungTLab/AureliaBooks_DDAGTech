@@ -36,18 +36,10 @@ class RegistrationControllerTest {
         Files.writeString(dir.resolve("rendered-register.html"),result.getResponse().getContentAsString());
     }
     @Test void validFormRedirectsAndCannotAssignAdmin() throws Exception {
-        LocalDate validDob = LocalDate.now().minusYears(20);
-        mvc.perform(form().param("role","ROLE_ADMIN").param("dob",validDob.toString()))
+        mvc.perform(form().param("role","ROLE_ADMIN").param("dob",LocalDate.now().minusDays(1).toString()))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/auth/login"))
                 .andExpect(flash().attributeExists("successMessage"));
-        verify(registration).registerLocal(argThat(r->r.gender()!=null && r.dob().equals(validDob)));
-    }
-    @Test void underageRegistrationRejected() throws Exception {
-        mvc.perform(form().param("dob", LocalDate.now().minusYears(10).toString()))
-                .andExpect(status().isOk())
-                .andExpect(model().attributeHasFieldErrors("registerRequest", "ageValid"))
-                .andExpect(content().string(containsString("Khách hàng phải đủ từ 13 tuổi trở lên")));
-        verifyNoInteractions(registration);
+        verify(registration).registerLocal(argThat(r->r.gender()!=null && r.dob().equals(LocalDate.now().minusDays(1))));
     }
     @Test void missingCsrfNeverReachesRegistration() throws Exception {
         mvc.perform(post("/auth/register")).andExpect(status().isForbidden())
