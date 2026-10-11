@@ -16,4 +16,15 @@ public interface GoodsReceiptRepository extends JpaRepository<GoodsReceipt, Long
     Optional<GoodsReceipt> findByIdWithLock(@Param("id") Long id);
 
     Optional<GoodsReceipt> findByReceiptCode(String receiptCode);
+
+    /**
+     * Checks if any goods receipt exists referencing the specified supplier.
+     * Used to enforce UC30 business rule: prohibit hard deletion of suppliers with receipts.
+     */
+    boolean existsBySupplierId(Long supplierId);
+
+    /**
+     * Counts the total number of goods receipts linked to a supplier.
+     */
+    long countBySupplierId(Long supplierId);
 }

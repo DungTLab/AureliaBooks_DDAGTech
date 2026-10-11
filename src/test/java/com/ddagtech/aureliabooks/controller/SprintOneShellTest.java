@@ -32,6 +32,9 @@ class SprintOneShellTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.ProductService productService;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.SupplierService supplierService;
+
     @Test
     void publicShellsRenderWithoutAuthentication() throws Exception {
         org.mockito.Mockito.when(productService.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
@@ -49,12 +52,15 @@ class SprintOneShellTest {
 
     @Test
     void protectedShellsRenderForAssignedRole() throws Exception {
+        org.mockito.Mockito.when(supplierService.list(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
         String[][] cases = {
                 {"/profile", "CUSTOMER"}, {"/profile/addresses", "CUSTOMER"},
                 {"/manager/products", "MANAGER"}, {"/manager/products/new", "MANAGER"},
                 {"/manager/authors", "MANAGER"}, {"/manager/publishers", "MANAGER"},
                 {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"},
-                {"/manager/suppliers", "MANAGER"}, {"/staff/receipts/new", "SALE_STAFF"},
+                {"/staff/receipts/new", "SALE_STAFF"},
                 {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"},
                 {"/admin/audit-logs", "ADMIN"}
         };
@@ -63,6 +69,9 @@ class SprintOneShellTest {
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("Trang đang được xây dựng.")));
         }
+
+        mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")))
+                .andExpect(status().isOk());
     }
 
     @Test
