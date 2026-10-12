@@ -333,6 +333,10 @@
 
     <!-- Audit Event JSON Payload Details Modal (POP-DB-12) -->
     <div id="auditJsonModal"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="modalDialogTitle"
+         tabindex="-1"
          class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-dust_grey overflow-hidden">
             <!-- Modal Header -->
@@ -342,7 +346,7 @@
                         <i class="bi bi-file-earmark-code"></i>
                     </div>
                     <div>
-                        <h3 class="font-bold text-base text-carbon_black">Chi tiết sự kiện kiểm toán (<span id="modalEventId">#0</span>)</h3>
+                        <h3 id="modalDialogTitle" class="font-bold text-base text-carbon_black">Chi tiết sự kiện kiểm toán (<span id="modalEventId">#0</span>)</h3>
                         <div class="flex items-center gap-2 mt-0.5">
                             <span id="modalActionBadge" class="px-2 py-0.5 rounded text-[11px] font-semibold bg-carbon_black text-white">ACTION</span>
                             <span class="text-xs text-carbon_black-500">Bảng: <strong id="modalTargetTable">users</strong> (ID: <span id="modalTargetId">-</span>)</span>
@@ -350,7 +354,9 @@
                     </div>
                 </div>
                 <button type="button"
+                        id="closeModalBtnTop"
                         onclick="closeAuditJsonModal()"
+                        aria-label="Đóng hộp thoại"
                         class="text-carbon_black-400 hover:text-carbon_black p-1.5 rounded-lg hover:bg-dust_grey/30 transition">
                     <i class="bi bi-x-lg text-lg"></i>
                 </button>
@@ -383,6 +389,7 @@
             <!-- Modal Footer -->
             <div class="px-6 py-3 bg-parchment/40 border-t border-dust_grey flex items-center justify-end">
                 <button type="button"
+                        id="closeModalBtnBottom"
                         onclick="closeAuditJsonModal()"
                         class="px-4 py-2 bg-carbon_black text-white hover:bg-carbon_black-800 text-xs font-semibold rounded-xl transition shadow-sm">
                     Đóng
@@ -393,7 +400,11 @@
 
     <!-- Modal & JSON Formatting JavaScript -->
     <script>
+        let previousFocusedButton = null;
+
         function openAuditJsonModal(button) {
+            previousFocusedButton = button || document.activeElement;
+
             const id = button.getAttribute('data-id');
             const action = button.getAttribute('data-action');
             const target = button.getAttribute('data-target');
@@ -431,15 +442,29 @@
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
                 document.body.classList.add('overflow-hidden');
+
+                // Shift focus inside modal for accessibility (focusInside=true)
+                const copyBtn = document.getElementById('copyJsonBtn');
+                if (copyBtn) {
+                    copyBtn.focus();
+                } else {
+                    modal.focus();
+                }
             }
         }
 
         function closeAuditJsonModal() {
             const modal = document.getElementById('auditJsonModal');
-            if (modal) {
+            if (modal && !modal.classList.contains('hidden')) {
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
                 document.body.classList.remove('overflow-hidden');
+
+                // Return focus to the trigger element that opened the dialog
+                if (previousFocusedButton && typeof previousFocusedButton.focus === 'function') {
+                    previousFocusedButton.focus();
+                }
+                previousFocusedButton = null;
             }
         }
 
@@ -457,10 +482,38 @@
             });
         }
 
-        // Close modal on Escape key press or backdrop click
+        // Close modal on Escape key press and trap focus within modal on Tab
         document.addEventListener('keydown', function(event) {
+            const modal = document.getElementById('auditJsonModal');
+            if (!modal || modal.classList.contains('hidden')) {
+                return;
+            }
+
             if (event.key === 'Escape') {
                 closeAuditJsonModal();
+                return;
+            }
+
+            if (event.key === 'Tab') {
+                const focusableElements = modal.querySelectorAll('button:not([disabled]), [tabindex="0"], a[href], input, select, textarea');
+                if (focusableElements.length === 0) return;
+
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (event.shiftKey) {
+                    // Shift + Tab: moving backwards
+                    if (document.activeElement === firstElement || !modal.contains(document.activeElement)) {
+                        event.preventDefault();
+                        lastElement.focus();
+                    }
+                } else {
+                    // Tab: moving forwards
+                    if (document.activeElement === lastElement || !modal.contains(document.activeElement)) {
+                        event.preventDefault();
+                        firstElement.focus();
+                    }
+                }
             }
         });
 
