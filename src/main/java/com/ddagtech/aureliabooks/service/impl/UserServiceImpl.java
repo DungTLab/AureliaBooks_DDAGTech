@@ -17,6 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import jakarta.servlet.http.HttpServletRequest;
+import com.ddagtech.aureliabooks.util.HttpRequestUtil;
 import java.util.Objects;
 
 @Service
@@ -28,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final Validator validator;
     private final AvatarStorage avatars;
     private final SessionRegistry sessions;
+    private final AuditLogService auditLogService;
 
     public Long register(RegisterRequest request) { return registration.registerLocal(request); }
     @Transactional(readOnly = true)
@@ -65,6 +70,14 @@ public class UserServiceImpl implements UserService {
             throw new AppException(ErrorCode.PASSWORD_NOT_MATCH);
         u.setPasswordHash(passwords.encode(request.newPassword()));
         users.saveAndFlush(u);
+        auditLogService.record(
+                id,
+                "PASSWORD_CHANGED",
+                "users",
+                id,
+                "{\"message\":\"Thay đổi mật khẩu tài khoản thành công\"}",
+                resolveClientIp()
+        );
         afterCommit(() -> sessions.getAllPrincipals().stream()
                 .filter(p -> p instanceof CustomUserDetails local && id.equals(local.getId())
                         || p instanceof OidcUser google && Objects.equals(u.getProviderId(), google.getSubject()))
@@ -102,5 +115,13 @@ public class UserServiceImpl implements UserService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override public void afterCommit() { callback.run(); }
         });
+    }
+
+    private String resolveClientIp() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            HttpServletRequest request = attributes.getRequest();
+            return HttpRequestUtil.getClientIp(request);
+        }
+        return "127.0.0.1";
     }
 }
