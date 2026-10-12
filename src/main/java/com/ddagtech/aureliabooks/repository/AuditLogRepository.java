@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.repository;
 
+import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.entity.AuditLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -48,6 +49,7 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
      *
      * @param action optional exact action name filter
      * @param targetTable optional exact target table name filter
+     * @param actorId optional exact actor user ID filter (-1 for system/anonymous, positive ID for user)
      * @param startDateTime optional beginning of createdAt timestamp range
      * @param endDateTime optional end of createdAt timestamp range
      * @param keyword optional search keyword matching action, table, details, IP, or user name/email
@@ -58,6 +60,7 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
         value = "SELECT a FROM AuditLog a LEFT JOIN FETCH a.user u " +
                 "WHERE (:action IS NULL OR a.action = :action) " +
                 "  AND (:targetTable IS NULL OR a.targetTable = :targetTable) " +
+                "  AND (:actorId IS NULL OR (:actorId = -1 AND u IS NULL) OR (u IS NOT NULL AND u.id = :actorId)) " +
                 "  AND (:startDateTime IS NULL OR a.createdAt >= :startDateTime) " +
                 "  AND (:endDateTime IS NULL OR a.createdAt <= :endDateTime) " +
                 "  AND (:keyword IS NULL OR (" +
@@ -74,6 +77,7 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
         countQuery = "SELECT COUNT(a) FROM AuditLog a LEFT JOIN a.user u " +
                 "WHERE (:action IS NULL OR a.action = :action) " +
                 "  AND (:targetTable IS NULL OR a.targetTable = :targetTable) " +
+                "  AND (:actorId IS NULL OR (:actorId = -1 AND u IS NULL) OR (u IS NOT NULL AND u.id = :actorId)) " +
                 "  AND (:startDateTime IS NULL OR a.createdAt >= :startDateTime) " +
                 "  AND (:endDateTime IS NULL OR a.createdAt <= :endDateTime) " +
                 "  AND (:keyword IS NULL OR (" +
@@ -90,6 +94,7 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
     Page<AuditLog> searchLogs(
             @Param("action") String action,
             @Param("targetTable") String targetTable,
+            @Param("actorId") Long actorId,
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime,
             @Param("keyword") String keyword,
@@ -111,6 +116,15 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
      */
     @Query("SELECT DISTINCT a.targetTable FROM AuditLog a WHERE a.targetTable IS NOT NULL ORDER BY a.targetTable ASC")
     List<String> findDistinctTargetTables();
+
+    /**
+     * Retrieves unique actor users from the ledger for dynamic filter rendering.
+     *
+     * @return sorted list of unique ActorOption records
+     */
+    @Query("SELECT DISTINCT new com.ddagtech.aureliabooks.dto.response.ActorOption(u.id, u.fullName, u.email) " +
+           "FROM AuditLog a JOIN a.user u ORDER BY u.fullName ASC")
+    List<ActorOption> findDistinctActors();
 
     /**
      * Immutability guard enforcing invariant [BR-08-02]. Explicitly rejects entity deletion.

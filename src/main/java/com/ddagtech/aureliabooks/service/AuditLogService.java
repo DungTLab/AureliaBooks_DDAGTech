@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.service;
 
+import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,13 +33,14 @@ public interface AuditLogService {
      *
      * @param action optional exact action filter
      * @param targetTable optional exact target table filter
+     * @param actorId optional exact actor user ID filter (-1 for system/anonymous, positive ID for user)
      * @param startDate optional starting date of range (inclusive)
      * @param endDate optional ending date of range (inclusive)
      * @param keyword optional search term matching action, table, details, IP, or user full name/email
      * @param pageable pagination and sorting specification
      * @return Page of immutable {@link AuditLogResponse} DTO records
      */
-    Page<AuditLogResponse> searchLogs(String action, String targetTable,
+    Page<AuditLogResponse> searchLogs(String action, String targetTable, Long actorId,
                                       LocalDate startDate, LocalDate endDate,
                                       String keyword, Pageable pageable);
 
@@ -55,4 +57,11 @@ public interface AuditLogService {
      * @return sorted list of unique target table strings
      */
     List<String> getDistinctTargetTables();
+
+    /**
+     * Retrieves unique actor users present in the audit ledger for dynamic dropdown rendering.
+     *
+     * @return sorted list of unique ActorOption records
+     */
+    List<ActorOption> getDistinctActors();
 }

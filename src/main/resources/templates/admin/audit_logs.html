@@ -37,7 +37,8 @@
     <!-- Multi-Criteria Filter Toolbar (SCR-DB-18) -->
     <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
         <form method="get" th:action="@{/admin/audit-logs}" class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <input type="hidden" name="size" th:value="${logsPage != null ? logsPage.size : 20}" />
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
                 <!-- Action Filter Dropdown -->
                 <div>
                     <label for="actionFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Hành vi</label>
@@ -66,6 +67,21 @@
                     </select>
                 </div>
 
+                <!-- Actor Filter Dropdown -->
+                <div>
+                    <label for="actorFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Người thực hiện</label>
+                    <select id="actorFilter" name="actorId"
+                            class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
+                        <option value="" th:selected="${selectedActorId == null}">Tất cả người dùng</option>
+                        <option value="-1" th:selected="${selectedActorId != null and selectedActorId == -1}">Hệ thống / Ẩn danh</option>
+                        <option th:each="actor : ${actors}"
+                                th:value="${actor.id}"
+                                th:text="${actor.name != null ? actor.name + ' (' + actor.email + ')' : actor.email}"
+                                th:selected="${selectedActorId != null and selectedActorId == actor.id}">
+                        </option>
+                    </select>
+                </div>
+
                 <!-- Start Date -->
                 <div>
                     <label for="startDateFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Từ ngày</label>
@@ -85,7 +101,7 @@
                     <label for="keywordFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Từ khóa</label>
                     <div class="relative">
                         <input id="keywordFilter" type="text" name="keyword" th:value="${keyword}"
-                               placeholder="Tìm tên, email, chi tiết..."
+                               placeholder="Tìm chi tiết, IP..."
                                class="w-full pl-8 pr-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
                         <i class="bi bi-search absolute left-2.5 top-2.5 text-carbon_black-400 text-xs"></i>
                     </div>
@@ -101,7 +117,7 @@
                         <span>Lọc dữ liệu</span>
                     </button>
 
-                    <a th:if="${(selectedAction != null and selectedAction != '') or (selectedTargetTable != null and selectedTargetTable != '') or startDate != null or endDate != null or (keyword != null and keyword != '')}"
+                    <a th:if="${(selectedAction != null and selectedAction != '') or (selectedTargetTable != null and selectedTargetTable != '') or selectedActorId != null or startDate != null or endDate != null or (keyword != null and keyword != '')}"
                        th:href="@{/admin/audit-logs}"
                        class="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-carbon_black-500 hover:text-blazing_flame transition">
                         <i class="bi bi-x-circle"></i>
@@ -292,18 +308,18 @@
             <div class="flex items-center gap-2">
                 <!-- Previous Button -->
                 <a th:if="${!logsPage.first}"
-                   th:href="@{/admin/audit-logs(action=${selectedAction}, targetTable=${selectedTargetTable}, startDate=${startDate}, endDate=${endDate}, keyword=${keyword}, page=${logsPage.number - 1})}"
+                   th:href="@{/admin/audit-logs(action=${selectedAction}, targetTable=${selectedTargetTable}, actorId=${selectedActorId}, startDate=${startDate}, endDate=${endDate}, keyword=${keyword}, page=${logsPage.number - 1}, size=${logsPage.size})}"
                    class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg font-medium text-carbon_black hover:bg-parchment transition">
                     <i class="bi bi-chevron-left"></i> Trước
                 </a>
                 <span th:if="${logsPage.first}"
-                      class="px-3 py-1.5 bg-dust_grey/30 border border-dust_grey/50 rounded-lg text-carbon_black-400 cursor-not-allowed">
+                       class="px-3 py-1.5 bg-dust_grey/30 border border-dust_grey/50 rounded-lg text-carbon_black-400 cursor-not-allowed">
                     <i class="bi bi-chevron-left"></i> Trước
                 </span>
 
                 <!-- Next Button -->
                 <a th:if="${!logsPage.last}"
-                   th:href="@{/admin/audit-logs(action=${selectedAction}, targetTable=${selectedTargetTable}, startDate=${startDate}, endDate=${endDate}, keyword=${keyword}, page=${logsPage.number + 1})}"
+                   th:href="@{/admin/audit-logs(action=${selectedAction}, targetTable=${selectedTargetTable}, actorId=${selectedActorId}, startDate=${startDate}, endDate=${endDate}, keyword=${keyword}, page=${logsPage.number + 1}, size=${logsPage.size})}"
                    class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg font-medium text-carbon_black hover:bg-parchment transition">
                     Sau <i class="bi bi-chevron-right"></i>
                 </a>

@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
+import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class AuditLogController {
      *
      * @param action optional exact action name filter
      * @param targetTable optional exact target table name filter
+     * @param actorId optional exact actor user ID filter (-1 for system/anonymous, positive ID for user)
      * @param startDate optional starting date of range (inclusive)
      * @param endDate optional ending date of range (inclusive)
      * @param keyword optional search term matching action, table, details, IP, or user name/email
@@ -49,6 +51,7 @@ public class AuditLogController {
     public String list(
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String targetTable,
+            @RequestParam(required = false) Long actorId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String keyword,
@@ -62,6 +65,7 @@ public class AuditLogController {
         Page<AuditLogResponse> logsPage = auditLogService.searchLogs(
                 action,
                 targetTable,
+                actorId,
                 startDate,
                 endDate,
                 keyword,
@@ -70,12 +74,15 @@ public class AuditLogController {
 
         List<String> actions = auditLogService.getDistinctActions();
         List<String> targetTables = auditLogService.getDistinctTargetTables();
+        List<ActorOption> actors = auditLogService.getDistinctActors();
 
         model.addAttribute("logsPage", logsPage);
         model.addAttribute("actions", actions);
         model.addAttribute("targetTables", targetTables);
+        model.addAttribute("actors", actors);
         model.addAttribute("selectedAction", action);
         model.addAttribute("selectedTargetTable", targetTable);
+        model.addAttribute("selectedActorId", actorId);
         model.addAttribute("startDate", startDate);
         model.addAttribute("endDate", endDate);
         model.addAttribute("keyword", keyword);

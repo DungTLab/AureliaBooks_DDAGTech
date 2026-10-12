@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.service.impl;
 
+import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.entity.AuditLog;
 import com.ddagtech.aureliabooks.entity.User;
@@ -109,6 +110,7 @@ public class AuditLogServiceImpl implements AuditLogService {
      *
      * @param action optional exact action filter
      * @param targetTable optional exact target table filter
+     * @param actorId optional exact actor user ID filter (-1 for system/anonymous, positive ID for user)
      * @param startDate optional starting date of range (inclusive)
      * @param endDate optional ending date of range (inclusive)
      * @param keyword optional search term matching action, table, details, IP, or user full name/email
@@ -117,7 +119,7 @@ public class AuditLogServiceImpl implements AuditLogService {
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<AuditLogResponse> searchLogs(String action, String targetTable,
+    public Page<AuditLogResponse> searchLogs(String action, String targetTable, Long actorId,
                                              LocalDate startDate, LocalDate endDate,
                                              String keyword, Pageable pageable) {
         String cleanAction = (action != null && !action.isBlank()) ? action.trim() : null;
@@ -130,6 +132,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         Page<AuditLog> entityPage = auditLogRepository.searchLogs(
                 cleanAction,
                 cleanTargetTable,
+                actorId,
                 startDateTime,
                 endDateTime,
                 cleanKeyword,
@@ -159,6 +162,17 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Transactional(readOnly = true)
     public List<String> getDistinctTargetTables() {
         return auditLogRepository.findDistinctTargetTables();
+    }
+
+    /**
+     * Retrieves unique actor users present in the audit ledger for dynamic dropdown rendering.
+     *
+     * @return sorted list of unique ActorOption records
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActorOption> getDistinctActors() {
+        return auditLogRepository.findDistinctActors();
     }
 
     /**
