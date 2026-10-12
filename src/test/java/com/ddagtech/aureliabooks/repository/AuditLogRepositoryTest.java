@@ -90,4 +90,22 @@ class AuditLogRepositoryTest {
         assertThat(auditLogRepository.findDistinctTargetTables())
                 .containsExactly("users", "orders");
     }
+
+    @Test
+    @DisplayName("preUpdate() on AuditLog entity must throw UnsupportedOperationException guarding invariant [BR-08-02]")
+    void testAuditLogPreUpdate_ThrowsUnsupportedOperationException() {
+        AuditLog entry = new AuditLog();
+        assertThatThrownBy(entry::preUpdate)
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("BẤT BIẾN NHẬT KÝ KIỂM TOÁN [BR-08-02]");
+    }
+
+    @Test
+    @DisplayName("preRemove() on AuditLog entity must throw UnsupportedOperationException guarding invariant [BR-08-02]")
+    void testAuditLogPreRemove_ThrowsUnsupportedOperationException() {
+        AuditLog entry = new AuditLog();
+        assertThatThrownBy(entry::preRemove)
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("BẤT BIẾN NHẬT KÝ KIỂM TOÁN [BR-08-02]");
+    }
 }
