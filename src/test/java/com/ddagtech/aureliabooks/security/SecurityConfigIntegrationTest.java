@@ -198,12 +198,14 @@ class SecurityConfigIntegrationTest {
                         .param("password", "Password123!"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(1002))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("CSRF token is missing")));
+                .andExpect(jsonPath("$.message").value("Thiếu mã bảo vệ biểu mẫu. Vui lòng tải lại trang và thử lại."));
     }
 
     @Test
     @DisplayName("QA-03: Should accept state-changing POST request when accompanied by valid CSRF token")
     void testCsrfProtection_PostWithValidCsrfToken_Processed() throws Exception {
+        org.mockito.Mockito.when(userDetailsService.loadUserByUsername("test@aureliabook.vn"))
+                .thenThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("missing"));
         mockMvc.perform(post("/auth/login")
                         .with(csrf())
                         .param("username", "test@aureliabook.vn")

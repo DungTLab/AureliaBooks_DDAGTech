@@ -1,13 +1,46 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>auth / login</title></head>
+      th:replace="~{layout/base :: layout('Đăng nhập', ~{::#main-content})}">
+<head><title>Đăng nhập</title></head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC05/06/07; Owner: Lê Tiến Dũng. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">auth / login</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
+<section id="main-content" class="max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <div class="bg-white rounded-2xl border border-dust_grey shadow-soft p-6 sm:p-10">
+        <div class="text-center mb-7">
+            <span class="text-blazing_flame text-3xl" aria-hidden="true"><i class="bi bi-book"></i></span>
+            <h1 class="font-serif text-3xl text-carbon_black font-bold mt-3">Đăng nhập</h1>
+            <p class="text-carbon_black-500 mt-2">Chào mừng bạn trở lại AureliaBook</p>
+        </div>
+        <div th:if="${param.error != null}" th:switch="${param.error[0]}" role="alert"
+             class="bg-red-50 text-red-800 border border-red-200 rounded-xl p-4 mb-6">
+            <p th:case="'credentials'">Email, số điện thoại hoặc mật khẩu không chính xác.</p>
+            <p th:case="'throttled'">Đăng nhập tạm thời bị khóa do thử sai nhiều lần. Vui lòng thử lại sau 15 phút.</p>
+            <p th:case="'locked'">Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.</p>
+            <p th:case="'disabled'">Tài khoản chưa được cấp quyền truy cập hợp lệ. Vui lòng liên hệ quản trị viên.</p>
+            <p th:case="'google'">Đăng nhập bằng Google hiện chưa khả dụng.</p>
+            <p th:case="*">Không thể đăng nhập. Vui lòng thử lại.</p>
+        </div>
+        <a th:if="${googleEnabled}" th:href="@{/auth/google/login}"
+           class="flex items-center justify-center gap-3 border border-dust_grey rounded-xl px-4 py-3 font-semibold hover:bg-parchment-100">
+            <i class="bi bi-google" aria-hidden="true"></i> Tiếp tục với Google
+        </a>
+        <button th:unless="${googleEnabled}" type="button" disabled
+                class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
+        <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng nhập tài khoản<hr class="flex-1 border-dust_grey"></div>
+        <form th:action="@{/auth/login}" method="post" class="space-y-5">
+            <div>
+                <label for="username" class="block font-semibold text-sm mb-2">Email hoặc số điện thoại</label>
+                <input id="username" name="username" type="text" autocomplete="username" required maxlength="100"
+                       class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+            </div>
+            <div>
+                <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required
+                       class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-blazing_flame text-white font-semibold px-4 py-3 hover:bg-blazing_flame-600 focus:outline-none focus:ring-2 focus:ring-blazing_flame">Đăng nhập</button>
+        </form>
+        <p class="text-center text-sm mt-6">Chưa có tài khoản? <a th:href="@{/auth/register}" class="text-blazing_flame font-semibold hover:underline">Đăng ký ngay</a></p>
+    </div>
 </section>
 </body>
 </html>

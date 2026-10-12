@@ -19,13 +19,21 @@ import static org.hamcrest.Matchers.containsString;
         AdminUserController.class, AdminProductController.class, MasterDataController.class,
         SupplierController.class, AdminReceiptController.class, AuditLogController.class})
 @Import(SecurityConfig.class)
+@org.springframework.test.context.bean.override.mockito.MockitoBean(types = com.ddagtech.aureliabooks.repository.RoleRepository.class)
 class SprintOneShellTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.RegistrationService registration;
     @Autowired
     private MockMvc mvc;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.AdminUserService adminUserService;
+
     @Test
     void publicShellsRenderWithoutAuthentication() throws Exception {
-        for (String route : new String[]{"/auth/login", "/auth/register", "/products",
+        mvc.perform(get("/auth/login")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("Email hoặc số điện thoại")));
+        for (String route : new String[]{"/products",
                 "/products/search", "/products/1"}) {
             mvc.perform(get(route)).andExpect(status().isOk())
                     .andExpect(content().string(containsString("Trang đang được xây dựng.")));
@@ -41,7 +49,7 @@ class SprintOneShellTest {
                 {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"},
                 {"/manager/suppliers", "MANAGER"}, {"/staff/receipts/new", "SALE_STAFF"},
                 {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"},
-                {"/admin/users", "ADMIN"}, {"/admin/audit-logs", "ADMIN"}
+                {"/admin/audit-logs", "ADMIN"}
         };
         for (String[] item : cases) {
             mvc.perform(get(item[0]).with(user("shell-review").roles(item[1])))
@@ -49,6 +57,20 @@ class SprintOneShellTest {
                     .andExpect(content().string(containsString("Trang đang được xây dựng.")));
         }
     }
+
+    @Test
+    void adminUsersPageRendersForAdminRole() throws Exception {
+        org.mockito.Mockito.when(adminUserService.list(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        mvc.perform(get("/admin/users").with(user("admin-tester").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản lý tài khoản nội bộ")));
+    }
+
 
     @Test
     void guestIsRedirectedAndCustomerCannotOpenManagementShells() throws Exception {

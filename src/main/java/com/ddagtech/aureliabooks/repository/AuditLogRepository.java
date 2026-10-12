@@ -8,5 +8,13 @@ import java.util.Optional;
 public interface AuditLogRepository extends Repository<AuditLog, Long> {
     Optional<AuditLog> findById(Long id);
     Page<AuditLog> findAll(Pageable pageable);
-    // TODO: controlled append belongs to the transactional service; no generic save/delete API.
+    
+    /**
+     * Appends an immutable audit log entry into the ledger.
+     *
+     * @param auditLog audit log entry to persist
+     * @return persisted AuditLog entity
+     */
+    AuditLog save(AuditLog auditLog);
 }
+
