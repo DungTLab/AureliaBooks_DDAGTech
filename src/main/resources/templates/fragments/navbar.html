@@ -208,51 +208,265 @@
         </div>
     </nav>
 
-    <!-- Secondary Category Navigation Bar (Warm Linen Tone with Terracotta Active Underlines) -->
-    <div class="hidden md:block bg-alabaster_grey-100 border-t border-dust_grey/50">
+    <!-- Secondary Category Navigation Bar with Fahasa-style Multi-level Mega Menu -->
+    <div class="hidden md:block bg-alabaster_grey-100 border-t border-dust_grey/50 relative">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <ul class="flex items-center space-x-7 overflow-x-auto py-2.5 text-xs font-bold tracking-wide text-carbon_black-700 whitespace-nowrap">
-                <li>
-                    <a th:href="@{/products}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
-                        <i class="bi bi-compass-fill text-blazing_flame"></i>Tất Cả Sản Phẩm
-                    </a>
-                </li>
-                <li>
-                    <a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors py-1">
-                        Sách Tiếng Việt
-                    </a>
-                </li>
-                <li>
-                    <a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors py-1">
-                        Văn Học & Tiểu Thuyết
-                    </a>
-                </li>
-                <li>
-                    <a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors py-1">
-                        Kinh Tế - Khởi Nghiệp
-                    </a>
-                </li>
-                <li>
-                    <a th:href="@{/products(categoryId=4)}" class="hover:text-blazing_flame transition-colors py-1">
-                        Khoa Học - Công Nghệ
-                    </a>
-                </li>
-                <li>
-                    <a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
-                        <i class="bi bi-pencil-fill text-blazing_flame"></i>Văn Phòng Phẩm
-                    </a>
-                </li>
-                <li>
-                    <a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors py-1">
-                        Bút Ký Cao Cấp
-                    </a>
-                </li>
-                <li>
-                    <a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors py-1">
-                        Sổ Tay & Planner
-                    </a>
-                </li>
-            </ul>
+            <div class="flex items-center space-x-6 py-1.5 text-xs font-bold tracking-wide text-carbon_black-700 whitespace-nowrap">
+                
+                <!-- Mega Menu Trigger Button (Fahasa style: [ ⊞ DANH MỤC SẢN PHẨM ▼ ]) -->
+                <div class="relative group/megamenu">
+                    <button type="button" id="megaMenuBtn"
+                            class="flex items-center gap-2 py-2 px-3.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl font-bold transition-all shadow-sm focus:outline-none">
+                        <i class="bi bi-grid-fill text-sm"></i>
+                        <span class="uppercase tracking-wider">Danh Mục Sản Phẩm</span>
+                        <i class="bi bi-chevron-down text-[10px] ml-0.5 group-hover/megamenu:rotate-180 transition-transform duration-200"></i>
+                    </button>
+
+                    <!-- Fahasa-style 2-Column Mega Menu Container (Dropdown on hover or active) -->
+                    <div id="megaMenuDropdown"
+                         class="hidden group-hover/megamenu:flex absolute left-0 top-full mt-1.5 w-[860px] bg-white border border-dust_grey rounded-2xl shadow-hover z-50 overflow-hidden animate-fade-in-down divide-x divide-dust_grey/40 text-left">
+                        
+                        <!-- Left Column: Parent Categories (Vertical List) -->
+                        <div class="w-64 bg-alabaster_grey-50/80 p-2.5 flex-shrink-0 space-y-1">
+                            <div class="px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-widest text-carbon_black-400">
+                                Nhóm chính
+                            </div>
+
+                            <!-- Parent 1: Sách Trong Nước (Default Active) -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors bg-white text-blazing_flame shadow-sm"
+                                 data-target="mega-tab-books">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-book-half text-blazing_flame"></i>
+                                    <span>Sách Trong Nước</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <!-- Parent 2: Văn Phòng Phẩm -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
+                                 data-target="mega-tab-stationery">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-pencil-fill text-carbon_black-400"></i>
+                                    <span>Văn Phòng Phẩm</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <!-- Parent 3: Sách Ngoại Văn -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
+                                 data-target="mega-tab-foreign">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-globe2 text-carbon_black-400"></i>
+                                    <span>Sách Ngoại Văn</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <!-- Parent 4: Sách Giáo Khoa & Tham Khảo -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
+                                 data-target="mega-tab-textbook">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-backpack-fill text-carbon_black-400"></i>
+                                    <span>Sách Giáo Khoa 2026</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <div class="pt-2 border-t border-dust_grey/40">
+                                <a th:href="@{/products}"
+                                   class="flex items-center justify-center gap-1.5 py-2 text-xs font-extrabold text-blazing_flame hover:underline">
+                                    <span>Xem tất cả danh mục</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Multi-column subcategories panel per Fahasa design -->
+                        <div class="flex-1 p-5 bg-white">
+                            <!-- Tab Content 1: Sách Trong Nước -->
+                            <div id="mega-tab-books" class="mega-tab-content grid grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        VĂN HỌC
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Tiểu Thuyết</a></li>
+                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Truyện Ngắn - Tản Văn</a></li>
+                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Light Novel</a></li>
+                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Ngôn Tình</a></li>
+                                        <li><a th:href="@{/products(categoryId=2)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        KINH TẾ - KỸ NĂNG
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Kinh Tế - Khởi Nghiệp</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Quản Trị - Lãnh Đạo</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Marketing - Bán Hàng</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Kỹ Năng Sống</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        KHOA HỌC & GIÁO DỤC
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(categoryId=4)}" class="hover:text-blazing_flame transition-colors block">Khoa Học - Công Nghệ</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Sách Thiếu Nhi</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Nuôi Dạy Con</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content 2: Văn Phòng Phẩm -->
+                            <div id="mega-tab-stationery" class="mega-tab-content hidden grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        BÚT VIẾT CAO CẤP
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors block">Bút Ký Cao Cấp</a></li>
+                                        <li><a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors block">Bút Máy & Mực</a></li>
+                                        <li><a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors block">Bút Bi & Bút Gel</a></li>
+                                        <li><a th:href="@{/products(categoryId=6)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        SỔ TAY & GIẤY
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors block">Sổ Tay & Planner</a></li>
+                                        <li><a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors block">Vở Học Sinh</a></li>
+                                        <li><a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors block">Giấy Ghi Chú - Note</a></li>
+                                        <li><a th:href="@{/products(categoryId=7)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        DỤNG CỤ HỌC TẬP
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors block">Bìa Hồ Sơ & Cặp File</a></li>
+                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors block">Băng Keo & Hồ Dán</a></li>
+                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors block">Thước, Gôm & Bấm Kim</a></li>
+                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content 3: Sách Ngoại Văn -->
+                            <div id="mega-tab-foreign" class="mega-tab-content hidden grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        ENGLISH FICTION
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Contemporary Fiction</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Classics Literature</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Thrillers & Mystery</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        NON-FICTION & ELT
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">IELTS / TOEFL Prep</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Business & Leadership</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Science & Technology</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        MANGA & COMICS
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">English Manga</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Marvel / DC Comics</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Light Novels in English</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content 4: Sách Giáo Khoa 2026 -->
+                            <div id="mega-tab-textbook" class="mega-tab-content hidden grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        TIỂU HỌC (LỚP 1 - 5)
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Bộ Cánh Diều</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Kết Nối Tri Thức</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Chân Trời Sáng Tạo</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        THCS (LỚP 6 - 9)
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa THCS</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Bài Tập & Thực Hành</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Luyện Thi Vào Lớp 10</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        THPT (LỚP 10 - 12)
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa THPT</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Luyện Thi Tốt Nghiệp THPT</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Đề Thi Thử & Lời Giải</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Horizontal Shortcuts (Fahasa style) -->
+                <ul class="flex items-center space-x-6 overflow-x-auto py-1">
+                    <li>
+                        <a th:href="@{/products}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-compass-fill text-blazing_flame"></i>Tất Cả Sản Phẩm
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors">
+                            Sách Tiếng Việt
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-pencil-fill text-blazing_flame"></i>Văn Phòng Phẩm
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors">
+                            Sách Giáo Khoa
+                        </a>
+                    </li>
+                    <li>
+                        <a th:href="@{/products(sort='price_asc')}" class="hover:text-blazing_flame transition-colors text-carbon_black-600">
+                            Giá Tốt Hôm Nay
+                        </a>
+                    </li>
+                </ul>
+
+            </div>
         </div>
     </div>
 
@@ -476,6 +690,59 @@
 
         setupAutocomplete('globalSearchInput', 'autocompleteDropdown', 'autocompleteList');
         setupAutocomplete('mobileSearchInput', 'mobileAutocompleteDropdown', 'mobileAutocompleteList');
+
+        // Fahasa-style Mega Menu tab switching logic
+        const megaTabBtns = document.querySelectorAll('.mega-tab-btn');
+        megaTabBtns.forEach(btn => {
+            btn.addEventListener('mouseenter', function () {
+                megaTabBtns.forEach(b => {
+                    b.classList.remove('bg-white', 'text-blazing_flame', 'shadow-sm');
+                    b.classList.add('text-carbon_black');
+                    const icon = b.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('text-blazing_flame');
+                        icon.classList.add('text-carbon_black-400');
+                    }
+                });
+
+                btn.classList.add('bg-white', 'text-blazing_flame', 'shadow-sm');
+                btn.classList.remove('text-carbon_black');
+                const activeIcon = btn.querySelector('i');
+                if (activeIcon) {
+                    activeIcon.classList.remove('text-carbon_black-400');
+                    activeIcon.classList.add('text-blazing_flame');
+                }
+
+                const targetId = btn.getAttribute('data-target');
+                document.querySelectorAll('.mega-tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                    content.classList.remove('grid');
+                });
+                const activePanel = document.getElementById(targetId);
+                if (activePanel) {
+                    activePanel.classList.remove('hidden');
+                    activePanel.classList.add('grid');
+                }
+            });
+        });
+
+        // Click toggle for Mega Menu button
+        const megaMenuBtn = document.getElementById('megaMenuBtn');
+        const megaMenuDropdown = document.getElementById('megaMenuDropdown');
+        if (megaMenuBtn && megaMenuDropdown) {
+            megaMenuBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                megaMenuDropdown.classList.toggle('hidden');
+                megaMenuDropdown.classList.toggle('flex');
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!megaMenuDropdown.contains(e.target) && !megaMenuBtn.contains(e.target)) {
+                    megaMenuDropdown.classList.add('hidden');
+                    megaMenuDropdown.classList.remove('flex');
+                }
+            });
+        }
     });
 </script>
 </header>
