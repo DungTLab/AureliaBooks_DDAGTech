@@ -11,14 +11,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
- * Request DTO for provisioning internal staff accounts (UC28).
- * Enforces field validations including email structure, minimum password length,
- * and Vietnamese mobile phone number format.
+ * Request DTO for provisioning internal staff accounts (UC28 / FE-1).
+ * Enforces field validations including email structure, minimum password length (FE-1),
+ * and Vietnamese 10-digit mobile phone number format (BR-07-01).
  *
  * @param email user login and contact email address
  * @param password initial plaintext password to be encrypted via BCrypt
  * @param fullName user full display name
- * @param phone mobile phone number following Vietnamese telecom format
+ * @param phone mobile phone number following Vietnamese telecom format (BR-07-01)
  * @param roleId persistent role identifier to be assigned
  */
 public record UserCreateRequest(
@@ -49,7 +49,15 @@ public record UserCreateRequest(
     public UserCreateRequest {
         email = email != null ? email.strip().toLowerCase(Locale.ROOT) : null;
         fullName = fullName != null ? fullName.strip() : null;
-        phone = phone != null ? phone.strip() : null;
+        if (phone != null) {
+            String cleaned = phone.strip().replace(" ", "").replace("-", "");
+            if (cleaned.startsWith("+84") && cleaned.length() == 12) {
+                cleaned = "0" + cleaned.substring(3);
+            } else if (cleaned.startsWith("84") && cleaned.length() == 11) {
+                cleaned = "0" + cleaned.substring(2);
+            }
+            phone = cleaned;
+        }
     }
 
     /**
