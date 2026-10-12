@@ -119,7 +119,7 @@ class ProductServiceImplTest {
                 true
         );
 
-        when(productRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty());
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
         // Act
         Page<ProductSummary> result = productService.browse(filter, pageable);
@@ -127,7 +127,7 @@ class ProductServiceImplTest {
         // Assert
         assertThat(result).isNotNull();
         assertThat(result.isEmpty()).isTrue();
-        verify(productRepository).findAll(any(Specification.class), eq(pageable));
+        verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test
@@ -155,7 +155,7 @@ class ProductServiceImplTest {
     void shouldBrowseWithKeywordFilter() {
         // Arrange
         Pageable pageable = PageableUtils.create(1, 12, "newest");
-        when(productRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty());
+        when(productRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
         ProductFilterRequest filter = new ProductFilterRequest("Doraemon", null, null, null, null, null, null, null, null, null);
 
@@ -164,7 +164,7 @@ class ProductServiceImplTest {
 
         // Assert
         assertThat(result).isNotNull();
-        verify(productRepository).findAll(any(Specification.class), eq(pageable));
+        verify(productRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test

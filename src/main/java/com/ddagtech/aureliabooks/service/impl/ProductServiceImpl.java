@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,10 +65,13 @@ public class ProductServiceImpl implements ProductService {
         Specification<Product> spec = ProductSpecification.isActive(true);
         spec = spec.and((root, query, cb) -> cb.greaterThan(root.get("stockQuantity"), 0));
 
+        Pageable effectivePageable = pageable;
         if (filter != null) {
             if (filter.keyword() != null && !filter.keyword().isBlank()) {
                 spec = spec.and(ProductSpecification.hasKeyword(filter.keyword()));
-                spec = spec.and(ProductSpecification.prioritizeExactIdentifier(filter.keyword()));
+                spec = spec.and(ProductSpecification.prioritizeExactIdentifier(filter.keyword(),pageable.getSort()));
+
+                effectivePageable = PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(), Sort.unsorted());
             }
             if (filter.categoryId() != null) {
                 List<Long> targetCategoryIds = new ArrayList<>();
@@ -105,7 +109,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        Page<Product> productPage = productRepository.findAll(spec, pageable);
+        Page<Product> productPage = productRepository.findAll(spec, effectivePageable);
 
         // Batch fetch book details in a single query to eliminate N+1 problem
         List<Long> bookProductIds = new ArrayList<>();
@@ -274,11 +278,11 @@ public class ProductServiceImpl implements ProductService {
 
         Specification<Product> spec = ProductSpecification.isActive(true)
                 .and((root, query, cb) -> cb.greaterThan(root.get("stockQuantity"), 0))
-                .and(ProductSpecification.hasKeyWord(keyword.trim()))
+                .and(ProductSpecification.hasKeyword(keyword.trim()))
                 .and(ProductSpecification.prioritizeExactIdentifier(keyword.trim()));
 
-        Pageable limitFive = PageRequest.of(0,5);
-        Page<Product> products = productRepository.findAll(spec,limitFive);
+        Pageable limitFive = PageRequest.of(0, 5);
+        Page<Product> products = productRepository.findAll(spec, limitFive);
 
         return products.getContent().stream()
                 .map(p -> new ProductAutoCompleteResponse(

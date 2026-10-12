@@ -4,14 +4,14 @@ import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.entity.Stationery;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
+import jakarta.persistence.criteria.*;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * FND-02. Owner: Huỳnh Nhật Duy. Sprint 1 scaffold; business implementation pending.
@@ -243,8 +243,22 @@ public abstract class ProductSpecification implements Specification<Product> {
     }
     /**
      * Orders query results giving highest priority to exact barcode or ISBN matches.
+     *
+     * @param keyword search keyword
+     * @return Specification prioritizing exact barcode/ISBN matches
      */
     public static Specification<Product> prioritizeExactIdentifier(String keyword) {
+        return prioritizeExactIdentifier(keyword, Sort.unsorted());
+    }
+
+    /**
+     * Orders query results giving highest priority to exact barcode or ISBN matches, followed by user-defined sort order.
+     *
+     * @param keyword search keyword
+     * @param sort user-requested sort order
+     * @return Specification prioritizing exact barcode/ISBN matches
+     */
+    public static Specification<Product> prioritizeExactIdentifier(String keyword, Sort sort) {
         return (root, query, cb) -> {
             if (keyword == null || keyword.isBlank() || Long.class.equals(query.getResultType())) {
                 // Do not apply ORDER BY for count queries
@@ -264,11 +278,20 @@ public abstract class ProductSpecification implements Specification<Product> {
                     .when(cb.or(isExactBarcode, isExactIsbn), 0)
                     .otherwise(1);
 
-            // Prepend exact match priority to existing order list
-            var currentOrders = new java.util.ArrayList<>(query.getOrderList());
-            currentOrders.add(0, cb.asc(exactMatchCase));
-            query.orderBy(currentOrders);
+            List<Order> orders = new ArrayList<>();
+            orders.add(cb.asc(exactMatchCase));
 
+            if (sort != null && sort.isSorted()) {
+                for (Sort.Order sortOrder : sort) {
+                    String property = sortOrder.getProperty();
+                    if (sortOrder.isAscending()) {
+                        orders.add(cb.asc(root.get(property)));
+                    } else {
+                        orders.add(cb.desc(root.get(property)));
+                    }
+                }
+            }
+            query.orderBy(orders);
             return cb.conjunction();
         };
     }
