@@ -31,7 +31,7 @@ class AuditLogRepositoryTest {
 
         @Override
         public org.springframework.data.domain.Page<AuditLog> searchLogs(
-                String action, String targetTable, java.time.LocalDateTime startDateTime,
+                String action, String targetTable, Long actorId, java.time.LocalDateTime startDateTime,
                 java.time.LocalDateTime endDateTime, String keyword, org.springframework.data.domain.Pageable pageable) {
             return org.springframework.data.domain.Page.empty();
         }
@@ -44,6 +44,11 @@ class AuditLogRepositoryTest {
         @Override
         public java.util.List<String> findDistinctTargetTables() {
             return java.util.List.of("users", "orders");
+        }
+
+        @Override
+        public java.util.List<com.ddagtech.aureliabooks.dto.response.ActorOption> findDistinctActors() {
+            return java.util.List.of(new com.ddagtech.aureliabooks.dto.response.ActorOption(1L, "Admin User", "admin@aureliabook.vn"));
         }
     };
 

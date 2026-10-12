@@ -102,10 +102,11 @@ class AuditLogSecurityTest {
         @Test
         @DisplayName("SEC-05: Authenticated ADMIN accessing /admin/audit-logs must return 200 OK")
         void testAdminAccess_Returns200Ok() throws Exception {
-            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any()))
+            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any()))
                     .thenReturn(Page.empty());
             when(auditLogService.getDistinctActions()).thenReturn(List.of());
             when(auditLogService.getDistinctTargetTables()).thenReturn(List.of());
+            when(auditLogService.getDistinctActors()).thenReturn(List.of());
 
             mockMvc.perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
                     .andExpect(status().isOk())
@@ -133,10 +134,11 @@ class AuditLogSecurityTest {
         @Test
         @DisplayName("SEC-08: DoS Pagination bounds check: negative page is clamped to 0, size > 100 is clamped to 20")
         void testPaginationBoundsClamping_PreventsMemoryExhaustion() throws Exception {
-            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any()))
+            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any()))
                     .thenReturn(Page.empty());
             when(auditLogService.getDistinctActions()).thenReturn(List.of());
             when(auditLogService.getDistinctTargetTables()).thenReturn(List.of());
+            when(auditLogService.getDistinctActors()).thenReturn(List.of());
 
             mockMvc.perform(get("/admin/audit-logs")
                             .with(user("admin").roles("ADMIN"))
@@ -145,7 +147,7 @@ class AuditLogSecurityTest {
                     .andExpect(status().isOk());
 
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-            verify(auditLogService).searchLogs(isNull(), isNull(), isNull(), isNull(), isNull(), pageableCaptor.capture());
+            verify(auditLogService).searchLogs(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), pageableCaptor.capture());
 
             Pageable captured = pageableCaptor.getValue();
             assertThat(captured.getPageNumber()).isEqualTo(0);
@@ -262,13 +264,15 @@ class AuditLogSecurityTest {
             @Override
             public Page<AuditLog> findAll(Pageable pageable) { return Page.empty(); }
             @Override
-            public Page<AuditLog> searchLogs(String a, String t, LocalDateTime s, LocalDateTime e, String k, Pageable p) {
+            public Page<AuditLog> searchLogs(String a, String t, Long actorId, LocalDateTime s, LocalDateTime e, String k, Pageable p) {
                 return Page.empty();
             }
             @Override
             public List<String> findDistinctActions() { return List.of(); }
             @Override
             public List<String> findDistinctTargetTables() { return List.of(); }
+            @Override
+            public List<com.ddagtech.aureliabooks.dto.response.ActorOption> findDistinctActors() { return List.of(); }
         };
 
         @Test

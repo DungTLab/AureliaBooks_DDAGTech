@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.service;
 
+import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.entity.AuditLog;
 import com.ddagtech.aureliabooks.entity.User;
@@ -173,6 +174,7 @@ class AuditLogServiceTest {
         when(auditLogRepository.searchLogs(
                 eq("USER_ROLE_UPDATE"),
                 eq("users"),
+                eq(5L),
                 eq(start.atStartOfDay()),
                 any(LocalDateTime.class),
                 eq("manager"),
@@ -182,6 +184,7 @@ class AuditLogServiceTest {
         Page<AuditLogResponse> resultPage = auditLogService.searchLogs(
                 " USER_ROLE_UPDATE ",
                 " users ",
+                5L,
                 start,
                 end,
                 " manager ",
@@ -202,7 +205,7 @@ class AuditLogServiceTest {
     @DisplayName("searchLogs() with blank filter inputs should normalize to null")
     void testSearchLogs_BlankFilters_NormalizedToNull() {
         Pageable pageable = PageRequest.of(0, 20);
-        when(auditLogRepository.searchLogs(null, null, null, null, null, pageable))
+        when(auditLogRepository.searchLogs(null, null, null, null, null, null, pageable))
                 .thenReturn(Page.empty());
 
         Page<AuditLogResponse> result = auditLogService.searchLogs(
@@ -210,12 +213,13 @@ class AuditLogServiceTest {
                 "",
                 null,
                 null,
+                null,
                 "   ",
                 pageable
         );
 
         assertThat(result).isNotNull();
-        verify(auditLogRepository).searchLogs(null, null, null, null, null, pageable);
+        verify(auditLogRepository).searchLogs(null, null, null, null, null, null, pageable);
     }
 
     @Test
@@ -232,5 +236,16 @@ class AuditLogServiceTest {
         when(auditLogRepository.findDistinctTargetTables()).thenReturn(List.of("goods_receipts", "users"));
         List<String> tables = auditLogService.getDistinctTargetTables();
         assertThat(tables).containsExactly("goods_receipts", "users");
+    }
+
+    @Test
+    @DisplayName("getDistinctActors() should delegate to repository")
+    void testGetDistinctActors() {
+        when(auditLogRepository.findDistinctActors()).thenReturn(List.of(
+                new ActorOption(1L, "Admin User", "admin@aureliabook.vn")
+        ));
+        List<ActorOption> actors = auditLogService.getDistinctActors();
+        assertThat(actors).hasSize(1);
+        assertThat(actors.get(0).name()).isEqualTo("Admin User");
     }
 }

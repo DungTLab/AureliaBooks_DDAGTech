@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.controller.admin.AuditLogController;
+import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import org.junit.jupiter.api.DisplayName;
@@ -51,16 +52,19 @@ class AuditLogControllerTest {
         );
         Page<AuditLogResponse> mockPage = new PageImpl<>(List.of(mockLog), PageRequest.of(0, 20), 1);
 
-        when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any()))
+        when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(mockPage);
         when(auditLogService.getDistinctActions())
                 .thenReturn(List.of("USER_STATUS_TOGGLE", "USER_ROLE_UPDATE"));
         when(auditLogService.getDistinctTargetTables())
                 .thenReturn(List.of("users", "orders"));
+        when(auditLogService.getDistinctActors())
+                .thenReturn(List.of(new ActorOption(2L, "Admin User", "admin@aureliabook.vn")));
 
         mockMvc.perform(get("/admin/audit-logs")
                         .with(user("admin").roles("ADMIN"))
                         .param("action", "USER_STATUS_TOGGLE")
+                        .param("actorId", "2")
                         .param("keyword", "admin")
                         .param("startDate", "2026-09-01")
                         .param("endDate", "2026-09-30")
@@ -71,7 +75,9 @@ class AuditLogControllerTest {
                 .andExpect(model().attributeExists("logsPage"))
                 .andExpect(model().attributeExists("actions"))
                 .andExpect(model().attributeExists("targetTables"))
+                .andExpect(model().attributeExists("actors"))
                 .andExpect(model().attribute("selectedAction", "USER_STATUS_TOGGLE"))
+                .andExpect(model().attribute("selectedActorId", 2L))
                 .andExpect(model().attribute("keyword", "admin"))
                 .andExpect(model().attribute("startDate", LocalDate.of(2026, 9, 1)))
                 .andExpect(model().attribute("endDate", LocalDate.of(2026, 9, 30)));
@@ -79,6 +85,7 @@ class AuditLogControllerTest {
         verify(auditLogService).searchLogs(
                 eq("USER_STATUS_TOGGLE"),
                 isNull(),
+                eq(2L),
                 eq(LocalDate.of(2026, 9, 1)),
                 eq(LocalDate.of(2026, 9, 30)),
                 eq("admin"),
@@ -113,5 +120,26 @@ class AuditLogControllerTest {
         mockMvc.perform(get("/admin/audit-logs"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("**/auth/login"));
+    }
+
+    @Test
+    @DisplayName("GET /admin/audit-logs with custom page size passes valid size to service")
+    void testListAuditLogs_WithCustomPageSize_PassedToService() throws Exception {
+        when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Page.empty());
+        when(auditLogService.getDistinctActions()).thenReturn(List.of());
+        when(auditLogService.getDistinctTargetTables()).thenReturn(List.of());
+        when(auditLogService.getDistinctActors()).thenReturn(List.of());
+
+        mockMvc.perform(get("/admin/audit-logs")
+                        .with(user("admin").roles("ADMIN"))
+                        .param("size", "10")
+                        .param("page", "2"))
+                .andExpect(status().isOk());
+
+        verify(auditLogService).searchLogs(
+                isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
+                eq(PageRequest.of(2, 10, org.springframework.data.domain.Sort.by("createdAt").descending()))
+        );
     }
 }

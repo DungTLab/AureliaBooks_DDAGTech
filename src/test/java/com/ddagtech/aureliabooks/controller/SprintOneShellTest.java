@@ -87,10 +87,12 @@ class SprintOneShellTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()))
                 .thenReturn(org.springframework.data.domain.Page.empty());
         org.mockito.Mockito.when(auditLogService.getDistinctActions()).thenReturn(java.util.List.of());
         org.mockito.Mockito.when(auditLogService.getDistinctTargetTables()).thenReturn(java.util.List.of());
+        org.mockito.Mockito.when(auditLogService.getDistinctActors()).thenReturn(java.util.List.of());
 
         mvc.perform(get("/admin/audit-logs").with(user("admin-tester").roles("ADMIN")))
                 .andExpect(status().isOk());
