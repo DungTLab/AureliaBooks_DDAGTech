@@ -1,8 +1,7 @@
 package com.ddagtech.aureliabooks.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -11,6 +10,9 @@ import org.hibernate.annotations.CreationTimestamp;
 @Table(name = "suppliers")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Supplier {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,6 +28,7 @@ public class Supplier {
     private String email;
     @Column(name = "address", length = 255)
     private String address;
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
     @CreationTimestamp
