@@ -30,7 +30,15 @@ public record RegisterRequest(
     public RegisterRequest {
         email = email == null ? null : email.strip().toLowerCase(Locale.ROOT);
         fullName = fullName == null ? null : fullName.strip();
-        phone = phone == null ? null : phone.strip();
+        if (phone != null) {
+            String cleaned = phone.strip().replace(" ", "").replace("-", "");
+            if (cleaned.startsWith("+84") && cleaned.length() == 12) {
+                cleaned = "0" + cleaned.substring(3);
+            } else if (cleaned.startsWith("84") && cleaned.length() == 11) {
+                cleaned = "0" + cleaned.substring(2);
+            }
+            phone = cleaned;
+        }
         gender = gender == null ? User.Gender.OTHER : gender;
     }
 
