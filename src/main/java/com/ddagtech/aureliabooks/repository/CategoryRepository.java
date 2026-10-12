@@ -6,6 +6,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
-    // TODO: owner adds only queries required by their Sprint 1 use cases.
-    public List<Category> findByParentId(Long parentId);
+    /**
+     * Retrieve subcategories by parent category ID for category tree navigation.
+     *
+     * @param parentId ID of the parent category
+     * @return list of child categories
+     */
+    List<Category> findByParentId(Long parentId);
+
+    /**
+     * Retrieve all active categories directly from database.
+     *
+     * @return list of active categories
+     */
+    List<Category> findByIsActiveTrue();
 }

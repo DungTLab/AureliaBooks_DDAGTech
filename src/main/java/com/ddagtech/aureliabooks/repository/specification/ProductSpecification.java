@@ -77,6 +77,7 @@ public abstract class ProductSpecification implements Specification<Product> {
         return hasKeyword(keyword);
     }
 
+
     /**
      * Filters products belonging to the specified category IDs (including child and descendant categories).
      *

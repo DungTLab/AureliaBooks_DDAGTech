@@ -258,8 +258,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<CategorySummary> getActiveCategories() {
-        return categoryRepository.findAll().stream()
-                .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+        return categoryRepository.findByIsActiveTrue().stream()
                 .map(c -> new CategorySummary(
                         c.getId(),
                         c.getName(),

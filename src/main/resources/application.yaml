@@ -49,3 +49,7 @@ logging:
   level:
     com.ddagtech.aureliabooks: INFO
     org.springframework.security: INFO
+
+app:
+  avatar:
+    directory: ${AVATAR_DIRECTORY:./uploads/avatars}

@@ -40,6 +40,7 @@ public record RegisterRequest(
         return password == null || password.getBytes(StandardCharsets.UTF_8).length <= 72;
     }
 
+
     @Override
     public String toString() { return "RegisterRequest[credentials redacted]"; }
 }
