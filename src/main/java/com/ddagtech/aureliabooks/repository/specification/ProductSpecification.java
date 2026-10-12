@@ -105,7 +105,9 @@ public abstract class ProductSpecification implements Specification<Product> {
     public static Specification<Product> priceBetween(BigDecimal minPrice, BigDecimal maxPrice) {
         return (root, query, cb) -> {
             if (minPrice != null && maxPrice != null) {
-                return cb.between(root.get("price"), minPrice, maxPrice);
+                BigDecimal lower = minPrice.min(maxPrice);
+                BigDecimal upper = minPrice.max(maxPrice);
+                return cb.between(root.get("price"), lower, upper);
             } else if (minPrice != null) {
                 return cb.greaterThanOrEqualTo(root.get("price"), minPrice);
             } else if (maxPrice != null) {

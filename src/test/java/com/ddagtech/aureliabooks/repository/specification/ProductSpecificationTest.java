@@ -140,6 +140,21 @@ class ProductSpecificationTest {
         }
 
         @Test
+        @DisplayName("Should swap bounds to guarantee min <= max when minPrice is greater than maxPrice")
+        void shouldSwapBoundsWhenMinPriceGreaterThanMaxPrice() {
+            BigDecimal min = new BigDecimal("200000");
+            BigDecimal max = new BigDecimal("50000");
+            when(root.<BigDecimal>get("price")).thenReturn(pricePath);
+            when(cb.between(pricePath, max, min)).thenReturn(simplePredicate);
+
+            Specification<Product> spec = ProductSpecification.priceBetween(min, max);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(simplePredicate);
+            verify(cb).between(pricePath, max, min);
+        }
+
+        @Test
         @DisplayName("Should build greaterThanOrEqualTo predicate when only min price is specified")
         void shouldBuildGtePredicateWhenOnlyMinPricePresent() {
             BigDecimal min = new BigDecimal("100000");
