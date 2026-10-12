@@ -1,13 +1,59 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>auth / login</title></head>
+      th:replace="~{layout/base :: layout('Đăng nhập', ~{::#main-content})}">
+<head><title>Đăng nhập</title></head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC05/06/07; Owner: Lê Tiến Dũng. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">auth / login</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
+<section id="main-content" class="max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <div class="bg-white rounded-2xl border border-dust_grey shadow-soft p-6 sm:p-10">
+        <div class="text-center mb-7">
+            <span class="text-blazing_flame text-3xl" aria-hidden="true"><i class="bi bi-book"></i></span>
+            <p th:if="${param.passwordChanged}" class="mb-4 text-green-700" role="status">Đã đổi mật khẩu. Vui lòng đăng nhập lại.</p>
+        <h1 class="font-serif text-3xl text-carbon_black font-bold mt-3">Đăng nhập</h1>
+            <p class="text-carbon_black-500 mt-2">Chào mừng bạn trở lại AureliaBook</p>
+        </div>
+        <div th:if="${param.error != null}" th:switch="${param.error[0]}" role="alert"
+             class="bg-red-50 text-red-800 border border-red-200 rounded-xl p-4 mb-6">
+            <p th:case="'credentials'">Email, số điện thoại hoặc mật khẩu không chính xác.</p>
+            <p th:case="'throttled'">Đăng nhập tạm thời bị khóa do thử sai nhiều lần. Vui lòng thử lại sau 15 phút.</p>
+            <p th:case="'locked'">Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.</p>
+            <p th:case="'disabled'">Tài khoản chưa được cấp quyền truy cập hợp lệ. Vui lòng liên hệ quản trị viên.</p>
+            <p th:case="'google'">Đăng nhập bằng Google hiện chưa khả dụng.</p>
+            <p th:case="*">Không thể đăng nhập. Vui lòng thử lại.</p>
+        </div>
+        <a th:if="${googleEnabled}" th:href="@{/auth/google/login}"
+           class="flex items-center justify-center gap-3 bg-white text-[#1f1f1f] border border-[#747775] rounded-xl px-4 py-3 font-medium transition-colors hover:bg-[#f2f2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blazing_flame focus-visible:ring-offset-2">
+            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.36Z"/>
+                <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.41l-3.24-2.51c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.76-5.59-4.12H3.07v2.59A10 10 0 0 0 12 22Z"/>
+                <path fill="#FBBC05" d="M6.41 13.92A6 6 0 0 1 6.1 12c0-.67.11-1.32.31-1.92V7.49H3.07A10 10 0 0 0 2 12c0 1.61.38 3.14 1.07 4.51l3.34-2.59Z"/>
+                <path fill="#EA4335" d="M12 5.96c1.47 0 2.79.5 3.82 1.49l2.87-2.87A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.93 5.49l3.34 2.59C7.2 7.72 9.4 5.96 12 5.96Z"/>
+            </svg>
+            <span>Tiếp tục với Google</span>
+        </a>
+        <button th:unless="${googleEnabled}" type="button" disabled
+                class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
+        <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng nhập tài khoản<hr class="flex-1 border-dust_grey"></div>
+        <form th:action="@{/auth/login}" method="post" class="space-y-5">
+            <div>
+                <label for="username" class="block font-semibold text-sm mb-2">Email hoặc số điện thoại</label>
+                <input id="username" name="username" type="text" autocomplete="username" required maxlength="100"
+                       class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+            </div>
+            <div>
+                <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu</label>
+                <div class="relative" data-password-field>
+<input id="password" name="password" type="password" autocomplete="current-password" required
+                       class="w-full min-w-0 border border-dust_grey rounded-xl pl-3 pr-14 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+<button type="button" data-password-toggle data-password-label="mật khẩu"
+ aria-controls="password" aria-label="Hiện mật khẩu" aria-pressed="false" title="Hiện mật khẩu"
+ class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+ <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+</button></div>
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-blazing_flame text-white font-semibold px-4 py-3 hover:bg-blazing_flame-600 focus:outline-none focus:ring-2 focus:ring-blazing_flame">Đăng nhập</button>
+        </form>
+        <p class="text-center text-sm mt-6">Chưa có tài khoản? <a th:href="@{/auth/register}" class="text-blazing_flame font-semibold hover:underline">Đăng ký ngay</a></p>
+    </div>
 </section>
 </body>
 </html>
