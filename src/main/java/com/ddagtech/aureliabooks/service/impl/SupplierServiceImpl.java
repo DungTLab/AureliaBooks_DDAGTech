@@ -114,7 +114,7 @@ public class SupplierServiceImpl implements SupplierService {
         // Core Business Rule (UC30): Chặn hard-delete NCC có receipt
         if (goodsReceiptRepository.existsBySupplierId(supplierId)) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA,
-                    "Không thể xóa nhà cung cấp đã phát sinh đơn nhập hàng (Goods Receipt). Vui lòng chuyển trạng thái sang Ngừng hoạt động (Inactive).");
+                    "Không thể xóa nhà cung cấp đã có chứng từ nhập hàng trong hệ thống. Vui lòng chuyển trạng thái sang Ngừng hợp tác (Inactive).");
         }
 
         supplierRepository.delete(supplier);

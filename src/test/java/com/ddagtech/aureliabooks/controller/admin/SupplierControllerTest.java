@@ -193,7 +193,7 @@ class SupplierControllerTest {
     @WithMockUser(username = "manager", roles = {"MANAGER"})
     void deleteSupplier_HasReceipts_FailsWithErrorMessage() throws Exception {
         doThrow(new AppException(ErrorCode.INVALID_INPUT_DATA,
-                "Không thể xóa nhà cung cấp đã phát sinh đơn nhập hàng (Goods Receipt). Vui lòng chuyển trạng thái sang Ngừng hoạt động (Inactive)."))
+                "Không thể xóa nhà cung cấp đã có chứng từ nhập hàng trong hệ thống. Vui lòng chuyển trạng thái sang Ngừng hợp tác (Inactive)."))
                 .when(supplierService).delete(1L);
 
         mockMvc.perform(post("/manager/suppliers/1/delete")
@@ -201,7 +201,7 @@ class SupplierControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/manager/suppliers"))
                 .andExpect(flash().attribute("errorMessage",
-                        "Không thể xóa nhà cung cấp đã phát sinh đơn nhập hàng (Goods Receipt). Vui lòng chuyển trạng thái sang Ngừng hoạt động (Inactive)."));
+                        "Không thể xóa nhà cung cấp đã có chứng từ nhập hàng trong hệ thống. Vui lòng chuyển trạng thái sang Ngừng hợp tác (Inactive)."));
 
         verify(supplierService).delete(1L);
     }
