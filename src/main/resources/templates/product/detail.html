@@ -168,7 +168,7 @@
 
                 <!-- 3. Add to Cart & Purchase Area -->
                 <div class="pt-6 border-t border-dust_grey/60">
-                    <form th:action="@{/cart/add}" method="post" class="space-y-4">
+                    <form th:action="@{/cart/items}" method="post" class="space-y-4">
                         <input type="hidden" name="productId" th:value="${product.id}">
 
                         <!-- Quantity Selector & Action Button -->

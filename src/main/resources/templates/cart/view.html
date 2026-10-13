@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Giỏ hàng của bạn', ~{::#main-content})}">
+<head><title>Giỏ hàng của bạn</title></head>
+<body>
+<section id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <nav aria-label="Breadcrumb" class="mb-7 text-xs sm:text-sm text-carbon_black-500">
+        <ol class="flex items-center gap-2">
+            <li><a th:href="@{/}" class="hover:text-blazing_flame"><i class="bi bi-house-door mr-1"></i>Trang chủ</a></li>
+            <li aria-hidden="true"><i class="bi bi-chevron-right text-[10px]"></i></li>
+            <li class="font-semibold text-carbon_black" aria-current="page">Giỏ hàng</li>
+        </ol>
+    </nav>
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
+        <div>
+            <p class="text-xs font-bold uppercase tracking-widest text-blazing_flame mb-2">Những lựa chọn của bạn</p>
+            <h1 class="font-serif font-bold text-3xl sm:text-4xl text-carbon_black">Giỏ hàng của bạn</h1>
+            <p th:if="${cart != null and !cart.isEmpty()}" class="mt-3 text-sm text-carbon_black-500">
+                <span th:text="${cart.itemCount()}">2</span> loại sản phẩm · <span th:text="${cart.totalQuantity}">3</span> sản phẩm trong giỏ
+            </p>
+        </div>
+        <a th:href="@{/products}" class="inline-flex items-center gap-2 text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame transition-colors"><i class="bi bi-arrow-left"></i>Tiếp tục mua sắm</a>
+    </div>
+    <div th:if="${errorMessage != null}" class="mb-6 p-4 rounded-xl border border-blazing_flame-200 bg-blazing_flame-50 text-blazing_flame-800 text-sm" role="alert">
+        <i class="bi bi-exclamation-circle mr-2" aria-hidden="true"></i><span th:text="${errorMessage}"></span>
+    </div>
+    <!-- Retrieval errors must never appear as an empty cart. -->
+    <div th:if="${cartLoadError != null}" class="bg-white border border-dust_grey rounded-2xl shadow-soft px-6 py-16 text-center" role="alert">
+        <div class="w-20 h-20 bg-blazing_flame-50 text-blazing_flame rounded-full mx-auto flex items-center justify-center mb-6"><i class="bi bi-cloud-slash text-3xl"></i></div>
+        <h2 class="font-serif text-2xl font-bold">Chưa thể tải giỏ hàng</h2>
+        <p th:text="${cartLoadError}" class="mt-3 text-sm text-carbon_black-500"></p>
+        <a th:href="@{/cart}" class="mt-7 inline-flex items-center gap-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl px-6 py-3 text-sm font-bold shadow-flame transition-colors"><i class="bi bi-arrow-clockwise"></i>Thử lại</a>
+    </div>
+    <div th:if="${cart != null and cart.isEmpty()}" class="bg-white border border-dust_grey rounded-2xl shadow-soft px-6 py-16 sm:py-20 text-center">
+        <div class="w-24 h-24 bg-parchment-100 border border-dust_grey/50 rounded-full mx-auto flex items-center justify-center mb-6"><i class="bi bi-bag text-4xl text-blazing_flame"></i></div>
+        <h2 class="font-serif text-2xl sm:text-3xl font-bold">Giỏ hàng đang trống</h2>
+        <p class="mt-3 text-sm text-carbon_black-500 max-w-sm mx-auto leading-relaxed">Một cuốn sách hay đang chờ bạn. Khám phá danh mục và thêm những sản phẩm yêu thích vào giỏ.</p>
+        <a th:href="@{/products}" class="mt-7 inline-flex items-center gap-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl px-6 py-3 text-sm font-bold shadow-flame transition-colors"><i class="bi bi-book"></i>Khám phá sản phẩm</a>
+    </div>
+    <div th:if="${cart != null and !cart.isEmpty()}" class="grid lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+        <div class="lg:col-span-2 min-w-0 bg-white border border-dust_grey rounded-2xl shadow-soft overflow-hidden">
+            <div class="px-5 sm:px-6 py-4 border-b border-dust_grey/60 flex items-center justify-between gap-3 bg-alabaster_grey-50">
+                <h2 class="font-semibold text-sm"><i class="bi bi-bag-check text-blazing_flame mr-2"></i>Sản phẩm đã chọn</h2><span class="text-xs text-carbon_black-500">Đơn giá hiện tại</span>
+            </div>
+            <div class="divide-y divide-dust_grey/60">
+                <article th:each="item : ${cart.items}" class="p-5 sm:p-6" th:attr="data-cart-item=${item.itemId}">
+                    <div class="flex gap-4 sm:gap-5">
+                        <a th:href="@{/products/{id}(id=${item.productId})}" class="shrink-0 w-20 sm:w-24 aspect-[3/4] self-start rounded-xl overflow-hidden bg-parchment-100 border border-dust_grey/50">
+                            <img th:if="${item.mainImageUrl != null and !#strings.isEmpty(item.mainImageUrl)}" th:src="${item.mainImageUrl}" th:alt="${item.title}" loading="lazy"
+                                 onerror="this.hidden=true;this.nextElementSibling.classList.remove('hidden')" class="w-full h-full object-cover">
+                            <div class="w-full h-full flex items-center justify-center text-dust_grey-600" th:classappend="${item.mainImageUrl != null and !#strings.isEmpty(item.mainImageUrl)} ? 'hidden'"><i class="bi bi-book text-3xl" aria-hidden="true"></i></div>
+                        </a>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between gap-3">
+                                <a th:href="@{/products/{id}(id=${item.productId})}" th:text="${item.title}" class="font-semibold text-sm sm:text-base leading-relaxed break-words hover:text-blazing_flame transition-colors">Tên sản phẩm</a>
+                                <form th:action="@{/cart/items/{id}/remove(id=${item.itemId})}" method="post" data-cart-form data-cart-remove th:attr="data-product-title=${item.title}">
+                                    <button type="submit" class="shrink-0 w-9 h-9 rounded-lg text-carbon_black-400 hover:text-blazing_flame hover:bg-blazing_flame-50 focus:outline-none focus:ring-2 focus:ring-blazing_flame transition-colors" th:aria-label="${'Xóa ' + item.title + ' khỏi giỏ hàng'}" title="Xóa khỏi giỏ hàng"><i class="bi bi-trash3" aria-hidden="true"></i></button>
+                                </form>
+                            </div>
+                            <p class="mt-2 text-sm text-carbon_black-500"><span th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'POINT', 0, 'COMMA')}">100.000</span> đ / sản phẩm</p>
+                            <div class="mt-4 flex flex-wrap items-end justify-between gap-4">
+                                <form th:action="@{/cart/items/{id}/quantity(id=${item.itemId})}" method="post" data-cart-form data-cart-quantity>
+                                    <div>
+                                        <label th:for="${'quantity-' + item.itemId}" class="block mb-1.5 text-xs font-medium text-carbon_black-500">Số lượng</label>
+                                        <div data-quantity-control class="flex items-center rounded-xl border border-dust_grey bg-parchment-50 overflow-hidden focus-within:ring-2 focus-within:ring-blazing_flame">
+                                            <button type="button" data-quantity-step="-1" aria-label="Giảm số lượng" th:disabled="${!item.availableForSale or item.availableStock == 0 or item.quantity <= 1}" class="inline-flex items-center justify-center w-9 h-10 text-carbon_black-600 hover:bg-parchment-200 disabled:opacity-30 disabled:cursor-not-allowed"><span aria-hidden="true">−</span></button>
+                                            <input type="number" name="quantity" th:id="${'quantity-' + item.itemId}" th:value="${item.quantity}" min="1" th:max="${item.availableStock > 0 ? T(java.lang.Math).min(maxQuantity, item.availableStock) : maxQuantity}" step="1" required inputmode="numeric" th:disabled="${!item.availableForSale or item.availableStock == 0}" th:aria-label="${'Số lượng ' + item.title}" class="w-14 h-10 bg-transparent text-center text-sm font-bold focus:outline-none disabled:text-carbon_black-400">
+                                            <button type="button" data-quantity-step="1" aria-label="Tăng số lượng" th:disabled="${!item.availableForSale or item.availableStock == 0 or item.quantity >= T(java.lang.Math).min(maxQuantity, item.availableStock)}" class="inline-flex items-center justify-center w-9 h-10 text-carbon_black-600 hover:bg-parchment-200 disabled:opacity-30 disabled:cursor-not-allowed"><span aria-hidden="true">+</span></button>
+                                        </div>
+                                    </div>
+                                </form>
+                                <div class="text-right"><p class="text-[11px] text-carbon_black-400 mb-1">Thành tiền</p><p class="text-base sm:text-lg font-extrabold text-blazing_flame"><span th:text="${#numbers.formatDecimal(item.lineTotal, 0, 'POINT', 0, 'COMMA')}">200.000</span> đ</p></div>
+                            </div>
+                            <p th:if="${item.warningMessage == null}" class="mt-3 text-xs text-carbon_black-400">Hiện còn <span th:text="${item.availableStock}">20</span> sản phẩm</p>
+                        </div>
+                    </div>
+                    <div th:if="${item.warningMessage != null}" class="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5 text-xs leading-relaxed text-amber-800" role="status">
+                        <i class="bi bi-exclamation-triangle mt-0.5" aria-hidden="true"></i>
+                        <span><span th:text="${item.warningMessage}"></span>.
+                            <span th:if="${item.availableForSale and item.availableStock > 0}">Bạn có thể điều chỉnh số lượng hoặc xóa sản phẩm khỏi giỏ.</span>
+                            <span th:unless="${item.availableForSale and item.availableStock > 0}">Bạn có thể xóa sản phẩm khỏi giỏ hoặc quay lại sau.</span>
+                        </span>
+                    </div>
+                </article>
+            </div>
+        </div>
+        <aside class="lg:sticky lg:top-44 bg-white border border-dust_grey rounded-2xl p-6 shadow-soft" aria-label="Tóm tắt giỏ hàng">
+            <h2 class="font-serif font-bold text-xl pb-5 border-b border-dust_grey/60">Tóm tắt giỏ hàng</h2>
+            <dl class="mt-5 space-y-4 text-sm">
+                <div class="flex justify-between gap-3"><dt class="text-carbon_black-500">Số sản phẩm</dt><dd th:text="${cart.totalQuantity}" class="font-semibold">3</dd></div>
+                <div class="flex justify-between gap-3 border-t border-dust_grey/60 pt-5"><dt class="font-semibold">Tạm tính</dt><dd class="font-extrabold text-blazing_flame text-xl whitespace-nowrap"><span th:text="${#numbers.formatDecimal(cart.merchandiseSubtotal, 0, 'POINT', 0, 'COMMA')}">300.000</span> đ</dd></div>
+            </dl>
+            <p class="mt-4 text-xs text-carbon_black-500 leading-relaxed">Tạm tính chỉ gồm giá sản phẩm. Phí giao hàng và ưu đãi được tính khi đặt hàng.</p>
+            <a th:href="@{/products}" class="mt-6 w-full inline-flex justify-center items-center gap-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl px-4 py-3.5 text-sm font-bold shadow-flame focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:ring-offset-2 transition-colors"><i class="bi bi-plus-lg"></i>Tiếp tục mua sắm</a>
+            <div class="mt-5 pt-5 border-t border-dust_grey/60 flex gap-2 text-xs text-carbon_black-500 leading-relaxed"><i class="bi bi-info-circle text-blazing_flame mt-0.5"></i><p>Giá và tồn kho được kiểm tra lại khi đặt hàng. Thêm vào giỏ chưa giữ hàng cho bạn.</p></div>
+        </aside>
+    </div>
+    <dialog id="removeCartItemDialog" aria-labelledby="remove-cart-title" aria-describedby="remove-cart-description" class="rounded-2xl border border-dust_grey p-6 sm:p-8 w-[calc(100%-2rem)] max-w-md shadow-hover backdrop:bg-carbon_black/40">
+        <div class="w-12 h-12 rounded-full bg-blazing_flame-50 text-blazing_flame flex items-center justify-center mb-4"><i class="bi bi-trash3 text-xl"></i></div>
+        <h2 id="remove-cart-title" class="font-serif font-bold text-xl">Xóa khỏi giỏ hàng?</h2>
+        <p id="remove-cart-description" class="mt-3 text-sm text-carbon_black-500 leading-relaxed">Bạn muốn xóa <span id="removeCartProductTitle" class="font-semibold text-carbon_black"></span> khỏi giỏ hàng?</p>
+        <div class="mt-6 flex gap-3"><button type="button" id="cancelCartRemoval" autofocus class="flex-1 rounded-xl border border-dust_grey py-3 text-sm font-semibold hover:bg-parchment-100 focus:outline-none focus:ring-2 focus:ring-blazing_flame">Giữ lại</button><button type="button" id="confirmCartRemoval" class="flex-1 rounded-xl bg-blazing_flame hover:bg-blazing_flame-600 text-white py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blazing_flame">Xóa sản phẩm</button></div>
+    </dialog>
+</section>
+</body>
+</html>

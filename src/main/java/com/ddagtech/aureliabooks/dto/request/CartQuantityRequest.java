@@ -11,9 +11,10 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class CartQuantityRequest {
+    public static final int MAX_QUANTITY = 99;
 
     @NotNull(message = "Vui lòng nhập số lượng")
     @Min(value=1, message = "Số lượng ít nhất là 1")
-    @Max(value = 99, message = "Số lượng không được vượt quá 99")
-    Integer quantity;
+    @Max(value = MAX_QUANTITY, message = "Số lượng không được vượt quá 99")
+    private Integer quantity;
 }

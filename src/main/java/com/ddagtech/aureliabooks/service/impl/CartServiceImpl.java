@@ -15,7 +15,6 @@ import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.CartService;
 import org.springframework.transaction.annotation.Transactional;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +29,13 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countItems(Long userId) {
+        requireCustomer(userId, false);
+        return cartItemRepository.sumQuantityByUserId(userId);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -63,7 +69,7 @@ public class CartServiceImpl implements CartService {
 
         CartItem item = cart == null ? null : cartItemRepository.findByCart_IdAndProduct_Id(cart.getId(),productId).orElse(null);
 
-        int resultingQuantity = quantity + (item==null ? 0 : item.getQuantity());
+        long resultingQuantity = quantity + (item == null ? 0L : item.getQuantity().longValue());
 
         validateProductAndQuantity(product,resultingQuantity);
 
@@ -75,11 +81,11 @@ public class CartServiceImpl implements CartService {
 
         if (item==null){
             item = new CartItem();
-            item.setCart(cart);
             item.setProduct(product);
+            cart.addItem(item);
         }
 
-        item.setQuantity(resultingQuantity);
+        item.setQuantity((int) resultingQuantity);
         cartItemRepository.save(item);
         touchCart(cart);
     }
@@ -90,6 +96,7 @@ public class CartServiceImpl implements CartService {
         requireCustomer(userId,true);
         CartItem item = findOwnedItem(itemId,userId);
         Cart cart = item.getCart();
+        cart.removeItem(item);
         cartItemRepository.delete(item);
         touchCart(cart);
     }
@@ -113,7 +120,7 @@ public class CartServiceImpl implements CartService {
         if (request == null
                 || request.getQuantity() == null
                 || request.getQuantity() < 1
-                || request.getQuantity() > 99) {
+                || request.getQuantity() > CartQuantityRequest.MAX_QUANTITY) {
             throw new AppException(
                     ErrorCode.INVALID_INPUT_DATA,
                     "Số lượng phải là số nguyên từ 1 đến 99"
@@ -123,12 +130,12 @@ public class CartServiceImpl implements CartService {
         return request.getQuantity();
     }
 
-    private void validateProductAndQuantity(Product product,int quantity){
-        if (!product.getIsActive()){
+    private void validateProductAndQuantity(Product product, long quantity){
+        if (!Boolean.TRUE.equals(product.getIsActive())){
             throw new AppException(ErrorCode.INVALID_INPUT_DATA,"Sản phẩm hiện không được bán");
         }
 
-        if (quantity < 1 || quantity > 99){
+        if (quantity < 1 || quantity > CartQuantityRequest.MAX_QUANTITY){
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tổng số lượng sản phẩm phải từ 1 đến 99");
         }
 
@@ -150,11 +157,11 @@ public class CartServiceImpl implements CartService {
         User user = (lock ? userRepository.findForCartUpdate(userId) : userRepository.findById(userId))
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        if (!user.getIsActive()){
+        if (!Boolean.TRUE.equals(user.getIsActive())){
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
 
-        if (user.getRole()== null || !user.getRole().getRoleName().equals("ROLE_CUSTOMER")){
+        if (user.getRole()== null || !"ROLE_CUSTOMER".equals(user.getRole().getRoleName())){
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
@@ -164,7 +171,7 @@ public class CartServiceImpl implements CartService {
     private CartItemView toItemView(CartItem item){
         Product product = item.getProduct();
         String warning = null;
-        if (!product.getIsActive()){
+        if (!Boolean.TRUE.equals(product.getIsActive())){
             warning = "Sản phẩm hiện không được bán";
         } else if (product.getStockQuantity()==0){
             warning = "Sản phẩm đã hết hàng";
@@ -183,7 +190,7 @@ public class CartServiceImpl implements CartService {
                 item.getQuantity(),
                 lineTotal,
                 product.getStockQuantity(),
-                product.getIsActive(),
+                Boolean.TRUE.equals(product.getIsActive()),
                 warning
         );
     }
