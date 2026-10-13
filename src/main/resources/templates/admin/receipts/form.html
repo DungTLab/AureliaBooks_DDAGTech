@@ -20,10 +20,10 @@
             </div>
             <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2.5">
                 <i class="bi bi-file-earmark-plus text-blazing_flame"></i>
-                <span th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho Nháp' : 'Lập Phiếu Nhập Kho DRAFT (UC22)'}">Lập Phiếu Nhập Kho DRAFT (UC22)</span>
+                <span th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}">Lập Phiếu Nhập Kho</span>
             </h1>
             <p class="text-sm text-carbon_black-600 mt-1">
-                Tạo lập chứng từ nhập hàng nháp từ Nhà cung cấp. Tồn kho sản phẩm <strong>chưa bị thay đổi</strong> cho đến khi được duyệt hoàn tất (RECEIVED).
+                Tạo lập chứng từ nhập hàng từ Nhà cung cấp. Tồn kho sản phẩm <strong>chưa bị thay đổi</strong> cho đến khi quản lý duyệt hoàn tất phiếu nhập.
             </p>
         </div>
 
@@ -34,11 +34,11 @@
         </a>
     </div>
 
-    <!-- BR-01-01 Business Rule Guide Alert -->
+    <!-- Quy định nhập kho lần đầu -->
     <div class="bg-amber-50 border-l-4 border-amber-500 rounded-xl p-4 shadow-sm flex items-start gap-3">
         <i class="bi bi-info-circle-fill text-amber-600 text-xl flex-shrink-0 mt-0.5"></i>
         <div class="text-sm text-amber-900 space-y-1">
-            <p class="font-bold">Quy tắc nghiệp vụ kiểm soát nhập kho ban đầu (BR-01-01):</p>
+            <p class="font-bold">Quy định hạn mức nhập kho lần đầu:</p>
             <ul class="list-disc list-inside space-y-0.5 text-xs">
                 <li>Đối với sản phẩm nhập đợt đầu (chưa từng có phiếu nhập hoặc tồn = 0): Giới hạn tối đa <strong>100 đơn vị</strong> cho sản phẩm thông thường (Sách tiêu chuẩn, Văn phòng phẩm).</li>
                 <li>Đối với <strong>Sách giáo khoa (SGK)</strong> nhập đợt đầu: Giới hạn tối đa <strong>500 đơn vị</strong>.</li>
