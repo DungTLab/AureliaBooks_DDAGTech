@@ -27,8 +27,12 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
+import com.ddagtech.aureliabooks.dto.response.QuickProductResponse;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller managing Goods Receipts (UC22 Draft, UC23 Finalize) and Stock Alerts (UC21).
@@ -285,12 +289,40 @@ public class AdminReceiptController {
     }
 
     // =========================================================================
+    // Quick Create Product API (UC22 On-the-fly Inbound Product Creation)
+    // =========================================================================
+
+    /**
+     * REST endpoint to quickly create a product on-the-fly directly from the receipt form modal.
+     */
+    @PostMapping("/api/products/quick-create")
+    @ResponseBody
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    public ResponseEntity<?> quickCreateProduct(
+            @Valid @RequestBody QuickCreateProductRequest request,
+            BindingResult bindingResult
+    ) {
+        if (bindingResult.hasErrors()) {
+            String error = bindingResult.getAllErrors().get(0).getDefaultMessage();
+            return ResponseEntity.badRequest().body(Map.of("message", error));
+        }
+        try {
+            QuickProductResponse response = goodsReceiptService.quickCreateProduct(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to quick-create product: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // =========================================================================
     // Helpers
     // =========================================================================
 
     private void populateFormReferenceData(Model model) {
         model.addAttribute("suppliers", supplierRepository.findByIsActiveTrueOrderByNameAsc());
         model.addAttribute("products", productRepository.findByIsActiveTrueOrderByTitleAsc());
+        model.addAttribute("categories", categoryRepository.findByIsActiveTrueOrderByNameAsc());
     }
 
     private boolean isManagerOrAdmin(CustomUserDetails user) {

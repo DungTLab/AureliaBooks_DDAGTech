@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.service.impl;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptForm;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptItemForm;
+import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
 import com.ddagtech.aureliabooks.dto.response.*;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.exception.AppException;
@@ -48,6 +49,10 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     private final SupplierRepository supplierRepository;
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
+    private final CategoryRepository categoryRepository;
+    private final PublisherRepository publisherRepository;
+    private final BrandRepository brandRepository;
+    private final StationeryRepository stationeryRepository;
     private final StockMutationService stockMutationService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
@@ -526,5 +531,96 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             log.warn("Failed to serialize audit log details JSON: {}", e.getMessage());
             return null;
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public QuickProductResponse quickCreateProduct(QuickCreateProductRequest request) {
+        log.info("Quick-creating product on-the-fly: title='{}', type={}", request.title(), request.productType());
+
+        // 1. Resolve Category
+        Category category = null;
+        if (request.categoryId() != null) {
+            category = categoryRepository.findById(request.categoryId()).orElse(null);
+        }
+        if (category == null) {
+            String defaultCatName = request.productType() == Product.ProductType.BOOK ? "Sách tổng hợp" : "Văn phòng phẩm";
+            category = categoryRepository.findAll().stream()
+                    .filter(c -> c.getName().equalsIgnoreCase(defaultCatName))
+                    .findFirst()
+                    .orElseGet(() -> categoryRepository.save(Category.builder()
+                            .name(defaultCatName)
+                            .isActive(true)
+                            .description("Danh mục tự động tạo khi lập phiếu nhập kho")
+                            .build()));
+        }
+
+        // 2. Resolve Barcode
+        String barcode = request.barcode();
+        if (barcode == null || barcode.isBlank()) {
+            String prefix = request.productType() == Product.ProductType.BOOK ? "BK-" : "VPP-";
+            barcode = prefix + (System.currentTimeMillis() % 10000000);
+        }
+
+        // 3. Persist Product
+        BigDecimal cost = request.originalCost() != null ? request.originalCost() : BigDecimal.ZERO;
+        Product product = Product.builder()
+                .barcode(barcode)
+                .title(request.title().trim())
+                .category(category)
+                .productType(request.productType())
+                .price(request.price())
+                .originalCost(cost)
+                .weightGrams(200)
+                .stockQuantity(0) // Luôn = 0 khi mới tạo; tăng tồn kho khi duyệt phiếu (UC23)
+                .isActive(true)
+                .build();
+        product = productRepository.save(product);
+
+        // 4. Persist subtype (Book or Stationery)
+        boolean isTextbook = request.isTextbookSafe();
+        if (request.productType() == Product.ProductType.BOOK) {
+            Publisher publisher = publisherRepository.findAll().stream().findFirst().orElseGet(() ->
+                    publisherRepository.save(Publisher.builder()
+                            .name("Nhà xuất bản Giáo Dục")
+                            .address("Hà Nội")
+                            .build()));
+            Book book = Book.builder()
+                    .product(product)
+                    .productId(product.getId())
+                    .isbn(barcode)
+                    .publisher(publisher)
+                    .isTextbook(isTextbook)
+                    .language("Tiếng Việt")
+                    .coverType(Book.CoverType.PAPERBACK)
+                    .build();
+            bookRepository.save(book);
+        } else {
+            Brand brand = brandRepository.findAll().stream().findFirst().orElseGet(() ->
+                    brandRepository.save(Brand.builder()
+                            .name("Thiên Long")
+                            .originCountry("Việt Nam")
+                            .build()));
+            Stationery stationery = Stationery.builder()
+                    .product(product)
+                    .productId(product.getId())
+                    .brand(brand)
+                    .warrantyMonths(0)
+                    .build();
+            stationeryRepository.save(stationery);
+        }
+
+        int initialQty = request.initialQuantity() != null && request.initialQuantity() > 0 ? request.initialQuantity() : 1;
+
+        return new QuickProductResponse(
+                product.getId(),
+                product.getTitle(),
+                product.getBarcode(),
+                product.getPrice(),
+                product.getOriginalCost(),
+                product.getProductType().name(),
+                isTextbook,
+                initialQty
+        );
     }
 }

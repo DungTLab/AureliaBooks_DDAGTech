@@ -3,6 +3,8 @@ package com.ddagtech.aureliabooks.service;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptForm;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptItemForm;
+import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
+import com.ddagtech.aureliabooks.dto.response.QuickProductResponse;
 import com.ddagtech.aureliabooks.dto.response.GoodsReceiptDetailDto;
 import com.ddagtech.aureliabooks.dto.response.ProductStockAlertDto;
 import com.ddagtech.aureliabooks.dto.response.ReceiptSummary;
@@ -50,6 +52,14 @@ class GoodsReceiptServiceTest {
     private UserRepository userRepository;
     @Mock
     private BookRepository bookRepository;
+    @Mock
+    private CategoryRepository categoryRepository;
+    @Mock
+    private PublisherRepository publisherRepository;
+    @Mock
+    private BrandRepository brandRepository;
+    @Mock
+    private StationeryRepository stationeryRepository;
     @Mock
     private StockMutationService stockMutationService;
     @Mock
@@ -541,6 +551,132 @@ class GoodsReceiptServiceTest {
             assertThat(result.getTotalElements()).isEqualTo(1);
             assertThat(result.getContent().get(0).title()).isEqualTo("Sách Tồn Thấp");
             assertThat(result.getContent().get(0).stockQuantity()).isEqualTo(3);
+        }
+    }
+
+    @Nested
+    @DisplayName("Quick Create Product on-the-fly (Hỗ trợ thêm sản phẩm khi lập phiếu)")
+    class QuickCreateProductTests {
+
+        @Test
+        @DisplayName("Tạo nhanh Sách thông thường với Category và Publisher tự động")
+        void quickCreateStandardBook_success() {
+            Category cat = Category.builder().id(1L).name("Sách tổng hợp").build();
+            when(categoryRepository.findAll()).thenReturn(List.of(cat));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(cat));
+
+            Publisher pub = Publisher.builder().id(1L).name("Nhà xuất bản Giáo Dục").build();
+            when(publisherRepository.findAll()).thenReturn(List.of(pub));
+
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+                Product p = inv.getArgument(0);
+                p.setId(101L);
+                return p;
+            });
+            when(bookRepository.save(any(Book.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            QuickCreateProductRequest req = new QuickCreateProductRequest(
+                    "Đắc Nhân Tâm Mới",
+                    Product.ProductType.BOOK,
+                    false,
+                    1L,
+                    "BK-999888",
+                    new BigDecimal("80000.00"),
+                    new BigDecimal("50000.00"),
+                    10
+            );
+
+            QuickProductResponse res = service.quickCreateProduct(req);
+
+            assertThat(res.id()).isEqualTo(101L);
+            assertThat(res.title()).isEqualTo("Đắc Nhân Tâm Mới");
+            assertThat(res.barcode()).isEqualTo("BK-999888");
+            assertThat(res.isTextbook()).isFalse();
+            assertThat(res.initialQuantity()).isEqualTo(10);
+            verify(productRepository).save(any(Product.class));
+            verify(bookRepository).save(any(Book.class));
+        }
+
+        @Test
+        @DisplayName("Tạo nhanh Sách giáo khoa (isTextbook=true) để áp dụng hạn mức 500")
+        void quickCreateTextbook_success() {
+            when(categoryRepository.findAll()).thenReturn(List.of());
+            when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> {
+                Category c = inv.getArgument(0);
+                c.setId(2L);
+                return c;
+            });
+            when(publisherRepository.findAll()).thenReturn(List.of());
+            when(publisherRepository.save(any(Publisher.class))).thenAnswer(inv -> {
+                Publisher p = inv.getArgument(0);
+                p.setId(2L);
+                return p;
+            });
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+                Product p = inv.getArgument(0);
+                p.setId(102L);
+                return p;
+            });
+            when(bookRepository.save(any(Book.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            QuickCreateProductRequest req = new QuickCreateProductRequest(
+                    "Sách Giáo Khoa Toán 12 Mới",
+                    Product.ProductType.BOOK,
+                    true,
+                    null,
+                    null,
+                    new BigDecimal("45000.00"),
+                    new BigDecimal("30000.00"),
+                    50
+            );
+
+            QuickProductResponse res = service.quickCreateProduct(req);
+
+            assertThat(res.id()).isEqualTo(102L);
+            assertThat(res.isTextbook()).isTrue();
+            assertThat(res.barcode()).startsWith("BK-");
+            assertThat(res.initialQuantity()).isEqualTo(50);
+        }
+
+        @Test
+        @DisplayName("Tạo nhanh Văn phòng phẩm với Brand tự động")
+        void quickCreateStationery_success() {
+            when(categoryRepository.findAll()).thenReturn(List.of());
+            when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> {
+                Category c = inv.getArgument(0);
+                c.setId(3L);
+                return c;
+            });
+            when(brandRepository.findAll()).thenReturn(List.of());
+            when(brandRepository.save(any(Brand.class))).thenAnswer(inv -> {
+                Brand b = inv.getArgument(0);
+                b.setId(3L);
+                return b;
+            });
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+                Product p = inv.getArgument(0);
+                p.setId(103L);
+                return p;
+            });
+            when(stationeryRepository.save(any(Stationery.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            QuickCreateProductRequest req = new QuickCreateProductRequest(
+                    "Bút Bi Thiên Long TL-027",
+                    Product.ProductType.STATIONERY,
+                    false,
+                    null,
+                    "VPP-027",
+                    new BigDecimal("5000.00"),
+                    new BigDecimal("3000.00"),
+                    20
+            );
+
+            QuickProductResponse res = service.quickCreateProduct(req);
+
+            assertThat(res.id()).isEqualTo(103L);
+            assertThat(res.productType()).isEqualTo("STATIONERY");
+            assertThat(res.barcode()).isEqualTo("VPP-027");
+            verify(stationeryRepository).save(any(Stationery.class));
         }
     }
 }

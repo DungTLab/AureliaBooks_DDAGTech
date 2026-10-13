@@ -199,4 +199,58 @@ class AdminReceiptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/stock/alerts"));
     }
+
+    @Test
+    @DisplayName("POST /api/products/quick-create: Tạo nhanh sản phẩm thành công trả về 200 OK và JSON")
+    void quickCreateProduct_success() throws Exception {
+        com.ddagtech.aureliabooks.dto.response.QuickProductResponse res =
+                new com.ddagtech.aureliabooks.dto.response.QuickProductResponse(
+                        99L, "Sách Mới Thêm Nhanh", "BK-99",
+                        new BigDecimal("90000.00"), new BigDecimal("60000.00"),
+                        "BOOK", false, 15
+                );
+        when(goodsReceiptService.quickCreateProduct(any())).thenReturn(res);
+
+        String json = """
+                {
+                    "title": "Sách Mới Thêm Nhanh",
+                    "productType": "BOOK",
+                    "isTextbook": false,
+                    "price": 90000.00,
+                    "originalCost": 60000.00,
+                    "initialQuantity": 15
+                }
+                """;
+
+        mvc.perform(post("/api/products/quick-create")
+                        .with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF")))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(99))
+                .andExpect(jsonPath("$.title").value("Sách Mới Thêm Nhanh"))
+                .andExpect(jsonPath("$.barcode").value("BK-99"))
+                .andExpect(jsonPath("$.initialQuantity").value(15));
+    }
+
+    @Test
+    @DisplayName("POST /api/products/quick-create: Validation error trả về 400 Bad Request")
+    void quickCreateProduct_validationError() throws Exception {
+        String invalidJson = """
+                {
+                    "title": "",
+                    "productType": "BOOK",
+                    "price": -100.00
+                }
+                """;
+
+        mvc.perform(post("/api/products/quick-create")
+                        .with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF")))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists());
+    }
 }

@@ -24,4 +24,7 @@ public interface GoodsReceiptService {
 
     /** Filters catalog items by stock alert thresholds, product type, category, and keyword. */
     Page<ProductStockAlertDto> getStockAlerts(String keyword, Long categoryId, com.ddagtech.aureliabooks.entity.Product.ProductType productType, String alertLevel, Pageable pageable);
+
+    /** Quick-creates a new product on-the-fly and makes it immediately available for receipt drafting. */
+    QuickProductResponse quickCreateProduct(QuickCreateProductRequest request);
 }

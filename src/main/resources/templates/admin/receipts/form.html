@@ -101,17 +101,40 @@
 
         <!-- Section 2: Line Items -->
         <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
-            <div class="flex items-center justify-between border-b border-dust_grey/60 pb-3">
-                <h2 class="text-lg font-bold text-carbon_black flex items-center gap-2">
-                    <i class="bi bi-box-seam text-blazing_flame"></i>
-                    <span>2. Danh mục sản phẩm nhập kho</span>
-                </h2>
-                <button type="button"
-                        id="addRowBtn"
-                        onclick="addNewItemRow()"
-                        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
-                    <i class="bi bi-plus-lg"></i>
-                    <span>Thêm sản phẩm</span>
+            <div class="flex flex-wrap items-center justify-between border-b border-dust_grey/60 pb-3 gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-carbon_black flex items-center gap-2">
+                        <i class="bi bi-box-seam text-blazing_flame"></i>
+                        <span>2. Danh mục sản phẩm nhập kho</span>
+                    </h2>
+                    <p class="text-xs text-carbon_black-500 mt-0.5">Chọn sản phẩm có sẵn hoặc bấm <strong>"Thêm sản phẩm mới"</strong> nếu sách/hàng chưa có trên hệ thống.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button"
+                            onclick="openQuickAddProductModal()"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                        <i class="bi bi-plus-circle-fill"></i>
+                        <span>Thêm sản phẩm mới</span>
+                    </button>
+                    <button type="button"
+                            id="addRowBtn"
+                            onclick="addNewItemRow()"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                        <i class="bi bi-plus-lg"></i>
+                        <span>Thêm dòng có sẵn</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Banner if product catalog is empty -->
+            <div th:if="${products == null or products.isEmpty()}" class="bg-sky-50 border border-sky-200 text-sky-900 rounded-xl p-4 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <i class="bi bi-info-circle-fill text-sky-600 text-lg flex-shrink-0"></i>
+                    <span>Hệ thống chưa có sản phẩm nào. Hãy bấm nút <strong>"Thêm sản phẩm mới"</strong> để tạo sản phẩm đầu tiên và đưa vào phiếu nhập ngay!</span>
+                </div>
+                <button type="button" onclick="openQuickAddProductModal()"
+                        class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg transition shrink-0">
+                    + Thêm sản phẩm mới
                 </button>
             </div>
 
@@ -219,6 +242,112 @@
 
 </div>
 
+<!-- Quick Add Product Modal -->
+<div id="quickAddProductModal" class="fixed inset-0 z-50 hidden bg-carbon_black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-dust_grey my-8 animate-fade-in-down">
+        <div class="flex items-center justify-between border-b border-dust_grey/60 pb-3">
+            <h3 class="text-lg font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-box-seam-fill text-blazing_flame"></i>
+                <span>Thêm sản phẩm mới vào hệ thống</span>
+            </h3>
+            <button type="button" onclick="closeQuickAddProductModal()" class="text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg">
+                <i class="bi bi-x-lg text-lg"></i>
+            </button>
+        </div>
+
+        <form id="quickAddProductForm" onsubmit="handleQuickAddProduct(event)" class="space-y-4">
+            <!-- Product Title -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                    Tên sản phẩm / Sách <span class="text-rose-500">*</span>
+                </label>
+                <input type="text" id="quickTitle" required placeholder="Ví dụ: Đắc Nhân Tâm, SGK Toán 12, Bút bi TL-027..."
+                       class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+            </div>
+
+            <!-- Product Type & Textbook Checkbox -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                        Loại sản phẩm <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="quickProductType" onchange="toggleTextbookOption()" class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                        <option value="BOOK">Sách</option>
+                        <option value="STATIONERY">Văn phòng phẩm</option>
+                    </select>
+                </div>
+                <div id="textbookWrapper" class="flex items-center pt-5">
+                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-carbon_black">
+                        <input type="checkbox" id="quickIsTextbook" class="rounded text-blazing_flame focus:ring-blazing_flame h-4 w-4">
+                        <span>Là Sách giáo khoa (SGK)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Category -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                    Danh mục sản phẩm
+                </label>
+                <select id="quickCategoryId" class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <option value="">-- Mặc định theo loại sản phẩm --</option>
+                    <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}">Văn học</option>
+                </select>
+            </div>
+
+            <!-- Barcode / ISBN -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                    Mã vạch / ISBN <span class="text-[11px] font-normal text-carbon_black-400">(Để trống hệ thống sẽ tự sinh)</span>
+                </label>
+                <input type="text" id="quickBarcode" placeholder="Ví dụ: 8935244840896 hoặc để trống"
+                       class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-mono text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+            </div>
+
+            <!-- Pricing & Quantity in Receipt -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                        Giá niêm yết (đ) <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="number" id="quickPrice" min="0" step="1000" required placeholder="80000"
+                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                        Giá vốn nhập (đ) <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="number" id="quickOriginalCost" min="0" step="1000" required placeholder="50000"
+                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                        Số lượng nhập <span class="text-rose-500">*</span>
+                    </label>
+                    <input type="number" id="quickQuantity" min="1" required value="10"
+                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                </div>
+            </div>
+
+            <!-- Modal Error Alert -->
+            <div id="quickModalError" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium"></div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-dust_grey/60">
+                <button type="button" onclick="closeQuickAddProductModal()"
+                        class="px-4 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black text-sm font-semibold rounded-xl transition">
+                    Hủy bỏ
+                </button>
+                <button type="submit" id="quickSubmitBtn"
+                        class="inline-flex items-center gap-1.5 px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-bold rounded-xl shadow-md transition">
+                    <i class="bi bi-check-lg"></i>
+                    <span>Lưu &amp; Thêm vào phiếu</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Template Product Options (JSON storage for dynamic JS rows) -->
 <template id="productOptionsTemplate">
     <option value="">-- Chọn sản phẩm --</option>
@@ -234,12 +363,114 @@
 <script>
     let rowIndex = document.querySelectorAll('.item-row').length;
 
+    function openQuickAddProductModal() {
+        document.getElementById('quickAddProductModal').classList.remove('hidden');
+        document.getElementById('quickModalError').classList.add('hidden');
+        setTimeout(() => document.getElementById('quickTitle').focus(), 100);
+    }
+
+    function closeQuickAddProductModal() {
+        document.getElementById('quickAddProductModal').classList.add('hidden');
+    }
+
+    function toggleTextbookOption() {
+        const type = document.getElementById('quickProductType').value;
+        const wrapper = document.getElementById('textbookWrapper');
+        if (type === 'BOOK') {
+            wrapper.classList.remove('hidden');
+        } else {
+            wrapper.classList.add('hidden');
+            document.getElementById('quickIsTextbook').checked = false;
+        }
+    }
+
+    async function handleQuickAddProduct(event) {
+        event.preventDefault();
+        const submitBtn = document.getElementById('quickSubmitBtn');
+        const errorDiv = document.getElementById('quickModalError');
+        errorDiv.classList.add('hidden');
+
+        const title = document.getElementById('quickTitle').value.trim();
+        const productType = document.getElementById('quickProductType').value;
+        const isTextbook = document.getElementById('quickIsTextbook').checked;
+        const categoryId = document.getElementById('quickCategoryId').value || null;
+        const barcode = document.getElementById('quickBarcode').value.trim() || null;
+        const price = parseFloat(document.getElementById('quickPrice').value) || 0;
+        const originalCost = parseFloat(document.getElementById('quickOriginalCost').value) || 0;
+        const initialQuantity = parseInt(document.getElementById('quickQuantity').value) || 1;
+
+        // Extract CSRF Token
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+        const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content')
+            || document.querySelector('input[name="_csrf"]')?.value || '';
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Đang tạo...';
+
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) {
+                headers[csrfHeader] = csrfToken;
+            }
+
+            const response = await fetch('/api/products/quick-create', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    title, productType, isTextbook, categoryId, barcode, price, originalCost, initialQuantity
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Lỗi khi tạo sản phẩm');
+            }
+
+            const newProd = await response.json();
+
+            // 1. Add new option to template
+            const template = document.getElementById('productOptionsTemplate');
+            const newOpt = document.createElement('option');
+            newOpt.value = newProd.id;
+            newOpt.setAttribute('data-price', newProd.originalCost);
+            newOpt.setAttribute('data-barcode', newProd.barcode);
+            newOpt.textContent = `${newProd.title} [${newProd.barcode}]`;
+            template.appendChild(newOpt);
+
+            // 2. Add new option to all existing product dropdowns
+            document.querySelectorAll('.product-select').forEach(sel => {
+                const opt = newOpt.cloneNode(true);
+                sel.appendChild(opt);
+            });
+
+            // 3. Add a new row with this product pre-selected
+            addNewItemRowWithData(newProd.id, newProd.originalCost, newProd.initialQuantity);
+
+            // 4. Close modal and reset form
+            closeQuickAddProductModal();
+            document.getElementById('quickAddProductForm').reset();
+        } catch (err) {
+            errorDiv.textContent = err.message;
+            errorDiv.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> <span>Lưu &amp; Thêm vào phiếu</span>';
+        }
+    }
+
     function addNewItemRow() {
+        addNewItemRowWithData('', '', 1);
+    }
+
+    function addNewItemRowWithData(selectedProductId, defaultCost, defaultQty) {
         const tbody = document.getElementById('itemsTableBody');
         const template = document.getElementById('productOptionsTemplate');
         const tr = document.createElement('tr');
         tr.className = 'item-row hover:bg-parchment-50 transition';
         tr.id = 'item-row-' + rowIndex;
+
+        const costVal = defaultCost !== undefined && defaultCost !== null ? defaultCost : '';
+        const qtyVal = defaultQty || 1;
 
         tr.innerHTML = `
             <td class="py-3 px-4 text-center font-semibold text-carbon_black-500 row-index">1</td>
@@ -250,12 +481,12 @@
                 </select>
             </td>
             <td class="py-3 px-4">
-                <input type="number" name="items[${rowIndex}].unitCost" step="1000" min="0" required
+                <input type="number" name="items[${rowIndex}].unitCost" value="${costVal}" step="1000" min="0" required
                        oninput="calculateRowSubtotal(this)" placeholder="0"
                        class="unit-cost-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
             </td>
             <td class="py-3 px-4">
-                <input type="number" name="items[${rowIndex}].receivedQuantity" min="1" required
+                <input type="number" name="items[${rowIndex}].receivedQuantity" value="${qtyVal}" min="1" required
                        oninput="calculateRowSubtotal(this)" placeholder="1"
                        class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
             </td>
@@ -268,9 +499,16 @@
         `;
 
         tbody.appendChild(tr);
+
+        // Pre-select product if provided
+        if (selectedProductId) {
+            const select = tr.querySelector('.product-select');
+            select.value = selectedProductId;
+        }
+
         rowIndex++;
         updateRowIndices();
-        recalculateTotal();
+        calculateRowSubtotal(tr.querySelector('.quantity-input'));
     }
 
     function removeRow(btn) {
