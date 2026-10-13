@@ -323,6 +323,8 @@ public class AdminReceiptController {
         model.addAttribute("suppliers", supplierRepository.findByIsActiveTrueOrderByNameAsc());
         model.addAttribute("products", productRepository.findByIsActiveTrueOrderByTitleAsc());
         model.addAttribute("categories", categoryRepository.findByIsActiveTrueOrderByNameAsc());
+        java.util.Set<Long> textbookIds = goodsReceiptService.getTextbookProductIds();
+        model.addAttribute("textbookIds", textbookIds != null ? textbookIds : java.util.Collections.emptySet());
     }
 
     private boolean isManagerOrAdmin(CustomUserDetails user) {

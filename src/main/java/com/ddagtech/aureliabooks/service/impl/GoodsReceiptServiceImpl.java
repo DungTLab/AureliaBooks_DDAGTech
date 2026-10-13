@@ -623,4 +623,13 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                 initialQty
         );
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> getTextbookProductIds() {
+        return bookRepository.findAll().stream()
+                .filter(b -> Boolean.TRUE.equals(b.getIsTextbook()))
+                .map(Book::getProductId)
+                .collect(java.util.stream.Collectors.toSet());
+    }
 }

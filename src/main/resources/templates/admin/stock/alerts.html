@@ -48,11 +48,11 @@
             </div>
         </div>
 
-        <!-- Card 2: Out of Stock (0) -->
+        <!-- Card 2: Out of Stock -->
         <a th:href="@{/manager/stock/alerts(alertLevel='OUT_OF_STOCK')}"
            class="bg-white border border-rose-200 hover:border-rose-400 rounded-2xl p-5 shadow-sm flex items-center justify-between transition group">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-rose-600 block mb-1">Hết hàng (Tồn = 0)</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-rose-600 block mb-1">Hết hàng</span>
                 <span class="text-2xl font-extrabold text-rose-600 group-hover:scale-105 transition-transform" th:text="${metrics.outOfStockCount}">15</span>
                 <span class="text-[11px] text-rose-500 block mt-0.5">Cần nhập kho ngay</span>
             </div>
@@ -61,11 +61,11 @@
             </div>
         </a>
 
-        <!-- Card 3: Low Stock (1-10) -->
+        <!-- Card 3: Low Stock -->
         <a th:href="@{/manager/stock/alerts(alertLevel='LOW_STOCK')}"
            class="bg-white border border-amber-200 hover:border-amber-400 rounded-2xl p-5 shadow-sm flex items-center justify-between transition group">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-amber-700 block mb-1">Tồn kho thấp (1–10)</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-amber-700 block mb-1">Tồn kho thấp</span>
                 <span class="text-2xl font-extrabold text-amber-600 group-hover:scale-105 transition-transform" th:text="${metrics.lowStockCount}">28</span>
                 <span class="text-[11px] text-amber-600 block mt-0.5">Dưới mức an toàn</span>
             </div>
@@ -74,11 +74,11 @@
             </div>
         </a>
 
-        <!-- Card 4: Safe Stock (>10) -->
+        <!-- Card 4: Safe Stock -->
         <a th:href="@{/manager/stock/alerts(alertLevel='SAFE_STOCK')}"
            class="bg-white border border-emerald-200 hover:border-emerald-400 rounded-2xl p-5 shadow-sm flex items-center justify-between transition group">
             <div>
-                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700 block mb-1">Tồn an toàn (&gt;10)</span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700 block mb-1">Tồn an toàn</span>
                 <span class="text-2xl font-extrabold text-emerald-600 group-hover:scale-105 transition-transform" th:text="${metrics.safeStockCount}">77</span>
                 <span class="text-[11px] text-emerald-600 block mt-0.5">Đủ nguồn cung bán</span>
             </div>
@@ -105,9 +105,9 @@
                         onchange="this.form.submit()"
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                     <option value="" th:selected="${selectedAlertLevel == null || selectedAlertLevel == ''}">-- Tất cả mức tồn kho --</option>
-                    <option value="OUT_OF_STOCK" th:selected="${selectedAlertLevel == 'OUT_OF_STOCK'}">Hết hàng (Tồn = 0)</option>
-                    <option value="LOW_STOCK" th:selected="${selectedAlertLevel == 'LOW_STOCK'}">Tồn kho thấp (1–10)</option>
-                    <option value="SAFE_STOCK" th:selected="${selectedAlertLevel == 'SAFE_STOCK'}">Tồn an toàn (&gt;10)</option>
+                    <option value="OUT_OF_STOCK" th:selected="${selectedAlertLevel == 'OUT_OF_STOCK'}">Hết hàng</option>
+                    <option value="LOW_STOCK" th:selected="${selectedAlertLevel == 'LOW_STOCK'}">Tồn kho thấp</option>
+                    <option value="SAFE_STOCK" th:selected="${selectedAlertLevel == 'SAFE_STOCK'}">Tồn an toàn</option>
                 </select>
 
                 <!-- Category Filter -->
@@ -218,19 +218,19 @@
                             <span th:if="${p.stockQuantity == 0}"
                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
                                 <i class="bi bi-x-circle-fill"></i>
-                                <span>Hết hàng (0)</span>
+                                <span>Hết hàng</span>
                             </span>
 
                             <span th:if="${p.stockQuantity >= 1 && p.stockQuantity <= 10}"
                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
                                 <i class="bi bi-exclamation-triangle-fill"></i>
-                                <span>Tồn thấp (1–10)</span>
+                                <span>Tồn thấp</span>
                             </span>
 
                             <span th:if="${p.stockQuantity > 10}"
                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                                 <i class="bi bi-check-circle-fill"></i>
-                                <span>An toàn (&gt;10)</span>
+                                <span>An toàn</span>
                             </span>
                         </td>
 

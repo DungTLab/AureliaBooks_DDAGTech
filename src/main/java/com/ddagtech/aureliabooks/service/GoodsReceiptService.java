@@ -27,4 +27,7 @@ public interface GoodsReceiptService {
 
     /** Quick-creates a new product on-the-fly and makes it immediately available for receipt drafting. */
     QuickProductResponse quickCreateProduct(QuickCreateProductRequest request);
+
+    /** Retrieves set of product IDs that are categorized as textbooks. */
+    java.util.Set<Long> getTextbookProductIds();
 }
