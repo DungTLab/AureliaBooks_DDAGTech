@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.controller;
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
+import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.service.ProductService;
@@ -16,6 +17,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /** UC01/02/03 (GET page shell only). Owner: Huỳnh Nhật Duy. Sprint 1 scaffold; business implementation pending. */
 @Controller
@@ -98,10 +100,10 @@ public class ProductController {
     @GetMapping("/products/{id}")
     public String detail(@PathVariable Long id, Model model) {
         try {
-            com.ddagtech.aureliabooks.dto.response.ProductDetailResponse product = productService.viewDetail(id);
+            ProductDetailResponse product = productService.viewDetail(id);
             model.addAttribute("product", product);
             return "product/detail";
-        } catch (java.util.NoSuchElementException ex) {
+        } catch (NoSuchElementException ex) {
             return "redirect:/products";
         }
     }
