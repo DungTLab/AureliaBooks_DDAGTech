@@ -1,13 +1,528 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>admin / audit logs</title></head>
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout('Nhật ký kiểm toán an ninh hệ thống - AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Nhật ký kiểm toán an ninh hệ thống - AureliaBook</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC29; Owner: Trần Huỳnh Giác. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">admin / audit logs</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
-</section>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Page Header & Quick Navigation Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Quản trị hệ thống</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Nhật ký kiểm toán</span>
+            </div>
+            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-journal-text text-blazing_flame"></i>
+                Nhật ký kiểm toán an ninh &amp; Giao dịch
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Thanh tra lịch sử các đột biến người dùng, phân quyền RBAC, đăng nhập thất bại và an ninh hệ thống (SCR-DB-18).
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a th:href="@{/admin/users}"
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-parchment text-carbon_black border border-dust_grey font-semibold rounded-xl shadow-sm transition duration-150">
+                <i class="bi bi-people-fill text-carbon_black-600"></i>
+                <span>Quản lý tài khoản</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Multi-Criteria Filter Toolbar (SCR-DB-18) -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
+        <form method="get" th:action="@{/admin/audit-logs}" class="space-y-4">
+            <input type="hidden" name="size" th:value="${logsPage != null ? logsPage.size : 20}" />
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                <!-- Action Filter Dropdown -->
+                <div>
+                    <label for="actionFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Hành vi</label>
+                    <select id="actionFilter" name="action"
+                            class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
+                        <option value="" th:selected="${selectedAction == null or selectedAction == ''}">Tất cả hành vi</option>
+                        <option th:each="act : ${actions}"
+                                th:value="${act}"
+                                th:text="${act}"
+                                th:selected="${selectedAction == act}">
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Target Table Filter Dropdown -->
+                <div>
+                    <label for="targetTableFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Bảng mục tiêu</label>
+                    <select id="targetTableFilter" name="targetTable"
+                            class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
+                        <option value="" th:selected="${selectedTargetTable == null or selectedTargetTable == ''}">Tất cả bảng</option>
+                        <option th:each="tbl : ${targetTables}"
+                                th:value="${tbl}"
+                                th:text="${tbl}"
+                                th:selected="${selectedTargetTable == tbl}">
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Actor Filter Dropdown -->
+                <div>
+                    <label for="actorFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Người thực hiện</label>
+                    <select id="actorFilter" name="actorId"
+                            class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
+                        <option value="" th:selected="${selectedActorId == null}">Tất cả người dùng</option>
+                        <option value="-1" th:selected="${selectedActorId != null and selectedActorId == -1}">Hệ thống / Ẩn danh</option>
+                        <option th:each="actor : ${actors}"
+                                th:value="${actor.id}"
+                                th:text="${actor.name != null ? actor.name + ' (' + actor.email + ')' : actor.email}"
+                                th:selected="${selectedActorId != null and selectedActorId == actor.id}">
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Start Date -->
+                <div>
+                    <label for="startDateFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Từ ngày</label>
+                    <input id="startDateFilter" type="date" name="startDate" th:value="${startDate}"
+                           class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                </div>
+
+                <!-- End Date -->
+                <div>
+                    <label for="endDateFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Đến ngày</label>
+                    <input id="endDateFilter" type="date" name="endDate" th:value="${endDate}"
+                           class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                </div>
+
+                <!-- Search Keyword -->
+                <div>
+                    <label for="keywordFilter" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">Từ khóa</label>
+                    <div class="relative">
+                        <input id="keywordFilter" type="text" name="keyword" th:value="${keyword}"
+                               placeholder="Tìm chi tiết, IP..."
+                               class="w-full pl-8 pr-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                        <i class="bi bi-search absolute left-2.5 top-2.5 text-carbon_black-400 text-xs"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons & Record Count Summary -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-dust_grey/60">
+                <div class="flex items-center gap-2">
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl transition shadow-sm">
+                        <i class="bi bi-funnel-fill text-xs"></i>
+                        <span>Lọc dữ liệu</span>
+                    </button>
+
+                    <a th:if="${(selectedAction != null and selectedAction != '') or (selectedTargetTable != null and selectedTargetTable != '') or selectedActorId != null or startDate != null or endDate != null or (keyword != null and keyword != '')}"
+                       th:href="@{/admin/audit-logs}"
+                       class="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-carbon_black-500 hover:text-blazing_flame transition">
+                        <i class="bi bi-x-circle"></i>
+                        <span>Xóa lọc</span>
+                    </a>
+                </div>
+
+                <div class="text-sm text-carbon_black-600 flex items-center gap-2">
+                    <span>Tổng số sự kiện:</span>
+                    <span class="font-bold text-carbon_black px-2.5 py-0.5 bg-alabaster_grey rounded-lg"
+                          th:text="${logsPage != null ? logsPage.totalElements : 0} + ' sự kiện'">0 sự kiện</span>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Audit Logs Table Card (SCR-DB-18) -->
+    <div class="bg-white border border-dust_grey rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-dust_grey text-left text-sm">
+                <thead class="bg-parchment/60 text-carbon_black-600 font-semibold uppercase text-xs tracking-wider">
+                    <tr>
+                        <th class="px-5 py-4">ID</th>
+                        <th class="px-5 py-4">Thời gian</th>
+                        <th class="px-5 py-4">Người thực hiện</th>
+                        <th class="px-5 py-4">Hành vi (Action)</th>
+                        <th class="px-5 py-4">Bảng mục tiêu</th>
+                        <th class="px-5 py-4">Mã bản ghi</th>
+                        <th class="px-5 py-4">Địa chỉ IP</th>
+                        <th class="px-5 py-4 text-center">Chi tiết</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey">
+                    <!-- Log Row Iteration -->
+                    <tr th:each="log : ${logsPage.content}" class="hover:bg-alabaster_grey/40 transition">
+                        <!-- ID -->
+                        <td class="px-5 py-4 font-mono text-xs font-semibold text-carbon_black-600"
+                            th:text="'#' + ${log.id}">#1</td>
+
+                        <!-- Timestamp -->
+                        <td class="px-5 py-4 whitespace-nowrap text-xs text-carbon_black-800"
+                            th:text="${#temporals.format(log.createdAt, 'dd/MM/yyyy HH:mm:ss')}">
+                            23/09/2026 14:30:15
+                        </td>
+
+                        <!-- Operator (Actor) -->
+                        <td class="px-5 py-4">
+                            <div th:if="${log.userId != null}" class="flex flex-col">
+                                <span class="font-semibold text-carbon_black" th:text="${log.operatorName}">Nguyen Van Admin</span>
+                                <span class="text-xs text-carbon_black-400 font-mono" th:text="${log.operatorEmail}">admin@aureliabook.vn</span>
+                            </div>
+                            <div th:if="${log.userId == null}" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                                <i class="bi bi-robot text-[11px]"></i>
+                                <span>Hệ thống / Gateway</span>
+                            </div>
+                        </td>
+
+                        <!-- Action Event Badge -->
+                        <td class="px-5 py-4 whitespace-nowrap">
+                            <!-- Toggle Account Status -->
+                            <span th:if="${log.action == 'USER_STATUS_TOGGLE'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
+                                <i class="bi bi-lock"></i>
+                                <span th:text="${log.action}">USER_STATUS_TOGGLE</span>
+                            </span>
+
+                            <!-- Role Update -->
+                            <span th:if="${log.action == 'USER_ROLE_UPDATE'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                <i class="bi bi-shield-shaded"></i>
+                                <span th:text="${log.action}">USER_ROLE_UPDATE</span>
+                            </span>
+
+                            <!-- Create User -->
+                            <span th:if="${log.action == 'USER_CREATE'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                <i class="bi bi-person-plus"></i>
+                                <span th:text="${log.action}">USER_CREATE</span>
+                            </span>
+
+                            <!-- Login Failed -->
+                            <span th:if="${log.action == 'LOGIN_FAILED'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-200">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <span th:text="${log.action}">LOGIN_FAILED</span>
+                            </span>
+
+                            <!-- Logout -->
+                            <span th:if="${log.action == 'LOGOUT'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                <i class="bi bi-box-arrow-right"></i>
+                                <span th:text="${log.action}">LOGOUT</span>
+                            </span>
+
+                            <!-- Finalize Goods Receipt -->
+                            <span th:if="${log.action == 'GOODS_RECEIPT_FINALIZE'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <span th:text="${log.action}">GOODS_RECEIPT_FINALIZE</span>
+                            </span>
+
+                            <!-- VNPay IPN Callback -->
+                            <span th:if="${log.action == 'VNPAY_IPN_CALLBACK'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                                <i class="bi bi-credit-card-2-front"></i>
+                                <span th:text="${log.action}">VNPAY_IPN_CALLBACK</span>
+                            </span>
+
+                            <!-- Order Return Confirmed (BR-04-05) -->
+                            <span th:if="${log.action == 'ORDER_RETURN_CONFIRMED'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                <i class="bi bi-arrow-return-left"></i>
+                                <span th:text="${log.action}">ORDER_RETURN_CONFIRMED</span>
+                            </span>
+
+                            <!-- Update Order Status -->
+                            <span th:if="${log.action == 'UPDATE_ORDER_STATUS'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                <i class="bi bi-truck"></i>
+                                <span th:text="${log.action}">UPDATE_ORDER_STATUS</span>
+                            </span>
+
+                            <!-- Fallback Generic Badge -->
+                            <span th:if="${log.action != 'USER_STATUS_TOGGLE' and log.action != 'USER_ROLE_UPDATE' and log.action != 'USER_CREATE' and log.action != 'LOGIN_FAILED' and log.action != 'LOGOUT' and log.action != 'GOODS_RECEIPT_FINALIZE' and log.action != 'VNPAY_IPN_CALLBACK' and log.action != 'ORDER_RETURN_CONFIRMED' and log.action != 'UPDATE_ORDER_STATUS'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                                <i class="bi bi-activity"></i>
+                                <span th:text="${log.action}">ACTION</span>
+                            </span>
+                        </td>
+
+                        <!-- Target Table -->
+                        <td class="px-5 py-4 font-mono text-xs text-carbon_black-700"
+                            th:text="${log.targetTable}">users</td>
+
+                        <!-- Target Record ID -->
+                        <td class="px-5 py-4 font-mono text-xs text-carbon_black-700"
+                            th:text="${log.targetId != null ? '#' + log.targetId : '-'}">#20</td>
+
+                        <!-- Client IP Address -->
+                        <td class="px-5 py-4 font-mono text-xs text-carbon_black-600 whitespace-nowrap">
+                            <span class="inline-flex items-center gap-1">
+                                <i class="bi bi-globe2 text-[11px] text-carbon_black-400"></i>
+                                <span th:text="${log.ipAddress != null ? log.ipAddress : '127.0.0.1'}">127.0.0.1</span>
+                            </span>
+                        </td>
+
+                        <!-- View JSON Payload Button (POP-DB-12) -->
+                        <td class="px-5 py-4 text-center whitespace-nowrap">
+                            <button type="button"
+                                    th:data-id="${log.id}"
+                                    th:data-action="${log.action}"
+                                    th:data-target="${log.targetTable}"
+                                    th:data-target-id="${log.targetId != null ? log.targetId : '-'}"
+                                    th:data-operator="${log.operatorName}"
+                                    th:data-ip="${log.ipAddress != null ? log.ipAddress : '127.0.0.1'}"
+                                    th:data-time="${#temporals.format(log.createdAt, 'dd/MM/yyyy HH:mm:ss')}"
+                                    th:data-payload="${log.detailsJson}"
+                                    onclick="openAuditJsonModal(this)"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-blazing_flame bg-blazing_flame/10 hover:bg-blazing_flame/20 border border-blazing_flame/30 transition shadow-sm">
+                                <i class="bi bi-code-slash"></i>
+                                <span>Xem JSON</span>
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Empty State -->
+                    <tr th:if="${logsPage == null or logsPage.content.isEmpty()}">
+                        <td colspan="8" class="px-6 py-12 text-center text-carbon_black-500">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <i class="bi bi-journal-x text-4xl text-dust_grey"></i>
+                                <span class="font-semibold text-base">Không tìm thấy bản ghi kiểm toán nào phù hợp.</span>
+                                <span class="text-xs text-carbon_black-400">Hãy thử thay đổi khoảng ngày, hành vi hoặc từ khóa tìm kiếm.</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div th:if="${logsPage != null and logsPage.totalPages > 1}"
+             class="px-6 py-4 bg-parchment/40 border-t border-dust_grey flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-carbon_black-600">
+            <div>
+                Trang <span class="font-bold text-carbon_black" th:text="${logsPage.number + 1}">1</span> /
+                <span class="font-bold text-carbon_black" th:text="${logsPage.totalPages}">5</span>
+                (Hiển thị <span class="font-medium" th:text="${logsPage.numberOfElements}">20</span> / <span class="font-medium" th:text="${logsPage.totalElements}">100</span> bản ghi)
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- Previous Button -->
+                <a th:if="${!logsPage.first}"
+                   th:href="@{/admin/audit-logs(action=${selectedAction}, targetTable=${selectedTargetTable}, actorId=${selectedActorId}, startDate=${startDate}, endDate=${endDate}, keyword=${keyword}, page=${logsPage.number - 1}, size=${logsPage.size})}"
+                   class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg font-medium text-carbon_black hover:bg-parchment transition">
+                    <i class="bi bi-chevron-left"></i> Trước
+                </a>
+                <span th:if="${logsPage.first}"
+                       class="px-3 py-1.5 bg-dust_grey/30 border border-dust_grey/50 rounded-lg text-carbon_black-400 cursor-not-allowed">
+                    <i class="bi bi-chevron-left"></i> Trước
+                </span>
+
+                <!-- Next Button -->
+                <a th:if="${!logsPage.last}"
+                   th:href="@{/admin/audit-logs(action=${selectedAction}, targetTable=${selectedTargetTable}, actorId=${selectedActorId}, startDate=${startDate}, endDate=${endDate}, keyword=${keyword}, page=${logsPage.number + 1}, size=${logsPage.size})}"
+                   class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg font-medium text-carbon_black hover:bg-parchment transition">
+                    Sau <i class="bi bi-chevron-right"></i>
+                </a>
+                <span th:if="${logsPage.last}"
+                      class="px-3 py-1.5 bg-dust_grey/30 border border-dust_grey/50 rounded-lg text-carbon_black-400 cursor-not-allowed">
+                    Sau <i class="bi bi-chevron-right"></i>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Event JSON Payload Details Modal (POP-DB-12) -->
+    <div id="auditJsonModal"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="modalDialogTitle"
+         tabindex="-1"
+         class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-dust_grey overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-parchment/60 border-b border-dust_grey flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-blazing_flame/10 text-blazing_flame flex items-center justify-center font-bold">
+                        <i class="bi bi-file-earmark-code"></i>
+                    </div>
+                    <div>
+                        <h3 id="modalDialogTitle" class="font-bold text-base text-carbon_black">Chi tiết sự kiện kiểm toán (<span id="modalEventId">#0</span>)</h3>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span id="modalActionBadge" class="px-2 py-0.5 rounded text-[11px] font-semibold bg-carbon_black text-white">ACTION</span>
+                            <span class="text-xs text-carbon_black-500">Bảng: <strong id="modalTargetTable">users</strong> (ID: <span id="modalTargetId">-</span>)</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button"
+                        id="closeModalBtnTop"
+                        onclick="closeAuditJsonModal()"
+                        aria-label="Đóng hộp thoại"
+                        class="text-carbon_black-400 hover:text-carbon_black p-1.5 rounded-lg hover:bg-dust_grey/30 transition">
+                    <i class="bi bi-x-lg text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Meta Info -->
+            <div class="px-6 py-3 bg-alabaster_grey/50 border-b border-dust_grey flex flex-wrap items-center justify-between gap-2 text-xs text-carbon_black-600">
+                <div>Người thực hiện: <strong id="modalOperator" class="text-carbon_black">Hệ thống</strong></div>
+                <div>Thời gian: <span id="modalTime" class="font-mono">--/--/---- --:--:--</span></div>
+                <div>Địa chỉ IP: <span id="modalIp" class="font-mono">127.0.0.1</span></div>
+            </div>
+
+            <!-- Modal Body: Formatted JSON Code Container -->
+            <div class="p-6 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-carbon_black-500 uppercase tracking-wider">Nội dung Payload JSON:</span>
+                    <button type="button"
+                            id="copyJsonBtn"
+                            onclick="copyModalJson()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-parchment border border-dust_grey rounded-lg text-xs font-semibold text-carbon_black transition">
+                        <i id="copyIcon" class="bi bi-clipboard"></i>
+                        <span id="copyText">Sao chép</span>
+                    </button>
+                </div>
+                <div class="bg-carbon_black rounded-xl p-4 overflow-x-auto max-h-[380px]">
+                    <pre class="text-xs font-mono text-emerald-400 whitespace-pre"><code id="modalJsonCode">{}</code></pre>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 bg-parchment/40 border-t border-dust_grey flex items-center justify-end">
+                <button type="button"
+                        id="closeModalBtnBottom"
+                        onclick="closeAuditJsonModal()"
+                        class="px-4 py-2 bg-carbon_black text-white hover:bg-carbon_black-800 text-xs font-semibold rounded-xl transition shadow-sm">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal & JSON Formatting JavaScript -->
+    <script>
+        let previousFocusedButton = null;
+
+        function openAuditJsonModal(button) {
+            previousFocusedButton = button || document.activeElement;
+
+            const id = button.getAttribute('data-id');
+            const action = button.getAttribute('data-action');
+            const target = button.getAttribute('data-target');
+            const targetId = button.getAttribute('data-target-id');
+            const operator = button.getAttribute('data-operator');
+            const ip = button.getAttribute('data-ip');
+            const time = button.getAttribute('data-time');
+            const rawPayload = button.getAttribute('data-payload');
+
+            document.getElementById('modalEventId').textContent = '#' + id;
+            document.getElementById('modalActionBadge').textContent = action;
+            document.getElementById('modalTargetTable').textContent = target;
+            document.getElementById('modalTargetId').textContent = targetId;
+            document.getElementById('modalOperator').textContent = operator || 'Hệ thống';
+            document.getElementById('modalTime').textContent = time;
+            document.getElementById('modalIp').textContent = ip;
+
+            let formattedJson = '{\n  "info": "Không có dữ liệu payload chi tiết ghi nhận cho sự kiện này"\n}';
+            if (rawPayload && rawPayload.trim() !== '' && rawPayload.trim() !== 'null') {
+                try {
+                    const parsed = JSON.parse(rawPayload);
+                    formattedJson = JSON.stringify(parsed, null, 2);
+                } catch (e) {
+                    formattedJson = rawPayload;
+                }
+            }
+            document.getElementById('modalJsonCode').textContent = formattedJson;
+
+            // Reset copy button state
+            document.getElementById('copyText').textContent = 'Sao chép';
+            document.getElementById('copyIcon').className = 'bi bi-clipboard';
+
+            const modal = document.getElementById('auditJsonModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.body.classList.add('overflow-hidden');
+
+                // Shift focus inside modal for accessibility (focusInside=true)
+                const copyBtn = document.getElementById('copyJsonBtn');
+                if (copyBtn) {
+                    copyBtn.focus();
+                } else {
+                    modal.focus();
+                }
+            }
+        }
+
+        function closeAuditJsonModal() {
+            const modal = document.getElementById('auditJsonModal');
+            if (modal && !modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.body.classList.remove('overflow-hidden');
+
+                // Return focus to the trigger element that opened the dialog
+                if (previousFocusedButton && typeof previousFocusedButton.focus === 'function') {
+                    previousFocusedButton.focus();
+                }
+                previousFocusedButton = null;
+            }
+        }
+
+        function copyModalJson() {
+            const text = document.getElementById('modalJsonCode').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                document.getElementById('copyText').textContent = 'Đã chép!';
+                document.getElementById('copyIcon').className = 'bi bi-check-lg text-emerald-600';
+                setTimeout(() => {
+                    document.getElementById('copyText').textContent = 'Sao chép';
+                    document.getElementById('copyIcon').className = 'bi bi-clipboard';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        // Close modal on Escape key press and trap focus within modal on Tab
+        document.addEventListener('keydown', function(event) {
+            const modal = document.getElementById('auditJsonModal');
+            if (!modal || modal.classList.contains('hidden')) {
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                closeAuditJsonModal();
+                return;
+            }
+
+            if (event.key === 'Tab') {
+                const focusableElements = modal.querySelectorAll('button:not([disabled]), [tabindex="0"], a[href], input, select, textarea');
+                if (focusableElements.length === 0) return;
+
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (event.shiftKey) {
+                    // Shift + Tab: moving backwards
+                    if (document.activeElement === firstElement || !modal.contains(document.activeElement)) {
+                        event.preventDefault();
+                        lastElement.focus();
+                    }
+                } else {
+                    // Tab: moving forwards
+                    if (document.activeElement === lastElement || !modal.contains(document.activeElement)) {
+                        event.preventDefault();
+                        firstElement.focus();
+                    }
+                }
+            }
+        });
+
+        document.getElementById('auditJsonModal').addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeAuditJsonModal();
+            }
+        });
+    </script>
+</div>
 </body>
 </html>
