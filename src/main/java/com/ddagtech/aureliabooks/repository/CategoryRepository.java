@@ -8,6 +8,21 @@ import java.util.List;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
     /**
+     * Retrieve subcategories by parent category ID for category tree navigation.
+     *
+     * @param parentId ID of the parent category
+     * @return list of child categories
+     */
+    List<Category> findByParentId(Long parentId);
+
+    /**
+     * Retrieve all active categories directly from database.
+     *
+     * @return list of active categories
+     */
+    List<Category> findByIsActiveTrue();
+
+    /**
      * Returns all active categories ordered by name ascending.
      *
      * @return list of active categories

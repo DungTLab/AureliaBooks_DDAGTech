@@ -1,41 +1,85 @@
 package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
+import com.ddagtech.aureliabooks.dto.response.AuthorSummary;
+import com.ddagtech.aureliabooks.dto.response.BrandSummary;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
+import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
+import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
+import com.ddagtech.aureliabooks.dto.response.PublisherSummary;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
+import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Book;
+import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.entity.Stationery;
+import com.ddagtech.aureliabooks.repository.AuthorRepository;
 import com.ddagtech.aureliabooks.repository.BookRepository;
+import com.ddagtech.aureliabooks.repository.BrandRepository;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
+import com.ddagtech.aureliabooks.repository.PublisherRepository;
+import com.ddagtech.aureliabooks.repository.StationeryRepository;
 import com.ddagtech.aureliabooks.repository.specification.ProductSpecification;
 import com.ddagtech.aureliabooks.service.ProductService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.NoSuchElementException;
 
+/**
+ * Service implementation for product catalog operations (UC01, UC02, UC03).
+ */
 @Service
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final BookRepository bookRepository;
+    private final StationeryRepository stationeryRepository;
+    private final AuthorRepository authorRepository;
+    private final PublisherRepository publisherRepository;
+    private final BrandRepository brandRepository;
 
-    public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository, BookRepository bookRepository) {
+    public ProductServiceImpl(ProductRepository productRepository,
+                              CategoryRepository categoryRepository,
+                              BookRepository bookRepository) {
+        this(productRepository, categoryRepository, bookRepository, null, null, null, null);
+    }
+
+    public ProductServiceImpl(ProductRepository productRepository,
+                              CategoryRepository categoryRepository,
+                              BookRepository bookRepository,
+                              StationeryRepository stationeryRepository) {
+        this(productRepository, categoryRepository, bookRepository, stationeryRepository, null, null, null);
+    }
+
+    @Autowired
+    public ProductServiceImpl(ProductRepository productRepository,
+                              CategoryRepository categoryRepository,
+                              BookRepository bookRepository,
+                              StationeryRepository stationeryRepository,
+                              AuthorRepository authorRepository,
+                              PublisherRepository publisherRepository,
+                              BrandRepository brandRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.bookRepository = bookRepository;
+        this.stationeryRepository = stationeryRepository;
+        this.authorRepository = authorRepository;
+        this.publisherRepository = publisherRepository;
+        this.brandRepository = brandRepository;
     }
 
     @Transactional(readOnly = true)
@@ -43,9 +87,27 @@ public class ProductServiceImpl implements ProductService {
     public Page<ProductSummary> browse(ProductFilterRequest filter, Pageable pageable) {
         Specification<Product> spec = ProductSpecification.isActive(true);
         spec = spec.and((root, query, cb) -> cb.greaterThan(root.get("stockQuantity"), 0));
+
+        Pageable effectivePageable = pageable;
         if (filter != null) {
+            if (filter.keyword() != null && !filter.keyword().isBlank()) {
+                spec = spec.and(ProductSpecification.hasKeyword(filter.keyword()));
+                spec = spec.and(ProductSpecification.prioritizeExactIdentifier(filter.keyword(),pageable.getSort()));
+
+                effectivePageable = PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(), Sort.unsorted());
+            }
             if (filter.categoryId() != null) {
-                spec = spec.and(ProductSpecification.hasCategoryIn(List.of(filter.categoryId())));
+                List<Long> targetCategoryIds = new ArrayList<>();
+                targetCategoryIds.add(filter.categoryId());
+                if (categoryRepository != null) {
+                    List<Category> children = categoryRepository.findByParentId(filter.categoryId());
+                    if (children != null && !children.isEmpty()) {
+                        for (Category child : children) {
+                            targetCategoryIds.add(child.getId());
+                        }
+                    }
+                }
+                spec = spec.and(ProductSpecification.hasCategoryIn(targetCategoryIds));
             }
             if (filter.minPrice() != null || filter.maxPrice() != null) {
                 spec = spec.and(ProductSpecification.priceBetween(filter.minPrice(), filter.maxPrice()));
@@ -69,7 +131,8 @@ public class ProductServiceImpl implements ProductService {
                 spec = spec.and(ProductSpecification.isTextbook(filter.isTextbook()));
             }
         }
-        Page<Product> productPage = productRepository.findAll(spec, pageable);
+
+        Page<Product> productPage = productRepository.findAll(spec, effectivePageable);
 
         // Batch fetch book details in a single query to eliminate N+1 problem
         List<Long> bookProductIds = new ArrayList<>();
@@ -109,20 +172,179 @@ public class ProductServiceImpl implements ProductService {
         });
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public ProductSummary viewDetail(Long productId) {
-        // Will implement in UC03
-        return null;
+    public ProductDetailResponse viewDetail(Long productId) {
+        Product product = productRepository.findById(productId)
+                .filter(Product::getIsActive)
+                .orElseThrow(() -> new NoSuchElementException("Product not found: " + productId));
+
+        String categoryName = product.getCategory() != null ? product.getCategory().getName() : null;
+        Long categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
+
+        if (product.getProductType() == Product.ProductType.BOOK) {
+            var bookOpt = bookRepository.findById(productId);
+            if (bookOpt.isPresent()) {
+                Book book = bookOpt.get();
+                String publisherName = book.getPublisher() != null ? book.getPublisher().getName() : null;
+                Long publisherId = book.getPublisher() != null ? book.getPublisher().getId() : null;
+                List<String> authorNames = book.getAuthors() != null
+                        ? book.getAuthors().stream().map(Author::getName).sorted().toList()
+                        : List.of();
+                List<AuthorSummary> authors = book.getAuthors() != null
+                        ? book.getAuthors().stream()
+                                .map(a -> new AuthorSummary(a.getId(), a.getName()))
+                                .sorted(Comparator.comparing(AuthorSummary::name))
+                                .toList()
+                        : List.of();
+
+                return new ProductDetailResponse(
+                        product.getId(),
+                        product.getBarcode(),
+                        product.getTitle(),
+                        product.getPrice(),
+                        product.getOriginalCost(),
+                        product.getStockQuantity(),
+                        product.getMainImageUrl(),
+                        product.getDescription(),
+                        product.getWeightGrams(),
+                        product.getProductType(),
+                        categoryId,
+                        categoryName,
+                        book.getIsbn(),
+                        publisherId,
+                        publisherName,
+                        authorNames,
+                        book.getSeriesName(),
+                        book.getVolumeNumber(),
+                        book.getIsTextbook(),
+                        book.getPublicationYear(),
+                        book.getEdition(),
+                        book.getPageCount(),
+                        book.getCoverType(),
+                        book.getLanguage(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        authors
+                );
+            }
+        } else if (product.getProductType() == Product.ProductType.STATIONERY && stationeryRepository != null) {
+            var stationeryOpt = stationeryRepository.findById(productId);
+            if (stationeryOpt.isPresent()) {
+                Stationery stationery = stationeryOpt.get();
+                String brandName = stationery.getBrand() != null ? stationery.getBrand().getName() : null;
+                Long brandId = stationery.getBrand() != null ? stationery.getBrand().getId() : null;
+
+                return new ProductDetailResponse(
+                        product.getId(),
+                        product.getBarcode(),
+                        product.getTitle(),
+                        product.getPrice(),
+                        product.getOriginalCost(),
+                        product.getStockQuantity(),
+                        product.getMainImageUrl(),
+                        product.getDescription(),
+                        product.getWeightGrams(),
+                        product.getProductType(),
+                        categoryId,
+                        categoryName,
+                        null,
+                        null,
+                        null,
+                        List.of(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        brandId,
+                        brandName,
+                        stationery.getMaterial(),
+                        stationery.getColor(),
+                        stationery.getWarrantyMonths()
+                );
+            }
+        }
+
+        return new ProductDetailResponse(
+                product.getId(),
+                product.getBarcode(),
+                product.getTitle(),
+                product.getPrice(),
+                product.getOriginalCost(),
+                product.getStockQuantity(),
+                product.getMainImageUrl(),
+                product.getDescription(),
+                product.getWeightGrams(),
+                product.getProductType(),
+                categoryId,
+                categoryName,
+                null, null, null, List.of(), null, null, null, null, null, null, null, null,
+                null, null, null, null, null
+        );
     }
 
     @Override
     public List<CategorySummary> getActiveCategories() {
-        return categoryRepository.findAll().stream()
-                .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+        return categoryRepository.findByIsActiveTrue().stream()
                 .map(c -> new CategorySummary(
                         c.getId(),
                         c.getName(),
-                        c.getParent() !=null ? c.getParent().getId() : null
+                        c.getParent() != null ? c.getParent().getId() : null
+                )).toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<AuthorSummary> getAuthors() {
+        return authorRepository.findAll(Sort.by("name")).stream()
+                .map(a -> new AuthorSummary(a.getId(), a.getName()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<PublisherSummary> getPublishers() {
+        return publisherRepository.findAll(Sort.by("name")).stream()
+                .map(p -> new PublisherSummary(p.getId(), p.getName()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<BrandSummary> getBrands() {
+        return brandRepository.findAll(Sort.by("name")).stream()
+                .map(b -> new BrandSummary(b.getId(), b.getName()))
+                .toList();
+    }
+
+    @Override
+    public List<ProductAutoCompleteResponse> autoComplete(String keyword) {
+        if(keyword == null || keyword.trim().length() < 2){
+            return List.of();
+        }
+
+        Specification<Product> spec = ProductSpecification.isActive(true)
+                .and((root, query, cb) -> cb.greaterThan(root.get("stockQuantity"), 0))
+                .and(ProductSpecification.hasKeyword(keyword.trim()))
+                .and(ProductSpecification.prioritizeExactIdentifier(keyword.trim()));
+
+        Pageable limitFive = PageRequest.of(0, 5);
+        Page<Product> products = productRepository.findAll(spec, limitFive);
+
+        return products.getContent().stream()
+                .map(p -> new ProductAutoCompleteResponse(
+                        p.getId(),
+                        p.getTitle(),
+                        p.getPrice(),
+                        p.getMainImageUrl(),
+                        p.getBarcode()
                 )).toList();
     }
 }

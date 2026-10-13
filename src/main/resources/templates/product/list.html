@@ -44,9 +44,6 @@
                         <input type="hidden" name="sort" th:value="${currentSort}">
                         <input type="hidden" name="size" th:value="${currentSize != null ? currentSize : (products != null ? products.size : 12)}">
                         <input type="hidden" name="keyword" th:if="${filter != null and filter.keyword != null and !filter.keyword.isBlank()}" th:value="${filter.keyword}">
-                        <input type="hidden" name="authorId" th:if="${filter != null and filter.authorId != null}" th:value="${filter.authorId}">
-                        <input type="hidden" name="publisherId" th:if="${filter != null and filter.publisherId != null}" th:value="${filter.publisherId}">
-                        <input type="hidden" name="brandId" th:if="${filter != null and filter.brandId != null}" th:value="${filter.brandId}">
 
                         <!-- Facet 1: Product Classification (Books vs. Stationery) per BR-02-01 -->
                         <div>
@@ -116,45 +113,166 @@
                             </div>
                         </div>
 
+                        <!-- Facet 3: Book Specific Authors (per UC01 / Fahasa Style) -->
+                        <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'BOOK'}">
+                            <hr class="border-dust_grey/60 mb-5">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Tác Giả</span>
+                                <i class="bi bi-pen-fill text-xs"></i>
+                            </h3>
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1">
+                                <!-- Option All Authors -->
+                                <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                       th:classappend="${filter == null or filter.authorId() == null} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                    <span class="flex items-center gap-2.5">
+                                        <input type="radio" name="authorId" value=""
+                                               th:checked="${filter == null or filter.authorId() == null}"
+                                               onchange="this.form.submit()"
+                                               class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                        <span>Tất cả tác giả</span>
+                                    </span>
+                                </label>
+                                <!-- Authors Loop -->
+                                <div th:each="author : ${authors}">
+                                    <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                           th:classappend="${filter != null and filter.authorId() == author.id} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                        <span class="flex items-center gap-2.5 truncate">
+                                            <input type="radio" name="authorId" th:value="${author.id}"
+                                                   th:checked="${filter != null and filter.authorId() == author.id}"
+                                                   onchange="this.form.submit()"
+                                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                            <span class="truncate" th:text="${author.name}">Nguyễn Nhật Ánh</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Facet 4: Book Specific Publishers (per UC01 / Fahasa Style) -->
+                        <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'BOOK'}">
+                            <hr class="border-dust_grey/60 mb-5">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Nhà Xuất Bản</span>
+                                <i class="bi bi-building text-xs"></i>
+                            </h3>
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1">
+                                <!-- Option All Publishers -->
+                                <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                       th:classappend="${filter == null or filter.publisherId() == null} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                    <span class="flex items-center gap-2.5">
+                                        <input type="radio" name="publisherId" value=""
+                                               th:checked="${filter == null or filter.publisherId() == null}"
+                                               onchange="this.form.submit()"
+                                               class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                        <span>Tất cả nhà xuất bản</span>
+                                    </span>
+                                </label>
+                                <!-- Publishers Loop -->
+                                <div th:each="pub : ${publishers}">
+                                    <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                           th:classappend="${filter != null and filter.publisherId() == pub.id} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                        <span class="flex items-center gap-2.5 truncate">
+                                            <input type="radio" name="publisherId" th:value="${pub.id}"
+                                                   th:checked="${filter != null and filter.publisherId() == pub.id}"
+                                                   onchange="this.form.submit()"
+                                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                            <span class="truncate" th:text="${pub.name}">Nhà Xuất Bản Trẻ</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Facet 5: Stationery Brands (per UC01 / Fahasa Style) -->
+                        <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'STATIONERY'}">
+                            <hr class="border-dust_grey/60 mb-5">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Thương Hiệu</span>
+                                <i class="bi bi-award-fill text-xs"></i>
+                            </h3>
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1">
+                                <!-- Option All Brands -->
+                                <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                       th:classappend="${filter == null or filter.brandId() == null} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                    <span class="flex items-center gap-2.5">
+                                        <input type="radio" name="brandId" value=""
+                                               th:checked="${filter == null or filter.brandId() == null}"
+                                               onchange="this.form.submit()"
+                                               class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                        <span>Tất cả thương hiệu</span>
+                                    </span>
+                                </label>
+                                <!-- Brands Loop -->
+                                <div th:each="brand : ${brands}">
+                                    <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                           th:classappend="${filter != null and filter.brandId() == brand.id} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                        <span class="flex items-center gap-2.5 truncate">
+                                            <input type="radio" name="brandId" th:value="${brand.id}"
+                                                   th:checked="${filter != null and filter.brandId() == brand.id}"
+                                                   onchange="this.form.submit()"
+                                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                            <span class="truncate" th:text="${brand.name}">Thiên Long</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
                         <hr class="border-dust_grey/60">
 
-                        <!-- Facet 3: Price Range Boundary & Preset Segments per BR-02-01 -->
+                        <!-- Facet 3: Price Range Boundary & Dual Range Slider Bar per BR-02-01 -->
                         <div>
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
-                                <span>Khoảng Giá (VNĐ)</span>
-                                <i class="bi bi-tag text-xs"></i>
-                            </h3>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 flex items-center gap-1.5">
+                                    <span>Khoảng Giá (VNĐ)</span>
+                                    <i class="bi bi-tag text-xs"></i>
+                                </h3>
+                                <span id="priceDisplayRange" class="text-[11px] font-bold text-blazing_flame"></span>
+                            </div>
 
                             <!-- Fast Preset Buttons (Under 500k, 500k-1M, Above 1M) -->
                             <div class="grid grid-cols-3 gap-1.5 mb-3">
                                 <button type="button"
-                                        onclick="document.getElementById('minPriceInput').value=''; document.getElementById('maxPriceInput').value='500000'; document.getElementById('facetFilterForm').submit();"
+                                        onclick="applyPricePreset('', '500000')"
                                         class="py-1.5 px-1 rounded-lg bg-parchment-100 hover:bg-parchment-200 text-[11px] font-semibold text-carbon_black border border-dust_grey/70 text-center transition-colors">
                                     &lt; 500k
                                 </button>
                                 <button type="button"
-                                        onclick="document.getElementById('minPriceInput').value='500000'; document.getElementById('maxPriceInput').value='1000000'; document.getElementById('facetFilterForm').submit();"
+                                        onclick="applyPricePreset('500000', '1000000')"
                                         class="py-1.5 px-1 rounded-lg bg-parchment-100 hover:bg-parchment-200 text-[11px] font-semibold text-carbon_black border border-dust_grey/70 text-center transition-colors">
                                     500k - 1tr
                                 </button>
                                 <button type="button"
-                                        onclick="document.getElementById('minPriceInput').value='1000000'; document.getElementById('maxPriceInput').value=''; document.getElementById('facetFilterForm').submit();"
+                                        onclick="applyPricePreset('1000000', '')"
                                         class="py-1.5 px-1 rounded-lg bg-parchment-100 hover:bg-parchment-200 text-[11px] font-semibold text-carbon_black border border-dust_grey/70 text-center transition-colors">
                                     &gt; 1tr
                                 </button>
                             </div>
 
+                            <!-- Dual Range Slider Track (Ensuring Min < Max) -->
+                            <div class="relative w-full my-4 py-2">
+                                <div class="relative h-2 w-full bg-parchment-200 rounded-full">
+                                    <div id="priceSliderHighlight" class="absolute h-2 bg-blazing_flame rounded-full pointer-events-none transition-all duration-75"></div>
+                                </div>
+                                <input type="range" id="priceRangeMin" min="0" max="2000000" step="10000" value="0"
+                                       class="absolute inset-x-0 top-1 w-full appearance-none pointer-events-none bg-transparent h-4 z-20 cursor-pointer dual-range-slider"
+                                       aria-label="Giá tối thiểu">
+                                <input type="range" id="priceRangeMax" min="0" max="2000000" step="10000" value="2000000"
+                                       class="absolute inset-x-0 top-1 w-full appearance-none pointer-events-none bg-transparent h-4 z-20 cursor-pointer dual-range-slider"
+                                       aria-label="Giá tối đa">
+                            </div>
+
                             <div class="grid grid-cols-2 gap-2 mb-3">
                                 <div>
-                                    <label for="minPriceInput" class="block text-[11px] text-carbon_black-400 mb-1">Từ</label>
-                                    <input type="number" id="minPriceInput" name="minPrice" min="0" step="5000"
+                                    <label for="minPriceInput" class="block text-[11px] text-carbon_black-400 mb-1">Từ (VNĐ)</label>
+                                    <input type="number" id="minPriceInput" name="minPrice" min="0" step="10000"
                                            th:value="${filter != null ? filter.minPrice : ''}"
                                            placeholder="0"
                                            class="w-full bg-parchment-100 text-carbon_black text-xs rounded-xl px-3 py-2 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all">
                                 </div>
                                 <div>
-                                    <label for="maxPriceInput" class="block text-[11px] text-carbon_black-400 mb-1">Đến</label>
-                                    <input type="number" id="maxPriceInput" name="maxPrice" min="0" step="5000"
+                                    <label for="maxPriceInput" class="block text-[11px] text-carbon_black-400 mb-1">Đến (VNĐ)</label>
+                                    <input type="number" id="maxPriceInput" name="maxPrice" min="0" step="10000"
                                            th:value="${filter != null ? filter.maxPrice : ''}"
                                            placeholder="Tối đa"
                                            class="w-full bg-parchment-100 text-carbon_black text-xs rounded-xl px-3 py-2 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all">
@@ -413,6 +531,175 @@
             </div>
         </div>
     </div>
+
+    <!-- Dual Range Slider Custom Styling & Interactive Sync Script -->
+    <style>
+        .dual-range-slider {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .dual-range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            pointer-events: auto;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: #f15025;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+            cursor: grab;
+            transition: transform 0.1s ease;
+        }
+        .dual-range-slider::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.15);
+        }
+        .dual-range-slider::-moz-range-thumb {
+            pointer-events: auto;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: #f15025;
+            border: 2px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+            cursor: grab;
+            transition: transform 0.1s ease;
+        }
+        .dual-range-slider::-moz-range-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.15);
+        }
+    </style>
+
+    <script>
+        (function () {
+            const SLIDER_MAX = 2000000;
+            const MIN_GAP = 20000;
+
+            const rangeMin = document.getElementById('priceRangeMin');
+            const rangeMax = document.getElementById('priceRangeMax');
+            const inputMin = document.getElementById('minPriceInput');
+            const inputMax = document.getElementById('maxPriceInput');
+            const highlight = document.getElementById('priceSliderHighlight');
+            const displayRange = document.getElementById('priceDisplayRange');
+            const filterForm = document.getElementById('facetFilterForm');
+
+            if (!rangeMin || !rangeMax || !inputMin || !inputMax) return;
+
+            function formatVnd(val) {
+                return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
+            }
+
+            function updateSliderUI() {
+                let minVal = parseInt(rangeMin.value, 10);
+                let maxVal = parseInt(rangeMax.value, 10);
+
+                if (minVal > maxVal - MIN_GAP) {
+                    minVal = maxVal - MIN_GAP;
+                    rangeMin.value = minVal;
+                }
+
+                const percentMin = (minVal / SLIDER_MAX) * 100;
+                const percentMax = (maxVal / SLIDER_MAX) * 100;
+
+                if (highlight) {
+                    highlight.style.left = percentMin + '%';
+                    highlight.style.width = Math.max(0, percentMax - percentMin) + '%';
+                }
+
+                if (displayRange) {
+                    const maxText = maxVal >= SLIDER_MAX ? formatVnd(maxVal) + '+' : formatVnd(maxVal);
+                    displayRange.textContent = formatVnd(minVal) + ' - ' + maxText;
+                }
+            }
+
+            function initValues() {
+                const currentMin = inputMin.value ? parseInt(inputMin.value, 10) : 0;
+                const currentMax = inputMax.value ? parseInt(inputMax.value, 10) : SLIDER_MAX;
+
+                rangeMin.value = Math.min(Math.max(currentMin, 0), SLIDER_MAX - MIN_GAP);
+                rangeMax.value = Math.min(Math.max(currentMax, parseInt(rangeMin.value, 10) + MIN_GAP), SLIDER_MAX);
+                updateSliderUI();
+            }
+
+            rangeMin.addEventListener('input', function () {
+                let minVal = parseInt(rangeMin.value, 10);
+                let maxVal = parseInt(rangeMax.value, 10);
+
+                if (minVal > maxVal - MIN_GAP) {
+                    rangeMin.value = maxVal - MIN_GAP;
+                    minVal = maxVal - MIN_GAP;
+                }
+                inputMin.value = minVal > 0 ? minVal : '';
+                updateSliderUI();
+            });
+
+            rangeMax.addEventListener('input', function () {
+                let minVal = parseInt(rangeMin.value, 10);
+                let maxVal = parseInt(rangeMax.value, 10);
+
+                if (maxVal < minVal + MIN_GAP) {
+                    rangeMax.value = minVal + MIN_GAP;
+                    maxVal = minVal + MIN_GAP;
+                }
+                inputMax.value = maxVal < SLIDER_MAX ? maxVal : '';
+                updateSliderUI();
+            });
+
+            inputMin.addEventListener('change', function () {
+                let val = parseInt(inputMin.value, 10);
+                let maxVal = parseInt(rangeMax.value, 10);
+                if (isNaN(val) || val < 0) val = 0;
+
+                if (val > maxVal - MIN_GAP) {
+                    val = Math.max(0, maxVal - MIN_GAP);
+                    inputMin.value = val > 0 ? val : '';
+                }
+
+                rangeMin.value = Math.min(val, SLIDER_MAX - MIN_GAP);
+                updateSliderUI();
+            });
+
+            inputMax.addEventListener('change', function () {
+                let val = parseInt(inputMax.value, 10);
+                let minVal = parseInt(rangeMin.value, 10);
+                if (isNaN(val) || val > SLIDER_MAX) val = SLIDER_MAX;
+
+                if (val < minVal + MIN_GAP) {
+                    val = minVal + MIN_GAP;
+                    inputMax.value = val;
+                }
+
+                rangeMax.value = Math.min(Math.max(val, 0), SLIDER_MAX);
+                updateSliderUI();
+            });
+
+            window.applyPricePreset = function (min, max) {
+                inputMin.value = min;
+                inputMax.value = max;
+                rangeMin.value = min ? parseInt(min, 10) : 0;
+                rangeMax.value = max ? parseInt(max, 10) : SLIDER_MAX;
+                updateSliderUI();
+                if (filterForm) {
+                    filterForm.submit();
+                }
+            };
+
+            if (filterForm) {
+                filterForm.addEventListener('submit', function () {
+                    const minVal = parseInt(inputMin.value, 10);
+                    const maxVal = parseInt(inputMax.value, 10);
+                    if (!isNaN(minVal) && !isNaN(maxVal) && minVal > maxVal) {
+                        inputMin.value = maxVal;
+                        inputMax.value = minVal;
+                    }
+                });
+            }
+
+            initValues();
+        })();
+    </script>
 </section>
 </body>
 </html>

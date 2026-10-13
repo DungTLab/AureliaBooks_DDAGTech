@@ -25,7 +25,9 @@ public class RegistrationService {
 
     @Transactional
     public Long registerLocal(RegisterRequest request) {
-        if (!validator.validate(request).isEmpty()) throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        if (!validator.validate(request).isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        }
         if (users.existsByEmail(request.email()) || users.existsByPhone(request.phone())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
