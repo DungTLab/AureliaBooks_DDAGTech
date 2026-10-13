@@ -63,7 +63,8 @@ class SprintOneShellTest {
                 {"/manager/authors", "MANAGER"}, {"/manager/publishers", "MANAGER"},
                 {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"},
                 {"/staff/receipts/new", "SALE_STAFF"},
-                {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"}
+                {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"},
+                {"/admin/audit-logs", "ADMIN"}
         };
         for (String[] item : cases) {
             mvc.perform(get(item[0]).with(user("shell-review").roles(item[1])))

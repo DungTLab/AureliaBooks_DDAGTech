@@ -127,8 +127,8 @@ public class SupplierController {
         try {
             supplierService.toggleActive(id, active);
             String message = active
-                    ? "Kích hoạt nhà cung cấp thành công!"
-                    : "Đã chuyển nhà cung cấp sang trạng thái ngừng hoạt động!";
+                    ? "Đã kích hoạt lại hợp tác với nhà cung cấp thành công!"
+                    : "Đã chuyển nhà cung cấp sang trạng thái Ngừng hợp tác!";
             redirectAttributes.addFlashAttribute("successMessage", message);
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
