@@ -81,6 +81,7 @@ CREATE TABLE shipping_addresses (
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_addr_id_user UNIQUE (id, user_id),
     CONSTRAINT fk_addr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_addr_user (user_id, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Customer shipping address book (Maps to Use Cases: UC09, UC11)';
@@ -296,6 +297,7 @@ CREATE TABLE orders (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     order_code VARCHAR(32) NOT NULL,
     user_id BIGINT NOT NULL,
+    shipping_address_id BIGINT NULL COMMENT 'UC09 source address; nullable only for legacy orders',
     shipping_recipient_name VARCHAR(100) NOT NULL,
     shipping_phone VARCHAR(15) NOT NULL,
     shipping_full_address VARCHAR(500) NOT NULL,
@@ -329,6 +331,7 @@ CREATE TABLE orders (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT uk_orders_code UNIQUE (order_code),
     CONSTRAINT uk_orders_id_user UNIQUE (id, user_id),
+    CONSTRAINT fk_ord_address_owner FOREIGN KEY (shipping_address_id, user_id) REFERENCES shipping_addresses(id, user_id) ON DELETE RESTRICT,
     CONSTRAINT fk_ord_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_ord_stock_restorer FOREIGN KEY (stock_restored_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT chk_ord_stock_restore CHECK (

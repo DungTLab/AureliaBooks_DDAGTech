@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
       th:replace="~{layout/base :: layout('Quản lý tài khoản nội bộ & Phân quyền RBAC', ~{::#main-content})}">
 <head>
     <title>Quản lý tài khoản nội bộ &amp; Phân quyền RBAC - AureliaBook</title>
@@ -25,12 +24,19 @@
             </p>
         </div>
 
-        <button type="button"
-                onclick="openModal('createStaffModal')"
-                class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame">
-            <i class="bi bi-person-plus-fill text-lg"></i>
-            <span>Thêm nhân viên mới</span>
-        </button>
+        <div class="flex items-center gap-3">
+            <a th:href="@{/admin/audit-logs}"
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-parchment text-carbon_black border border-dust_grey font-semibold rounded-xl shadow-sm transition duration-150">
+                <i class="bi bi-journal-text text-carbon_black-600"></i>
+                <span>Nhật ký kiểm toán</span>
+            </a>
+            <button type="button"
+                    onclick="openModal('createStaffModal')"
+                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame">
+                <i class="bi bi-person-plus-fill text-lg"></i>
+                <span>Thêm nhân viên mới</span>
+            </button>
+        </div>
     </div>
 
     <!-- Filter & Statistics Toolbar -->
@@ -40,6 +46,7 @@
                 <!-- Search Keyword -->
                 <div class="relative min-w-[220px]">
                     <input type="text" name="keyword" th:value="${keyword}"
+                           aria-label="Tìm kiếm theo tên, email hoặc số điện thoại"
                            placeholder="Tìm tên, email, SĐT..."
                            class="w-full pl-9 pr-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
                     <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs"></i>
@@ -47,6 +54,7 @@
 
                 <!-- Role Filter -->
                 <select id="roleFilter" name="role"
+                        aria-label="Lọc theo vai trò"
                         onchange="this.form.submit()"
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
                     <option value="" th:selected="${selectedRole == null or selectedRole == ''}">Tất cả vai trò</option>
@@ -58,6 +66,7 @@
 
                 <!-- Status Filter -->
                 <select id="statusFilter" name="active"
+                        aria-label="Lọc theo trạng thái"
                         onchange="this.form.submit()"
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
                     <option value="" th:selected="${selectedActive == null}">Tất cả trạng thái</option>
@@ -103,23 +112,25 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-dust_grey/70 bg-white">
-                    <tr th:each="user : ${usersPage != null ? usersPage.content : {}}"
+                    <tr th:each="user : ${usersPage?.content}"
                         class="hover:bg-parchment/30 transition-colors"
                         th:classappend="${#authentication.principal.id == user.id} ? 'bg-amber-50/40' : ''">
 
                         <!-- ID -->
-                        <td class="px-6 py-4 font-mono text-xs text-carbon_black-500 font-semibold"
-                            th:text="'#' + ${user.id}">#1</td>
+                        <td class="px-6 py-4 font-mono text-xs font-semibold whitespace-nowrap">
+                            <span class="text-carbon_black-500" th:text="'#' + ${user.id}">#1</span>
+                        </td>
 
                         <!-- Name & Email -->
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-blazing_flame/10 text-blazing_flame flex items-center justify-center font-bold text-sm">
-                                    <span th:text="${#strings.substring(user.fullName, 0, 1)}">A</span>
+                                <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm bg-blazing_flame/10 text-blazing_flame">
+                                    <span th:text="${user.fullName != null and !#strings.isEmpty(user.fullName) ? #strings.substring(user.fullName, 0, 1) : 'U'}">A</span>
                                 </div>
                                 <div>
                                     <div class="font-semibold text-carbon_black flex items-center gap-2">
                                         <span th:text="${user.fullName}">Nguyễn Văn A</span>
+                                        <!-- Current Authenticated Admin Badge -->
                                         <span th:if="${#authentication.principal.id == user.id}"
                                               class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
                                             (Bạn)
@@ -160,15 +171,26 @@
 
                         <!-- Quick Role Change -->
                         <td class="px-6 py-4 whitespace-nowrap">
+                            <!-- Customer -> Non-changeable inline -->
                             <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
                                   class="text-xs text-carbon_black-400 italic">
                                 Khách hàng
                             </span>
+
+                            <!-- Authenticated Admin cannot demote self -->
+                            <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
+                                  class="text-xs text-carbon_black-400 italic"
+                                  title="Không thể tự thu hồi quyền Admin của chính mình">
+                                Không thể đổi
+                            </span>
+
+                            <!-- Other Internal Staff -> Can change role if not current authenticated admin -->
                             <form th:if="${user.roleName != 'ROLE_CUSTOMER' and (#authentication.principal.id != user.id or user.roleName != 'ROLE_ADMIN')}"
                                   method="post"
                                   th:action="@{/admin/users/{id}/change-role(id=${user.id})}"
                                   class="flex items-center gap-1.5">
                                 <select name="roleId"
+                                        aria-label="Thay đổi vai trò nhân sự"
                                         onchange="if(confirm('Bạn có chắc chắn muốn thay đổi vai trò tài khoản này? Người dùng sẽ phải đăng nhập lại.')) this.form.submit(); else this.value=this.getAttribute('data-original');"
                                         th:data-original="${user.roleId}"
                                         class="text-xs border border-dust_grey rounded-lg px-2.5 py-1 bg-white text-carbon_black focus:ring-1 focus:ring-blazing_flame focus:outline-none">
@@ -179,11 +201,6 @@
                                     </option>
                                 </select>
                             </form>
-                            <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
-                                  class="text-xs text-carbon_black-400 italic"
-                                  title="Không thể tự thu hồi quyền Admin của chính mình">
-                                Không thể đổi
-                            </span>
                         </td>
 
                         <!-- Active Status Badge -->
@@ -206,7 +223,7 @@
                             01/01/2026 10:00
                         </td>
 
-                        <!-- Actions (Self-Lock Protected) -->
+                        <!-- Actions (Self-Lock Protected per BR-08-01) -->
                         <td class="px-6 py-4 whitespace-nowrap text-right">
                             <!-- Case 1: Self Account -> Disallow Self-Lock -->
                             <div th:if="${#authentication.principal.id == user.id}" class="inline-block">
@@ -219,8 +236,8 @@
                                 </button>
                             </div>
 
-                            <!-- Case 2: Other Staff -> Allow Lock / Unlock Toggle -->
-                            <form th:unless="${#authentication.principal.id == user.id}"
+                            <!-- Case 2: Other Staff / Customer -> Allow Lock / Unlock Toggle -->
+                            <form th:if="${#authentication.principal.id != user.id}"
                                   method="post"
                                   th:action="@{/admin/users/{id}/toggle-status(id=${user.id})}"
                                   class="inline-block">
@@ -292,7 +309,10 @@
 
     <!-- Create Staff Modal Dialog -->
     <div id="createStaffModal"
-         class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+         class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="createStaffModalTitle">
         <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-dust_grey overflow-hidden animate-fade-in-down">
             <!-- Modal Header -->
             <div class="px-6 py-4 bg-parchment/60 border-b border-dust_grey flex items-center justify-between">
@@ -300,10 +320,11 @@
                     <div class="w-8 h-8 rounded-lg bg-blazing_flame/10 text-blazing_flame flex items-center justify-center font-bold">
                         <i class="bi bi-person-plus-fill"></i>
                     </div>
-                    <h3 class="font-bold text-lg text-carbon_black">Thêm nhân viên nội bộ mới</h3>
+                    <h3 id="createStaffModalTitle" class="font-bold text-lg text-carbon_black">Thêm nhân viên nội bộ mới</h3>
                 </div>
                 <button type="button"
                         onclick="closeModal('createStaffModal')"
+                        aria-label="Đóng"
                         class="text-carbon_black-400 hover:text-carbon_black p-1.5 rounded-lg hover:bg-dust_grey/20 transition">
                     <i class="bi bi-x-lg text-sm"></i>
                 </button>
@@ -371,14 +392,14 @@
                             <input type="radio" th:field="*{roleId}" th:value="${role.id}"
                                    required
                                    class="text-blazing_flame focus:ring-blazing_flame h-4 w-4" />
-                            <div>
-                                <span class="font-bold text-xs text-carbon_black"
+                            <span class="block">
+                                <span class="block font-bold text-xs text-carbon_black"
                                       th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị viên (ADMIN)' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý kho & danh mục (MANAGER)' : 'Nhân viên bán hàng (SALE_STAFF)')}">
                                     Vai trò
                                 </span>
-                                <p class="text-[11px] text-carbon_black-500"
-                                   th:text="${role.description != null ? role.description : role.roleName}">Mô tả vai trò</p>
-                            </div>
+                                <span class="block text-[11px] text-carbon_black-500"
+                                      th:text="${role.description != null ? role.description : role.roleName}">Mô tả vai trò</span>
+                            </span>
                         </label>
                     </div>
                 </div>
@@ -399,13 +420,17 @@
         </div>
     </div>
 
-    <!-- Vanilla Modal Controller Script -->
+    <!-- Vanilla Modal Controller Script with A11y & Auto-Reopen -->
     <script>
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.classList.remove('hidden');
                 document.body.classList.add('overflow-hidden');
+                const firstInput = modal.querySelector('input:not([type="hidden"])');
+                if (firstInput) {
+                    firstInput.focus();
+                }
             }
         }
 
@@ -423,6 +448,18 @@
             if (e.target === modal) {
                 closeModal('createStaffModal');
             }
+        });
+
+        // Close modal when Escape key is pressed (W3C A11y Pattern)
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeModal('createStaffModal');
+            }
+        });
+    </script>
+    <script th:if="${openCreateModal == true or (errorMessage != null and newUserForm != null and newUserForm.email != null and newUserForm.email != '')}">
+        document.addEventListener('DOMContentLoaded', function () {
+            openModal('createStaffModal');
         });
     </script>
 </div>

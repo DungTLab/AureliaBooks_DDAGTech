@@ -6,7 +6,11 @@ import java.util.Locale;
 import jakarta.validation.constraints.*;
 import com.ddagtech.aureliabooks.entity.User;
 
-/** Local registration data. Role and authentication provider are assigned by the server. */
+/**
+ * Request DTO for customer self-registration (UC05 / FE-1).
+ * Enforces business rules: Vietnamese 10-digit phone identity (BR-07-01),
+ * credential complexity with BCrypt byte limit (FE-1), and optional past date of birth (BR-07-02).
+ */
 public record RegisterRequest(
         @NotBlank(message = "Vui lòng nhập email.") @Email(message = "Email không hợp lệ.")
         @Size(max = 100, message = "Email tối đa 100 ký tự.") String email,
@@ -26,7 +30,15 @@ public record RegisterRequest(
     public RegisterRequest {
         email = email == null ? null : email.strip().toLowerCase(Locale.ROOT);
         fullName = fullName == null ? null : fullName.strip();
-        phone = phone == null ? null : phone.strip();
+        if (phone != null) {
+            String cleaned = phone.strip().replace(" ", "").replace("-", "");
+            if (cleaned.startsWith("+84") && cleaned.length() == 12) {
+                cleaned = "0" + cleaned.substring(3);
+            } else if (cleaned.startsWith("84") && cleaned.length() == 11) {
+                cleaned = "0" + cleaned.substring(2);
+            }
+            phone = cleaned;
+        }
         gender = gender == null ? User.Gender.OTHER : gender;
     }
 
@@ -39,6 +51,7 @@ public record RegisterRequest(
     public boolean isPasswordWithinBcryptLimit() {
         return password == null || password.getBytes(StandardCharsets.UTF_8).length <= 72;
     }
+
 
     @Override
     public String toString() { return "RegisterRequest[credentials redacted]"; }

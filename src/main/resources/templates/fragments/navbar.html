@@ -18,7 +18,7 @@
             <div class="flex items-center space-x-4">
                 <span class="text-[#ff8a5c] font-bold inline-flex items-center gap-1.5">
                     <i class="bi bi-lightning-charge-fill text-[#ff7c4d]"></i>
-                    <span>Miễn phí giao hàng toàn quốc cho đơn từ 250.000đ</span>
+                    <span>Miễn phí giao hàng: từ 250k (Miền Nam) &amp; 350k (Toàn quốc)</span>
                 </span>
             </div>
         </div>
@@ -99,12 +99,19 @@
                 <div sec:authorize="isAuthenticated()" class="relative">
                     <button id="userMenuBtn"
                             type="button"
+                            aria-label="Mở menu tài khoản"
                             class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-parchment-200 focus:outline-none focus:ring-2 focus:ring-blazing_flame transition-colors">
-                        <span class="w-8 h-8 rounded-full bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 text-white font-bold flex items-center justify-center text-sm shadow-sm">
-                            <i class="bi bi-person-fill"></i>
+                        <span th:with="photo=${navAccount != null ? navAccount.avatarUrl : null}" class="w-9 h-9 shrink-0 rounded-full overflow-hidden ring-2 ring-white shadow-sm">
+                            <img th:if="${photo != null and !#strings.isEmpty(photo)}" th:src="${photo}"
+                                 alt="Ảnh đại diện" width="36" height="36" referrerpolicy="no-referrer"
+                                 class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                            <span th:style="${photo != null and !#strings.isEmpty(photo) ? 'display:none' : null}"
+                                  class="w-full h-full bg-blazing_flame text-white flex items-center justify-center">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-5 h-5" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
+                            </span>
                         </span>
-                        <span class="hidden md:inline-block text-sm font-bold text-carbon_black truncate max-w-[120px]"
-                              sec:authentication="name">
+                        <span class="hidden lg:inline-block text-sm font-bold text-carbon_black truncate max-w-[120px]"
+                              th:text="${navAccount != null ? navAccount.fullName : #authentication.name}">
                             Tài khoản
                         </span>
                         <i class="bi bi-chevron-down text-xs text-carbon_black-400"></i>
@@ -129,14 +136,17 @@
                         <!-- Role-based Administrative Navigation Links -->
                         <div sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" class="py-1">
                             <div class="px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-carbon_black-400">Khu vực nghiệp vụ</div>
-                            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-rose-700 hover:bg-rose-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-rose-700 hover:bg-rose-50 transition-colors font-semibold">
                                 <i class="bi bi-shield-lock"></i> Quản trị hệ thống
                             </a>
-                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/admin/products}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/products}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
                                 <i class="bi bi-box-seam"></i> Quản lý kho & SP
                             </a>
                             <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/stock/ledger}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors font-semibold">
                                 <i class="bi bi-journal-text"></i> Sổ cái thẻ kho
+                            </a>
+                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/suppliers}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors font-semibold">
+                                <i class="bi bi-truck"></i> Quản lý Nhà cung cấp
                             </a>
                             <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/orders}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold">
                                 <i class="bi bi-card-checklist"></i> Xử lý đơn hàng
@@ -196,37 +206,37 @@
                     </a>
                 </li>
                 <li>
-                    <a th:href="@{/products(type='BOOK')}" class="hover:text-blazing_flame transition-colors py-1">
+                    <a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors py-1">
                         Sách Tiếng Việt
                     </a>
                 </li>
                 <li>
-                    <a th:href="@{/products(category=2)}" class="hover:text-blazing_flame transition-colors py-1">
+                    <a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors py-1">
                         Văn Học & Tiểu Thuyết
                     </a>
                 </li>
                 <li>
-                    <a th:href="@{/products(category=3)}" class="hover:text-blazing_flame transition-colors py-1">
+                    <a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors py-1">
                         Kinh Tế - Khởi Nghiệp
                     </a>
                 </li>
                 <li>
-                    <a th:href="@{/products(category=4)}" class="hover:text-blazing_flame transition-colors py-1">
+                    <a th:href="@{/products(categoryId=4)}" class="hover:text-blazing_flame transition-colors py-1">
                         Khoa Học - Công Nghệ
                     </a>
                 </li>
                 <li>
-                    <a th:href="@{/products(type='STATIONERY')}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
+                    <a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 py-1">
                         <i class="bi bi-pencil-fill text-blazing_flame"></i>Văn Phòng Phẩm
                     </a>
                 </li>
                 <li>
-                    <a th:href="@{/products(category=6)}" class="hover:text-blazing_flame transition-colors py-1">
+                    <a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors py-1">
                         Bút Ký Cao Cấp
                     </a>
                 </li>
                 <li>
-                    <a th:href="@{/products(category=7)}" class="hover:text-blazing_flame transition-colors py-1">
+                    <a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors py-1">
                         Sổ Tay & Planner
                     </a>
                 </li>
@@ -242,10 +252,10 @@
         <a th:href="@{/products}" class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-grid me-2 text-blazing_flame"></i>Tất Cả Danh Mục
         </a>
-        <a th:href="@{/products(type='BOOK')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a th:href="@{/products(productType='BOOK')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-book me-2 text-blazing_flame"></i>Sách Tiếng Việt
         </a>
-        <a th:href="@{/products(type='STATIONERY')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a th:href="@{/products(productType='STATIONERY')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-pencil me-2 text-blazing_flame"></i>Văn Phòng Phẩm
         </a>
         <a th:href="@{/cart}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">

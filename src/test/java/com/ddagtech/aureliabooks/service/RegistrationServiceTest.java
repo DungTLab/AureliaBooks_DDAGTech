@@ -52,7 +52,13 @@ class RegistrationServiceTest {
         assertTrue(validator.validate(request("A1!"+"x".repeat(69),"A1!"+"x".repeat(69),"0912345678",null)).isEmpty());
     }
     @Test void optionalDobHasNoAgeRestrictionButMustBePast() {
+        // Any past date is valid (BR-07-02 V2.2: no age restriction)
         assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusDays(1))).isEmpty());
+        assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusYears(12))).isEmpty());
+        assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().minusYears(20))).isEmpty());
+        // Null dob is valid (optional field)
+        assertTrue(validator.validate(request("Abcd123!","Abcd123!","0912345678",null)).isEmpty());
+        // Today or future dates are rejected by @Past
         assertFalse(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now())).isEmpty());
         assertFalse(validator.validate(request("Abcd123!","Abcd123!","0912345678",LocalDate.now().plusDays(1))).isEmpty());
     }
