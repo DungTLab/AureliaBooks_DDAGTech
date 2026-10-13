@@ -44,9 +44,6 @@
                         <input type="hidden" name="sort" th:value="${currentSort}">
                         <input type="hidden" name="size" th:value="${currentSize != null ? currentSize : (products != null ? products.size : 12)}">
                         <input type="hidden" name="keyword" th:if="${filter != null and filter.keyword != null and !filter.keyword.isBlank()}" th:value="${filter.keyword}">
-                        <input type="hidden" name="authorId" th:if="${filter != null and filter.authorId != null}" th:value="${filter.authorId}">
-                        <input type="hidden" name="publisherId" th:if="${filter != null and filter.publisherId != null}" th:value="${filter.publisherId}">
-                        <input type="hidden" name="brandId" th:if="${filter != null and filter.brandId != null}" th:value="${filter.brandId}">
 
                         <!-- Facet 1: Product Classification (Books vs. Stationery) per BR-02-01 -->
                         <div>
@@ -110,6 +107,111 @@
                                                    onchange="this.form.submit()"
                                                    class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey">
                                             <span class="truncate" th:text="${cat.name}">Tên danh mục</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Facet 3: Book Specific Authors (per UC01 / Fahasa Style) -->
+                        <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'BOOK'}">
+                            <hr class="border-dust_grey/60 mb-5">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Tác Giả</span>
+                                <i class="bi bi-pen-fill text-xs"></i>
+                            </h3>
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1">
+                                <!-- Option All Authors -->
+                                <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                       th:classappend="${filter == null or filter.authorId() == null} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                    <span class="flex items-center gap-2.5">
+                                        <input type="radio" name="authorId" value=""
+                                               th:checked="${filter == null or filter.authorId() == null}"
+                                               onchange="this.form.submit()"
+                                               class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                        <span>Tất cả tác giả</span>
+                                    </span>
+                                </label>
+                                <!-- Authors Loop -->
+                                <div th:each="author : ${authors}">
+                                    <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                           th:classappend="${filter != null and filter.authorId() == author.id} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                        <span class="flex items-center gap-2.5 truncate">
+                                            <input type="radio" name="authorId" th:value="${author.id}"
+                                                   th:checked="${filter != null and filter.authorId() == author.id}"
+                                                   onchange="this.form.submit()"
+                                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                            <span class="truncate" th:text="${author.name}">Nguyễn Nhật Ánh</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Facet 4: Book Specific Publishers (per UC01 / Fahasa Style) -->
+                        <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'BOOK'}">
+                            <hr class="border-dust_grey/60 mb-5">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Nhà Xuất Bản</span>
+                                <i class="bi bi-building text-xs"></i>
+                            </h3>
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1">
+                                <!-- Option All Publishers -->
+                                <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                       th:classappend="${filter == null or filter.publisherId() == null} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                    <span class="flex items-center gap-2.5">
+                                        <input type="radio" name="publisherId" value=""
+                                               th:checked="${filter == null or filter.publisherId() == null}"
+                                               onchange="this.form.submit()"
+                                               class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                        <span>Tất cả nhà xuất bản</span>
+                                    </span>
+                                </label>
+                                <!-- Publishers Loop -->
+                                <div th:each="pub : ${publishers}">
+                                    <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                           th:classappend="${filter != null and filter.publisherId() == pub.id} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                        <span class="flex items-center gap-2.5 truncate">
+                                            <input type="radio" name="publisherId" th:value="${pub.id}"
+                                                   th:checked="${filter != null and filter.publisherId() == pub.id}"
+                                                   onchange="this.form.submit()"
+                                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                            <span class="truncate" th:text="${pub.name}">Nhà Xuất Bản Trẻ</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Facet 5: Stationery Brands (per UC01 / Fahasa Style) -->
+                        <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'STATIONERY'}">
+                            <hr class="border-dust_grey/60 mb-5">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                                <span>Thương Hiệu</span>
+                                <i class="bi bi-award-fill text-xs"></i>
+                            </h3>
+                            <div class="space-y-1 max-h-44 overflow-y-auto pr-1">
+                                <!-- Option All Brands -->
+                                <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                       th:classappend="${filter == null or filter.brandId() == null} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                    <span class="flex items-center gap-2.5">
+                                        <input type="radio" name="brandId" value=""
+                                               th:checked="${filter == null or filter.brandId() == null}"
+                                               onchange="this.form.submit()"
+                                               class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                        <span>Tất cả thương hiệu</span>
+                                    </span>
+                                </label>
+                                <!-- Brands Loop -->
+                                <div th:each="brand : ${brands}">
+                                    <label class="flex items-center justify-between p-1.5 rounded-xl text-xs cursor-pointer transition-colors"
+                                           th:classappend="${filter != null and filter.brandId() == brand.id} ? 'bg-blazing_flame-50 text-blazing_flame font-bold' : 'text-carbon_black hover:bg-parchment-100'">
+                                        <span class="flex items-center gap-2.5 truncate">
+                                            <input type="radio" name="brandId" th:value="${brand.id}"
+                                                   th:checked="${filter != null and filter.brandId() == brand.id}"
+                                                   onchange="this.form.submit()"
+                                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 border-dust_grey rounded cursor-pointer">
+                                            <span class="truncate" th:text="${brand.name}">Thiên Long</span>
                                         </span>
                                     </label>
                                 </div>

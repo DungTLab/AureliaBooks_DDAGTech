@@ -1,9 +1,12 @@
 package com.ddagtech.aureliabooks.service;
 
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
+import com.ddagtech.aureliabooks.dto.response.AuthorSummary;
+import com.ddagtech.aureliabooks.dto.response.BrandSummary;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
+import com.ddagtech.aureliabooks.dto.response.PublisherSummary;
 import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Brand;
@@ -11,9 +14,12 @@ import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.entity.Publisher;
 import com.ddagtech.aureliabooks.entity.Stationery;
+import com.ddagtech.aureliabooks.repository.AuthorRepository;
 import com.ddagtech.aureliabooks.repository.BookRepository;
+import com.ddagtech.aureliabooks.repository.BrandRepository;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
+import com.ddagtech.aureliabooks.repository.PublisherRepository;
 import com.ddagtech.aureliabooks.repository.StationeryRepository;
 import com.ddagtech.aureliabooks.service.impl.ProductServiceImpl;
 import com.ddagtech.aureliabooks.util.PageableUtils;
@@ -26,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
@@ -59,11 +66,23 @@ class ProductServiceImplTest {
     @Mock
     private StationeryRepository stationeryRepository;
 
+    @Mock
+    private AuthorRepository authorRepository;
+
+    @Mock
+    private PublisherRepository publisherRepository;
+
+    @Mock
+    private BrandRepository brandRepository;
+
     private ProductServiceImpl productService;
 
     @BeforeEach
     void setUp() {
-        productService = new ProductServiceImpl(productRepository, categoryRepository, bookRepository, stationeryRepository);
+        productService = new ProductServiceImpl(
+                productRepository, categoryRepository, bookRepository, stationeryRepository,
+                authorRepository, publisherRepository, brandRepository
+        );
     }
 
     @Test
@@ -453,5 +472,43 @@ class ProductServiceImplTest {
         assertThat(item.price()).isEqualByComparingTo(new BigDecimal("25000.00"));
         assertThat(item.barcode()).isEqualTo("8935244861617");
         assertThat(item.imageUrl()).isEqualTo("https://example.com/conan.jpg");
+    }
+
+    @Test
+    @DisplayName("Should return authors sorted by name")
+    void shouldReturnAuthorsSortedByName() {
+        Author a1 = Author.builder().id(1L).name("Nguyễn Nhật Ánh").build();
+        Author a2 = Author.builder().id(2L).name("Robert C. Martin").build();
+        when(authorRepository.findAll(any(Sort.class))).thenReturn(List.of(a1, a2));
+
+        List<AuthorSummary> authors = productService.getAuthors();
+
+        assertThat(authors).hasSize(2);
+        assertThat(authors.get(0).name()).isEqualTo("Nguyễn Nhật Ánh");
+        assertThat(authors.get(1).name()).isEqualTo("Robert C. Martin");
+    }
+
+    @Test
+    @DisplayName("Should return publishers sorted by name")
+    void shouldReturnPublishersSortedByName() {
+        Publisher p1 = Publisher.builder().id(1L).name("NXB Trẻ").build();
+        when(publisherRepository.findAll(any(Sort.class))).thenReturn(List.of(p1));
+
+        List<PublisherSummary> publishers = productService.getPublishers();
+
+        assertThat(publishers).hasSize(1);
+        assertThat(publishers.get(0).name()).isEqualTo("NXB Trẻ");
+    }
+
+    @Test
+    @DisplayName("Should return brands sorted by name")
+    void shouldReturnBrandsSortedByName() {
+        Brand b1 = Brand.builder().id(1L).name("Thiên Long").build();
+        when(brandRepository.findAll(any(Sort.class))).thenReturn(List.of(b1));
+
+        List<BrandSummary> brands = productService.getBrands();
+
+        assertThat(brands).hasSize(1);
+        assertThat(brands.get(0).name()).isEqualTo("Thiên Long");
     }
 }

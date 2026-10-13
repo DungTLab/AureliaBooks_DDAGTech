@@ -2,7 +2,10 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
+import com.ddagtech.aureliabooks.dto.response.AuthorSummary;
+import com.ddagtech.aureliabooks.dto.response.BrandSummary;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
+import com.ddagtech.aureliabooks.dto.response.PublisherSummary;
 import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.service.ProductService;
@@ -49,12 +52,24 @@ class ProductControllerTest {
         when(productService.getActiveCategories()).thenReturn(List.of(
                 new CategorySummary(1L, "Văn Học", null)
         ));
+        when(productService.getAuthors()).thenReturn(List.of(
+                new AuthorSummary(1L, "Nguyễn Nhật Ánh")
+        ));
+        when(productService.getPublishers()).thenReturn(List.of(
+                new PublisherSummary(1L, "NXB Trẻ")
+        ));
+        when(productService.getBrands()).thenReturn(List.of(
+                new BrandSummary(1L, "Thiên Long")
+        ));
 
         mockMvc.perform(get("/products"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("product/list"))
                 .andExpect(model().attributeExists("products"))
                 .andExpect(model().attributeExists("categories"))
+                .andExpect(model().attributeExists("authors"))
+                .andExpect(model().attributeExists("publishers"))
+                .andExpect(model().attributeExists("brands"))
                 .andExpect(model().attribute("currentSort", "newest"))
                 .andExpect(model().attribute("currentSize", 12));
 
@@ -142,6 +157,42 @@ class ProductControllerTest {
         Pageable pageable = pageableCaptor.getValue();
         assertThat(pageable.getPageNumber()).isEqualTo(0);
         assertThat(pageable.getPageSize()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("GET /products renders interactive non-hidden form controls for author, publisher, and brand")
+    void getProductsRendersFacetedFilterControlsForAuthorPublisherBrand() throws Exception {
+        when(productService.browse(any(), any())).thenReturn(Page.empty());
+        when(productService.getActiveCategories()).thenReturn(List.of(
+                new CategorySummary(1L, "Văn Học", null)
+        ));
+        when(productService.getAuthors()).thenReturn(List.of(
+                new AuthorSummary(1L, "Nguyễn Nhật Ánh"),
+                new AuthorSummary(2L, "Robert C. Martin")
+        ));
+        when(productService.getPublishers()).thenReturn(List.of(
+                new PublisherSummary(1L, "NXB Trẻ")
+        ));
+        when(productService.getBrands()).thenReturn(List.of(
+                new BrandSummary(1L, "Thiên Long")
+        ));
+
+        var result = mockMvc.perform(get("/products"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("product/list"))
+                .andReturn();
+
+        String html = result.getResponse().getContentAsString();
+        assertThat(html).contains("name=\"authorId\"");
+        assertThat(html).contains("name=\"publisherId\"");
+        assertThat(html).contains("name=\"brandId\"");
+        assertThat(html).contains("type=\"radio\"");
+        assertThat(html).doesNotContain("<input type=\"hidden\" name=\"authorId\"");
+        assertThat(html).doesNotContain("<input type=\"hidden\" name=\"publisherId\"");
+        assertThat(html).doesNotContain("<input type=\"hidden\" name=\"brandId\"");
+        assertThat(html).contains("Nguyễn Nhật Ánh");
+        assertThat(html).contains("NXB Trẻ");
+        assertThat(html).contains("Thiên Long");
     }
 
     @Test

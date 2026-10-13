@@ -11,6 +11,9 @@ public interface ProductService {
     Page<ProductSummary> browse(ProductFilterRequest filter, Pageable pageable);
     ProductDetailResponse viewDetail(Long productId);
     List<CategorySummary> getActiveCategories();
+    List<AuthorSummary> getAuthors();
+    List<PublisherSummary> getPublishers();
+    List<BrandSummary> getBrands();
 
     List<ProductAutoCompleteResponse> autoComplete(String keyword);
 }

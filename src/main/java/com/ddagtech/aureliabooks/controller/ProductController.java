@@ -39,8 +39,11 @@ public class ProductController {
 
         Page<ProductSummary> productSummaryPage = productService.browse(filterRequest, pageable);
         List<CategorySummary> categorySummaryList = productService.getActiveCategories();
-        model.addAttribute("products",productSummaryPage);
+        model.addAttribute("products", productSummaryPage);
         model.addAttribute("categories", categorySummaryList);
+        model.addAttribute("authors", productService.getAuthors());
+        model.addAttribute("publishers", productService.getPublishers());
+        model.addAttribute("brands", productService.getBrands());
         model.addAttribute("currentSort", sort);
         model.addAttribute("currentSize", size);
 
@@ -83,6 +86,9 @@ public class ProductController {
         }
         model.addAttribute("products", products);
         model.addAttribute("categories", categories);
+        model.addAttribute("authors", productService.getAuthors());
+        model.addAttribute("publishers", productService.getPublishers());
+        model.addAttribute("brands", productService.getBrands());
         model.addAttribute("currentSort", sort);
         model.addAttribute("currentSize", size);
         model.addAttribute("keyword", isBlankKeyWord ? "" : rawKeyword.trim());

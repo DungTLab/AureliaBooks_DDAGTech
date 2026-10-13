@@ -96,19 +96,39 @@
                         <span>Mã SKU: <strong class="text-carbon_black font-mono" th:text="${product.barcode}">SKU-12345</strong></span>
 
                         <!-- Authors for Books -->
-                        <span th:if="${product.authorNames != null and !product.authorNames.isEmpty()}">
+                        <span th:if="${product.authors != null and !product.authors.isEmpty()}">
+                            Tác giả: 
+                            <th:block th:each="a, iterStat : ${product.authors}">
+                                <a th:href="@{/products(authorId=${a.id}, productType='BOOK')}"
+                                   class="font-bold text-carbon_black hover:text-blazing_flame underline decoration-dotted underline-offset-2 transition-colors"
+                                   th:text="${a.name}">Tên Tác Giả</a><span th:if="${!iterStat.last}">, </span>
+                            </th:block>
+                        </span>
+                        <span th:if="${(product.authors == null or product.authors.isEmpty()) and product.authorNames != null and !product.authorNames.isEmpty()}">
                             Tác giả: 
                             <strong class="text-carbon_black" th:text="${#strings.listJoin(product.authorNames, ', ')}">Tên Tác Giả</strong>
                         </span>
 
                         <!-- Publisher for Books -->
                         <span th:if="${product.publisherName != null}">
-                            NXB: <strong class="text-carbon_black" th:text="${product.publisherName}">Kim Đồng</strong>
+                            NXB: 
+                            <a th:if="${product.publisherId != null}"
+                               th:href="@{/products(publisherId=${product.publisherId}, productType='BOOK')}"
+                               class="font-bold text-carbon_black hover:text-blazing_flame underline decoration-dotted underline-offset-2 transition-colors"
+                               th:text="${product.publisherName}">Kim Đồng</a>
+                            <strong th:unless="${product.publisherId != null}"
+                                    class="text-carbon_black" th:text="${product.publisherName}">Kim Đồng</strong>
                         </span>
 
                         <!-- Brand for Stationery -->
                         <span th:if="${product.brandName != null}">
-                            Thương hiệu: <strong class="text-carbon_black" th:text="${product.brandName}">Thiên Long</strong>
+                            Thương hiệu: 
+                            <a th:if="${product.brandId != null}"
+                               th:href="@{/products(brandId=${product.brandId}, productType='STATIONERY')}"
+                               class="font-bold text-carbon_black hover:text-blazing_flame underline decoration-dotted underline-offset-2 transition-colors"
+                               th:text="${product.brandName}">Thiên Long</a>
+                            <strong th:unless="${product.brandId != null}"
+                                    class="text-carbon_black" th:text="${product.brandName}">Thiên Long</strong>
                         </span>
                     </div>
 

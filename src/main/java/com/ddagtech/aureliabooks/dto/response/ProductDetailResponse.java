@@ -41,6 +41,43 @@ public record ProductDetailResponse(
         String brandName,
         String material,
         String color,
-        Integer warrantyMonths
+        Integer warrantyMonths,
+        List<AuthorSummary> authors
 ) {
+    public ProductDetailResponse(
+            Long id,
+            String barcode,
+            String title,
+            BigDecimal price,
+            BigDecimal originalCost,
+            Integer stockQuantity,
+            String mainImageUrl,
+            String description,
+            Integer weightGrams,
+            Product.ProductType productType,
+            Long categoryId,
+            String categoryName,
+            String isbn,
+            Long publisherId,
+            String publisherName,
+            List<String> authorNames,
+            String seriesName,
+            Integer volumeNumber,
+            Boolean isTextbook,
+            Integer publicationYear,
+            String edition,
+            Integer pageCount,
+            Book.CoverType coverType,
+            String language,
+            Long brandId,
+            String brandName,
+            String material,
+            String color,
+            Integer warrantyMonths
+    ) {
+        this(id, barcode, title, price, originalCost, stockQuantity, mainImageUrl, description,
+                weightGrams, productType, categoryId, categoryName, isbn, publisherId, publisherName,
+                authorNames, seriesName, volumeNumber, isTextbook, publicationYear, edition, pageCount,
+                coverType, language, brandId, brandName, material, color, warrantyMonths, List.of());
+    }
 }
