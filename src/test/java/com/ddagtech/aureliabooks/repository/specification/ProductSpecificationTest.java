@@ -479,4 +479,54 @@ class ProductSpecificationTest {
             verify(cb).between(pricePath, min, max);
         }
     }
+
+    @Nested
+    @DisplayName("Keyword filtering tests")
+    class KeywordFilterTests {
+
+        @Test
+        @DisplayName("Should return conjunction when keyword is null or blank")
+        void shouldReturnConjunctionWhenKeywordNullOrBlank() {
+            Specification<Product> specNull = ProductSpecification.hasKeyword(null);
+            Specification<Product> specEmpty = ProductSpecification.hasKeyword("");
+            Specification<Product> specBlank = ProductSpecification.hasKeyword("   ");
+
+            Predicate predNull = specNull.toPredicate(root, query, cb);
+            Predicate predEmpty = specEmpty.toPredicate(root, query, cb);
+            Predicate predBlank = specBlank.toPredicate(root, query, cb);
+
+            assertThat(predNull).isSameAs(conjunctionPredicate);
+            assertThat(predEmpty).isSameAs(conjunctionPredicate);
+            assertThat(predBlank).isSameAs(conjunctionPredicate);
+        }
+
+        @Test
+        @DisplayName("Should build OR like predicates on title and barcode when keyword provided")
+        void shouldBuildOrLikePredicatesWhenKeywordProvided() {
+            String keyword = "Harry Potter";
+            String expectedPattern = "%harry potter%";
+
+            Path titlePath = mock(Path.class);
+            Path barcodePath = mock(Path.class);
+            Expression<String> lowerTitleExpr = mock(Expression.class);
+            Expression<String> lowerBarcodeExpr = mock(Expression.class);
+            Predicate titleLikePredicate = mock(Predicate.class);
+            Predicate barcodeLikePredicate = mock(Predicate.class);
+            Predicate orPredicate = mock(Predicate.class);
+
+            when(root.get("title")).thenReturn(titlePath);
+            when(root.get("barcode")).thenReturn(barcodePath);
+            when(cb.lower(titlePath)).thenReturn(lowerTitleExpr);
+            when(cb.lower(barcodePath)).thenReturn(lowerBarcodeExpr);
+            when(cb.like(lowerTitleExpr, expectedPattern)).thenReturn(titleLikePredicate);
+            when(cb.like(lowerBarcodeExpr, expectedPattern)).thenReturn(barcodeLikePredicate);
+            when(cb.or(titleLikePredicate, barcodeLikePredicate)).thenReturn(orPredicate);
+
+            Specification<Product> spec = ProductSpecification.hasKeyword(keyword);
+            Predicate result = spec.toPredicate(root, query, cb);
+
+            assertThat(result).isSameAs(orPredicate);
+            verify(cb).or(titleLikePredicate, barcodeLikePredicate);
+        }
+    }
 }

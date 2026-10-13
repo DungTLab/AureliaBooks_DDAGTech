@@ -4,8 +4,9 @@ import com.ddagtech.aureliabooks.dto.request.*;
 import com.ddagtech.aureliabooks.dto.response.*;
 import org.springframework.data.domain.*;
 
-/** UC09. Owner: Lê Tiến Dũng. Sprint 1 scaffold; business implementation pending. */
+/** UC09 address book; implementations enforce ownership and serialize mutations per customer. */
 public interface AddressService {
+    java.util.List<AddressView> list(Long authenticatedUserId);
     Long create(Long authenticatedUserId, AddressRequest request);
     void update(Long authenticatedUserId, Long addressId, AddressRequest request);
     void delete(Long authenticatedUserId, Long addressId);
