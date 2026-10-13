@@ -140,6 +140,21 @@ class ProductSpecificationTest {
         }
 
         @Test
+        @DisplayName("Should swap bounds to guarantee min <= max when minPrice is greater than maxPrice")
+        void shouldSwapBoundsWhenMinPriceGreaterThanMaxPrice() {
+            BigDecimal min = new BigDecimal("200000");
+            BigDecimal max = new BigDecimal("50000");
+            when(root.<BigDecimal>get("price")).thenReturn(pricePath);
+            when(cb.between(pricePath, max, min)).thenReturn(simplePredicate);
+
+            Specification<Product> spec = ProductSpecification.priceBetween(min, max);
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(simplePredicate);
+            verify(cb).between(pricePath, max, min);
+        }
+
+        @Test
         @DisplayName("Should build greaterThanOrEqualTo predicate when only min price is specified")
         void shouldBuildGtePredicateWhenOnlyMinPricePresent() {
             BigDecimal min = new BigDecimal("100000");
@@ -501,10 +516,11 @@ class ProductSpecificationTest {
         }
 
         @Test
-        @DisplayName("Should build OR like predicates on title and barcode when keyword provided")
+        @DisplayName("Should build OR like predicates across title, barcode, and subqueries when keyword provided")
         void shouldBuildOrLikePredicatesWhenKeywordProvided() {
             String keyword = "Harry Potter";
             String expectedPattern = "%harry potter%";
+            char escapeChar = '\\';
 
             Path titlePath = mock(Path.class);
             Path barcodePath = mock(Path.class);
@@ -512,21 +528,137 @@ class ProductSpecificationTest {
             Expression<String> lowerBarcodeExpr = mock(Expression.class);
             Predicate titleLikePredicate = mock(Predicate.class);
             Predicate barcodeLikePredicate = mock(Predicate.class);
-            Predicate orPredicate = mock(Predicate.class);
 
             when(root.get("title")).thenReturn(titlePath);
             when(root.get("barcode")).thenReturn(barcodePath);
             when(cb.lower(titlePath)).thenReturn(lowerTitleExpr);
             when(cb.lower(barcodePath)).thenReturn(lowerBarcodeExpr);
-            when(cb.like(lowerTitleExpr, expectedPattern)).thenReturn(titleLikePredicate);
-            when(cb.like(lowerBarcodeExpr, expectedPattern)).thenReturn(barcodeLikePredicate);
-            when(cb.or(titleLikePredicate, barcodeLikePredicate)).thenReturn(orPredicate);
+            when(cb.like(lowerTitleExpr, expectedPattern, escapeChar)).thenReturn(titleLikePredicate);
+            when(cb.like(lowerBarcodeExpr, expectedPattern, escapeChar)).thenReturn(barcodeLikePredicate);
+
+            Subquery<Long> bookSub = mock(Subquery.class);
+            Subquery<Long> stationerySub = mock(Subquery.class);
+            when(query.subquery(Long.class)).thenReturn(bookSub, stationerySub);
+
+            when(bookSub.from(Book.class)).thenReturn(bookRoot);
+            Path bookProdId = mock(Path.class);
+            when(bookRoot.get("productId")).thenReturn(bookProdId);
+            Join authorJoin = mock(Join.class);
+            doReturn(authorJoin).when(bookRoot).join("authors", JoinType.LEFT);
+            Join publisherJoin = mock(Join.class);
+            doReturn(publisherJoin).when(bookRoot).join("publisher", JoinType.LEFT);
+
+            Path isbnPath = mock(Path.class);
+            when(bookRoot.get("isbn")).thenReturn(isbnPath);
+            Path authorNamePath = mock(Path.class);
+            when(authorJoin.get("name")).thenReturn(authorNamePath);
+            Path publisherNamePath = mock(Path.class);
+            when(publisherJoin.get("name")).thenReturn(publisherNamePath);
+
+            when(stationerySub.from(Stationery.class)).thenReturn(stationeryRoot);
+            Path statProdId = mock(Path.class);
+            when(stationeryRoot.get("productId")).thenReturn(statProdId);
+            Join brandJoin = mock(Join.class);
+            doReturn(brandJoin).when(stationeryRoot).join("brand", JoinType.LEFT);
+            Path brandNamePath = mock(Path.class);
+            when(brandJoin.get("name")).thenReturn(brandNamePath);
+            Path materialPath = mock(Path.class);
+            when(stationeryRoot.get("material")).thenReturn(materialPath);
+
+            when(root.get("id")).thenReturn((Path) idPath);
+            Predicate bookInPred = mock(Predicate.class);
+            when(idPath.in(bookSub)).thenReturn(bookInPred);
+            Predicate stationeryInPred = mock(Predicate.class);
+            when(idPath.in(stationerySub)).thenReturn(stationeryInPred);
+
+            Predicate orPredicate = mock(Predicate.class);
+            when(cb.or(titleLikePredicate, barcodeLikePredicate, bookInPred, stationeryInPred)).thenReturn(orPredicate);
 
             Specification<Product> spec = ProductSpecification.hasKeyword(keyword);
             Predicate result = spec.toPredicate(root, query, cb);
 
             assertThat(result).isSameAs(orPredicate);
-            verify(cb).or(titleLikePredicate, barcodeLikePredicate);
+            verify(cb).or(titleLikePredicate, barcodeLikePredicate, bookInPred, stationeryInPred);
+        }
+    }
+
+    @Nested
+    @DisplayName("Prioritize exact identifier tests")
+    class PrioritizeExactIdentifierTests {
+
+        @Test
+        @DisplayName("Should return conjunction when keyword is null or blank")
+        void shouldReturnConjunctionWhenKeywordNullOrBlank() {
+            Specification<Product> specNull = ProductSpecification.prioritizeExactIdentifier(null);
+            Specification<Product> specBlank = ProductSpecification.prioritizeExactIdentifier("   ");
+
+            Predicate predNull = specNull.toPredicate(root, query, cb);
+            Predicate predBlank = specBlank.toPredicate(root, query, cb);
+
+            assertThat(predNull).isSameAs(conjunctionPredicate);
+            assertThat(predBlank).isSameAs(conjunctionPredicate);
+        }
+
+        @Test
+        @DisplayName("Should return conjunction when query result type is Long (count query)")
+        void shouldReturnConjunctionWhenCountQuery() {
+            doReturn(Long.class).when(query).getResultType();
+
+            Specification<Product> spec = ProductSpecification.prioritizeExactIdentifier("8935244861617");
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(conjunctionPredicate);
+            verify(query, never()).orderBy(any(List.class));
+        }
+
+        @Test
+        @DisplayName("Should prepend exact match order by when keyword is provided")
+        void shouldPrependOrderByWhenKeywordProvided() {
+            doReturn(Product.class).when(query).getResultType();
+            when(query.getOrderList()).thenReturn(List.of());
+
+            Path barcodePath = mock(Path.class);
+            Expression lowerBarcode = mock(Expression.class);
+            when(root.get("barcode")).thenReturn(barcodePath);
+            when(cb.lower(barcodePath)).thenReturn(lowerBarcode);
+
+            Predicate barcodePredicate = mock(Predicate.class);
+            when(cb.equal(lowerBarcode, "12345")).thenReturn(barcodePredicate);
+
+            when(query.subquery(Long.class)).thenReturn(subquery);
+            when(subquery.from(Book.class)).thenReturn(bookRoot);
+            Path bookProductId = mock(Path.class);
+            Path isbnPath = mock(Path.class);
+            Expression lowerIsbn = mock(Expression.class);
+            when(bookRoot.get("productId")).thenReturn(bookProductId);
+            when(bookRoot.get("isbn")).thenReturn(isbnPath);
+            when(cb.lower(isbnPath)).thenReturn(lowerIsbn);
+
+            Predicate isbnPredicate = mock(Predicate.class);
+            when(cb.equal(lowerIsbn, "12345")).thenReturn(isbnPredicate);
+
+            when(root.get("id")).thenReturn((Path) idPath);
+            Predicate idInSubquery = mock(Predicate.class);
+            when(idPath.in(subquery)).thenReturn(idInSubquery);
+
+            Predicate orPredicate = mock(Predicate.class);
+            when(cb.or(barcodePredicate, idInSubquery)).thenReturn(orPredicate);
+
+            CriteriaBuilder.Case selectCase = mock(CriteriaBuilder.Case.class);
+            when(cb.selectCase()).thenReturn(selectCase);
+            when(selectCase.when(orPredicate, 0)).thenReturn(selectCase);
+            Expression caseExpression = mock(Expression.class);
+            when(selectCase.otherwise(1)).thenReturn(caseExpression);
+
+            Order order = mock(Order.class);
+            when(cb.asc(caseExpression)).thenReturn(order);
+
+            Specification<Product> spec = ProductSpecification.prioritizeExactIdentifier("12345");
+            Predicate predicate = spec.toPredicate(root, query, cb);
+
+            assertThat(predicate).isSameAs(conjunctionPredicate);
+            verify(query).orderBy(List.of(order));
         }
     }
 }
+

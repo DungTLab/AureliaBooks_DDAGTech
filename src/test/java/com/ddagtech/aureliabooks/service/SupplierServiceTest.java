@@ -253,7 +253,7 @@ class SupplierServiceTest {
             assertThatThrownBy(() -> supplierService.delete(1L))
                     .isInstanceOf(AppException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA)
-                    .hasMessageContaining("Không thể xóa nhà cung cấp đã phát sinh đơn nhập hàng");
+                    .hasMessageContaining("Không thể xóa nhà cung cấp đã có chứng từ nhập hàng");
 
             // Verify hard delete was NEVER called
             verify(supplierRepository, never()).delete(any(Supplier.class));

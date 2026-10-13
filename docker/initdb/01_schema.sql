@@ -229,7 +229,7 @@ CREATE TABLE suppliers (
     phone VARCHAR(15) NOT NULL,
     email VARCHAR(100) NULL,
     address VARCHAR(255) NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'Partnership status: true = active partnership, false = ceased partnership',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Merchandise suppliers catalog (Maps to Use Cases: UC22, UC30)';
 
