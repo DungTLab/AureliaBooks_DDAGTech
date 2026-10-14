@@ -151,11 +151,6 @@
             <table class="w-full text-left border-collapse text-sm">
                 <thead>
                     <tr class="bg-parchment-100 text-carbon_black-700 border-b border-dust_grey text-xs uppercase tracking-wider font-semibold">
-                        <th class="py-3.5 px-3 w-10 text-center">
-                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"
-                                   title="Chọn tất cả trên trang này"
-                                   class="w-4 h-4 rounded text-blazing_flame focus:ring-blazing_flame border-dust_grey cursor-pointer" />
-                        </th>
                         <th class="py-3.5 px-4">Mã vạch</th>
                         <th class="py-3.5 px-4 min-w-[220px]">Tên sản phẩm</th>
                         <th class="py-3.5 px-4">Danh mục / Phân loại</th>
@@ -163,24 +158,28 @@
                         <th class="py-3.5 px-4 text-right">Giá bán (đ)</th>
                         <th class="py-3.5 px-4 text-center">Tồn kho hiện tại</th>
                         <th class="py-3.5 px-4 text-center">Mức cảnh báo</th>
-                        <th class="py-3.5 px-4 text-right">Hành động</th>
+                        <th class="py-3.5 px-4 text-right whitespace-nowrap">
+                            <div class="inline-flex items-center gap-2 justify-end">
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold normal-case text-carbon_black-600 hover:text-carbon_black" title="Chọn tất cả trên trang này để nhập hàng loạt">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"
+                                           class="w-4 h-4 rounded text-blazing_flame focus:ring-blazing_flame border-dust_grey cursor-pointer" />
+                                    <span>Chọn tất cả</span>
+                                </label>
+                                <span class="text-dust_grey">|</span>
+                                <span>Nhập hàng</span>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-dust_grey/60">
                     <tr th:if="${alertsPage.empty}" class="hover:bg-parchment-50">
-                        <td colspan="9" class="py-12 text-center text-carbon_black-400">
+                        <td colspan="8" class="py-12 text-center text-carbon_black-400">
                             <i class="bi bi-inbox text-4xl block mb-2"></i>
                             <p class="font-medium">Không tìm thấy sản phẩm nào phù hợp với bộ lọc cảnh báo.</p>
                         </td>
                     </tr>
 
                     <tr th:each="p : ${alertsPage.content}" class="hover:bg-parchment-50 transition">
-                        <!-- Select Checkbox -->
-                        <td class="py-3.5 px-3 text-center">
-                            <input type="checkbox" class="product-checkbox w-4 h-4 rounded text-blazing_flame focus:ring-blazing_flame border-dust_grey cursor-pointer"
-                                   th:value="${p.id}" onchange="updateBatchActionBar()" />
-                        </td>
-
                         <!-- Barcode -->
                         <td class="py-3.5 px-4 font-mono font-bold text-carbon_black-700 text-xs" th:text="${p.barcode}">
                             BOOK-0001
@@ -245,14 +244,20 @@
                             </span>
                         </td>
 
-                        <!-- Action -->
+                        <!-- Action with Checkbox right next to Nhập hàng button -->
                         <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                            <a th:href="@{/staff/receipts/new(productId=${p.id})}"
-                               class="inline-flex items-center gap-1 px-3 py-1.5 bg-blazing_flame/10 hover:bg-blazing_flame text-blazing_flame hover:text-white font-semibold rounded-lg text-xs transition"
-                               title="Tạo phiếu nhập bổ sung cho sản phẩm">
-                                <i class="bi bi-plus-lg"></i>
-                                <span>Nhập hàng</span>
-                            </a>
+                            <div class="inline-flex items-center gap-3 justify-end">
+                                <label class="cursor-pointer flex items-center p-1 rounded hover:bg-parchment-200 transition" title="Chọn sản phẩm này để lập phiếu nhập cùng lúc">
+                                    <input type="checkbox" class="product-checkbox w-4 h-4 rounded text-blazing_flame focus:ring-blazing_flame border-dust_grey cursor-pointer"
+                                           th:value="${p.id}" onchange="updateBatchActionBar()" />
+                                </label>
+                                <a th:href="@{/staff/receipts/new(productId=${p.id})}"
+                                   class="inline-flex items-center gap-1 px-3 py-1.5 bg-blazing_flame/10 hover:bg-blazing_flame text-blazing_flame hover:text-white font-semibold rounded-lg text-xs transition"
+                                   title="Tạo phiếu nhập bổ sung cho sản phẩm">
+                                    <i class="bi bi-plus-lg"></i>
+                                    <span>Nhập hàng</span>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
