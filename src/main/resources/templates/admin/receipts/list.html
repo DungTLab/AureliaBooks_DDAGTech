@@ -151,7 +151,8 @@
                         <td class="py-3.5 px-4 text-right space-x-1 whitespace-nowrap">
                             <!-- View Detail Button -->
                             <button type="button"
-                                    th:onclick="'viewReceiptDetail(' + ${r.id} + ')'"
+                                    th:data-receipt-id="${r.id}"
+                                    onclick="viewReceiptDetail(this.getAttribute('data-receipt-id'))"
                                     class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 font-semibold rounded-lg text-xs transition"
                                     title="Xem chi tiết phiếu nhập">
                                 <i class="bi bi-eye-fill"></i>
@@ -170,7 +171,9 @@
                             <!-- Delete Button (Only for DRAFT) -->
                             <button th:if="${r.status == 'DRAFT'}"
                                     type="button"
-                                    th:onclick="'openDeleteModal(' + ${r.id} + ', \'' + ${r.receiptCode} + '\')'"
+                                    th:data-receipt-id="${r.id}"
+                                    th:data-receipt-code="${r.receiptCode}"
+                                    onclick="openDeleteModal(this.getAttribute('data-receipt-id'), this.getAttribute('data-receipt-code'))"
                                     class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold rounded-lg text-xs transition"
                                     title="Xóa bản nháp">
                                 <i class="bi bi-trash-fill"></i>
@@ -181,7 +184,9 @@
                             <button th:if="${r.status == 'DRAFT'}"
                                     sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
                                     type="button"
-                                    th:onclick="'openFinalizeModal(' + ${r.id} + ', \'' + ${r.receiptCode} + '\')'"
+                                    th:data-receipt-id="${r.id}"
+                                    th:data-receipt-code="${r.receiptCode}"
+                                    onclick="openFinalizeModal(this.getAttribute('data-receipt-id'), this.getAttribute('data-receipt-code'))"
                                     class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-sm transition"
                                     title="Duyệt nhập kho &amp; Tăng tồn kho">
                                 <i class="bi bi-check-lg"></i>
