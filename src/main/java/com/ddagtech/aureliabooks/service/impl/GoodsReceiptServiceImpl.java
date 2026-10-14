@@ -8,6 +8,7 @@ import com.ddagtech.aureliabooks.dto.response.*;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.*;
+import com.ddagtech.aureliabooks.util.BarcodeUtils;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.ddagtech.aureliabooks.service.GoodsReceiptService;
 import com.ddagtech.aureliabooks.service.StockMutationService;
@@ -555,12 +556,22 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                             .build()));
         }
 
-        // 2. Resolve Barcode (Tự động sinh mã chuẩn unique theo tiền tố loại sản phẩm)
+        // 2. Resolve Barcode (Theo chuẩn EAN-13 quy định trong tài liệu BR-02-05, UC-10, UC-12)
         String barcode = request.barcode();
-        if (barcode == null || barcode.isBlank()) {
-            String prefix = request.productType() == Product.ProductType.BOOK ? "BK-" : "VPP-";
+        if (barcode != null && !barcode.isBlank()) {
+            barcode = barcode.trim();
+            if (!BarcodeUtils.isValidEan13(barcode)) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA,
+                        "Mã vạch không đúng định dạng chuẩn EAN-13 (yêu cầu 13 chữ số kèm số kiểm tra hợp lệ per BR-02-05).");
+            }
+            if (productRepository.existsByBarcode(barcode)) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA,
+                        "Mã vạch " + barcode + " đã tồn tại trong hệ thống (vi phạm BR-02-05).");
+            }
+        } else {
+            String subPrefix = (request.productType() == Product.ProductType.BOOK) ? "8" : "5";
             do {
-                barcode = prefix + java.util.concurrent.ThreadLocalRandom.current().nextInt(1000000, 9999999);
+                barcode = BarcodeUtils.generateEan13(subPrefix);
             } while (productRepository.existsByBarcode(barcode));
         }
 

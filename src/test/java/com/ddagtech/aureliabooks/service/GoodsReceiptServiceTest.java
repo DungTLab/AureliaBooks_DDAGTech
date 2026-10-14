@@ -13,6 +13,7 @@ import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.*;
 import com.ddagtech.aureliabooks.service.impl.GoodsReceiptServiceImpl;
+import com.ddagtech.aureliabooks.util.BarcodeUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -580,7 +581,7 @@ class GoodsReceiptServiceTest {
                     Product.ProductType.BOOK,
                     false,
                     1L,
-                    "BK-999888",
+                    "8938505974019",
                     new BigDecimal("80000.00"),
                     new BigDecimal("50000.00"),
                     10
@@ -590,7 +591,7 @@ class GoodsReceiptServiceTest {
 
             assertThat(res.id()).isEqualTo(101L);
             assertThat(res.title()).isEqualTo("Đắc Nhân Tâm Mới");
-            assertThat(res.barcode()).isEqualTo("BK-999888");
+            assertThat(res.barcode()).isEqualTo("8938505974019");
             assertThat(res.isTextbook()).isFalse();
             assertThat(res.initialQuantity()).isEqualTo(10);
             verify(productRepository).save(any(Product.class));
@@ -598,7 +599,7 @@ class GoodsReceiptServiceTest {
         }
 
         @Test
-        @DisplayName("Tạo nhanh Sách giáo khoa (isTextbook=true) để áp dụng hạn mức 500")
+        @DisplayName("Tạo nhanh Sách giáo khoa (isTextbook=true) để áp dụng hạn mức 500 với mã EAN-13 tự sinh")
         void quickCreateTextbook_success() {
             when(categoryRepository.findAll()).thenReturn(List.of());
             when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> {
@@ -634,12 +635,13 @@ class GoodsReceiptServiceTest {
 
             assertThat(res.id()).isEqualTo(102L);
             assertThat(res.isTextbook()).isTrue();
-            assertThat(res.barcode()).startsWith("BK-");
+            assertThat(res.barcode()).startsWith("8938");
+            assertThat(BarcodeUtils.isValidEan13(res.barcode())).isTrue();
             assertThat(res.initialQuantity()).isEqualTo(50);
         }
 
         @Test
-        @DisplayName("Tạo nhanh Văn phòng phẩm với Brand tự động")
+        @DisplayName("Tạo nhanh Văn phòng phẩm với Brand tự động và mã EAN-13 hợp lệ")
         void quickCreateStationery_success() {
             when(categoryRepository.findAll()).thenReturn(List.of());
             when(categoryRepository.save(any(Category.class))).thenAnswer(inv -> {
@@ -665,7 +667,7 @@ class GoodsReceiptServiceTest {
                     Product.ProductType.STATIONERY,
                     false,
                     null,
-                    "VPP-027",
+                    "4006381333931",
                     new BigDecimal("5000.00"),
                     new BigDecimal("3000.00"),
                     20
@@ -675,8 +677,48 @@ class GoodsReceiptServiceTest {
 
             assertThat(res.id()).isEqualTo(103L);
             assertThat(res.productType()).isEqualTo("STATIONERY");
-            assertThat(res.barcode()).isEqualTo("VPP-027");
+            assertThat(res.barcode()).isEqualTo("4006381333931");
             verify(stationeryRepository).save(any(Stationery.class));
+        }
+
+        @Test
+        @DisplayName("Tạo nhanh thất bại khi mã vạch nhập tay sai định dạng EAN-13")
+        void quickCreate_invalidEan13_throwsException() {
+            QuickCreateProductRequest req = new QuickCreateProductRequest(
+                    "Bút Sai Mã Vạch",
+                    Product.ProductType.STATIONERY,
+                    false,
+                    null,
+                    "12345", // Sai format EAN-13
+                    new BigDecimal("5000.00"),
+                    new BigDecimal("3000.00"),
+                    20
+            );
+
+            assertThatThrownBy(() -> service.quickCreateProduct(req))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("Mã vạch không đúng định dạng chuẩn EAN-13");
+        }
+
+        @Test
+        @DisplayName("Tạo nhanh thất bại khi mã vạch nhập tay bị trùng lặp (BR-02-05)")
+        void quickCreate_duplicateBarcode_throwsException() {
+            when(productRepository.existsByBarcode("8938505974019")).thenReturn(true);
+
+            QuickCreateProductRequest req = new QuickCreateProductRequest(
+                    "Sách Bị Trùng Barcode",
+                    Product.ProductType.BOOK,
+                    false,
+                    null,
+                    "8938505974019",
+                    new BigDecimal("80000.00"),
+                    new BigDecimal("50000.00"),
+                    10
+            );
+
+            assertThatThrownBy(() -> service.quickCreateProduct(req))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("đã tồn tại trong hệ thống (vi phạm BR-02-05)");
         }
 
         @Test

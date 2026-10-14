@@ -205,7 +205,7 @@ class AdminReceiptControllerTest {
     void quickCreateProduct_success() throws Exception {
         com.ddagtech.aureliabooks.dto.response.QuickProductResponse res =
                 new com.ddagtech.aureliabooks.dto.response.QuickProductResponse(
-                        99L, "Sách Mới Thêm Nhanh", "BK-99",
+                        99L, "Sách Mới Thêm Nhanh", "8938505974019",
                         new BigDecimal("90000.00"), new BigDecimal("60000.00"),
                         "BOOK", false, 15
                 );
@@ -230,7 +230,7 @@ class AdminReceiptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(99))
                 .andExpect(jsonPath("$.title").value("Sách Mới Thêm Nhanh"))
-                .andExpect(jsonPath("$.barcode").value("BK-99"))
+                .andExpect(jsonPath("$.barcode").value("8938505974019"))
                 .andExpect(jsonPath("$.initialQuantity").value(15));
     }
 
