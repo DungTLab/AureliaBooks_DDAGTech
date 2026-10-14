@@ -152,7 +152,7 @@
                                 <i class="bi bi-file-earmark-plus"></i> Lập phiếu nhập kho
                             </a>
                             <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" th:href="@{/manager/stock/alerts}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 transition-colors font-semibold">
-                                <i class="bi bi-shield-exclamation"></i> Cảnh báo Tồn kho
+                                <i class="bi bi-boxes"></i> Quản lý kho
                             </a>
                             <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/orders}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold">
                                 <i class="bi bi-card-checklist"></i> Xử lý đơn hàng

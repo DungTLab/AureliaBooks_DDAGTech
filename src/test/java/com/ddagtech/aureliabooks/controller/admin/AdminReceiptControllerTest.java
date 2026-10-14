@@ -111,6 +111,35 @@ class AdminReceiptControllerTest {
     }
 
     @Test
+    @DisplayName("GET /staff/receipts/new?productId=1: Tự động nạp sẵn sản phẩm được chọn từ trang quản lý kho")
+    void draftForm_withPreselectedProductId() throws Exception {
+        com.ddagtech.aureliabooks.entity.Category cat = com.ddagtech.aureliabooks.entity.Category.builder()
+                .id(1L).name("Văn học").build();
+        com.ddagtech.aureliabooks.entity.Product prod = com.ddagtech.aureliabooks.entity.Product.builder()
+                .id(1L)
+                .title("Đắc Nhân Tâm")
+                .barcode("8938505974019")
+                .category(cat)
+                .productType(com.ddagtech.aureliabooks.entity.Product.ProductType.BOOK)
+                .originalCost(BigDecimal.valueOf(50000))
+                .price(BigDecimal.valueOf(80000))
+                .stockQuantity(120)
+                .isActive(true)
+                .build();
+
+        when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(Collections.emptyList());
+        when(productRepository.findByIsActiveTrueOrderByTitleAsc()).thenReturn(List.of(prod));
+        when(productRepository.findAllById(List.of(1L))).thenReturn(List.of(prod));
+
+        mvc.perform(get("/staff/receipts/new")
+                        .param("productId", "1")
+                        .with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/receipts/form"))
+                .andExpect(model().attributeExists("receiptForm"));
+    }
+
+    @Test
     @DisplayName("GET /manager/receipts: MANAGER truy cập được, trả về 200 OK")
     void listReceipts_manager_accessGranted() throws Exception {
         when(goodsReceiptService.getReceipts(any(), any(), any())).thenReturn(Page.empty());

@@ -30,6 +30,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
 import com.ddagtech.aureliabooks.dto.response.QuickProductResponse;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -57,13 +58,30 @@ public class AdminReceiptController {
 
     /**
      * UC22: Displays form to draft a new goods receipt.
+     * Optionally pre-populates item rows when single or multiple product IDs are passed from inventory management.
      */
-    @GetMapping("/staff/receipts/new")
+    @GetMapping({"/staff/receipts/new", "/manager/receipts/new"})
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
-    public String draftForm(Model model) {
+    public String draftForm(
+            @RequestParam(name = "productId", required = false) List<Long> productIds,
+            @RequestParam(name = "productIds", required = false) List<Long> productIdsPlural,
+            Model model
+    ) {
         populateFormReferenceData(model);
         if (!model.containsAttribute("receiptForm")) {
-            model.addAttribute("receiptForm", new GoodsReceiptForm(null, "", new ArrayList<>()));
+            List<Long> targetIds = new ArrayList<>();
+            if (productIds != null) targetIds.addAll(productIds);
+            if (productIdsPlural != null) targetIds.addAll(productIdsPlural);
+
+            List<GoodsReceiptItemForm> initialItems = new ArrayList<>();
+            if (!targetIds.isEmpty()) {
+                List<Product> preselectedProducts = productRepository.findAllById(targetIds);
+                for (Product p : preselectedProducts) {
+                    BigDecimal cost = p.getOriginalCost() != null ? p.getOriginalCost() : BigDecimal.ZERO;
+                    initialItems.add(new GoodsReceiptItemForm(p.getId(), 1, cost));
+                }
+            }
+            model.addAttribute("receiptForm", new GoodsReceiptForm(null, "", initialItems));
         }
         model.addAttribute("isEdit", false);
         return "admin/receipts/form";

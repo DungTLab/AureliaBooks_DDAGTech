@@ -28,8 +28,8 @@
         <div class="flex items-center gap-3">
             <a th:href="@{/manager/stock/alerts}"
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-semibold rounded-xl transition">
-                <i class="bi bi-bell-fill text-amber-600"></i>
-                <span>Cảnh báo tồn kho</span>
+                <i class="bi bi-boxes text-amber-600"></i>
+                <span>Quản lý kho</span>
             </a>
 
             <a th:href="@{/staff/receipts/new}"
@@ -50,7 +50,7 @@
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                     <option value="" th:selected="${selectedStatus == null}">-- Tất cả trạng thái --</option>
                     <option value="DRAFT" th:selected="${selectedStatus != null && selectedStatus.name() == 'DRAFT'}">Chờ duyệt</option>
-                    <option value="RECEIVED" th:selected="${selectedStatus != null && selectedStatus.name() == 'RECEIVED'}">Đã nhập kho</option>
+                    <option value="RECEIVED" th:selected="${selectedStatus != null && selectedStatus.name() == 'RECEIVED'}">Đã duyệt</option>
                 </select>
 
                 <!-- Supplier Filter -->
@@ -143,7 +143,7 @@
                             <span th:if="${r.status == 'RECEIVED'}"
                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                                 <i class="bi bi-check-circle-fill"></i>
-                                <span>Đã nhập kho</span>
+                                <span>Đã duyệt</span>
                             </span>
                         </td>
 
