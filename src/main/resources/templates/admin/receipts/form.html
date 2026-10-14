@@ -684,14 +684,14 @@
 
         if (qty > maxCap) {
             const msg = `Hạn mức nhập đợt đầu cho ${label} tối đa ${maxCap} đơn vị (đang nhập: ${qty}).`;
-            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-9');
             if (warningBtn) {
                 warningBtn.setAttribute('data-tooltip-msg', msg);
                 warningBtn.classList.remove('hidden');
             }
             return false;
         } else {
-            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-9');
             if (warningBtn) {
                 warningBtn.classList.add('hidden');
                 warningBtn.removeAttribute('data-tooltip-msg');
@@ -934,13 +934,13 @@
         if (!receiptFloatingTooltip) {
             receiptFloatingTooltip = document.createElement('div');
             receiptFloatingTooltip.id = 'receiptFloatingTooltip';
-            receiptFloatingTooltip.className = 'fixed z-[9999] pointer-events-none hidden max-w-xs p-3 bg-carbon_black-900 text-white text-xs rounded-xl shadow-2xl border border-carbon_black-700 leading-relaxed transition-opacity duration-150';
+            receiptFloatingTooltip.className = 'fixed z-[9999] pointer-events-none hidden max-w-xs p-3 bg-white text-carbon_black text-xs rounded-xl shadow-xl border border-rose-200 leading-relaxed transition-opacity duration-150';
             receiptFloatingTooltip.innerHTML = `
-                <div class="font-bold text-rose-400 flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider">
-                    <i class="bi bi-exclamation-circle-fill text-xs"></i>
-                    <span>Cảnh báo hạn mức nhập</span>
+                <div class="font-bold text-rose-600 flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider">
+                    <i class="bi bi-exclamation-circle-fill text-xs text-rose-500"></i>
+                    <span>Cảnh báo hạn mức</span>
                 </div>
-                <div id="receiptFloatingTooltipText" class="text-parchment-200 text-xs leading-relaxed font-medium"></div>
+                <div id="receiptFloatingTooltipText" class="text-carbon_black-700 text-xs leading-relaxed font-medium"></div>
             `;
             document.body.appendChild(receiptFloatingTooltip);
         }
@@ -1002,7 +1002,7 @@
         const qtyInput = row.querySelector('.quantity-input');
         const qtyWarningBtn = row.querySelector('.qty-warning-btn');
         if (qtyInput) {
-            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-9');
             qtyInput.title = message;
         }
         if (qtyWarningBtn) {
@@ -1015,7 +1015,7 @@
         const qtyInput = row.querySelector('.quantity-input');
         const qtyWarningBtn = row.querySelector('.qty-warning-btn');
         if (qtyInput) {
-            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-9');
             qtyInput.removeAttribute('title');
         }
         if (qtyWarningBtn) {
