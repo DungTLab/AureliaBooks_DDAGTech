@@ -5,8 +5,22 @@
 <head>
     <title th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'} + ' - AureliaBooks'">Lập Phiếu Nhập Kho - AureliaBooks</title>
 </head>
-<body>
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <style>
+        /* Hide number input spinners for clean layout with inline warning icons */
+        .quantity-input::-webkit-outer-spin-button,
+        .quantity-input::-webkit-inner-spin-button,
+        #quickQuantity::-webkit-outer-spin-button,
+        #quickQuantity::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .quantity-input,
+        #quickQuantity {
+            -moz-appearance: textfield;
+        }
+    </style>
 
     <!-- Breadcrumb & Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
@@ -186,16 +200,20 @@
                                 </div>
                             </td>
                             <td class="py-3 px-4">
-                                <input type="number"
-                                       th:name="|items[${itemStat.index}].receivedQuantity|"
-                                       th:value="${item.receivedQuantity}"
-                                       min="1" required
-                                       oninput="onPriceOrQuantityChange(this)"
-                                       placeholder="1"
-                                       class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
-                                <div class="qty-warning-msg text-[11px] text-rose-600 font-semibold mt-1 hidden flex items-center gap-1">
-                                    <i class="bi bi-exclamation-triangle-fill"></i>
-                                    <span></span>
+                                <div class="relative flex items-center">
+                                    <input type="number"
+                                           th:name="|items[${itemStat.index}].receivedQuantity|"
+                                           th:value="${item.receivedQuantity}"
+                                           min="1" required
+                                           oninput="onPriceOrQuantityChange(this)"
+                                           placeholder="1"
+                                           class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame transition-all" />
+                                    <button type="button"
+                                            class="qty-warning-btn hidden absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-rose-500 hover:text-rose-600 focus:outline-none transition cursor-help"
+                                            tabindex="-1"
+                                            aria-label="Cảnh báo hạn mức">
+                                        <i class="bi bi-exclamation-circle-fill text-base"></i>
+                                    </button>
                                 </div>
                             </td>
                             <td class="py-3 px-4 text-right font-bold text-carbon_black row-subtotal">
@@ -335,9 +353,17 @@
                             <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
                                 Số lượng nhập <span class="text-rose-500">*</span>
                             </label>
-                            <input type="number" id="quickQuantity" min="1" required value="10"
-                                   oninput="validateQuickQuantity()"
-                                   class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                            <div class="relative flex items-center">
+                                <input type="number" id="quickQuantity" min="1" required value="10"
+                                       oninput="validateQuickQuantity()"
+                                       class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition-all">
+                                <button type="button" id="quickQtyWarningBtn"
+                                        class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-rose-500 hover:text-rose-600 focus:outline-none transition cursor-help"
+                                        tabindex="-1"
+                                        aria-label="Cảnh báo hạn mức">
+                                    <i class="bi bi-exclamation-circle-fill text-base"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -345,12 +371,6 @@
                     <div id="quickPriceWarning" class="text-[11px] text-rose-600 font-semibold hidden flex items-center gap-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg">
                         <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
                         <span>Giá niêm yết không được thấp hơn giá vốn nhập.</span>
-                    </div>
-
-                    <!-- Warning Cảnh báo Số lượng nhập đợt đầu -->
-                    <div id="quickQtyWarning" class="text-[11px] text-rose-600 font-semibold hidden flex items-center gap-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg">
-                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-                        <span></span>
                     </div>
 
                     <!-- Modal Error Alert -->
@@ -656,20 +676,27 @@
 
     function validateQuickQuantity() {
         const qtyInput = document.getElementById('quickQuantity');
-        const warning = document.getElementById('quickQtyWarning');
+        const warningBtn = document.getElementById('quickQtyWarningBtn');
         const isTextbook = document.getElementById('quickIsTextbook').checked;
         const qty = parseInt(qtyInput.value) || 0;
         const maxCap = isTextbook ? 500 : 100;
         const label = isTextbook ? 'Sách giáo khoa (SGK)' : 'Sản phẩm mới';
 
         if (qty > maxCap) {
-            warning.querySelector('span').textContent = `Hạn mức nhập đợt đầu cho ${label} tối đa ${maxCap} đơn vị (đang nhập: ${qty}).`;
-            warning.classList.remove('hidden');
-            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
+            const msg = `Hạn mức nhập đợt đầu cho ${label} tối đa ${maxCap} đơn vị (đang nhập: ${qty}).`;
+            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            if (warningBtn) {
+                warningBtn.setAttribute('data-tooltip-msg', msg);
+                warningBtn.classList.remove('hidden');
+            }
             return false;
         } else {
-            warning.classList.add('hidden');
-            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            if (warningBtn) {
+                warningBtn.classList.add('hidden');
+                warningBtn.removeAttribute('data-tooltip-msg');
+            }
+            hideFloatingTooltip();
             return true;
         }
     }
@@ -812,12 +839,16 @@
                 </div>
             </td>
             <td class="py-3 px-4">
-                <input type="number" name="items[${rowIndex}].receivedQuantity" value="${qtyVal}" min="1" required
-                       oninput="onPriceOrQuantityChange(this)" placeholder="1"
-                       class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
-                <div class="qty-warning-msg text-[11px] text-rose-600 font-semibold mt-1 hidden flex items-center gap-1">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <span></span>
+                <div class="relative flex items-center">
+                    <input type="number" name="items[${rowIndex}].receivedQuantity" value="${qtyVal}" min="1" required
+                           oninput="onPriceOrQuantityChange(this)" placeholder="1"
+                           class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame transition-all" />
+                    <button type="button"
+                            class="qty-warning-btn hidden absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-rose-500 hover:text-rose-600 focus:outline-none transition cursor-help"
+                            tabindex="-1"
+                            aria-label="Cảnh báo hạn mức">
+                        <i class="bi bi-exclamation-circle-fill text-base"></i>
+                    </button>
                 </div>
             </td>
             <td class="py-3 px-4 text-right font-bold text-carbon_black row-subtotal">0 đ</td>
@@ -894,12 +925,111 @@
         calculateRowSubtotal(elem);
     }
 
+    // ==========================================
+    // FLOATING TOOLTIP CHO CẢNH BÁO HẠN MỨC NHẬP
+    // ==========================================
+    let receiptFloatingTooltip = null;
+
+    function ensureFloatingTooltip() {
+        if (!receiptFloatingTooltip) {
+            receiptFloatingTooltip = document.createElement('div');
+            receiptFloatingTooltip.id = 'receiptFloatingTooltip';
+            receiptFloatingTooltip.className = 'fixed z-[9999] pointer-events-none hidden max-w-xs p-3 bg-carbon_black-900 text-white text-xs rounded-xl shadow-2xl border border-carbon_black-700 leading-relaxed transition-opacity duration-150';
+            receiptFloatingTooltip.innerHTML = `
+                <div class="font-bold text-rose-400 flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider">
+                    <i class="bi bi-exclamation-circle-fill text-xs"></i>
+                    <span>Cảnh báo hạn mức nhập</span>
+                </div>
+                <div id="receiptFloatingTooltipText" class="text-parchment-200 text-xs leading-relaxed font-medium"></div>
+            `;
+            document.body.appendChild(receiptFloatingTooltip);
+        }
+    }
+
+    function showFloatingTooltip(targetBtn, message) {
+        ensureFloatingTooltip();
+        const textEl = document.getElementById('receiptFloatingTooltipText');
+        if (textEl) textEl.textContent = message;
+
+        receiptFloatingTooltip.classList.remove('hidden');
+        receiptFloatingTooltip.style.opacity = '1';
+
+        const rect = targetBtn.getBoundingClientRect();
+        const tooltipWidth = receiptFloatingTooltip.offsetWidth || 260;
+        const tooltipHeight = receiptFloatingTooltip.offsetHeight || 60;
+
+        let left = rect.right - tooltipWidth + 6;
+        if (left < 10) left = 10;
+        if (left + tooltipWidth > window.innerWidth - 10) {
+            left = window.innerWidth - tooltipWidth - 10;
+        }
+
+        let top = rect.top - tooltipHeight - 8;
+        if (top < 10) {
+            top = rect.bottom + 8;
+        }
+
+        receiptFloatingTooltip.style.left = `${left}px`;
+        receiptFloatingTooltip.style.top = `${top}px`;
+    }
+
+    function hideFloatingTooltip() {
+        if (receiptFloatingTooltip) {
+            receiptFloatingTooltip.classList.add('hidden');
+        }
+    }
+
+    // Event delegation cho tooltip khi hover chuột hoặc rời chuột khỏi icon cảnh báo
+    document.addEventListener('mouseover', (e) => {
+        const btn = e.target.closest('.qty-warning-btn, #quickQtyWarningBtn');
+        if (btn && !btn.classList.contains('hidden')) {
+            const msg = btn.getAttribute('data-tooltip-msg');
+            if (msg) showFloatingTooltip(btn, msg);
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const btn = e.target.closest('.qty-warning-btn, #quickQtyWarningBtn');
+        if (btn) {
+            hideFloatingTooltip();
+        }
+    });
+
+    window.addEventListener('scroll', hideFloatingTooltip, true);
+    window.addEventListener('resize', hideFloatingTooltip);
+
+    function setRowQtyWarning(row, message) {
+        const qtyInput = row.querySelector('.quantity-input');
+        const qtyWarningBtn = row.querySelector('.qty-warning-btn');
+        if (qtyInput) {
+            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            qtyInput.title = message;
+        }
+        if (qtyWarningBtn) {
+            qtyWarningBtn.setAttribute('data-tooltip-msg', message);
+            qtyWarningBtn.classList.remove('hidden');
+        }
+    }
+
+    function clearRowQtyWarning(row) {
+        const qtyInput = row.querySelector('.quantity-input');
+        const qtyWarningBtn = row.querySelector('.qty-warning-btn');
+        if (qtyInput) {
+            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-8');
+            qtyInput.removeAttribute('title');
+        }
+        if (qtyWarningBtn) {
+            qtyWarningBtn.classList.add('hidden');
+            qtyWarningBtn.removeAttribute('data-tooltip-msg');
+        }
+        hideFloatingTooltip();
+    }
+
     function checkRowLimit(row) {
         if (!row) return true;
         const select = row.querySelector('.product-select');
         const qtyInput = row.querySelector('.quantity-input');
         const costInput = row.querySelector('.unit-cost-input');
-        const qtyWarning = row.querySelector('.qty-warning-msg');
         const costWarning = row.querySelector('.cost-warning-msg');
 
         let isValid = true;
@@ -919,9 +1049,7 @@
         // 2. Kiểm tra số lượng
         const qty = parseInt(qtyInput.value) || 0;
         if (qtyInput.value !== '' && qty <= 0) {
-            qtyWarning.querySelector('span').textContent = 'Số lượng nhập phải lớn hơn 0.';
-            qtyWarning.classList.remove('hidden');
-            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
+            setRowQtyWarning(row, 'Số lượng nhập phải lớn hơn 0.');
             return false;
         }
 
@@ -938,22 +1066,17 @@
                 const typeLabel = isTextbook ? 'Sách giáo khoa (SGK)' : 'Sản phẩm mới';
 
                 if (qty > maxCap) {
-                    qtyWarning.querySelector('span').textContent =
-                        `Hạn mức nhập đợt đầu cho ${typeLabel} tối đa ${maxCap} đơn vị (đang nhập: ${qty}).`;
-                    qtyWarning.classList.remove('hidden');
-                    qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
+                    const msg = `Hạn mức nhập đợt đầu cho ${typeLabel} tối đa ${maxCap} đơn vị (đang nhập: ${qty}).`;
+                    setRowQtyWarning(row, msg);
                     isValid = false;
                 } else {
-                    qtyWarning.classList.add('hidden');
-                    qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+                    clearRowQtyWarning(row);
                 }
             } else {
-                qtyWarning.classList.add('hidden');
-                qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+                clearRowQtyWarning(row);
             }
         } else {
-            qtyWarning.classList.add('hidden');
-            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+            clearRowQtyWarning(row);
         }
 
         return isValid;
