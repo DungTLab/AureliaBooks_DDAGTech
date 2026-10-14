@@ -167,8 +167,8 @@
                                             th:data-stock="${p.stockQuantity}"
                                             th:data-is-textbook="${textbookIds != null and textbookIds.contains(p.id)}"
                                             th:selected="${p.id == item.productId}"
-                                            th:text="${p.title + ' [' + p.barcode + '] (Tồn kho: ' + p.stockQuantity + ')'}">
-                                        Đắc nhân tâm [BOOK001]
+                                            th:text="${p.title + ' (Tồn kho: ' + p.stockQuantity + ')'}">
+                                        Đắc nhân tâm (Tồn kho: 10)
                                     </option>
                                 </select>
                             </td>
@@ -264,14 +264,22 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                 <!-- Cột Trái: Form Nhập -->
                 <form id="quickAddProductForm" onsubmit="handleQuickAddProduct(event)" class="md:col-span-7 space-y-3.5">
-                    <!-- Product Title -->
+                    <!-- Product Title với Kính lúp Tra cứu -->
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
                             Tên sản phẩm / Sách <span class="text-rose-500">*</span>
                         </label>
-                        <input type="text" id="quickTitle" required placeholder="Ví dụ: Đắc Nhân Tâm, SGK Toán 12, Bút bi TL-027..."
-                               oninput="onQuickTitleOrTypeChange()"
-                               class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                        <div class="relative flex items-center">
+                            <input type="text" id="quickTitle" required placeholder="Ví dụ: Đắc Nhân Tâm, SGK Toán 12, Bút bi TL-027..."
+                                   onkeydown="if(event.key === 'Enter') { event.preventDefault(); executeSearchProductMatch(); }"
+                                   class="w-full pl-3.5 pr-11 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                            <button type="button" onclick="executeSearchProductMatch()"
+                                    title="Tra cứu sản phẩm trong kho"
+                                    class="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 rounded-lg transition"
+                                    aria-label="Tra cứu">
+                                <i class="bi bi-search text-sm"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Product Type & Textbook Checkbox -->
@@ -287,7 +295,7 @@
                         </div>
                         <div id="textbookWrapper" class="flex items-center pt-5">
                             <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-carbon_black">
-                                <input type="checkbox" id="quickIsTextbook" onchange="onQuickTitleOrTypeChange()" class="rounded text-blazing_flame focus:ring-blazing_flame h-4 w-4">
+                                <input type="checkbox" id="quickIsTextbook" class="rounded text-blazing_flame focus:ring-blazing_flame h-4 w-4">
                                 <span>Là Sách giáo khoa (SGK)</span>
                             </label>
                         </div>
@@ -362,31 +370,25 @@
                     </div>
                 </form>
 
-                <!-- Cột Phải: Side Panel Kiểm Tra Trùng Tên -->
+                <!-- Cột Phải: Tra Cứu Sản Phẩm Trong Kho -->
                 <div class="md:col-span-5 bg-parchment-50 border border-dust_grey/70 rounded-2xl p-4 flex flex-col justify-between self-stretch min-h-[360px]">
-                    <div>
-                        <div class="flex items-center justify-between pb-2.5 border-b border-dust_grey">
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between pb-2 border-b border-dust_grey">
                             <h4 class="text-xs font-bold uppercase tracking-wider text-carbon_black flex items-center gap-1.5">
-                                <i class="bi bi-search text-blazing_flame"></i>
-                                <span>Kiểm tra trùng tên</span>
+                                <i class="bi bi-box-seam text-blazing_flame"></i>
+                                <span>Sản phẩm trong kho</span>
                             </h4>
-                            <span id="quickMatchBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">0 sản phẩm</span>
+                            <span id="quickMatchBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">Chờ tra cứu</span>
                         </div>
-                        <p class="text-[11px] text-carbon_black-500 mt-1 mb-2">Tìm kiếm theo tên tương tự trong danh mục <span id="quickCurrentTypeLabel" class="font-bold text-carbon_black">Sách</span> hiện có:</p>
 
-                        <!-- Danh sách kết quả trùng tên / tương tự -->
-                        <div id="quickMatchResults" class="space-y-2 max-h-[290px] overflow-y-auto pr-1">
-                            <div class="text-center py-10 px-4 text-carbon_black-400">
-                                <i class="bi bi-lightbulb text-3xl mb-2 text-amber-500 block"></i>
-                                <p class="text-xs font-semibold text-carbon_black-600">Nhập tên sản phẩm để kiểm tra</p>
-                                <p class="text-[11px] text-carbon_black-400 mt-1">Hệ thống sẽ tự động quét danh sách sản phẩm trong kho để phát hiện trùng lặp.</p>
+                        <!-- Danh sách kết quả tra cứu -->
+                        <div id="quickMatchResults" class="space-y-2 max-h-[330px] overflow-y-auto pr-1">
+                            <div class="text-center py-12 px-4 text-carbon_black-400">
+                                <i class="bi bi-search text-2xl mb-1.5 text-carbon_black-300 block"></i>
+                                <p class="text-xs font-medium text-carbon_black-600">Nhập tên và nhấn biểu tượng kính lúp</p>
+                                <p class="text-[11px] text-carbon_black-400 mt-0.5">để tra cứu sản phẩm trong hệ thống.</p>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="mt-3 pt-2 border-t border-dust_grey/50 text-[11px] text-carbon_black-500 flex items-center gap-1.5">
-                        <i class="bi bi-info-circle text-blazing_flame"></i>
-                        <span>Bấm <strong>"Dùng sản phẩm này"</strong> để đưa ngay vào phiếu mà không cần tạo mới.</span>
                     </div>
                 </div>
             </div>
@@ -404,8 +406,9 @@
             th:data-barcode="${p.barcode}"
             th:data-stock="${p.stockQuantity}"
             th:data-type="${p.productType != null ? p.productType.name() : 'BOOK'}"
+            th:data-category="${p.category != null ? p.category.name : 'Chung'}"
             th:data-is-textbook="${textbookIds != null and textbookIds.contains(p.id)}"
-            th:text="${p.title + ' [' + p.barcode + '] (Tồn kho: ' + p.stockQuantity + ')'}">
+            th:text="${p.title + ' (Tồn kho: ' + p.stockQuantity + ')'}">
         Sản phẩm mẫu
     </option>
 </select>
@@ -418,7 +421,7 @@
         document.getElementById('quickModalError').classList.add('hidden');
         document.getElementById('quickQtyWarning').classList.add('hidden');
         document.getElementById('quickPriceWarning').classList.add('hidden');
-        onQuickTitleOrTypeChange();
+        resetSearchProductMatch();
         validateQuickPrices();
         setTimeout(() => document.getElementById('quickTitle').focus(), 100);
     }
@@ -437,36 +440,41 @@
             document.getElementById('quickIsTextbook').checked = false;
         }
         validateQuickQuantity();
-        onQuickTitleOrTypeChange();
+        const titleInput = document.getElementById('quickTitle');
+        if (titleInput && titleInput.value.trim().length > 0) {
+            executeSearchProductMatch();
+        }
     }
 
-    function onQuickTitleOrTypeChange() {
+    function resetSearchProductMatch() {
+        const badge = document.getElementById('quickMatchBadge');
+        const resultsContainer = document.getElementById('quickMatchResults');
+        if (badge) {
+            badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700';
+            badge.textContent = 'Chờ tra cứu';
+        }
+        if (resultsContainer) {
+            resultsContainer.innerHTML = `
+                <div class="text-center py-12 px-4 text-carbon_black-400">
+                    <i class="bi bi-search text-2xl mb-1.5 text-carbon_black-300 block"></i>
+                    <p class="text-xs font-medium text-carbon_black-600">Nhập tên và nhấn biểu tượng kính lúp</p>
+                    <p class="text-[11px] text-carbon_black-400 mt-0.5">để tra cứu sản phẩm trong hệ thống.</p>
+                </div>
+            `;
+        }
+    }
+
+    function executeSearchProductMatch() {
         const titleInput = document.getElementById('quickTitle');
         const typeSelect = document.getElementById('quickProductType');
         const resultsContainer = document.getElementById('quickMatchResults');
         const badge = document.getElementById('quickMatchBadge');
-        const typeLabel = document.getElementById('quickCurrentTypeLabel');
 
         const keyword = titleInput.value.trim().toLowerCase();
         const currentType = typeSelect.value;
-        if (typeLabel) {
-            typeLabel.textContent = currentType === 'BOOK' ? 'Sách' : 'Văn phòng phẩm';
-        }
 
         if (!keyword) {
-            if (badge) {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700';
-                badge.textContent = '0 sản phẩm';
-            }
-            if (resultsContainer) {
-                resultsContainer.innerHTML = `
-                    <div class="text-center py-10 px-4 text-carbon_black-400">
-                        <i class="bi bi-lightbulb text-3xl mb-2 text-amber-500 block"></i>
-                        <p class="text-xs font-semibold text-carbon_black-600">Nhập tên sản phẩm để kiểm tra</p>
-                        <p class="text-[11px] text-carbon_black-400 mt-1">Hệ thống sẽ tự động quét danh sách ${currentType === 'BOOK' ? 'Sách' : 'Văn phòng phẩm'} trong kho để phát hiện trùng lặp.</p>
-                    </div>
-                `;
-            }
+            resetSearchProductMatch();
             return;
         }
 
@@ -477,11 +485,13 @@
             for (let i = 1; i < source.options.length; i++) {
                 const opt = source.options[i];
                 const pType = opt.getAttribute('data-type') || 'BOOK';
-                const pTitle = opt.getAttribute('data-title') || opt.textContent.split('[')[0].trim();
+                const pTitle = opt.getAttribute('data-title') || opt.textContent.split('(')[0].trim();
                 const pBarcode = opt.getAttribute('data-barcode') || '';
                 const pStock = parseInt(opt.getAttribute('data-stock')) || 0;
                 const pCost = parseFloat(opt.getAttribute('data-price')) || 0;
                 const pPrice = parseFloat(opt.getAttribute('data-selling-price')) || 0;
+                const pCategory = opt.getAttribute('data-category') || 'Chung';
+                const pIsTextbook = opt.getAttribute('data-is-textbook') === 'true';
 
                 // Lọc theo loại sản phẩm và kiểm tra contains
                 if (pType === currentType && pTitle.toLowerCase().includes(keyword)) {
@@ -490,6 +500,9 @@
                         id: opt.value,
                         title: pTitle,
                         barcode: pBarcode,
+                        category: pCategory,
+                        type: pType,
+                        isTextbook: pIsTextbook,
                         stock: pStock,
                         cost: pCost,
                         price: pPrice,
@@ -499,35 +512,28 @@
             }
         }
 
-        // Ưu tiên đưa sản phẩm trùng tên 100% (isExact) lên đầu
+        // Ưu tiên đưa sản phẩm trùng tên chính xác lên đầu
         matches.sort((a, b) => (b.isExact ? 1 : 0) - (a.isExact ? 1 : 0));
 
         if (matches.length === 0) {
             if (badge) {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
-                badge.textContent = '0 trùng lặp';
+                badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600';
+                badge.textContent = '0 kết quả';
             }
             if (resultsContainer) {
                 resultsContainer.innerHTML = `
-                    <div class="text-center py-8 px-4 rounded-xl border border-emerald-200 bg-emerald-50/80">
-                        <i class="bi bi-check-circle-fill text-3xl text-emerald-600 mb-1.5 block"></i>
-                        <p class="text-xs font-bold text-emerald-900">Không tìm thấy sản phẩm trùng lặp</p>
-                        <p class="text-[11px] text-emerald-700 mt-1">Chưa có sản phẩm nào tương tự trong danh mục <strong>${currentType === 'BOOK' ? 'Sách' : 'Văn phòng phẩm'}</strong>. Bạn có thể an tâm tạo mới!</p>
+                    <div class="text-center py-10 px-4 text-carbon_black-500">
+                        <i class="bi bi-inbox text-2xl mb-1 text-carbon_black-400 block"></i>
+                        <p class="text-xs font-semibold text-carbon_black-700">Không tìm thấy sản phẩm phù hợp</p>
                     </div>
                 `;
             }
             return;
         }
 
-        const exactCount = matches.filter(m => m.isExact).length;
         if (badge) {
-            if (exactCount > 0) {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 animate-pulse';
-                badge.textContent = `Phát hiện ${exactCount} trùng tên 100%!`;
-            } else {
-                badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800';
-                badge.textContent = `${matches.length} sản phẩm tương tự`;
-            }
+            badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-800';
+            badge.textContent = `${matches.length} kết quả`;
         }
 
         let html = '';
@@ -535,56 +541,85 @@
             const costFormatted = m.cost.toLocaleString('vi-VN') + ' đ';
             const priceFormatted = m.price.toLocaleString('vi-VN') + ' đ';
 
-            if (m.isExact) {
-                html += `
-                    <div class="p-3.5 rounded-xl border-2 border-rose-500 bg-rose-50/90 shadow-sm space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-rose-600 text-white tracking-wide">
-                                <i class="bi bi-exclamation-triangle-fill"></i> Trùng tên 100%
-                            </span>
-                            <span class="text-[11px] font-mono text-rose-800 font-bold">${escapeHtml(m.barcode)}</span>
+            // Nếu trùng tên chính xác: highlight vàng nhạt nhẹ nhàng, chuyên nghiệp
+            const cardClass = m.isExact
+                ? 'p-3 rounded-xl border-2 border-amber-400 bg-amber-50/70 shadow-xs space-y-1.5'
+                : 'p-3 rounded-xl border border-dust_grey bg-white hover:border-slate-400 transition space-y-1.5 shadow-xs';
+
+            const headerBadge = m.isExact
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900">
+                     <i class="bi bi-exclamation-circle-fill text-amber-700"></i> Trùng tên sản phẩm
+                   </span>`
+                : '';
+
+            html += `
+                <div class="${cardClass}">
+                    <div class="flex items-center justify-between">
+                        ${headerBadge}
+                        <span class="text-[11px] font-mono text-carbon_black-600 font-semibold ml-auto">${escapeHtml(m.barcode)}</span>
+                    </div>
+                    <div>
+                        <h5 class="text-xs font-bold text-carbon_black">${escapeHtml(m.title)}</h5>
+                        <div class="flex flex-wrap items-center gap-x-3 text-[11px] text-carbon_black-500 mt-0.5">
+                            <span>Tồn kho: <strong>${m.stock}</strong> đơn vị</span>
+                            <span>Giá vốn: <strong>${costFormatted}</strong></span>
                         </div>
-                        <div>
-                            <h5 class="text-xs font-extrabold text-rose-950">${escapeHtml(m.title)}</h5>
-                            <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-rose-800 mt-1">
-                                <span>Tồn kho: <strong>${m.stock}</strong> đơn vị</span>
-                                <span>Giá vốn: <strong>${costFormatted}</strong></span>
-                                <span>Giá bán: <strong>${priceFormatted}</strong></span>
-                            </div>
-                        </div>
+                    </div>
+
+                    <!-- Nút hành động: Chi tiết & Chọn -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <button type="button" onclick="toggleProductCardDetail('card-detail-${m.id}')"
+                                class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-carbon_black-700 text-xs font-medium rounded-lg transition inline-flex items-center gap-1">
+                            <i class="bi bi-info-circle text-[11px]"></i>
+                            <span>Chi tiết</span>
+                        </button>
                         <button type="button" onclick="selectExistingProductIntoReceipt('${m.id}', ${m.cost})"
-                                class="w-full mt-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 shadow-sm">
-                            <i class="bi bi-arrow-down-circle-fill"></i> Dùng sản phẩm này vào phiếu
+                                class="flex-1 px-2.5 py-1 ${m.isExact ? 'bg-amber-500 hover:bg-amber-600 text-white font-bold' : 'bg-parchment-200 hover:bg-blazing_flame hover:text-white text-carbon_black font-semibold'} text-xs rounded-lg transition flex items-center justify-center gap-1 shadow-xs">
+                            <i class="bi bi-plus-lg"></i>
+                            <span>Chọn vào phiếu</span>
                         </button>
                     </div>
-                `;
-            } else {
-                html += `
-                    <div class="p-3 rounded-xl border border-dust_grey bg-white hover:border-blazing_flame transition space-y-1.5 shadow-xs">
-                        <div class="flex items-center justify-between">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                                <i class="bi bi-info-circle"></i> Chứa từ khóa
-                            </span>
-                            <span class="text-[11px] font-mono text-carbon_black-500 font-semibold">${escapeHtml(m.barcode)}</span>
+
+                    <!-- Panel xem chi tiết đối chiếu -->
+                    <div id="card-detail-${m.id}" class="hidden pt-2 mt-1.5 border-t border-dust_grey/60 text-[11px] space-y-1 bg-white/80 p-2 rounded-lg">
+                        <div class="flex justify-between">
+                            <span class="text-carbon_black-500">Mã vạch (EAN-13):</span>
+                            <span class="font-mono font-semibold text-carbon_black">${escapeHtml(m.barcode)}</span>
                         </div>
-                        <div>
-                            <h5 class="text-xs font-bold text-carbon_black">${escapeHtml(m.title)}</h5>
-                            <div class="flex flex-wrap items-center gap-x-3 text-[11px] text-carbon_black-500 mt-0.5">
-                                <span>Tồn kho: <strong>${m.stock}</strong> đơn vị</span>
-                                <span>Giá vốn: <strong>${costFormatted}</strong></span>
-                            </div>
+                        <div class="flex justify-between">
+                            <span class="text-carbon_black-500">Danh mục:</span>
+                            <span class="font-medium text-carbon_black">${escapeHtml(m.category)}</span>
                         </div>
-                        <button type="button" onclick="selectExistingProductIntoReceipt('${m.id}', ${m.cost})"
-                                class="w-full mt-1 px-2.5 py-1 bg-parchment-200 hover:bg-blazing_flame hover:text-white text-carbon_black text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1">
-                            <i class="bi bi-plus-lg"></i> Chọn sản phẩm này vào phiếu
-                        </button>
+                        <div class="flex justify-between">
+                            <span class="text-carbon_black-500">Phân loại:</span>
+                            <span class="font-medium text-carbon_black">${m.type === 'BOOK' ? (m.isTextbook ? 'Sách giáo khoa' : 'Sách thông thường') : 'Văn phòng phẩm'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-carbon_black-500">Giá niêm yết:</span>
+                            <span class="font-medium text-carbon_black">${priceFormatted}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-carbon_black-500">Giá vốn gần nhất:</span>
+                            <span class="font-medium text-carbon_black">${costFormatted}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-carbon_black-500">Tồn kho hiện tại:</span>
+                            <span class="font-bold text-carbon_black">${m.stock} đơn vị</span>
+                        </div>
                     </div>
-                `;
-            }
+                </div>
+            `;
         });
 
         if (resultsContainer) {
             resultsContainer.innerHTML = html;
+        }
+    }
+
+    function toggleProductCardDetail(detailId) {
+        const el = document.getElementById(detailId);
+        if (el) {
+            el.classList.toggle('hidden');
         }
     }
 
@@ -705,8 +740,9 @@
             newOpt.setAttribute('data-barcode', newProd.barcode);
             newOpt.setAttribute('data-stock', '0');
             newOpt.setAttribute('data-type', newProd.productType);
+            newOpt.setAttribute('data-category', 'Mới tạo');
             newOpt.setAttribute('data-is-textbook', newProd.isTextbook ? 'true' : 'false');
-            newOpt.textContent = `${newProd.title} [${newProd.barcode}] (Tồn kho: 0)`;
+            newOpt.textContent = `${newProd.title} (Tồn kho: 0)`;
             if (sourceSelect) {
                 sourceSelect.appendChild(newOpt);
             }
