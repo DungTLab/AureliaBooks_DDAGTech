@@ -569,7 +569,7 @@ class GoodsReceiptServiceTest {
             Publisher pub = Publisher.builder().id(1L).name("Nhà xuất bản Giáo Dục").build();
             when(publisherRepository.findAll()).thenReturn(List.of(pub));
 
-            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+            when(productRepository.saveAndFlush(any(Product.class))).thenAnswer(inv -> {
                 Product p = inv.getArgument(0);
                 p.setId(101L);
                 return p;
@@ -594,8 +594,8 @@ class GoodsReceiptServiceTest {
             assertThat(res.barcode()).isEqualTo("8938505974019");
             assertThat(res.isTextbook()).isFalse();
             assertThat(res.initialQuantity()).isEqualTo(10);
-            verify(productRepository).save(any(Product.class));
-            verify(bookRepository).save(any(Book.class));
+            verify(productRepository).saveAndFlush(any(Product.class));
+            verify(bookRepository).save(argThat(b -> b.getProductId() == null && b.getProduct().getId().equals(101L)));
         }
 
         @Test
@@ -613,7 +613,7 @@ class GoodsReceiptServiceTest {
                 p.setId(2L);
                 return p;
             });
-            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+            when(productRepository.saveAndFlush(any(Product.class))).thenAnswer(inv -> {
                 Product p = inv.getArgument(0);
                 p.setId(102L);
                 return p;
@@ -638,6 +638,8 @@ class GoodsReceiptServiceTest {
             assertThat(res.barcode()).startsWith("8938");
             assertThat(BarcodeUtils.isValidEan13(res.barcode())).isTrue();
             assertThat(res.initialQuantity()).isEqualTo(50);
+            verify(productRepository).saveAndFlush(any(Product.class));
+            verify(bookRepository).save(argThat(b -> b.getProductId() == null && b.getProduct().getId().equals(102L)));
         }
 
         @Test
@@ -655,7 +657,7 @@ class GoodsReceiptServiceTest {
                 b.setId(3L);
                 return b;
             });
-            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+            when(productRepository.saveAndFlush(any(Product.class))).thenAnswer(inv -> {
                 Product p = inv.getArgument(0);
                 p.setId(103L);
                 return p;
@@ -678,7 +680,8 @@ class GoodsReceiptServiceTest {
             assertThat(res.id()).isEqualTo(103L);
             assertThat(res.productType()).isEqualTo("STATIONERY");
             assertThat(res.barcode()).isEqualTo("4006381333931");
-            verify(stationeryRepository).save(any(Stationery.class));
+            verify(productRepository).saveAndFlush(any(Product.class));
+            verify(stationeryRepository).save(argThat(s -> s.getProductId() == null && s.getProduct().getId().equals(103L)));
         }
 
         @Test

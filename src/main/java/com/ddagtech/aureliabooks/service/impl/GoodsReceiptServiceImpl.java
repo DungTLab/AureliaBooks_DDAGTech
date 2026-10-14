@@ -592,9 +592,14 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                 .stockQuantity(0) // Luôn = 0 khi mới tạo; tăng tồn kho khi duyệt phiếu (UC23)
                 .isActive(true)
                 .build();
-        product = productRepository.save(product);
+        product = productRepository.saveAndFlush(product);
 
         // 4. Persist subtype (Book or Stationery)
+        // Lưu ý: Tuyệt đối không set .productId(product.getId()) tại đây!
+        // Do Book/Stationery có @MapsId, việc gán ID trước khi save sẽ khiến Spring Data JPA hiểu nhầm
+        // entity này đã tồn tại (isNew() == false) và thực hiện merge() thay vì persist(),
+        // dẫn tới lỗi OptimisticLockException: "Row was updated or deleted by another transaction".
+        // Khi để productId = null, Hibernate sẽ tự động đồng bộ ID từ product khi persist.
         boolean isTextbook = request.isTextbookSafe();
         if (request.productType() == Product.ProductType.BOOK) {
             Publisher publisher = publisherRepository.findAll().stream().findFirst().orElseGet(() ->
@@ -604,7 +609,6 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                             .build()));
             Book book = Book.builder()
                     .product(product)
-                    .productId(product.getId())
                     .isbn(barcode)
                     .publisher(publisher)
                     .isTextbook(isTextbook)
@@ -620,7 +624,6 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                             .build()));
             Stationery stationery = Stationery.builder()
                     .product(product)
-                    .productId(product.getId())
                     .brand(brand)
                     .warrantyMonths(0)
                     .build();
