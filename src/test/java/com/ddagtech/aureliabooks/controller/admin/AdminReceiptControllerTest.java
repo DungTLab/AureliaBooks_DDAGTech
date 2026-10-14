@@ -77,14 +77,30 @@ class AdminReceiptControllerTest {
     // =========================================================================
 
     @Test
-    @DisplayName("GET /staff/receipts/new: SALE_STAFF truy cập được, trả về 200 OK")
+    @DisplayName("GET /staff/receipts/new: SALE_STAFF truy cập được, trả về 200 OK và render đúng danh sách sản phẩm")
     void draftForm_saleStaff_accessGranted() throws Exception {
+        com.ddagtech.aureliabooks.entity.Category cat = com.ddagtech.aureliabooks.entity.Category.builder()
+                .id(1L).name("Văn học").build();
+        com.ddagtech.aureliabooks.entity.Product prod = com.ddagtech.aureliabooks.entity.Product.builder()
+                .id(1L)
+                .title("Đắc Nhân Tâm")
+                .barcode("8938505974019")
+                .category(cat)
+                .productType(com.ddagtech.aureliabooks.entity.Product.ProductType.BOOK)
+                .originalCost(BigDecimal.valueOf(50000))
+                .price(BigDecimal.valueOf(80000))
+                .stockQuantity(120)
+                .isActive(true)
+                .build();
+
         when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(Collections.emptyList());
-        when(productRepository.findByIsActiveTrueOrderByTitleAsc()).thenReturn(Collections.emptyList());
+        when(productRepository.findByIsActiveTrueOrderByTitleAsc()).thenReturn(List.of(prod));
 
         mvc.perform(get("/staff/receipts/new").with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
                 .andExpect(status().isOk())
-                .andExpect(view().name("admin/receipts/form"));
+                .andExpect(view().name("admin/receipts/form"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Đắc Nhân Tâm (Tồn kho: 120)")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-category=\"Văn học\"")));
     }
 
     @Test

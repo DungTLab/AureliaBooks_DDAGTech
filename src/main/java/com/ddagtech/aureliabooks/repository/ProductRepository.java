@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Product;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
@@ -30,6 +31,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     long countByStockQuantityGreaterThan(Integer minStock);
 
+    @EntityGraph(attributePaths = {"category"})
     List<Product> findByIsActiveTrueOrderByTitleAsc();
 
     boolean existsByBarcode(String barcode);
