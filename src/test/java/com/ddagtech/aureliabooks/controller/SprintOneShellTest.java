@@ -38,6 +38,12 @@ class SprintOneShellTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.MasterDataService masterDataService;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.SupplierService supplierService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.AuditLogService auditLogService;
+
     @Test
     void publicShellsRenderWithoutAuthentication() throws Exception {
         org.mockito.Mockito.when(productService.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
@@ -62,18 +68,23 @@ class SprintOneShellTest {
 
     @Test
     void protectedShellsRenderForAssignedRole() throws Exception {
+        org.mockito.Mockito.when(supplierService.list(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+
         String[][] cases = {
                 {"/manager/publishers", "MANAGER"},
                 {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"},
-                {"/manager/suppliers", "MANAGER"}, {"/staff/receipts/new", "SALE_STAFF"},
-                {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"},
-                {"/admin/audit-logs", "ADMIN"}
+                {"/staff/receipts/new", "SALE_STAFF"},
+                {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"}
         };
         for (String[] item : cases) {
             mvc.perform(get(item[0]).with(user("shell-review").roles(item[1])))
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("Trang đang được xây dựng.")));
         }
+
+        mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -112,11 +123,29 @@ class SprintOneShellTest {
                 .andExpect(content().string(containsString("Quản lý tài khoản nội bộ")));
     }
 
+    @Test
+    void adminAuditLogsPageRendersForAdminRole() throws Exception {
+        org.mockito.Mockito.when(auditLogService.searchLogs(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(auditLogService.getDistinctActions()).thenReturn(java.util.List.of());
+        org.mockito.Mockito.when(auditLogService.getDistinctTargetTables()).thenReturn(java.util.List.of());
+        org.mockito.Mockito.when(auditLogService.getDistinctActors()).thenReturn(java.util.List.of());
+
+        mvc.perform(get("/admin/audit-logs").with(user("admin-tester").roles("ADMIN")))
+                .andExpect(status().isOk());
+    }
 
     @Test
     void guestIsRedirectedAndCustomerCannotOpenManagementShells() throws Exception {
         mvc.perform(get("/profile")).andExpect(status().is3xxRedirection());
-        for (String route : new String[]{"/manager/products", "/staff/receipts/new", "/admin/users"}) {
+        for (String route : new String[]{"/manager/products", "/staff/receipts/new", "/admin/users", "/admin/audit-logs"}) {
             mvc.perform(get(route).with(user("customer").roles("CUSTOMER")))
                     .andExpect(status().isForbidden());
         }
