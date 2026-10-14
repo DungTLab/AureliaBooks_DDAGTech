@@ -555,15 +555,21 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                             .build()));
         }
 
-        // 2. Resolve Barcode
+        // 2. Resolve Barcode (Tự động sinh mã chuẩn unique theo tiền tố loại sản phẩm)
         String barcode = request.barcode();
         if (barcode == null || barcode.isBlank()) {
             String prefix = request.productType() == Product.ProductType.BOOK ? "BK-" : "VPP-";
-            barcode = prefix + (System.currentTimeMillis() % 10000000);
+            do {
+                barcode = prefix + java.util.concurrent.ThreadLocalRandom.current().nextInt(1000000, 9999999);
+            } while (productRepository.existsByBarcode(barcode));
         }
 
-        // 3. Persist Product
+        // 3. Persist Product & Validate Price >= Cost (Tránh bán lỗ)
         BigDecimal cost = request.originalCost() != null ? request.originalCost() : BigDecimal.ZERO;
+        if (request.price() != null && cost.compareTo(request.price()) > 0) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Giá niêm yết không được thấp hơn giá vốn nhập (tránh bán lỗ).");
+        }
+
         Product product = Product.builder()
                 .barcode(barcode)
                 .title(request.title().trim())

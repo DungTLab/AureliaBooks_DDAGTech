@@ -678,5 +678,24 @@ class GoodsReceiptServiceTest {
             assertThat(res.barcode()).isEqualTo("VPP-027");
             verify(stationeryRepository).save(any(Stationery.class));
         }
+
+        @Test
+        @DisplayName("Tạo nhanh thất bại khi giá niêm yết thấp hơn giá vốn nhập (tránh bán lỗ)")
+        void quickCreate_priceLowerThanCost_throwsException() {
+            QuickCreateProductRequest req = new QuickCreateProductRequest(
+                    "Sách Bán Lỗ",
+                    Product.ProductType.BOOK,
+                    false,
+                    null,
+                    null,
+                    new BigDecimal("30000.00"),
+                    new BigDecimal("50000.00"),
+                    10
+            );
+
+            assertThatThrownBy(() -> service.quickCreateProduct(req))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("Giá niêm yết không được thấp hơn giá vốn nhập");
+        }
     }
 }

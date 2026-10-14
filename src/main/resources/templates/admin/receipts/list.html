@@ -49,8 +49,8 @@
                         onchange="this.form.submit()"
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                     <option value="" th:selected="${selectedStatus == null}">-- Tất cả trạng thái --</option>
-                    <option value="DRAFT" th:selected="${selectedStatus != null && selectedStatus.name() == 'DRAFT'}">Chờ duyệt (DRAFT)</option>
-                    <option value="RECEIVED" th:selected="${selectedStatus != null && selectedStatus.name() == 'RECEIVED'}">Đã nhập kho (RECEIVED)</option>
+                    <option value="DRAFT" th:selected="${selectedStatus != null && selectedStatus.name() == 'DRAFT'}">Chờ duyệt</option>
+                    <option value="RECEIVED" th:selected="${selectedStatus != null && selectedStatus.name() == 'RECEIVED'}">Đã nhập kho</option>
                 </select>
 
                 <!-- Supplier Filter -->
@@ -138,7 +138,7 @@
                             <span th:if="${r.status == 'DRAFT'}"
                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
                                 <i class="bi bi-hourglass-split"></i>
-                                <span>Chờ duyệt (Nháp)</span>
+                                <span>Chờ duyệt</span>
                             </span>
                             <span th:if="${r.status == 'RECEIVED'}"
                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -326,7 +326,7 @@
                 </button>
                 <button type="submit"
                         class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm shadow-md transition">
-                    Xác nhận duyệt (RECEIVED)
+                    Xác nhận duyệt nhập kho
                 </button>
             </div>
         </form>
@@ -402,10 +402,10 @@
                 const badge = document.getElementById('modalStatusBadge');
                 if (data.status === 'RECEIVED') {
                     badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
-                    badge.textContent = 'Đã nhập kho (RECEIVED)';
+                    badge.textContent = 'Đã nhập kho';
                 } else {
                     badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300';
-                    badge.textContent = 'Chờ duyệt (DRAFT)';
+                    badge.textContent = 'Chờ duyệt';
                 }
 
                 const tbody = document.getElementById('modalItemsTableBody');

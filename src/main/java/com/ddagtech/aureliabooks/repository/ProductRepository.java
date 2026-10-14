@@ -31,4 +31,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     long countByStockQuantityGreaterThan(Integer minStock);
 
     List<Product> findByIsActiveTrueOrderByTitleAsc();
+
+    boolean existsByBarcode(String barcode);
 }
