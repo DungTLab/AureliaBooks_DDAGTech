@@ -36,8 +36,11 @@ public interface GoodsReceiptRepository extends JpaRepository<GoodsReceipt, Long
 
     long countByStatus(GoodsReceipt.Status status);
 
-    @Query("SELECT gr FROM GoodsReceipt gr WHERE (:status IS NULL OR gr.status = :status) " +
-           "AND (:supplierId IS NULL OR gr.supplier.id = :supplierId) ORDER BY gr.createdAt DESC")
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"supplier", "createdBy", "receivedBy"})
+    @Query(value = "SELECT gr FROM GoodsReceipt gr WHERE (:status IS NULL OR gr.status = :status) " +
+                   "AND (:supplierId IS NULL OR gr.supplier.id = :supplierId)",
+           countQuery = "SELECT COUNT(gr) FROM GoodsReceipt gr WHERE (:status IS NULL OR gr.status = :status) " +
+                        "AND (:supplierId IS NULL OR gr.supplier.id = :supplierId)")
     org.springframework.data.domain.Page<GoodsReceipt> findWithFilters(
             @Param("status") GoodsReceipt.Status status,
             @Param("supplierId") Long supplierId,

@@ -52,7 +52,7 @@
     <div id="formValidationError" class="hidden bg-rose-50 border-l-4 border-rose-500 rounded-xl p-4 shadow-sm flex items-start gap-3 animate-fade-in-down">
         <i class="bi bi-exclamation-octagon-fill text-rose-600 text-xl flex-shrink-0 mt-0.5"></i>
         <div class="text-sm text-rose-900 space-y-1">
-            <p class="font-bold" id="formValidationTitle">Thông báo kiểm tra phiếu nhập kho:</p>
+            <p class="font-bold" id="formValidationTitle">Cảnh báo quy định nhập kho:</p>
             <p id="formValidationMessage" class="text-xs font-medium"></p>
         </div>
     </div>
@@ -680,10 +680,13 @@
         const isTextbook = document.getElementById('quickIsTextbook').checked;
         const qty = parseInt(qtyInput.value) || 0;
         const maxCap = isTextbook ? 500 : 100;
-        const label = isTextbook ? 'Sách giáo khoa (SGK)' : 'Sản phẩm mới';
+        const label = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
 
         if (qty > maxCap) {
-            const msg = `Hạn mức nhập đợt đầu cho ${label} tối đa ${maxCap} đơn vị (đang nhập: ${qty}).`;
+            const titleInput = document.getElementById('quickTitle');
+            const cleanTitle = titleInput && titleInput.value.trim() ? titleInput.value.trim() : 'Sản phẩm mới';
+            const excess = qty - maxCap;
+            const msg = `Sản phẩm "${cleanTitle}" hiện nhập ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${label}).`;
             qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-9');
             if (warningBtn) {
                 warningBtn.setAttribute('data-tooltip-msg', msg);
@@ -1025,6 +1028,11 @@
         hideFloatingTooltip();
     }
 
+    function getCleanProductTitle(rawText) {
+        if (!rawText) return 'Sản phẩm';
+        return rawText.replace(/\s*[\(\[].*?[\)\]]/g, '').trim() || rawText.trim();
+    }
+
     function checkRowLimit(row) {
         if (!row) return true;
         const select = row.querySelector('.product-select');
@@ -1063,10 +1071,12 @@
 
             if (stock === 0) {
                 const maxCap = isTextbook ? 500 : 100;
-                const typeLabel = isTextbook ? 'Sách giáo khoa (SGK)' : 'Sản phẩm mới';
+                const typeLabel = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
 
                 if (qty > maxCap) {
-                    const msg = `Hạn mức nhập đợt đầu cho ${typeLabel} tối đa ${maxCap} đơn vị (đang nhập: ${qty}).`;
+                    const cleanTitle = getCleanProductTitle(option.textContent);
+                    const excess = qty - maxCap;
+                    const msg = `Sản phẩm "${cleanTitle}" hiện nhập ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}).`;
                     setRowQtyWarning(row, msg);
                     isValid = false;
                 } else {
@@ -1161,8 +1171,10 @@
             if (stock === 0) {
                 const maxCap = isTextbook ? 500 : 100;
                 if (qty > maxCap) {
-                    const label = isTextbook ? 'Sách giáo khoa (SGK)' : 'sản phẩm mới';
-                    errorMessage = `Dòng #${i + 1} (${option.textContent.split('[')[0].trim()}): Hạn mức nhập đợt đầu cho ${label} tối đa ${maxCap} đơn vị (hiện nhập: ${qty}). Vui lòng điều chỉnh lại số lượng!`;
+                    const cleanTitle = getCleanProductTitle(option.textContent);
+                    const typeLabel = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
+                    const excess = qty - maxCap;
+                    errorMessage = `Dòng ${i + 1} - Sản phẩm "${cleanTitle}": Số lượng nhập hiện tại là ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức nhập đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}). Vui lòng điều chỉnh lại số lượng phù hợp.`;
                     firstErrorInput = qtyInput;
                     break;
                 }
