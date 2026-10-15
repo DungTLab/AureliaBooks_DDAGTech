@@ -13,6 +13,10 @@ const initializeCart = () => {
             });
         };
         buttons.forEach(button => {
+            // Keep focus on the input so its blur save cannot disable the clicked button.
+            button.addEventListener('pointerdown', event => {
+                if (event.button === 0) event.preventDefault();
+            });
             button.addEventListener('click', () => {
                 const quantity = Number(input.value);
                 if (!Number.isInteger(quantity) || input.value === '') return;
