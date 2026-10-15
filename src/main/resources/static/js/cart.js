@@ -23,11 +23,19 @@ const initializeCart = () => {
         });
         input.addEventListener('input', refresh);
         if (input.form?.hasAttribute('data-cart-quantity')) {
-            input.addEventListener('change', () => input.form.requestSubmit());
+            const saveQuantity = () => {
+                const quantity = Number(input.value);
+                if (Number.isInteger(quantity) && quantity > maximum) {
+                    input.value = maximum;
+                    refresh();
+                }
+                input.form.requestSubmit();
+            };
+            input.addEventListener('change', saveQuantity);
             input.addEventListener('keydown', event => {
                 if (event.key !== 'Enter' || event.isComposing) return;
                 event.preventDefault();
-                input.form.requestSubmit();
+                saveQuantity();
             });
         }
         refresh();

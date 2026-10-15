@@ -262,15 +262,43 @@ class CartServiceImplTest {
     }
 
     @Test
-    void insufficientStockForReplacementKeepsPreviousQuantity() {
+    void replacementBeyondStockSavesMaximumAvailableQuantity() {
+        when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
+        when(cartItemRepository.findByIdAndCart_User_Id(1000L, 1L)).thenReturn(Optional.of(item));
+
+        service.updateQuantity(1L, 1000L, request(25));
+
+        assertEquals(20, item.getQuantity());
+        assertEquals(20, product.getStockQuantity());
+        verify(cartItemRepository).save(item);
+        verify(cartRepository).save(cart);
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    void replacementUsesLatestStockEvenWhenPreviousQuantityExceedsIt() {
         product.setStockQuantity(2);
+        when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
+        when(cartItemRepository.findByIdAndCart_User_Id(1000L, 1L)).thenReturn(Optional.of(item));
+
+        service.updateQuantity(1L, 1000L, request(4));
+
+        assertEquals(2, item.getQuantity());
+        assertEquals(2, product.getStockQuantity());
+        verify(cartItemRepository).save(item);
+        verify(cartRepository).save(cart);
+    }
+
+    @Test
+    void outOfStockReplacementKeepsPreviousQuantity() {
+        product.setStockQuantity(0);
         when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
         when(cartItemRepository.findByIdAndCart_User_Id(1000L, 1L)).thenReturn(Optional.of(item));
 
         assertThrows(AppException.class, () -> service.updateQuantity(1L, 1000L, request(4)));
 
         assertEquals(3, item.getQuantity());
-        assertEquals(2, product.getStockQuantity());
+        assertEquals(0, product.getStockQuantity());
         verify(cartItemRepository, never()).save(any());
         verify(cartRepository, never()).save(any());
     }

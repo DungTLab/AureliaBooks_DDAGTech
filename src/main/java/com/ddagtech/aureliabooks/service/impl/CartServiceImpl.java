@@ -108,6 +108,9 @@ public class CartServiceImpl implements CartService {
         requireCustomer(userId,true);
 
         CartItem item = findOwnedItem(itemId,userId);
+        if (item.getProduct().getStockQuantity() > 0) {
+            quantity = Math.min(quantity, item.getProduct().getStockQuantity());
+        }
         validateProductAndQuantity(item.getProduct(),quantity);
 
         item.setQuantity(quantity);
