@@ -1,13 +1,357 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>admin / stock / alerts</title></head>
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout('Quản lý Kho & Kiểm soát Tồn kho', ~{::#main-content})}">
+<head>
+    <title>Quản lý Kho - AureliaBooks</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC22/23/21; Owner: Nguyễn Trần Đức Anh. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">admin / stock / alerts</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
-</section>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header & Action Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Quản trị kho</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Quản lý kho</span>
+            </div>
+            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-boxes text-blazing_flame"></i>
+                <span>Quản lý Kho hàng &amp; Giám sát Tồn kho</span>
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Quản lý và giám sát mức độ tồn an toàn của toàn bộ danh mục Sách &amp; Văn phòng phẩm. Phân loại chuẩn xác theo ngưỡng: 0 (Hết hàng), 1–10 (Tồn thấp), &gt;10 (An toàn).
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a th:href="@{/staff/receipts/new}"
+               class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition">
+                <i class="bi bi-plus-circle-fill text-lg"></i>
+                <span>Lập phiếu nhập kho</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Metric Counters (Cards 0, 1-10, >10) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Products -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-carbon_black-500 block mb-1">Tổng mặt hàng</span>
+                <span class="text-2xl font-extrabold text-carbon_black" th:text="${metrics.totalProducts}">120</span>
+                <span class="text-[11px] text-carbon_black-400 block mt-0.5">Sách &amp; Văn phòng phẩm</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl">
+                <i class="bi bi-box-seam"></i>
+            </div>
+        </div>
+
+        <!-- Card 2: Out of Stock -->
+        <a th:href="@{/manager/stock/alerts(alertLevel='OUT_OF_STOCK')}"
+           class="bg-white border border-rose-200 hover:border-rose-400 rounded-2xl p-5 shadow-sm flex items-center justify-between transition group">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-rose-600 block mb-1">Hết hàng</span>
+                <span class="text-2xl font-extrabold text-rose-600 group-hover:scale-105 transition-transform" th:text="${metrics.outOfStockCount}">15</span>
+                <span class="text-[11px] text-rose-500 block mt-0.5">Cần nhập kho ngay</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl group-hover:bg-rose-100 transition">
+                <i class="bi bi-x-circle-fill"></i>
+            </div>
+        </a>
+
+        <!-- Card 3: Low Stock -->
+        <a th:href="@{/manager/stock/alerts(alertLevel='LOW_STOCK')}"
+           class="bg-white border border-amber-200 hover:border-amber-400 rounded-2xl p-5 shadow-sm flex items-center justify-between transition group">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-amber-700 block mb-1">Tồn kho thấp</span>
+                <span class="text-2xl font-extrabold text-amber-600 group-hover:scale-105 transition-transform" th:text="${metrics.lowStockCount}">28</span>
+                <span class="text-[11px] text-amber-600 block mt-0.5">Dưới mức an toàn</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl group-hover:bg-amber-100 transition">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+        </a>
+
+        <!-- Card 4: Safe Stock -->
+        <a th:href="@{/manager/stock/alerts(alertLevel='SAFE_STOCK')}"
+           class="bg-white border border-emerald-200 hover:border-emerald-400 rounded-2xl p-5 shadow-sm flex items-center justify-between transition group">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700 block mb-1">Tồn an toàn</span>
+                <span class="text-2xl font-extrabold text-emerald-600 group-hover:scale-105 transition-transform" th:text="${metrics.safeStockCount}">77</span>
+                <span class="text-[11px] text-emerald-600 block mt-0.5">Đủ nguồn cung bán</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl group-hover:bg-emerald-100 transition">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+        </a>
+    </div>
+
+    <!-- Filter Toolbar -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
+        <form method="get" th:action="@{/manager/stock/alerts}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Search Keyword -->
+                <div class="relative min-w-[240px]">
+                    <input type="text" name="keyword" th:value="${keyword}"
+                           placeholder="Tìm tên sản phẩm, mã vạch..."
+                           class="w-full pl-9 pr-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame transition" />
+                    <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs"></i>
+                </div>
+
+                <!-- Alert Level Filter -->
+                <select name="alertLevel"
+                        onchange="this.form.submit()"
+                        class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <option value="" th:selected="${selectedAlertLevel == null || selectedAlertLevel == ''}">-- Tất cả mức tồn kho --</option>
+                    <option value="OUT_OF_STOCK" th:selected="${selectedAlertLevel == 'OUT_OF_STOCK'}">Hết hàng</option>
+                    <option value="LOW_STOCK" th:selected="${selectedAlertLevel == 'LOW_STOCK'}">Tồn kho thấp</option>
+                    <option value="SAFE_STOCK" th:selected="${selectedAlertLevel == 'SAFE_STOCK'}">Tồn an toàn</option>
+                </select>
+
+                <!-- Category Filter -->
+                <select name="categoryId"
+                        onchange="this.form.submit()"
+                        class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <option value="" th:selected="${selectedCategoryId == null}">-- Tất cả danh mục --</option>
+                    <option th:each="cat : ${categories}"
+                            th:value="${cat.id}"
+                            th:text="${cat.name}"
+                            th:selected="${selectedCategoryId == cat.id}">
+                        Văn học
+                    </option>
+                </select>
+
+                <!-- Product Type Filter -->
+                <select name="productType"
+                        onchange="this.form.submit()"
+                        class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <option value="" th:selected="${selectedProductType == null}">-- Loại sản phẩm --</option>
+                    <option value="BOOK" th:selected="${selectedProductType != null && selectedProductType.name() == 'BOOK'}">Sách</option>
+                    <option value="STATIONERY" th:selected="${selectedProductType != null && selectedProductType.name() == 'STATIONERY'}">Văn phòng phẩm</option>
+                </select>
+
+                <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black text-white text-sm font-semibold rounded-xl hover:bg-carbon_black-800 transition shadow-sm">
+                    <i class="bi bi-funnel-fill text-xs"></i>
+                    <span>Lọc</span>
+                </button>
+
+                <a th:href="@{/manager/stock/alerts}" class="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-carbon_black-600 hover:text-blazing_flame transition">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    <span>Đặt lại</span>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Products Stock Alerts Table -->
+    <div class="bg-white border border-dust_grey rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="bg-parchment-100 text-carbon_black-700 border-b border-dust_grey text-xs uppercase tracking-wider font-semibold">
+                        <th class="py-3.5 px-4">Mã vạch</th>
+                        <th class="py-3.5 px-4 min-w-[220px]">Tên sản phẩm</th>
+                        <th class="py-3.5 px-4">Danh mục / Phân loại</th>
+                        <th class="py-3.5 px-4 text-right">Giá vốn (đ)</th>
+                        <th class="py-3.5 px-4 text-right">Giá bán (đ)</th>
+                        <th class="py-3.5 px-4 text-center">Tồn kho hiện tại</th>
+                        <th class="py-3.5 px-4 text-center">Mức cảnh báo</th>
+                        <th class="py-3.5 px-4 text-right whitespace-nowrap">
+                            <div class="inline-flex items-center gap-2 justify-end">
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold normal-case text-carbon_black-600 hover:text-carbon_black" title="Chọn tất cả trên trang này để nhập hàng loạt">
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)"
+                                           class="w-4 h-4 rounded text-blazing_flame focus:ring-blazing_flame border-dust_grey cursor-pointer" />
+                                    <span>Chọn tất cả</span>
+                                </label>
+                                <span class="text-dust_grey">|</span>
+                                <span>Nhập hàng</span>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/60">
+                    <tr th:if="${alertsPage.empty}" class="hover:bg-parchment-50">
+                        <td colspan="8" class="py-12 text-center text-carbon_black-400">
+                            <i class="bi bi-inbox text-4xl block mb-2"></i>
+                            <p class="font-medium">Không tìm thấy sản phẩm nào phù hợp với bộ lọc cảnh báo.</p>
+                        </td>
+                    </tr>
+
+                    <tr th:each="p : ${alertsPage.content}" class="hover:bg-parchment-50 transition">
+                        <!-- Barcode -->
+                        <td class="py-3.5 px-4 font-mono font-bold text-carbon_black-700 text-xs" th:text="${p.barcode}">
+                            BOOK-0001
+                        </td>
+
+                        <!-- Title -->
+                        <td class="py-3.5 px-4 font-semibold text-carbon_black">
+                            <span th:text="${p.title}">Đắc Nhân Tâm</span>
+                            <span th:if="${p.isTextbook}" class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                SGK
+                            </span>
+                        </td>
+
+                        <!-- Category & Type -->
+                        <td class="py-3.5 px-4">
+                            <span class="text-xs font-medium text-carbon_black" th:text="${p.categoryName}">Tâm lý - Kỹ năng</span>
+                            <span class="block text-[11px] text-carbon_black-400"
+                                  th:text="${p.productType.name() == 'BOOK' ? 'Sách' : 'Văn phòng phẩm'}">
+                                Sách
+                            </span>
+                        </td>
+
+                        <!-- Original Cost -->
+                        <td class="py-3.5 px-4 text-right font-medium text-carbon_black-600"
+                            th:text="${p.originalCost != null ? #numbers.formatDecimal(p.originalCost, 0, 'COMMA', 0, 'POINT') + ' đ' : '0 đ'}">
+                            45.000 đ
+                        </td>
+
+                        <!-- Selling Price -->
+                        <td class="py-3.5 px-4 text-right font-bold text-carbon_black"
+                            th:text="${p.price != null ? #numbers.formatDecimal(p.price, 0, 'COMMA', 0, 'POINT') + ' đ' : '0 đ'}">
+                            80.000 đ
+                        </td>
+
+                        <!-- Current Stock Quantity -->
+                        <td class="py-3.5 px-4 text-center">
+                            <span class="text-base font-extrabold"
+                                  th:classappend="${p.stockQuantity == 0 ? 'text-rose-600' : (p.stockQuantity <= 10 ? 'text-amber-600' : 'text-emerald-600')}"
+                                  th:text="${p.stockQuantity}">
+                                5
+                            </span>
+                        </td>
+
+                        <!-- Alert Status Badge (Low Stock Badges) -->
+                        <td class="py-3.5 px-4 text-center">
+                            <span th:if="${p.stockQuantity == 0}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                <i class="bi bi-x-circle-fill"></i>
+                                <span>Hết hàng</span>
+                            </span>
+
+                            <span th:if="${p.stockQuantity >= 1 && p.stockQuantity <= 10}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                <span>Tồn thấp</span>
+                            </span>
+
+                            <span th:if="${p.stockQuantity > 10}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <i class="bi bi-check-circle-fill"></i>
+                                <span>An toàn</span>
+                            </span>
+                        </td>
+
+                        <!-- Action with Checkbox right next to Nhập hàng button -->
+                        <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                            <div class="inline-flex items-center gap-3 justify-end">
+                                <label class="cursor-pointer flex items-center p-1 rounded hover:bg-parchment-200 transition" title="Chọn sản phẩm này để lập phiếu nhập cùng lúc">
+                                    <input type="checkbox" class="product-checkbox w-4 h-4 rounded text-blazing_flame focus:ring-blazing_flame border-dust_grey cursor-pointer"
+                                           th:value="${p.id}" onchange="updateBatchActionBar()" />
+                                </label>
+                                <a th:href="@{/staff/receipts/new(productId=${p.id})}"
+                                   class="inline-flex items-center gap-1 px-3 py-1.5 bg-blazing_flame/10 hover:bg-blazing_flame text-blazing_flame hover:text-white font-semibold rounded-lg text-xs transition"
+                                   title="Tạo phiếu nhập bổ sung cho sản phẩm">
+                                    <i class="bi bi-plus-lg"></i>
+                                    <span>Nhập hàng</span>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div th:if="${alertsPage.totalPages > 1}"
+             class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-parchment-100 border-t border-dust_grey text-xs text-carbon_black-600">
+            <div>
+                Hiển thị trang <span class="font-bold" th:text="${alertsPage.number + 1}">1</span> /
+                <span class="font-bold" th:text="${alertsPage.totalPages}">10</span>
+                (Tổng cộng <span class="font-bold" th:text="${alertsPage.totalElements}">120</span> mặt hàng)
+            </div>
+
+            <div class="flex items-center gap-1">
+                <a th:if="${alertsPage.hasPrevious()}"
+                   th:href="@{/manager/stock/alerts(page=${alertsPage.number - 1}, keyword=${keyword}, alertLevel=${selectedAlertLevel}, categoryId=${selectedCategoryId}, productType=${selectedProductType})}"
+                   class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg hover:bg-parchment-200 font-semibold transition">
+                    &laquo; Trước
+                </a>
+                <a th:if="${alertsPage.hasNext()}"
+                   th:href="@{/manager/stock/alerts(page=${alertsPage.number + 1}, keyword=${keyword}, alertLevel=${selectedAlertLevel}, categoryId=${selectedCategoryId}, productType=${selectedProductType})}"
+                   class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg hover:bg-parchment-200 font-semibold transition">
+                    Sau &raquo;
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Action Floating Bar (Khi chọn ít nhất 1 sản phẩm) -->
+    <div id="batchActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 hidden bg-white text-carbon_black px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-6 border border-dust_grey animate-fade-in-up">
+        <div class="flex items-center gap-2.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-blazing_flame animate-pulse"></span>
+            <span class="text-sm font-medium text-carbon_black-700">Đã chọn <strong id="selectedCount" class="text-blazing_flame font-bold text-base">0</strong> sản phẩm</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="clearSelectedProducts()"
+                    class="px-3.5 py-2 bg-parchment-200 hover:bg-parchment-300 text-carbon_black font-semibold text-xs rounded-xl transition">
+                Bỏ chọn
+            </button>
+            <button type="button" onclick="submitBatchRestock()"
+                    class="inline-flex items-center gap-1.5 px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition">
+                <i class="bi bi-plus-circle-fill text-sm"></i>
+                <span>Tạo phiếu nhập các sản phẩm đã chọn</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function toggleSelectAll(master) {
+            document.querySelectorAll('.product-checkbox').forEach(cb => {
+                cb.checked = master.checked;
+            });
+            updateBatchActionBar();
+        }
+
+        function updateBatchActionBar() {
+            const checkedBoxes = document.querySelectorAll('.product-checkbox:checked');
+            const bar = document.getElementById('batchActionBar');
+            const countSpan = document.getElementById('selectedCount');
+            const master = document.getElementById('selectAllCheckbox');
+
+            if (checkedBoxes.length > 0) {
+                countSpan.textContent = checkedBoxes.length;
+                bar.classList.remove('hidden');
+                bar.classList.add('flex');
+            } else {
+                bar.classList.add('hidden');
+                bar.classList.remove('flex');
+            }
+
+            const allBoxes = document.querySelectorAll('.product-checkbox');
+            if (master && allBoxes.length > 0) {
+                master.checked = checkedBoxes.length === allBoxes.length;
+            }
+        }
+
+        function clearSelectedProducts() {
+            document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = false);
+            const master = document.getElementById('selectAllCheckbox');
+            if (master) master.checked = false;
+            updateBatchActionBar();
+        }
+
+        function submitBatchRestock() {
+            const checkedBoxes = document.querySelectorAll('.product-checkbox:checked');
+            if (checkedBoxes.length === 0) return;
+            const ids = Array.from(checkedBoxes).map(cb => cb.value);
+            const params = new URLSearchParams();
+            ids.forEach(id => params.append('productId', id));
+            window.location.href = '/staff/receipts/new?' + params.toString();
+        }
+    </script>
+</div>
 </body>
 </html>
