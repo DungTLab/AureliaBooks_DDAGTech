@@ -85,6 +85,11 @@ public class SecurityConfig {
         return new HttpSessionEventPublisher();
     }
 
+    /** Google callbacks run in Security filters before MVC; expose their session-bound intent there. */
+    @Bean public org.springframework.web.context.request.RequestContextListener oauthRequestContextListener(){
+        return new org.springframework.web.context.request.RequestContextListener();
+    }
+
     /**
      * Exposes the AuthenticationManager bean for programmatic authentication flows.
      *
@@ -209,6 +214,7 @@ public class SecurityConfig {
         if (clientRegistrations.getIfAvailable() != null) {
             http.oauth2Login(oauth -> {
                 oauth.loginPage("/auth/login")
+                        .authorizationEndpoint(endpoint->endpoint.authorizationRequestResolver(new com.ddagtech.aureliabooks.security.GoogleAuthorizationRequestResolver(clientRegistrations.getObject())))
                         .userInfoEndpoint(info -> info.userService(oauthUsers.getObject())
                                 .oidcUserService(oauthUsers.getObject()::loadOidcUser))
                         .failureHandler((request, response, exception) -> {

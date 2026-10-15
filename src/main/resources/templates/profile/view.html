@@ -59,14 +59,12 @@
                             <select id="gender" th:field="*{gender}" class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame"><option value="MALE">Nam</option><option value="FEMALE">Nữ</option><option value="OTHER">Khác / Không cung cấp</option></select>
                         </div>
                         <div class="sm:col-span-2">
-                            <label for="email" class="flex justify-between text-sm font-semibold mb-2">Email <span class="font-normal text-xs text-carbon_black-400">Không thể thay đổi</span></label>
+                            <label for="email" class="flex justify-between text-sm font-semibold mb-2">Email <a th:href="@{/profile/contact-change(type='EMAIL')}" class="font-normal text-xs text-blazing_flame underline">Xác thực để đổi</a></label>
                             <input id="email" type="email" th:value="${profile.email}" readonly class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500">
                         </div>
                         <div>
-                            <label for="phone" class="flex justify-between text-sm font-semibold mb-2">Số điện thoại <span th:unless="${profile.canCompletePhone}" class="font-normal text-xs text-carbon_black-400">Đã khóa</span></label>
-                            <input th:if="${profile.canCompletePhone}" id="phone" th:field="*{phone}" inputmode="tel" autocomplete="tel" pattern="0[0-9]{9}" maxlength="10" placeholder="Nhập số điện thoại" aria-describedby="phoneHint" class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                            <input th:unless="${profile.canCompletePhone}" id="phone" th:value="${profile.phone}" readonly class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500" placeholder="Chưa cung cấp">
-                            <p th:if="${profile.canCompletePhone}" id="phoneHint" class="text-xs text-carbon_black-500 mt-2">Bổ sung SĐT trước khi đặt hàng. Bạn chỉ được bổ sung một lần.</p>
+                            <label for="phone" class="flex justify-between text-sm font-semibold mb-2">Số điện thoại <a th:href="@{/profile/contact-change(type='PHONE')}" class="font-normal text-xs text-blazing_flame underline">Xác thực để đổi</a></label>
+                            <input id="phone" th:value="${profile.phone}" readonly class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500" placeholder="Chưa cung cấp">
                         </div>
                         <div>
                             <label for="dob" class="flex justify-between text-sm font-semibold mb-2">Ngày sinh <span th:unless="${profile.canCompleteDob}" class="font-normal text-xs text-carbon_black-400">Đã khóa</span></label>
@@ -76,10 +74,14 @@
                         </div>
                     </div>
                     <div class="mt-7 pt-5 border-t border-dust_grey/60 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-                        <p class="text-xs text-carbon_black-500">Email, SĐT và ngày sinh đã lưu không thể thay đổi.</p>
+                        <p class="text-xs text-carbon_black-500">Đổi email/SĐT cần xác thực lại và OTP tới thông tin mới. Ngày sinh chỉ khóa sau khi đã lưu.</p>
                         <button class="shrink-0 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors" type="submit">Lưu thay đổi</button>
                     </div>
                 </form>
+            </div>
+            <div th:if="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey p-6 space-y-3">
+                <h2 class="font-semibold">Liên kết Google</h2><p class="text-sm">Liên kết để đăng nhập Google vào chính tài khoản này. Thêm email liên hệ không tự liên kết Google.</p>
+                <form th:action="@{/profile/google/link}" method="post" class="space-y-3"><label for="linkPassword" class="block text-sm font-semibold">Mật khẩu hiện tại</label><div class="relative" data-password-field><input id="linkPassword" name="password" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl p-3 pr-14"><button type="button" data-password-toggle aria-controls="linkPassword" aria-label="Hiện mật khẩu hiện tại" aria-pressed="false" class="absolute right-2 top-1/2 -translate-y-1/2 p-2"><i class="bi bi-eye" aria-hidden="true"></i></button></div><button class="border border-dust_grey rounded-xl p-3 font-semibold">Liên kết Google</button></form>
             </div>
             <details th:if="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey shadow-soft group">
                 <summary class="cursor-pointer px-6 sm:px-8 py-5 list-none flex items-center justify-between gap-4">
@@ -87,7 +89,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-5 h-5 shrink-0 text-carbon_black-400 group-open:rotate-180 transition-transform" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                 </summary>
                 <form th:action="@{/profile/password}" method="post" class="px-6 sm:px-8 pb-6 sm:pb-8 border-t border-dust_grey/60">
-                    <p class="text-sm text-carbon_black-500 mt-5 mb-5">Từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Sau khi đổi mật khẩu, bạn cần đăng nhập lại.</p>
+                    <p class="text-sm text-carbon_black-500 mt-5 mb-5">Từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Sau khi đổi mật khẩu, bạn cần đăng nhập lại. <a th:href="@{/auth/forgot-password}" class="text-blazing_flame underline">Quên mật khẩu?</a></p>
                     <div class="space-y-4">
                         <div><label for="currentPassword" class="block text-sm font-semibold mb-2">Mật khẩu hiện tại</label><div class="relative" data-password-field>
 <input type="password" id="currentPassword" name="currentPassword" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl pl-3 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">

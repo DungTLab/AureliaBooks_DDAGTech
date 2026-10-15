@@ -8,7 +8,7 @@ import com.ddagtech.aureliabooks.entity.User;
 
 /** Local registration data. Role and authentication provider are assigned by the server. */
 public record RegisterRequest(
-        @NotBlank(message = "Vui lòng nhập email.") @Email(message = "Email không hợp lệ.")
+        @Email(message = "Email không hợp lệ.")
         @Size(max = 100, message = "Email tối đa 100 ký tự.") String email,
         @NotBlank(message = "Vui lòng nhập mật khẩu.")
         @Pattern(regexp = "(?s)^(?=.*\\p{Lu})(?=.*[0-9])(?=.*[^\\p{L}\\p{N}\\s]).{8,}$",

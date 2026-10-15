@@ -28,7 +28,7 @@ public class RegistrationService {
         if (!validator.validate(request).isEmpty()) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
-        if (users.existsByEmail(request.email()) || users.existsByPhone(request.phone())) {
+        if ((request.email() != null && users.existsByEmail(request.email())) || users.existsByPhone(request.phone())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
         User account = User.builder().email(request.email()).phone(request.phone())
@@ -45,13 +45,16 @@ public class RegistrationService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Google chưa xác thực thông tin tài khoản. Vui lòng thử lại.");
         }
         String normalizedEmail = email == null ? null : email.strip().toLowerCase(Locale.ROOT);
-        if (!validator.validateValue(RegisterRequest.class, "email", normalizedEmail).isEmpty()) {
+        if (normalizedEmail == null || normalizedEmail.isBlank() || !validator.validateValue(RegisterRequest.class, "email", normalizedEmail).isEmpty()) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Email Google không hợp lệ.");
         }
         var existing = users.findByGoogleIdentity(User.AuthProvider.GOOGLE, subject);
         if (existing.isPresent()) {
             User account = existing.get();
             if (!Boolean.TRUE.equals(account.getIsActive())) throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+            if(normalizedEmail.equals(account.getEmail())&&!account.isEmailVerified()){
+                account.setEmailVerified(true);users.saveAndFlush(account);
+            }
             // Stable identity: never rebind an existing subject by its current email.
             return account;
         }
@@ -63,7 +66,7 @@ public class RegistrationService {
         if (displayName.length() > 100) displayName = displayName.substring(0, 100);
         String avatar = picture != null && picture.startsWith("https://") && picture.length() <= 500 ? picture : null;
         return users.saveAndFlush(User.builder().email(normalizedEmail).fullName(displayName)
-                .authProvider(User.AuthProvider.GOOGLE).providerId(subject).avatarUrl(avatar)
+                .authProvider(User.AuthProvider.GOOGLE).providerId(subject).avatarUrl(avatar).emailVerified(true)
                 .role(customerRole()).isActive(true).build());
     }
 

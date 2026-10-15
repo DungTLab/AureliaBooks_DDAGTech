@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProfileAddressMySqlTest {
     @Autowired AddressService addresses;
     @Autowired UserService profiles;
+    @Autowired ContactChangeWriter contactWriter;
     @Autowired JdbcTemplate jdbc;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     Long owner; Long other;
@@ -79,7 +80,8 @@ class ProfileAddressMySqlTest {
     @Test void googlePhoneCompletionPersistsOnceAndUniquePhoneIsProtected() {
         jdbc.update("UPDATE users SET auth_provider='GOOGLE',provider_id=?,password_hash=NULL WHERE id=?","sub-"+owner,owner);
         var change=new com.ddagtech.aureliabooks.dto.request.ProfileUpdateRequest("Nguyễn An","0912345678",null,com.ddagtech.aureliabooks.entity.User.Gender.MALE);
-        profiles.updateProfile(owner,change);
+        assertThrows(AppException.class,()->profiles.updateProfile(owner,change));
+        contactWriter.apply(owner,profiles.viewProfile(owner).email(),null,"PHONE","0912345678","127.0.0.1");
         assertEquals("0912345678",profiles.viewProfile(owner).phone());
         assertFalse(profiles.viewProfile(owner).canCompletePhone());
         assertThrows(AppException.class,()->profiles.updateProfile(owner,new com.ddagtech.aureliabooks.dto.request.ProfileUpdateRequest(

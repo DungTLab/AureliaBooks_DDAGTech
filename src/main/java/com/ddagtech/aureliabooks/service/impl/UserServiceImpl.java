@@ -35,7 +35,7 @@ public class UserServiceImpl implements UserService {
         User u = users.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         CustomerIdentity.requireCustomer(u);
         return new ProfileView(u.getId(), u.getEmail(), u.getFullName(), u.getPhone(), u.getDob(),
-                u.getGender().name(), u.getAvatarUrl(), canCompletePhone(u), u.getPasswordHash() != null,
+                u.getGender().name(), u.getAvatarUrl(), false, u.getPasswordHash() != null,
                 canCompleteDob(u));
     }
     @Transactional
@@ -47,13 +47,11 @@ public class UserServiceImpl implements UserService {
             u.setDob(request.dob());
         }
         if (request.phone() != null && !Objects.equals(request.phone(), u.getPhone())) {
-            if (!canCompletePhone(u)) throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Không thể thay đổi số điện thoại đã đăng ký.");
-            if (users.existsByPhone(request.phone())) throw new AppException(ErrorCode.USER_EXISTED);
-            u.setPhone(request.phone());
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng xác thực OTP qua chức năng đổi thông tin liên hệ.");
         }
         u.setFullName(request.fullName());
         u.setGender(request.gender());
-        users.saveAndFlush(u); // Unique index is authoritative for simultaneous phone completion.
+        users.saveAndFlush(u);
     }
     @Transactional
     public void changePassword(Long id, PasswordChangeRequest request) {
@@ -87,11 +85,8 @@ public class UserServiceImpl implements UserService {
         User u = users.findOwnerForUpdate(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         CustomerIdentity.requireCustomer(u); return u;
     }
-    private boolean canCompletePhone(User u) {
-        return u.getAuthProvider() == User.AuthProvider.GOOGLE && (u.getPhone() == null || u.getPhone().isBlank());
-    }
     private boolean canCompleteDob(User u) {
-        return u.getAuthProvider() == User.AuthProvider.GOOGLE && u.getDob() == null;
+        return u.getDob() == null;
     }
     private void validate(Object request) {
         var violations = validator.validate(request);

@@ -5,7 +5,7 @@ import com.ddagtech.aureliabooks.entity.User;
 import jakarta.validation.constraints.*;
 import org.springframework.format.annotation.DateTimeFormat;
 
-/** UC08: existing DOB/phone are immutable; Google accounts may complete missing values once. */
+/** UC08: a missing DOB may be completed once; phone changes use their authorized flow. */
 public record ProfileUpdateRequest(
         @NotBlank(message = "Vui lòng nhập họ tên.")
         @Size(min = 2, max = 100, message = "Họ tên từ 2 đến 100 ký tự.")

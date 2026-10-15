@@ -27,6 +27,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate;
     private final OAuth2UserService<OidcUserRequest, OidcUser> oidcDelegate;
     private final LoginAttemptService attempts;
+    private GoogleAccountAction accountAction;
+    @Autowired public void setAccountAction(GoogleAccountAction accountAction){this.accountAction=accountAction;}
 
     @Autowired
     public CustomOAuth2UserService(RegistrationService registration, LoginAttemptService attempts) {
@@ -94,10 +96,14 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     private User registerClaims(OAuth2User claims) {
         try {
+            User actionAccount=accountAction==null?null:accountAction.resolve(claims);
+            if(actionAccount!=null)return actionAccount;
             Object verified = claims.getAttribute("email_verified");
             return registration.registerGoogle(claims.getAttribute("sub"), claims.getAttribute("email"),
                     Boolean.TRUE.equals(verified), claims.getAttribute("name"), claims.getAttribute("picture"));
         } catch (AppException ex) {
+            throw failure(ex.getMessage());
+        } catch (IllegalArgumentException ex) {
             throw failure(ex.getMessage());
         } catch (DataIntegrityViolationException ex) {
             throw failure("Tài khoản vừa được đăng ký. Vui lòng thử lại hoặc dùng phương thức đăng nhập đã đăng ký.");
