@@ -68,7 +68,7 @@ class CartServiceImplTest {
 
         item = new CartItem();
         item.setId(1000L);
-        item.setCart(cart);
+        cart.addItem(item);
         item.setProduct(product);
         item.setQuantity(3);
     }
@@ -200,6 +200,119 @@ class CartServiceImplTest {
                 IllegalStateException.class,
                 () -> service.viewCart(1L)
         );
+    }
+
+    @Test
+    void firstAdditionCreatesPersistentCartAndMaintainsBothSides() {
+        when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
+        when(productRepository.findById(100L)).thenReturn(Optional.of(product));
+        when(cartRepository.findByUser_Id(1L)).thenReturn(Optional.empty());
+        when(cartRepository.save(any())).thenAnswer(call -> {
+            Cart saved = call.getArgument(0);
+            saved.setId(20L);
+            return saved;
+        });
+
+        service.addItem(1L, 100L, request(2));
+
+        var saved = org.mockito.ArgumentCaptor.forClass(CartItem.class);
+        verify(cartItemRepository).save(saved.capture());
+        assertEquals(customer, saved.getValue().getCart().getUser());
+        assertEquals(2, saved.getValue().getQuantity());
+        assertTrue(saved.getValue().getCart().getItems().contains(saved.getValue()));
+        assertEquals(20, product.getStockQuantity());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    void viewingCartWithoutSavedItemsDoesNotCreateCart() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(cartRepository.findByUser_Id(1L)).thenReturn(Optional.empty());
+
+        CartView result = service.viewCart(1L);
+
+        assertTrue(result.isEmpty());
+        assertEquals(BigDecimal.ZERO, result.merchandiseSubtotal());
+        assertEquals(0, result.totalQuantity());
+        verify(cartRepository, never()).save(any());
+        verifyNoInteractions(cartItemRepository);
+    }
+
+    @Test
+    void inactiveProductCannotBeAddedAndPreviousCartRemainsUnchanged() {
+        product.setIsActive(false);
+        stubExistingItemForAddition();
+
+        assertThrows(AppException.class, () -> service.addItem(1L, 100L, request(2)));
+
+        assertEquals(3, item.getQuantity());
+        assertEquals(20, product.getStockQuantity());
+        verify(cartRepository, never()).save(any());
+        verify(cartItemRepository, never()).save(any());
+    }
+
+    @Test
+    void missingProductCannotCreateCart() {
+        when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
+        when(productRepository.findById(100L)).thenReturn(Optional.empty());
+
+        assertThrows(AppException.class, () -> service.addItem(1L, 100L, request(1)));
+
+        verifyNoInteractions(cartRepository, cartItemRepository);
+    }
+
+    @Test
+    void insufficientStockForReplacementKeepsPreviousQuantity() {
+        product.setStockQuantity(2);
+        when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
+        when(cartItemRepository.findByIdAndCart_User_Id(1000L, 1L)).thenReturn(Optional.of(item));
+
+        assertThrows(AppException.class, () -> service.updateQuantity(1L, 1000L, request(4)));
+
+        assertEquals(3, item.getQuantity());
+        assertEquals(2, product.getStockQuantity());
+        verify(cartItemRepository, never()).save(any());
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void successfulRemovalKeepsStockUnchangedAndDetachesItem() {
+        when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
+        when(cartItemRepository.findByIdAndCart_User_Id(1000L, 1L)).thenReturn(Optional.of(item));
+
+        service.removeItem(1L, 1000L);
+
+        assertTrue(cart.getItems().isEmpty());
+        assertNull(item.getCart());
+        assertEquals(20, product.getStockQuantity());
+        verify(cartItemRepository).delete(item);
+        verify(cartRepository).save(cart);
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    void unavailableItemsAreKeptWithWarningsAndCurrentPrice() {
+        product.setIsActive(false);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(cartRepository.findByUser_Id(1L)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findAllByCart_Id(10L)).thenReturn(List.of(item));
+
+        CartView result = service.viewCart(1L);
+
+        assertFalse(result.items().getFirst().availableForSale());
+        assertNotNull(result.items().getFirst().warningMessage());
+        assertEquals(new BigDecimal("30000"), result.merchandiseSubtotal());
+        verify(cartItemRepository, never()).delete(any());
+    }
+
+    @Test
+    void badgeUsesOwnedPersistedQuantityWithoutLoadingWholeCart() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(cartItemRepository.sumQuantityByUserId(1L)).thenReturn(5L);
+
+        assertEquals(5L, service.countItems(1L));
+        verifyNoInteractions(cartRepository);
+        verify(cartItemRepository, never()).findAllByCart_Id(any());
     }
 
     private CartQuantityRequest request(int quantity) {
