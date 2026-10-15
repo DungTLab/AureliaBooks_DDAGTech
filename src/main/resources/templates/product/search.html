@@ -1,13 +1,264 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>product / search</title></head>
+      th:replace="~{layout/base :: layout('Kết quả tìm kiếm', ~{::#main-content})}">
+<head>
+    <title>Kết quả tìm kiếm</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC01/02/03; Owner: Huỳnh Nhật Duy. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">product / search</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
+<section id="main-content" class="py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Breadcrumb Navigation -->
+        <nav aria-label="Breadcrumb" class="mb-6">
+            <ol class="flex items-center space-x-2 text-xs sm:text-sm text-carbon_black-500">
+                <li>
+                    <a th:href="@{/}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5 font-medium">
+                        <i class="bi bi-house-door"></i>
+                        <span>Trang chủ</span>
+                    </a>
+                </li>
+                <li><i class="bi bi-chevron-right text-[10px] text-dust_grey-600"></i></li>
+                <li>
+                    <a th:href="@{/products}" class="hover:text-blazing_flame transition-colors font-medium">
+                        Danh mục sản phẩm
+                    </a>
+                </li>
+                <li><i class="bi bi-chevron-right text-[10px] text-dust_grey-600"></i></li>
+                <li class="font-bold text-carbon_black" aria-current="page">Tìm kiếm</li>
+            </ol>
+        </nav>
+
+        <!-- Search Header & Control Bar (When Products Are Found) -->
+        <div th:if="${products != null and !products.isEmpty()}"
+             class="bg-white rounded-2xl border border-dust_grey p-5 sm:p-6 mb-6 shadow-soft flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            
+            <!-- Result Title Banner -->
+            <div>
+                <h1 class="font-serif font-bold text-xl sm:text-2xl text-carbon_black">
+                    Tìm thấy <span class="text-blazing_flame font-bold" th:text="${products.totalElements}">12</span> kết quả cho từ khóa "<span th:text="${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : '')}">Harry Potter</span>"
+                </h1>
+                <p class="text-xs text-carbon_black-400 mt-1">
+                    Trang <span class="font-semibold text-carbon_black" th:text="${products.number + 1}">1</span> / <span th:text="${products.totalPages}">1</span> — Sẵn sàng phục vụ giao nhanh
+                </p>
+            </div>
+
+            <!-- Switchers: Page Size & Sorting Options -->
+            <div class="flex items-center gap-3 sm:self-auto self-end flex-wrap">
+                <!-- Page Size Selector -->
+                <div class="flex items-center gap-1.5">
+                    <label for="sizeSelect" class="text-xs text-carbon_black-500 font-medium whitespace-nowrap">Hiện:</label>
+                    <select id="sizeSelect"
+                            onchange="location.href=this.value"
+                            class="bg-parchment-100 text-carbon_black text-xs font-semibold rounded-xl px-2.5 py-2 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:bg-white transition-all cursor-pointer">
+                        <option th:value="@{/products/search(size=12, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSize == 12 or currentSize == null}">12 / trang</option>
+                        <option th:value="@{/products/search(size=24, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSize == 24}">24 / trang</option>
+                        <option th:value="@{/products/search(size=48, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSize == 48}">48 / trang</option>
+                    </select>
+                </div>
+
+                <!-- Sort Selector -->
+                <div class="flex items-center gap-1.5">
+                    <label for="sortSelect" class="text-xs text-carbon_black-500 font-medium whitespace-nowrap">Sắp xếp:</label>
+                    <select id="sortSelect"
+                            onchange="location.href=this.value"
+                            class="bg-parchment-100 text-carbon_black text-xs font-semibold rounded-xl px-3 py-2 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all cursor-pointer">
+                        <option th:value="@{/products/search(size=${currentSize != null ? currentSize : 12}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, sort='newest', categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSort == 'newest' or currentSort == null}">Mới nhất</option>
+                        <option th:value="@{/products/search(size=${currentSize != null ? currentSize : 12}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, sort='best_sellers', categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSort == 'best_sellers'}">Bán chạy nhất</option>
+                        <option th:value="@{/products/search(size=${currentSize != null ? currentSize : 12}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, sort='price_asc', categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSort == 'price_asc'}">Giá: Thấp đến Cao</option>
+                        <option th:value="@{/products/search(size=${currentSize != null ? currentSize : 12}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, sort='price_desc', categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSort == 'price_desc'}">Giá: Cao đến Thấp</option>
+                        <option th:value="@{/products/search(size=${currentSize != null ? currentSize : 12}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, sort='title_asc', categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                                th:selected="${currentSort == 'title_asc'}">Tựa đề: A - Z</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Grid (When Results Exist) -->
+        <div th:if="${products != null and !products.isEmpty()}"
+             class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div th:each="product : ${products.content}"
+                 class="group bg-white rounded-2xl border border-dust_grey hover:border-blazing_flame/60 shadow-soft hover:shadow-flame transition-all duration-300 flex flex-col overflow-hidden relative">
+                
+                <!-- Product Thumbnail Container -->
+                <a th:href="@{'/products/' + ${product.id}}" class="relative block overflow-hidden bg-parchment-100 aspect-[3/4]">
+                    <!-- Product Type & Book Series Badge Tags (Top-Left) -->
+                    <div class="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                        <!-- Type Badge: Sách vs. VPP -->
+                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider text-white shadow-sm inline-block"
+                              th:classappend="${product.productType != null and product.productType.name() == 'STATIONERY'} ? 'bg-amber-600' : 'bg-carbon_black'"
+                              th:text="${product.productType != null and product.productType.name() == 'STATIONERY'} ? 'VPP' : 'Sách'">
+                            Sách
+                        </span>
+
+                        <!-- Book Series Badge (Inv-7: Grouping only, sold individually) -->
+                        <span th:if="${product.seriesName != null and !product.seriesName.isBlank()}"
+                              class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blazing_flame text-white shadow-sm flex items-center gap-1 max-w-[120px] truncate"
+                              th:title="'Thuộc bộ: ' + ${product.seriesName}">
+                            <i class="bi bi-collection"></i>
+                            <span th:text="${product.volumeNumber != null} ? ('Tập ' + ${product.volumeNumber}) : 'Tập lẻ'">Tập 1</span>
+                        </span>
+                    </div>
+
+                    <!-- Product Image with Error Fallback Image Placeholder -->
+                    <img th:if="${product.mainImageUrl != null and !product.mainImageUrl.isBlank()}"
+                         th:src="${product.mainImageUrl}"
+                         th:alt="${product.title}"
+                         loading="lazy"
+                         onerror="this.onerror=null; this.src='https://placehold.co/400x533/e6e8e6/191919?text=AureliaBook';"
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    
+                    <!-- Fallback Mock Thumbnail if Image URL is Empty -->
+                    <div th:if="${product.mainImageUrl == null or product.mainImageUrl.isBlank()}"
+                         class="w-full h-full flex flex-col items-center justify-center text-carbon_black-300 p-4 text-center">
+                        <i class="bi bi-book text-4xl mb-2 text-dust_grey"></i>
+                        <span class="text-[10px] uppercase font-bold tracking-wider">AureliaBook</span>
+                    </div>
+
+                    <!-- Stock Status Badge (BR-01-02 / ATP Stock) -->
+                    <span th:if="${product.stockQuantity != null and product.stockQuantity > 0}"
+                          class="absolute bottom-2 left-2 bg-emerald-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 z-10">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        <span>Còn hàng</span>
+                    </span>
+                </a>
+
+                <!-- Product Information Details -->
+                <div class="p-3.5 sm:p-4 flex flex-col flex-grow justify-between">
+                    <div>
+                        <a th:href="@{'/products/' + ${product.id}}"
+                           class="font-medium text-xs sm:text-sm text-carbon_black group-hover:text-blazing_flame transition-colors line-clamp-2 leading-snug"
+                           th:title="${product.title}"
+                           th:text="${product.title}">
+                            Tựa đề sản phẩm
+                        </a>
+
+                        <!-- Series label display under title if available -->
+                        <p th:if="${product.seriesName != null and !product.seriesName.isBlank()}"
+                           class="text-[11px] text-carbon_black-400 mt-1 truncate"
+                           th:text="'Bộ: ' + ${product.seriesName} + (${product.volumeNumber != null} ? ' - Tập ' + ${product.volumeNumber} : '')">
+                        </p>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-dust_grey/40 flex items-baseline justify-between">
+                        <div class="text-sm sm:text-base font-extrabold text-blazing_flame font-sans">
+                            <span th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')}">100.000</span>
+                            <span class="text-xs font-semibold">đ</span>
+                        </div>
+                        <span class="text-[10px] text-carbon_black-400 font-medium">Kho: [[${product.stockQuantity}]]</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination Control (Preserving All Search and Filter Parameters) -->
+        <div th:if="${products != null and products.totalPages > 1}"
+             class="mt-10 flex items-center justify-center space-x-1 sm:space-x-2">
+            
+            <!-- Prev Page Button -->
+            <a th:if="${products.hasPrevious()}"
+               th:href="@{/products/search(page=${products.number}, size=${currentSize != null ? currentSize : 12}, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+               class="px-3 py-2 bg-white hover:bg-parchment-200 border border-dust_grey text-carbon_black text-xs font-bold rounded-xl transition-colors shadow-soft flex items-center gap-1">
+                <i class="bi bi-chevron-left"></i>
+                <span class="hidden sm:inline">Trước</span>
+            </a>
+            <span th:unless="${products.hasPrevious()}"
+                  class="px-3 py-2 bg-parchment-200 border border-dust_grey/60 text-carbon_black-300 text-xs font-bold rounded-xl cursor-not-allowed flex items-center gap-1">
+                <i class="bi bi-chevron-left"></i>
+                <span class="hidden sm:inline">Trước</span>
+            </span>
+
+            <!-- Page Numbers Loop -->
+            <th:block th:each="pageNum : ${#numbers.sequence(1, products.totalPages)}">
+                <a th:if="${pageNum != (products.number + 1)}"
+                   th:href="@{/products/search(page=${pageNum}, size=${currentSize != null ? currentSize : 12}, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+                   th:text="${pageNum}"
+                   class="w-9 h-9 flex items-center justify-center bg-white hover:bg-parchment-200 border border-dust_grey text-carbon_black text-xs font-bold rounded-xl transition-colors shadow-soft">
+                    1
+                </a>
+                <span th:if="${pageNum == (products.number + 1)}"
+                      th:text="${pageNum}"
+                      class="w-9 h-9 flex items-center justify-center bg-blazing_flame text-white text-xs font-extrabold rounded-xl shadow-flame">
+                    1
+                </span>
+            </th:block>
+
+            <!-- Next Page Button -->
+            <a th:if="${products.hasNext()}"
+               th:href="@{/products/search(page=${products.number + 2}, size=${currentSize != null ? currentSize : 12}, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
+               class="px-3 py-2 bg-white hover:bg-parchment-200 border border-dust_grey text-carbon_black text-xs font-bold rounded-xl transition-colors shadow-soft flex items-center gap-1">
+                <span class="hidden sm:inline">Sau</span>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            <span th:unless="${products.hasNext()}"
+                  class="px-3 py-2 bg-parchment-200 border border-dust_grey/60 text-carbon_black-300 text-xs font-bold rounded-xl cursor-not-allowed flex items-center gap-1">
+                <span class="hidden sm:inline">Sau</span>
+                <i class="bi bi-chevron-right"></i>
+            </span>
+        </div>
+
+        <!-- Empty State UI (When No Products Match Search Keyword) -->
+        <div th:if="${products == null or products.isEmpty()}"
+             class="bg-white rounded-3xl border border-dust_grey p-8 sm:p-14 text-center shadow-soft max-w-2xl mx-auto my-6">
+            
+            <!-- Magnifying Glass Icon Container -->
+            <div class="w-20 h-20 rounded-2xl bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-4xl mb-6 shadow-inner">
+                <i class="bi bi-search text-blazing_flame"></i>
+            </div>
+            
+            <!-- Empty State Title & Message -->
+            <h2 class="font-serif font-bold text-2xl text-carbon_black">
+                Không tìm thấy kết quả phù hợp
+            </h2>
+            <p class="text-sm text-carbon_black-500 max-w-md mx-auto mt-2 leading-relaxed">
+                Rất tiếc, chúng tôi không tìm thấy sản phẩm nào khớp với từ khóa
+                "<span class="font-bold text-carbon_black" th:text="${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : '')}">Harry Potter</span>".
+            </p>
+            <p class="text-xs text-carbon_black-400 mt-1 mb-8">
+                Thử tìm bằng từ khóa khác hoặc duyệt danh mục.
+            </p>
+
+            <!-- Inline Re-search Input Bar -->
+            <form th:action="@{/products/search}" method="get" class="max-w-md mx-auto mb-8">
+                <div class="relative w-full">
+                    <input type="search"
+                           name="keyword"
+                           th:value="${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : '')}"
+                           placeholder="Nhập từ khóa tìm kiếm mới..."
+                           class="w-full bg-parchment-100 text-carbon_black placeholder-carbon_black-400 text-sm rounded-full pl-11 pr-24 py-3 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all shadow-inner"
+                           required>
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-carbon_black-400">
+                        <i class="bi bi-search text-base"></i>
+                    </div>
+                    <button type="submit"
+                            class="absolute right-1.5 top-1.5 bottom-1.5 px-5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-xs rounded-full transition-colors flex items-center gap-1.5 shadow-sm">
+                        <span>Tìm lại</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Quick Action Shortcuts -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a th:href="@{/products}"
+                   class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                    <i class="bi bi-grid-fill"></i>
+                    <span>Duyệt Tất Cả Danh Mục</span>
+                </a>
+                <a th:href="@{/}"
+                   class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-parchment-200 hover:bg-dust_grey text-carbon_black text-xs font-semibold rounded-xl transition-colors">
+                    <i class="bi bi-house-door"></i>
+                    <span>Về Trang Chủ</span>
+                </a>
+            </div>
+        </div>
+
+    </div>
 </section>
 </body>
 </html>
