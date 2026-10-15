@@ -2,23 +2,23 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.CartQuantityRequest;
+import com.ddagtech.aureliabooks.dto.response.CartView;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.CartService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Slf4j
@@ -30,12 +30,24 @@ public class CartController {
     private final CustomerIdentity identity;
 
     @GetMapping
-    public String view(Authentication authentication, Model model) {
-        var cart = carts.viewCart(identity.resolve(authentication));
-        model.addAttribute("cart", cart);
-        model.addAttribute("cartItemCount", cart.totalQuantity());
-        model.addAttribute("maxQuantity", CartQuantityRequest.MAX_QUANTITY);
-        return "cart/view";
+    public ModelAndView view(Authentication authentication) {
+        try {
+            Long userId = identity.resolve(authentication);
+            CartView cart = carts.viewCart(userId);
+
+            return new ModelAndView("cart/view")
+                    .addObject("cart", cart)
+                    .addObject("cartItemCount", cart.totalQuantity())
+                    .addObject("maxQuantity", CartQuantityRequest.MAX_QUANTITY);
+        } catch (AppException error) {
+            throw error;
+        } catch (Exception error) {
+            log.error("Unable to load cart", error);
+            var page = new ModelAndView("cart/view");
+            page.setStatus(HttpStatus.SERVICE_UNAVAILABLE);
+            page.addObject("cartLoadError", "Không thể tải giỏ hàng lúc này. Vui lòng thử lại.");
+            return page;
+        }
     }
 
     @PostMapping("/items")
@@ -68,14 +80,16 @@ public class CartController {
     }
 
     @ExceptionHandler(AppException.class)
-    public String businessError(AppException error, HttpServletRequest request,
-                                HttpServletResponse response, RedirectAttributes flash) {
+    public String businessError(AppException error, RedirectAttributes flash,
+                                @SessionAttribute(name = "SPRING_SECURITY_CONTEXT", required = false)
+                                SecurityContext sessionContext) {
         flash.addFlashAttribute("errorMessage", error.getMessage());
         ErrorCode code = error.getErrorCode();
         if (code == ErrorCode.UNAUTHENTICATED || code == ErrorCode.ACCOUNT_LOCKED
                 || code == ErrorCode.USER_NOT_EXISTED) {
-            new SecurityContextLogoutHandler().logout(request, response,
-                    SecurityContextHolder.getContext().getAuthentication());
+            // Clear authentication stored in the session and in the current thread.
+            if (sessionContext != null) sessionContext.setAuthentication(null);
+            SecurityContextHolder.clearContext();
             return "redirect:/auth/login";
         }
         if (code == ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
@@ -89,14 +103,8 @@ public class CartController {
     }
 
     @ExceptionHandler(Exception.class)
-    public String storageError(Exception error, HttpServletRequest request, HttpServletResponse response,
-                               Model model, RedirectAttributes flash) {
-        log.error("Cart operation failed: {} {}", request.getMethod(), request.getRequestURI(), error);
-        if ("GET".equals(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
-            model.addAttribute("cartLoadError", "Không thể tải giỏ hàng lúc này. Vui lòng thử lại.");
-            return "cart/view";
-        }
+    public String storageError(Exception error, RedirectAttributes flash) {
+        log.error("Unable to save cart changes", error);
         flash.addFlashAttribute("errorMessage", "Không thể lưu thay đổi giỏ hàng. Vui lòng thử lại.");
         return "redirect:/cart";
     }
