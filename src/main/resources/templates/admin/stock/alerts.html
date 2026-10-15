@@ -289,19 +289,19 @@
     </div>
 
     <!-- Batch Action Floating Bar (Khi chọn ít nhất 1 sản phẩm) -->
-    <div id="batchActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 hidden bg-carbon_black text-white px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-6 border border-carbon_black-700 animate-fade-in-up">
-        <div class="flex items-center gap-2">
+    <div id="batchActionBar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 hidden bg-white text-carbon_black px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-6 border border-dust_grey animate-fade-in-up">
+        <div class="flex items-center gap-2.5">
             <span class="w-2.5 h-2.5 rounded-full bg-blazing_flame animate-pulse"></span>
-            <span class="text-sm font-semibold">Đã chọn <strong id="selectedCount" class="text-blazing_flame text-base">0</strong> sản phẩm</span>
+            <span class="text-sm font-medium text-carbon_black-700">Đã chọn <strong id="selectedCount" class="text-blazing_flame font-bold text-base">0</strong> sản phẩm</span>
         </div>
         <div class="flex items-center gap-3">
             <button type="button" onclick="clearSelectedProducts()"
-                    class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-lg transition">
+                    class="px-3.5 py-2 bg-parchment-200 hover:bg-parchment-300 text-carbon_black font-semibold text-xs rounded-xl transition">
                 Bỏ chọn
             </button>
             <button type="button" onclick="submitBatchRestock()"
-                    class="inline-flex items-center gap-1.5 px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl shadow-md transition">
-                <i class="bi bi-plus-circle-fill"></i>
+                    class="inline-flex items-center gap-1.5 px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition">
+                <i class="bi bi-plus-circle-fill text-sm"></i>
                 <span>Tạo phiếu nhập các sản phẩm đã chọn</span>
             </button>
         </div>

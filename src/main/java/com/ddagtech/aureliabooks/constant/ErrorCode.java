@@ -46,7 +46,8 @@ public enum ErrorCode {
     RECEIPT_ITEM_QUANTITY_INVALID(4006, "Số lượng nhập của từng sản phẩm phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
     RECEIPT_ITEM_COST_INVALID(4007, "Đơn giá nhập không được âm.", HttpStatus.BAD_REQUEST),
     SUPPLIER_INACTIVE(4008, "Nhà cung cấp đã ngừng hoạt động hoặc không tồn tại.", HttpStatus.BAD_REQUEST),
-    RECEIPT_EMPTY_ITEMS(4009, "Phiếu nhập kho phải có ít nhất một dòng sản phẩm.", HttpStatus.BAD_REQUEST);
+    RECEIPT_EMPTY_ITEMS(4009, "Phiếu nhập kho phải có ít nhất một dòng sản phẩm.", HttpStatus.BAD_REQUEST),
+    RECEIPT_DUPLICATE_PRODUCT(4010, "Mỗi sản phẩm chỉ được xuất hiện một lần trên phiếu nhập kho. Vui lòng kiểm tra và gộp số lượng của các mặt hàng bị trùng lặp.", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

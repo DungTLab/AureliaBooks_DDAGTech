@@ -72,6 +72,7 @@ public class AdminReceiptController {
             List<Long> targetIds = new ArrayList<>();
             if (productIds != null) targetIds.addAll(productIds);
             if (productIdsPlural != null) targetIds.addAll(productIdsPlural);
+            targetIds = new ArrayList<>(new java.util.LinkedHashSet<>(targetIds));
 
             List<GoodsReceiptItemForm> initialItems = new ArrayList<>();
             if (!targetIds.isEmpty()) {

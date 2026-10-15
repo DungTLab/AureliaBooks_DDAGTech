@@ -317,6 +317,24 @@ class GoodsReceiptServiceTest {
         }
 
         @Test
+        @DisplayName("Có sản phẩm bị chọn trùng lặp nhiều dòng -> Bị chặn với RECEIPT_DUPLICATE_PRODUCT")
+        void createDraft_duplicateProducts_throwsException() {
+            when(userRepository.findById(10L)).thenReturn(Optional.of(staffUser));
+            when(supplierRepository.findById(1L)).thenReturn(Optional.of(activeSupplier));
+
+            GoodsReceiptItemForm item1 = new GoodsReceiptItemForm(100L, 5, new BigDecimal("45000.00"));
+            GoodsReceiptItemForm item2 = new GoodsReceiptItemForm(100L, 10, new BigDecimal("45000.00"));
+            GoodsReceiptForm form = new GoodsReceiptForm(1L, "Trùng sản phẩm 100L", List.of(item1, item2));
+
+            assertThatThrownBy(() -> service.createDraft(10L, form))
+                    .isInstanceOf(AppException.class)
+                    .satisfies(e -> {
+                        AppException ae = (AppException) e;
+                        assertThat(ae.getErrorCode()).isEqualTo(ErrorCode.RECEIPT_DUPLICATE_PRODUCT);
+                    });
+        }
+
+        @Test
         @DisplayName("Nhà cung cấp đã ngừng hoạt động (isActive = false) -> Bị chặn với SUPPLIER_INACTIVE")
         void createDraft_inactiveSupplier_throwsException() {
             Supplier inactiveSupplier = new Supplier();

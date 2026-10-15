@@ -48,13 +48,18 @@
         </a>
     </div>
 
-    <!-- Form Validation Alert Box (Hiển thị cảnh báo trực tiếp khi nhập sai hạn mức) -->
-    <div id="formValidationError" class="hidden bg-rose-50 border-l-4 border-rose-500 rounded-xl p-4 shadow-sm flex items-start gap-3 animate-fade-in-down">
-        <i class="bi bi-exclamation-octagon-fill text-rose-600 text-xl flex-shrink-0 mt-0.5"></i>
-        <div class="text-sm text-rose-900 space-y-1">
-            <p class="font-bold" id="formValidationTitle">Cảnh báo quy định nhập kho:</p>
-            <p id="formValidationMessage" class="text-xs font-medium"></p>
+    <!-- Form Validation Alert Box (Hiển thị cảnh báo trực tiếp khi nhập sai hạn mức hoặc trùng sản phẩm) -->
+    <div id="formValidationError" class="hidden bg-white border border-rose-300 rounded-2xl p-4 shadow-md flex items-start justify-between gap-3 animate-fade-in-down">
+        <div class="flex items-start gap-3">
+            <i class="bi bi-exclamation-circle-fill text-rose-500 text-xl flex-shrink-0 mt-0.5"></i>
+            <div class="text-sm space-y-0.5">
+                <p class="font-bold text-rose-600" id="formValidationTitle">Cảnh báo quy định nhập kho:</p>
+                <p id="formValidationMessage" class="text-xs font-medium text-carbon_black-700 leading-relaxed"></p>
+            </div>
         </div>
+        <button type="button" onclick="hideErrorBox()" class="text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg transition" title="Đóng cảnh báo">
+            <i class="bi bi-x-lg text-xs"></i>
+        </button>
     </div>
 
     <!-- Main Receipt Form -->
@@ -367,7 +372,6 @@
                         </div>
                     </div>
 
-                    <!-- Warning Cảnh báo Giá niêm yết < Giá vốn (Tránh lỗ) -->
                     <div id="quickPriceWarning" class="text-[11px] text-rose-600 font-semibold hidden flex items-center gap-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg">
                         <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
                         <span>Giá niêm yết không được thấp hơn giá vốn nhập.</span>
@@ -644,6 +648,33 @@
     }
 
     function selectExistingProductIntoReceipt(productId, defaultCost) {
+        const rows = document.querySelectorAll('.item-row');
+        let duplicateRowIdx = -1;
+        let duplicateSelect = null;
+        rows.forEach((r, idx) => {
+            const s = r.querySelector('.product-select');
+            if (s && s.value && String(s.value) === String(productId)) {
+                duplicateRowIdx = idx + 1;
+                duplicateSelect = s;
+            }
+        });
+
+        if (duplicateRowIdx > 0 && duplicateSelect) {
+            const opt = duplicateSelect.options[duplicateSelect.selectedIndex];
+            const cleanTitle = opt ? getCleanProductTitle(opt.textContent) : 'Sản phẩm';
+            closeQuickAddProductModal();
+            showErrorBox(`Mặt hàng "${cleanTitle}" đã được chọn tại dòng #${duplicateRowIdx} của phiếu nhập kho.`, 'Cảnh báo trùng lặp mặt hàng:');
+            const targetRow = duplicateSelect.closest('.item-row');
+            if (targetRow) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                duplicateSelect.classList.add('border-rose-500', 'ring-2', 'ring-rose-400');
+                setTimeout(() => {
+                    duplicateSelect.classList.remove('border-rose-500', 'ring-2', 'ring-rose-400');
+                }, 3000);
+            }
+            return;
+        }
+
         const qtyVal = parseInt(document.getElementById('quickQuantity').value) || 1;
         addNewItemRowWithData(productId, defaultCost, qtyVal);
         closeQuickAddProductModal();
@@ -911,8 +942,39 @@
 
     function onProductSelected(select) {
         const row = select.closest('tr');
+        const selectedProductId = select.value;
+
+        if (selectedProductId) {
+            const allRows = Array.from(document.querySelectorAll('.item-row'));
+            let duplicateRowIdx = -1;
+            allRows.forEach((r, idx) => {
+                const s = r.querySelector('.product-select');
+                if (s && s !== select && s.value === selectedProductId) {
+                    duplicateRowIdx = idx + 1;
+                }
+            });
+
+            if (duplicateRowIdx > 0) {
+                const opt = select.options[select.selectedIndex];
+                const cleanTitle = getCleanProductTitle(opt ? opt.textContent : '');
+                select.value = '';
+                const costInput = row.querySelector('.unit-cost-input');
+                if (costInput) costInput.value = '0';
+                checkRowLimit(row);
+                calculateRowSubtotal(select);
+
+                showErrorBox(
+                    `Mặt hàng "${cleanTitle}" đã được chọn tại dòng #${duplicateRowIdx} của phiếu nhập kho.`,
+                    'Cảnh báo trùng lặp mặt hàng:'
+                );
+                select.focus();
+                return;
+            }
+        }
+
+        hideErrorBox();
         const selectedOption = select.options[select.selectedIndex];
-        const defaultCost = selectedOption.getAttribute('data-price');
+        const defaultCost = selectedOption ? selectedOption.getAttribute('data-price') : null;
         const costInput = row.querySelector('.unit-cost-input');
 
         if (defaultCost && (!costInput.value || costInput.value === '0')) {
@@ -928,9 +990,6 @@
         calculateRowSubtotal(elem);
     }
 
-    // ==========================================
-    // FLOATING TOOLTIP CHO CẢNH BÁO HẠN MỨC NHẬP
-    // ==========================================
     let receiptFloatingTooltip = null;
 
     function ensureFloatingTooltip() {
@@ -982,7 +1041,6 @@
         }
     }
 
-    // Event delegation cho tooltip khi hover chuột hoặc rời chuột khỏi icon cảnh báo
     document.addEventListener('mouseover', (e) => {
         const btn = e.target.closest('.qty-warning-btn, #quickQtyWarningBtn');
         if (btn && !btn.classList.contains('hidden')) {
@@ -1136,54 +1194,77 @@
         let firstErrorInput = null;
         let errorMessage = '';
 
+        // 1. Kiểm tra trùng lặp sản phẩm giữa các dòng
+        const seenProductIds = new Map();
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             const select = row.querySelector('.product-select');
-            const qtyInput = row.querySelector('.quantity-input');
-            const costInput = row.querySelector('.unit-cost-input');
-
-            if (!select.value) {
-                errorMessage = `Dòng #${i + 1}: Vui lòng chọn sản phẩm.`;
-                firstErrorInput = select;
-                break;
+            const pid = select.value;
+            if (pid) {
+                if (seenProductIds.has(pid)) {
+                    const firstRowIdx = seenProductIds.get(pid);
+                    const opt = select.options[select.selectedIndex];
+                    const cleanTitle = getCleanProductTitle(opt ? opt.textContent : '');
+                    errorMessage = `Mặt hàng "${cleanTitle}" bị chọn trùng lặp tại dòng #${firstRowIdx + 1} và dòng #${i + 1}. Bạn đã chọn mặt hàng này 2 lần. Mỗi mặt hàng chỉ được xuất hiện một lần trên phiếu nhập kho, vui lòng gộp số lượng vào cùng một dòng.`;
+                    firstErrorInput = select;
+                    break;
+                } else {
+                    seenProductIds.set(pid, i);
+                }
             }
+        }
 
-            const cost = parseFloat(costInput.value);
-            if (isNaN(cost) || cost < 0) {
-                errorMessage = `Dòng #${i + 1}: Đơn giá nhập không hợp lệ (phải ≥ 0 đ).`;
-                firstErrorInput = costInput;
-                break;
-            }
+        // 2. Kiểm tra tính hợp lệ của từng dòng
+        if (!firstErrorInput) {
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const select = row.querySelector('.product-select');
+                const qtyInput = row.querySelector('.quantity-input');
+                const costInput = row.querySelector('.unit-cost-input');
 
-            const qty = parseInt(qtyInput.value) || 0;
-            if (qty <= 0) {
-                errorMessage = `Dòng #${i + 1}: Số lượng nhập phải lớn hơn 0.`;
-                firstErrorInput = qtyInput;
-                break;
-            }
+                if (!select.value) {
+                    errorMessage = `Dòng #${i + 1}: Vui lòng chọn sản phẩm.`;
+                    firstErrorInput = select;
+                    break;
+                }
 
-            const option = select.options[select.selectedIndex];
-            const stock = parseInt(option.getAttribute('data-stock') || '0');
-            const isTextbook = option.getAttribute('data-is-textbook') === 'true'
-                || option.textContent.toLowerCase().includes('sgk')
-                || option.textContent.toLowerCase().includes('giáo khoa');
+                const cost = parseFloat(costInput.value);
+                if (isNaN(cost) || cost < 0) {
+                    errorMessage = `Dòng #${i + 1}: Đơn giá nhập không hợp lệ (phải ≥ 0 đ).`;
+                    firstErrorInput = costInput;
+                    break;
+                }
 
-            if (stock === 0) {
-                const maxCap = isTextbook ? 500 : 100;
-                if (qty > maxCap) {
-                    const cleanTitle = getCleanProductTitle(option.textContent);
-                    const typeLabel = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
-                    const excess = qty - maxCap;
-                    errorMessage = `Dòng ${i + 1} - Sản phẩm "${cleanTitle}": Số lượng nhập hiện tại là ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức nhập đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}). Vui lòng điều chỉnh lại số lượng phù hợp.`;
+                const qty = parseInt(qtyInput.value) || 0;
+                if (qty <= 0) {
+                    errorMessage = `Dòng #${i + 1}: Số lượng nhập phải lớn hơn 0.`;
                     firstErrorInput = qtyInput;
                     break;
+                }
+
+                const option = select.options[select.selectedIndex];
+                const stock = parseInt(option.getAttribute('data-stock') || '0');
+                const isTextbook = option.getAttribute('data-is-textbook') === 'true'
+                    || option.textContent.toLowerCase().includes('sgk')
+                    || option.textContent.toLowerCase().includes('giáo khoa');
+
+                if (stock === 0) {
+                    const maxCap = isTextbook ? 500 : 100;
+                    if (qty > maxCap) {
+                        const cleanTitle = getCleanProductTitle(option.textContent);
+                        const typeLabel = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
+                        const excess = qty - maxCap;
+                        errorMessage = `Dòng ${i + 1} - Sản phẩm "${cleanTitle}": Số lượng nhập hiện tại là ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức nhập đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}). Vui lòng điều chỉnh lại số lượng phù hợp.`;
+                        firstErrorInput = qtyInput;
+                        break;
+                    }
                 }
             }
         }
 
         if (firstErrorInput) {
             event.preventDefault();
-            showErrorBox(errorMessage);
+            showErrorBox(errorMessage, 'Cảnh báo lỗi thông tin phiếu nhập:');
             firstErrorInput.focus();
             firstErrorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return false;
@@ -1193,11 +1274,15 @@
         return true;
     }
 
-    function showErrorBox(msg) {
+    function showErrorBox(msg, title) {
         const errorBox = document.getElementById('formValidationError');
         const errorMsg = document.getElementById('formValidationMessage');
+        const errorTitle = document.getElementById('formValidationTitle');
         if (errorBox && errorMsg) {
             errorMsg.textContent = msg;
+            if (errorTitle) {
+                errorTitle.textContent = title || 'Cảnh báo quy định nhập kho:';
+            }
             errorBox.classList.remove('hidden');
             errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }

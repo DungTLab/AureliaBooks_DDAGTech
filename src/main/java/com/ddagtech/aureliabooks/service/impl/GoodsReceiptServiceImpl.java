@@ -443,6 +443,19 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
         if (form.items() == null || form.items().isEmpty()) {
             throw new AppException(ErrorCode.RECEIPT_EMPTY_ITEMS, "Phiếu nhập kho phải có ít nhất một dòng sản phẩm.");
         }
+
+        // Validate: Prohibit duplicate products across line items in the same receipt
+        Set<Long> seenProductIds = new HashSet<>();
+        for (GoodsReceiptItemForm item : form.items()) {
+            if (item.productId() != null) {
+                if (!seenProductIds.add(item.productId())) {
+                    Product p = productRepository.findById(item.productId()).orElse(null);
+                    String name = p != null ? p.getTitle() : ("ID #" + item.productId());
+                    throw new AppException(ErrorCode.RECEIPT_DUPLICATE_PRODUCT,
+                            "Mặt hàng '" + name + "' bị chọn lặp lại 2 lần trên phiếu nhập. Vui lòng cộng dồn số lượng vào một dòng duy nhất.");
+                }
+            }
+        }
     }
 
     /**
