@@ -5,7 +5,7 @@
     <title>Quản Lý Tác Giả</title>
 </head>
 <body>
-<div id="main-content" class="space-y-6">
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
@@ -17,8 +17,8 @@
                 <span>/</span>
                 <span class="text-carbon_black font-semibold">Tác giả</span>
             </nav>
-            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Lý Danh Bạ Tác Giả (UC17)</h1>
-            <p class="text-xs text-carbon_black-500 mt-0.5">Danh bạ tác giả, tiểu sử và thống kê đầu sách liên kết</p>
+            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Lý Danh Bạ Tác Giả</h1>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Danh sách tác giả, tiểu sử và thông tin các đầu sách liên kết</p>
         </div>
         <div class="flex items-center gap-3">
             <button type="button" onclick="openAuthorModal(null, '', '')"
@@ -175,35 +175,34 @@
         </div>
     </div>
 
-</div>
+    <script>
+        function openAuthorModal(id, name, biography) {
+            const modal = document.getElementById('authorModal');
+            const title = document.getElementById('modalTitle');
+            const form = document.getElementById('authorForm');
+            const nameInput = document.getElementById('authorNameInput');
+            const bioInput = document.getElementById('authorBioInput');
 
-<script>
-    function openAuthorModal(id, name, biography) {
-        const modal = document.getElementById('authorModal');
-        const title = document.getElementById('modalTitle');
-        const form = document.getElementById('authorForm');
-        const nameInput = document.getElementById('authorNameInput');
-        const bioInput = document.getElementById('authorBioInput');
+            if (id) {
+                title.textContent = 'Chỉnh Sửa Thông Tin Tác Giả';
+                form.action = '/manager/authors/' + id + '/edit';
+                nameInput.value = name || '';
+                bioInput.value = biography || '';
+            } else {
+                title.textContent = 'Thêm Tác Giả Mới';
+                form.action = '/manager/authors';
+                nameInput.value = '';
+                bioInput.value = '';
+            }
 
-        if (id) {
-            title.textContent = 'Chỉnh Sửa Thông Tin Tác Giả';
-            form.action = '/manager/authors/' + id + '/edit';
-            nameInput.value = name || '';
-            bioInput.value = biography || '';
-        } else {
-            title.textContent = 'Thêm Tác Giả Mới';
-            form.action = '/manager/authors';
-            nameInput.value = '';
-            bioInput.value = '';
+            modal.classList.remove('hidden');
+            nameInput.focus();
         }
 
-        modal.classList.remove('hidden');
-        nameInput.focus();
-    }
-
-    function closeAuthorModal() {
-        document.getElementById('authorModal').classList.add('hidden');
-    }
-</script>
+        function closeAuthorModal() {
+            document.getElementById('authorModal').classList.add('hidden');
+        }
+    </script>
+</div>
 </body>
 </html>

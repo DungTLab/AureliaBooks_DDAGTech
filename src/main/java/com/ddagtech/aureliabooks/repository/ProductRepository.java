@@ -1,8 +1,15 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Product;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
     /**
@@ -23,37 +30,61 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     boolean existsByBarcodeIgnoreCaseAndIdNot(String barcode, Long id);
 
     /**
-     * Finds products by product type with pagination.
+     * Finds all products with category eagerly loaded via EntityGraph.
+     * Prevents LazyInitializationException under open-in-view: false and avoids N+1 queries.
+     *
+     * @param pageable pagination request
+     * @return page of products with categories loaded
+     */
+    @Override
+    @EntityGraph(attributePaths = {"category"})
+    Page<Product> findAll(Pageable pageable);
+
+    /**
+     * Finds a product by ID with its category eagerly loaded.
+     *
+     * @param id product ID
+     * @return optional product with category
+     */
+    @Override
+    @EntityGraph(attributePaths = {"category"})
+    Optional<Product> findById(Long id);
+
+    /**
+     * Finds products by product type with pagination and category eagerly loaded.
      *
      * @param productType BOOK or STATIONERY
      * @param pageable    pagination request
-     * @return page of products
+     * @return page of products with categories loaded
      */
-    org.springframework.data.domain.Page<Product> findByProductType(Product.ProductType productType, org.springframework.data.domain.Pageable pageable);
+    @EntityGraph(attributePaths = {"category"})
+    Page<Product> findByProductType(Product.ProductType productType, Pageable pageable);
 
     /**
-     * Searches products by keyword across title or barcode with pagination.
+     * Searches products by keyword across title or barcode with pagination and category eagerly loaded.
      *
      * @param title    title keyword
      * @param barcode  barcode keyword
      * @param pageable pagination request
-     * @return page of products
+     * @return page of products with categories loaded
      */
-    org.springframework.data.domain.Page<Product> findByTitleContainingIgnoreCaseOrBarcodeContainingIgnoreCase(String title, String barcode, org.springframework.data.domain.Pageable pageable);
+    @EntityGraph(attributePaths = {"category"})
+    Page<Product> findByTitleContainingIgnoreCaseOrBarcodeContainingIgnoreCase(String title, String barcode, Pageable pageable);
 
     /**
-     * Searches products by keyword and product type with pagination.
+     * Searches products by keyword and product type with pagination and category eagerly loaded.
      *
      * @param productType BOOK or STATIONERY
      * @param title       title keyword
      * @param barcode     barcode keyword
      * @param pageable    pagination request
-     * @return page of products
+     * @return page of products with categories loaded
      */
-    @org.springframework.data.jpa.repository.Query("SELECT p FROM Product p WHERE p.productType = :productType AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :title, '%')) OR LOWER(p.barcode) LIKE LOWER(CONCAT('%', :barcode, '%')))")
-    org.springframework.data.domain.Page<Product> findByProductTypeAndKeyword(
-            @org.springframework.data.repository.query.Param("productType") Product.ProductType productType,
-            @org.springframework.data.repository.query.Param("title") String title,
-            @org.springframework.data.repository.query.Param("barcode") String barcode,
-            org.springframework.data.domain.Pageable pageable);
+    @EntityGraph(attributePaths = {"category"})
+    @Query("SELECT p FROM Product p WHERE p.productType = :productType AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :title, '%')) OR LOWER(p.barcode) LIKE LOWER(CONCAT('%', :barcode, '%')))")
+    Page<Product> findByProductTypeAndKeyword(
+            @Param("productType") Product.ProductType productType,
+            @Param("title") String title,
+            @Param("barcode") String barcode,
+            Pageable pageable);
 }

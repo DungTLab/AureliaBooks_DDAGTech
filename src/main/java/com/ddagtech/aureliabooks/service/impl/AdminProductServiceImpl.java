@@ -83,9 +83,8 @@ public class AdminProductServiceImpl implements AdminProductService {
 
         Product savedProduct = productRepository.save(product);
 
-        // 2. Create Book Specific Details
+        // 2. Create Book Specific Details (@MapsId automatically maps the identifier from product)
         Book book = Book.builder()
-                .productId(savedProduct.getId())
                 .product(savedProduct)
                 .isbn(isbn)
                 .publisher(publisher)
@@ -232,7 +231,6 @@ public class AdminProductServiceImpl implements AdminProductService {
         Product savedProduct = productRepository.save(product);
 
         Stationery stationery = Stationery.builder()
-                .productId(savedProduct.getId())
                 .product(savedProduct)
                 .brand(brand)
                 .material(form.material())

@@ -5,7 +5,7 @@
     <title>Quản Lý Sản Phẩm</title>
 </head>
 <body>
-<div id="main-content" class="space-y-6">
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
@@ -17,24 +17,24 @@
                 <span>/</span>
                 <span class="text-carbon_black font-semibold">Sản phẩm</span>
             </nav>
-            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Trị Danh Mục Sản Phẩm (UC15 & UC16)</h1>
-            <p class="text-xs text-carbon_black-500 mt-0.5">Quản lý danh sách Sách (IS-A) và Văn phòng phẩm (IS-A) theo kiến trúc Table-Per-Type</p>
+            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Trị Danh Mục Sản Phẩm</h1>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Quản lý danh mục sách và văn phòng phẩm trong hệ thống</p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
             <a th:href="@{/manager/authors}"
                class="inline-flex items-center gap-1.5 px-3.5 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition-colors">
                 <i class="bi bi-people"></i>
-                <span>Tác Giả (UC17)</span>
+                <span>Tác Giả</span>
             </a>
             <a th:href="@{/manager/books/new}"
                class="inline-flex items-center gap-1.5 px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-xs font-bold shadow-flame transition-all">
                 <i class="bi bi-journal-plus"></i>
-                <span>Thêm Sách Mới (UC15)</span>
+                <span>Thêm Sách Mới</span>
             </a>
             <a th:href="@{/manager/stationeries/new}"
                class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black hover:bg-carbon_black-600 text-white rounded-xl text-xs font-bold transition-colors">
                 <i class="bi bi-pencil-square"></i>
-                <span>Thêm VPP Mới (UC16)</span>
+                <span>Thêm Văn Phòng Phẩm</span>
             </a>
         </div>
     </div>

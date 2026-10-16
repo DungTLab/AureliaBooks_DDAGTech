@@ -2,6 +2,10 @@ package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Book;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
     /**
@@ -27,7 +31,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
      * @param isbn ISBN string
      * @return optional book
      */
-    java.util.Optional<Book> findByIsbn(String isbn);
+    Optional<Book> findByIsbn(String isbn);
 
     /**
      * Loads a book entity with its associated product, publisher, and authors to prevent N+1 queries.
@@ -35,6 +39,6 @@ public interface BookRepository extends JpaRepository<Book, Long> {
      * @param id book product ID
      * @return optional book with fetched associations
      */
-    @org.springframework.data.jpa.repository.Query("SELECT b FROM Book b JOIN FETCH b.product p JOIN FETCH b.publisher pub LEFT JOIN FETCH b.authors a WHERE b.productId = :id")
-    java.util.Optional<Book> findByIdWithDetails(@org.springframework.data.repository.query.Param("id") Long id);
+    @Query("SELECT b FROM Book b JOIN FETCH b.product p JOIN FETCH p.category cat JOIN FETCH b.publisher pub LEFT JOIN FETCH b.authors a WHERE b.productId = :id")
+    Optional<Book> findByIdWithDetails(@Param("id") Long id);
 }

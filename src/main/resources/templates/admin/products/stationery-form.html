@@ -5,7 +5,7 @@
     <title th:text="${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm' : 'Thêm Văn Phòng Phẩm Mới'}">Quản Lý Văn Phòng Phẩm</title>
 </head>
 <body>
-<div id="main-content" class="max-w-5xl mx-auto space-y-6">
+<div id="main-content" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Header Navigation -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
@@ -16,10 +16,10 @@
                 <span class="text-carbon_black font-semibold" th:text="${isEdit ? 'Chỉnh sửa VPP' : 'Thêm VPP mới'}">Biểu mẫu</span>
             </nav>
             <h1 class="font-serif text-2xl font-bold text-carbon_black"
-                th:text="${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm (UC16)' : 'Thêm Văn Phòng Phẩm Mới (UC16)'}">
+                th:text="${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm' : 'Thêm Văn Phòng Phẩm Mới'}">
                 Thêm Văn Phòng Phẩm Mới
             </h1>
-            <p class="text-xs text-carbon_black-500 mt-0.5">Mô hình Table-Per-Type liên kết giữa bảng Products (IS-A) và Stationeries</p>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Nhập thông tin chi tiết và quy cách của văn phòng phẩm</p>
         </div>
         <a th:href="@{/manager/products?type=STATIONERY}"
            class="inline-flex items-center gap-1.5 px-4 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition-colors">
@@ -28,12 +28,12 @@
         </a>
     </div>
 
-    <!-- Inventory Invariant Notice -->
+    <!-- Inventory Notice -->
     <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start gap-3">
-        <i class="bi bi-shield-check text-base text-blue-600 mt-0.5"></i>
+        <i class="bi bi-info-circle-fill text-base text-blue-600 mt-0.5"></i>
         <div>
-            <span class="font-bold">Quy tắc bảo toàn tồn kho (Strict Inventory Governance):</span>
-            Số lượng tồn kho khả dụng (ATP) được hạch toán hoàn toàn bất biến qua <span class="font-semibold">Phiếu Nhập Kho (Goods Receipts)</span> và không được phép chỉnh sửa tùy tiện tại biểu mẫu danh mục sản phẩm này.
+            <span class="font-bold">Lưu ý về số lượng tồn kho:</span>
+            Số lượng tồn kho khả dụng được quản lý đồng bộ thông qua <span class="font-semibold">Phiếu Nhập Kho</span> và các giao dịch bán hàng, không chỉnh sửa trực tiếp tại biểu mẫu này.
         </div>
     </div>
 
