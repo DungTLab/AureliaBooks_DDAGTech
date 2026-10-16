@@ -20,9 +20,12 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     Optional<Product> findByIdWithLock(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id IN :ids ORDER BY p.id ASC")
     List<Product> findAllByIdInWithLock(@Param("ids") Collection<Long> ids);
-
     org.springframework.data.domain.Page<Product> findByStockQuantityLessThanEqual(Integer maxStock, org.springframework.data.domain.Pageable pageable);
 
     long countByStockQuantityEquals(Integer stockQuantity);
@@ -51,4 +54,13 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     com.ddagtech.aureliabooks.dto.response.StockMetricSummary getActiveStockMetrics();
 
     boolean existsByBarcode(String barcode);
+
+    /**
+     * Retrieves all active products that have a non-null semantic embedding JSON vector
+     * for preloading into the in-memory vector store (CRON-02 / FE-6).
+     *
+     * @return list of active products with embeddings
+     */
+    @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.embedding IS NOT NULL")
+    List<Product> findActiveProductsWithEmbedding();
 }

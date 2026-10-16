@@ -123,13 +123,17 @@ public class SecurityConfig {
         }
 
         http
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/v1/payments/vnpay-ipn")
+                )
                 .authorizeHttpRequests(authorize -> authorize
-                        // 1. Public Storefront Catalog, Auth Entry, and Static Assets
+                        // 1. Public Storefront Catalog, Auth Entry, VNPay IPN Webhook, and Static Assets
                         .requestMatchers(
                                 "/",
                                 "/home",
                                 "/products/**",
                                 "/auth/**",
+                                "/api/v1/payments/vnpay-ipn",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết Quả Thanh Toán Đơn Hàng | AureliaBook</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#e6e8e6] text-[#191919] min-h-screen flex items-center justify-center p-6">
+    <!-- SCR-ST-13: Payment & Order Result Screen -->
+    <main class="bg-white border border-[#ced0ce] rounded-xl shadow-md max-w-lg w-full p-8">
+        <div class="text-center mb-6">
+            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#e6e8e6] text-[#191919]">
+                SCR-ST-13 • Kết Quả Thanh Toán VNPay
+            </span>
+            <h1 class="text-2xl font-bold mt-3 text-[#191919]"
+                th:text="${paymentResult.paymentSuccess ? 'Thanh Toán Thành Công' : 'Thanh Toán Không Thành Công'}">
+                Kết Quả Thanh Toán
+            </h1>
+            <p class="mt-2 text-sm text-[#191919]/80" th:text="${paymentResult.displayMessage}">
+                Thông báo trạng thái giao dịch.
+            </p>
+        </div>
+
+        <div class="border-t border-b border-[#ced0ce] py-4 space-y-3 text-sm">
+            <div class="flex justify-between">
+                <span class="text-[#191919]/70">Mã đơn hàng:</span>
+                <span class="font-semibold text-[#191919]" th:text="${paymentResult.orderCode}">ORD-001</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-[#191919]/70">Số tiền giao dịch:</span>
+                <span class="font-semibold text-[#f15025]"
+                      th:text="${#numbers.formatDecimal(paymentResult.amountVnd, 0, 'COMMA', 0, 'POINT') + ' ₫'}">0 ₫</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-[#191919]/70">Ngân hàng / Cổng:</span>
+                <span class="font-medium text-[#191919]" th:text="${paymentResult.bankCode ?: 'VNPay'}">NCB</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-[#191919]/70">Mã phản hồi VNPay:</span>
+                <span class="font-mono text-[#191919]" th:text="${paymentResult.responseCode}">00</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-[#191919]/70">Trạng thái đơn hàng:</span>
+                <span class="font-semibold text-[#191919]" th:text="${paymentResult.orderStatus}">PENDING_CONFIRMATION</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-[#191919]/70">Trạng thái thanh toán:</span>
+                <span class="font-semibold text-[#191919]" th:text="${paymentResult.paymentStatus}">PAID</span>
+            </div>
+        </div>
+
+        <div class="mt-6 flex flex-col sm:flex-row gap-3">
+            <a th:href="@{/orders}"
+               class="flex-1 text-center py-2.5 px-4 rounded-lg bg-[#f15025] text-white font-semibold hover:opacity-95 transition">
+                Xem Lịch Sử Đơn Hàng
+            </a>
+            <a th:href="@{/}"
+               class="flex-1 text-center py-2.5 px-4 rounded-lg border border-[#ced0ce] bg-white text-[#191919] font-medium hover:bg-[#e6e8e6] transition">
+                Tiếp Tục Mua Sắm
+            </a>
+        </div>
+    </main>
+</body>
+</html>
