@@ -150,18 +150,23 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Override
     @Transactional(readOnly = true)
     public List<String> getDistinctActions() {
-        return auditLogRepository.findDistinctActions();
+        return auditLogRepository.findDistinctActions().stream()
+                .filter(action -> !"MANUAL_STOCK_ADJUST".equalsIgnoreCase(action))
+                .toList();
     }
 
     /**
      * Retrieves unique target table names present in the audit ledger for dynamic filter rendering.
+     * Excludes deprecated physical table names removed in V2.3 (such as stock_logs).
      *
      * @return sorted list of unique target table strings
      */
     @Override
     @Transactional(readOnly = true)
     public List<String> getDistinctTargetTables() {
-        return auditLogRepository.findDistinctTargetTables();
+        return auditLogRepository.findDistinctTargetTables().stream()
+                .filter(table -> !"stock_logs".equalsIgnoreCase(table))
+                .toList();
     }
 
     /**

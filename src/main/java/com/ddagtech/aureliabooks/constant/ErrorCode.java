@@ -40,7 +40,13 @@ public enum ErrorCode {
     // 4xxx: Inventory & Stock Posting Constraints (FND-03)
     INSUFFICIENT_STOCK(4001, "Số lượng tồn kho không đủ để thực hiện trừ kho.", HttpStatus.BAD_REQUEST),
     ORDER_STOCK_NOT_DEDUCTED(4002, "Đơn hàng chưa từng bị trừ tồn kho, không thể hoàn tồn.", HttpStatus.BAD_REQUEST),
-    STAFF_REQUIRED_FOR_RETURN(4003, "Cần định danh nhân viên hợp lệ khi xác nhận trả hàng.", HttpStatus.BAD_REQUEST);
+    STAFF_REQUIRED_FOR_RETURN(4003, "Cần định danh nhân viên hợp lệ khi xác nhận trả hàng.", HttpStatus.BAD_REQUEST),
+    INVALID_QUANTITY_CHANGE(4004, "Biến động số lượng kho không hợp lệ.", HttpStatus.BAD_REQUEST),
+    NEGATIVE_STOCK_NOT_ALLOWED(4005, "Số lượng tồn kho không được phép âm.", HttpStatus.BAD_REQUEST),
+    STOCK_LEDGER_BALANCE_MISMATCH(4006, "Sai lệch cân bằng số lượng tồn kho.", HttpStatus.BAD_REQUEST),
+    PRODUCT_NOT_FOUND(4007, "Không tìm thấy sản phẩm.", HttpStatus.NOT_FOUND),
+    PRODUCT_INACTIVE(4008, "Sản phẩm hiện đang ngừng kinh doanh.", HttpStatus.BAD_REQUEST),
+    STOCK_OVERFLOW(4009, "Số lượng tồn kho vượt quá giới hạn tối đa.", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
