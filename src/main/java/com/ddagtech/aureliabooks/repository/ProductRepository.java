@@ -1,17 +1,22 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Product;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
+
     /**
      * Checks if a product with the specified barcode exists.
      *
@@ -87,4 +92,43 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             @Param("title") String title,
             @Param("barcode") String barcode,
             Pageable pageable);
+
+    /**
+     * Retrieves a product with a pessimistic write lock for inventory mutation.
+     *
+     * @param id product ID
+     * @return locked product optional
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdWithLock(@Param("id") Long id);
+
+    /**
+     * Retrieves a product with a pessimistic write lock for inventory update.
+     * Alias used across stock ledger engine services.
+     *
+     * @param id product ID
+     * @return locked product optional
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdForUpdate(@Param("id") Long id);
+
+    /**
+     * Retrieves multiple products with pessimistic write locks ordered by ID ascending to avoid deadlocks.
+     *
+     * @param ids collection of product IDs
+     * @return list of locked products
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.id IN :ids ORDER BY p.id ASC")
+    List<Product> findAllByIdInWithLock(@Param("ids") Collection<Long> ids);
+
+    /**
+     * Finds a product by its barcode.
+     *
+     * @param barcode product barcode
+     * @return optional product
+     */
+    Optional<Product> findByBarcode(String barcode);
 }

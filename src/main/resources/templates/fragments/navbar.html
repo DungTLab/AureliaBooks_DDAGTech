@@ -151,6 +151,9 @@
                             <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/products}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
                                 <i class="bi bi-box-seam"></i> Quản lý kho & SP
                             </a>
+                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/stock/ledger}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors font-semibold">
+                                <i class="bi bi-journal-text"></i> Sổ cái thẻ kho
+                            </a>
                             <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/suppliers}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors font-semibold">
                                 <i class="bi bi-truck"></i> Quản lý Nhà cung cấp
                             </a>

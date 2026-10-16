@@ -35,7 +35,19 @@ public enum ErrorCode {
 
     // 3xxx: Generic & Resource Validation
     RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
-    INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST);
+    INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST),
+
+    // 4xxx: Inventory & Stock Posting Constraints (FND-03)
+    INSUFFICIENT_STOCK(4001, "Số lượng tồn kho không đủ để thực hiện trừ kho.", HttpStatus.BAD_REQUEST),
+    ORDER_STOCK_NOT_DEDUCTED(4002, "Đơn hàng chưa từng bị trừ tồn kho, không thể hoàn tồn.", HttpStatus.BAD_REQUEST),
+    STAFF_REQUIRED_FOR_RETURN(4003, "Cần định danh nhân viên hợp lệ khi xác nhận trả hàng.", HttpStatus.BAD_REQUEST),
+    PRODUCT_NOT_FOUND(4004, "Không tìm thấy sản phẩm trong kho.", HttpStatus.NOT_FOUND),
+    NEGATIVE_STOCK_NOT_ALLOWED(4005, "Giao dịch bị từ chối: Số lượng tồn kho không được phép âm.", HttpStatus.BAD_REQUEST),
+    INVALID_QUANTITY_CHANGE(4006, "Biến động số lượng kho phải khác 0.", HttpStatus.BAD_REQUEST),
+    STOCK_LEDGER_BALANCE_MISMATCH(4007, "Vi phạm cân bằng thẻ kho: Tồn cuối phải bằng tồn đầu cộng số lượng biến động.", HttpStatus.BAD_REQUEST),
+    STOCK_LEDGER_IMMUTABLE(4008, "Thẻ kho là dữ liệu bất biến, không được phép chỉnh sửa hoặc xóa.", HttpStatus.FORBIDDEN),
+    PRODUCT_INACTIVE(4009, "Sản phẩm hiện đang bị vô hiệu hóa hoặc ngừng kinh doanh.", HttpStatus.BAD_REQUEST),
+    STOCK_OVERFLOW(4010, "Số lượng tồn kho vượt quá giới hạn lưu trữ tối đa.", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;
