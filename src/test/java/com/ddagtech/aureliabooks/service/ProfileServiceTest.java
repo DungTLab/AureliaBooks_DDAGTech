@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ProfileServiceTest {
     jakarta.validation.ValidatorFactory validatorFactory;
-    UserRepository users; UserServiceImpl service; User user; SessionRegistry sessions;
+    UserRepository users; UserServiceImpl service; User user; SessionRegistry sessions; AuditLogService auditLogService;
     @BeforeEach void setup() {
         users=mock(UserRepository.class); Role role=new Role(); role.setRoleName("ROLE_CUSTOMER");
         user=User.builder().id(1L).fullName("Nguyễn Văn An").email("an@example.com").phone("0912345678")
@@ -24,9 +24,10 @@ class ProfileServiceTest {
             .isActive(true).role(role).passwordHash(new BCryptPasswordEncoder().encode("OldPass1!")).build();
         when(users.findOwnerForUpdate(1L)).thenReturn(Optional.of(user));
         sessions=mock(SessionRegistry.class);
+        auditLogService=mock(AuditLogService.class);
         validatorFactory=Validation.buildDefaultValidatorFactory();
         service=new UserServiceImpl(users,mock(RegistrationService.class),new BCryptPasswordEncoder(),
-                validatorFactory.getValidator(),mock(AvatarStorage.class),sessions);
+                validatorFactory.getValidator(),mock(AvatarStorage.class),sessions,auditLogService);
     }
     @AfterEach void closeValidatorFactory() {
         if (validatorFactory != null) validatorFactory.close();
@@ -117,5 +118,25 @@ class ProfileServiceTest {
     @Test void inactiveCustomerCannotMutateProfile() {
         user.setIsActive(false);
         assertThrows(AppException.class,()->service.updateProfile(1L,new ProfileUpdateRequest("Nguyễn An",null,null,User.Gender.MALE)));
+    }
+    @Test void passwordChangeSuccessEmitsAuditLogWithoutSensitivePayload() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.changePassword(1L, new PasswordChangeRequest("OldPass1!", "NewPass1!", "NewPass1!"));
+            verify(auditLogService, times(1)).record(
+                    eq(1L),
+                    eq("PASSWORD_CHANGED"),
+                    eq("users"),
+                    eq(1L),
+                    contains("Thay đổi mật khẩu"),
+                    any()
+            );
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+    @Test void passwordChangeFailureNeverEmitsAuditLog() {
+        assertThrows(AppException.class, () -> service.changePassword(1L, new PasswordChangeRequest("WrongPass!", "NewPass1!", "NewPass1!")));
+        verify(auditLogService, never()).record(any(), any(), any(), any(), any(), any());
     }
 }

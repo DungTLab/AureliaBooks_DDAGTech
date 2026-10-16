@@ -19,6 +19,11 @@ import java.util.Optional;
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
+    // TODO: owner adds only queries required by their Sprint 1 use cases.
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.id =:userId")
+    Optional<User> findForCartUpdate(@Param("userId") Long userId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.id = :id")
     Optional<User> findOwnerForUpdate(@Param("id") Long id);

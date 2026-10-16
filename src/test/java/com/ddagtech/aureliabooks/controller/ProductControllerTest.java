@@ -2,7 +2,10 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
+import com.ddagtech.aureliabooks.dto.response.AuthorSummary;
+import com.ddagtech.aureliabooks.dto.response.BrandSummary;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
+import com.ddagtech.aureliabooks.dto.response.PublisherSummary;
 import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.service.ProductService;
@@ -49,12 +52,24 @@ class ProductControllerTest {
         when(productService.getActiveCategories()).thenReturn(List.of(
                 new CategorySummary(1L, "Văn Học", null)
         ));
+        when(productService.getAuthors()).thenReturn(List.of(
+                new AuthorSummary(1L, "Nguyễn Nhật Ánh")
+        ));
+        when(productService.getPublishers()).thenReturn(List.of(
+                new PublisherSummary(1L, "NXB Trẻ")
+        ));
+        when(productService.getBrands()).thenReturn(List.of(
+                new BrandSummary(1L, "Thiên Long")
+        ));
 
         mockMvc.perform(get("/products"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("product/list"))
                 .andExpect(model().attributeExists("products"))
                 .andExpect(model().attributeExists("categories"))
+                .andExpect(model().attributeExists("authors"))
+                .andExpect(model().attributeExists("publishers"))
+                .andExpect(model().attributeExists("brands"))
                 .andExpect(model().attribute("currentSort", "newest"))
                 .andExpect(model().attribute("currentSize", 12));
 
@@ -145,18 +160,97 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("GET /products/search renders search placeholder template")
-    void getSearchPage() throws Exception {
-        mockMvc.perform(get("/products/search"))
+    @DisplayName("GET /products renders interactive non-hidden form controls for author, publisher, and brand")
+    void getProductsRendersFacetedFilterControlsForAuthorPublisherBrand() throws Exception {
+        when(productService.browse(any(), any())).thenReturn(Page.empty());
+        when(productService.getActiveCategories()).thenReturn(List.of(
+                new CategorySummary(1L, "Văn Học", null)
+        ));
+        when(productService.getAuthors()).thenReturn(List.of(
+                new AuthorSummary(1L, "Nguyễn Nhật Ánh"),
+                new AuthorSummary(2L, "Robert C. Martin")
+        ));
+        when(productService.getPublishers()).thenReturn(List.of(
+                new PublisherSummary(1L, "NXB Trẻ")
+        ));
+        when(productService.getBrands()).thenReturn(List.of(
+                new BrandSummary(1L, "Thiên Long")
+        ));
+
+        var result = mockMvc.perform(get("/products"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("product/search"));
+                .andExpect(view().name("product/list"))
+                .andReturn();
+
+        String html = result.getResponse().getContentAsString();
+        assertThat(html).contains("name=\"authorId\"");
+        assertThat(html).contains("name=\"publisherId\"");
+        assertThat(html).contains("name=\"brandId\"");
+        assertThat(html).contains("type=\"radio\"");
+        assertThat(html).doesNotContain("<input type=\"hidden\" name=\"authorId\"");
+        assertThat(html).doesNotContain("<input type=\"hidden\" name=\"publisherId\"");
+        assertThat(html).doesNotContain("<input type=\"hidden\" name=\"brandId\"");
+        assertThat(html).contains("Nguyễn Nhật Ánh");
+        assertThat(html).contains("NXB Trẻ");
+        assertThat(html).contains("Thiên Long");
     }
 
     @Test
-    @DisplayName("GET /products/1 renders detail placeholder template")
+    @DisplayName("GET /products/search renders search template with model attributes")
+    void getSearchPage() throws Exception {
+        when(productService.browse(any(), any())).thenReturn(Page.empty());
+        when(productService.getActiveCategories()).thenReturn(List.of());
+
+        mockMvc.perform(get("/products/search").param("keyword", "Harry Potter"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("product/search"))
+                .andExpect(model().attributeExists("products"))
+                .andExpect(model().attribute("keyword", "Harry Potter"));
+    }
+
+    @Test
+    @DisplayName("GET /products/1 renders detail template with product details")
     void getDetailPage() throws Exception {
+        com.ddagtech.aureliabooks.dto.response.ProductDetailResponse detail =
+                new com.ddagtech.aureliabooks.dto.response.ProductDetailResponse(
+                        1L, "BARCODE123", "Harry Potter", new BigDecimal("150000"),
+                        new BigDecimal("200000"), 10, "http://image.jpg", "Great book", 350,
+                        Product.ProductType.BOOK, 2L, "Văn Học", "978-1234567890", 1L, "NXB Trẻ",
+                        List.of("J.K. Rowling"), "Harry Potter", 1, false, 2020, "1", 350,
+                        Book.CoverType.PAPERBACK, "Tiếng Việt", null, null, null, null, null
+                );
+        when(productService.viewDetail(1L)).thenReturn(detail);
+
         mockMvc.perform(get("/products/1"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("product/detail"));
+                .andExpect(view().name("product/detail"))
+                .andExpect(model().attributeExists("product"));
+    }
+
+    @Test
+    @DisplayName("GET /products/autocomplete with keyword >= 2 returns suggestion list JSON")
+    void getAutocompleteSuggestions() throws Exception {
+        var suggestion = new com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse(
+                1L, "Harry Potter", new BigDecimal("150000"), "http://image.jpg", "BARCODE123"
+        );
+        when(productService.autoComplete("Har")).thenReturn(List.of(suggestion));
+
+        mockMvc.perform(get("/products/autocomplete").param("keyword", "Har"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].title").value("Harry Potter"))
+                .andExpect(jsonPath("$[0].price").value(150000))
+                .andExpect(jsonPath("$[0].imageUrl").value("http://image.jpg"))
+                .andExpect(jsonPath("$[0].barcode").value("BARCODE123"));
+    }
+
+    @Test
+    @DisplayName("GET /products/autocomplete with keyword < 2 returns empty list without calling service")
+    void getAutocompleteShortKeywordReturnsEmptyList() throws Exception {
+        mockMvc.perform(get("/products/autocomplete").param("keyword", "H"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/json"))
+                .andExpect(content().json("[]"));
     }
 }
