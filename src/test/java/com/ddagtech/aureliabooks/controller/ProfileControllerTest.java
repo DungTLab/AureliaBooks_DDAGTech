@@ -152,4 +152,13 @@ class ProfileControllerTest {
                 .andExpect(status().isOk()).andExpect(content().string(containsString("src=\"/profile/avatar/google.png\"")));
         verify(navbarUsers).findByGoogleIdentity(com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE,"nav-subject");
     }
+    @Test
+    void missingEmailHasAdditionActionInsteadOfReadonlyInput() throws Exception {
+        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L, null, "Nguyễn An",
+                "0912345678", null, "OTHER", null, false, true, true));
+        mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("id=\"email\""))))
+                .andExpect(content().string(containsString("Bổ sung email")));
+    }
 }

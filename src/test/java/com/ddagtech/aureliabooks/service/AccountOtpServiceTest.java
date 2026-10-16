@@ -23,7 +23,36 @@ class AccountOtpServiceTest {
  @Test void expiredCodeCannotRegister()throws Exception{String id=service.registration(request(),"s","ip");var field=AccountOtpService.class.getDeclaredField("flows");field.setAccessible(true);@SuppressWarnings("unchecked") var flows=(Map<String,AccountOtpService.Flow>)field.get(service);flows.get(id).expires=Instant.now().minusSeconds(1);assertThatThrownBy(()->service.verify(id,"s",code,"ip")).hasMessageContaining("hết hạn");}
  @Test void newRegistrationCannotBypassTargetCooldown(){service.registration(request(),"s","ip");assertThatThrownBy(()->service.registration(request(),"s","ip")).hasMessageContaining("60 giây");verify(delivery,times(1)).send(anyString(),anyString(),anyString());}
  @Test void verifiedChannelsOnlyAndSingleChannelAutomatic(){User u=account();u.setEmailVerified(false);assertThat(reset(u)).isNotBlank();verify(delivery).send(eq("SMS"),eq(u.getPhone()),anyString());assertThat(service.recoveryChannels("a@example.test")).containsExactly("SMS");}
- @Test void googleOnlyInactiveAndUnknownCannotGetReset(){User u=account();u.setPasswordHash(null);String id=reset(u);assertThat(service.recoveryChannels("a@example.test")).isEmpty();assertThatThrownBy(()->service.verify(id,"session","123456","ip")).isInstanceOf(IllegalArgumentException.class);verifyNoInteractions(delivery,writer);u.setPasswordHash("hash");u.setIsActive(false);reset(u);verifyNoInteractions(delivery,writer);}
+ @Test void googleOnlyInactiveAndUnknownCannotGetReset(){
+  assertThatThrownBy(()->service.recovery("missing@example.test","EMAIL","session","ip")).hasMessageContaining("Không tìm thấy tài khoản");
+  User u=account();u.setPasswordHash(null);when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(u));
+  assertThatThrownBy(()->service.recoveryChannels("a@example.test")).hasMessageContaining("Google");
+  assertThatThrownBy(()->reset(u)).hasMessageContaining("Google");
+  u.setPasswordHash("hash");u.setIsActive(false);assertThatThrownBy(()->reset(u)).hasMessageContaining("vô hiệu hóa");
+  verifyNoInteractions(delivery,writer);
+ }
+ @Test void unknownLookupAndInvalidFormatCannotOfferChannels(){
+  assertThatThrownBy(()->service.recoveryChannels("missing@example.test")).hasMessageContaining("Không tìm thấy tài khoản");
+  assertThatThrownBy(()->service.recoveryChannels("not-an-email-or-phone")).hasMessageContaining("hợp lệ");
+  verify(users,never()).findByIdentifierWithRoles("not-an-email-or-phone");verifyNoInteractions(delivery,writer);
+ }
+ @Test void accountWithoutVerifiedChannelsCannotStartRecovery(){
+  User u=account();u.setEmailVerified(false);u.setPhoneVerified(false);when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(u));
+  assertThatThrownBy(()->service.recoveryChannels("a@example.test")).hasMessageContaining("chưa có");
+  assertThatThrownBy(()->reset(u)).hasMessageContaining("chưa có");verifyNoInteractions(delivery,writer);
+ }
+ @Test void failedRecoveryDeliveryThrowsAndDoesNotRetainFlow()throws Exception{
+  when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(account()));
+  doThrow(new IllegalStateException("provider-secret")).when(delivery).send(anyString(),anyString(),anyString());
+  assertThatThrownBy(()->service.recovery("a@example.test","EMAIL","session","ip")).hasMessageContaining("Không gửi được mã").hasMessageNotContaining("provider-secret");
+  var field=AccountOtpService.class.getDeclaredField("flows");field.setAccessible(true);assertThat((Map<?,?>)field.get(service)).isEmpty();verifyNoInteractions(writer);
+ }
+ @Test void recoveryRejectsTamperedChannelAndRechecksLatestAccountState(){
+  when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(account()));
+  assertThatThrownBy(()->service.recovery("a@example.test","WHATSAPP","session","ip")).hasMessageContaining("Kênh");
+  var u=account();u.setIsActive(false);when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(u));
+  assertThatThrownBy(()->service.recovery("a@example.test","EMAIL","session","ip")).hasMessageContaining("vô hiệu hóa");verifyNoInteractions(delivery,writer);
+ }
  @Test void resetRequiresOtpThenWritesOnceAndRejectsReplay(){String id=reset(account());assertThatThrownBy(()->service.reset(id,"session","NewPass1!","NewPass1!","ip")).isInstanceOf(IllegalArgumentException.class);assertThat(service.verify(id,"session",code,"ip").complete()).isFalse();service.reset(id,"session","NewPass1!","NewPass1!","ip");verify(writer).reset(eq(7L),eq("old-hash"),eq("EMAIL"),eq("a@example.test"),argThat(h->h.startsWith("$2")),eq("ip"));assertThatThrownBy(()->service.reset(id,"session","NewPass1!","NewPass1!","ip")).isInstanceOf(IllegalArgumentException.class);}
  @Test void invalidPasswordCannotConsumeVerifiedGrant(){String id=reset(account());service.verify(id,"session",code,"ip");assertThatThrownBy(()->service.reset(id,"session","weak","different","ip")).isInstanceOf(IllegalArgumentException.class);verifyNoInteractions(writer);service.reset(id,"session","NewPass1!","NewPass1!","ip");}
  @Test void deliveryFailureNeverAuthorizesRegistration(){doThrow(new IllegalStateException("secret")).when(delivery).send(anyString(),anyString(),anyString());assertThatThrownBy(()->service.registration(request(),"s","ip")).hasMessageNotContaining("secret");verifyNoInteractions(writer);}

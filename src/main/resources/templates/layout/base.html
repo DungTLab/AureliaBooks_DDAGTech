@@ -5,6 +5,11 @@
     <!-- Main Global Navbar Header -->
     <div th:replace="~{fragments/navbar :: navbar}"></div>
 
+    <div th:if="${smsDemoEnabled == true}" role="status"
+         class="bg-amber-100 text-amber-900 px-4 py-3 text-center text-sm">
+        Chế độ demo: SMS được mô phỏng qua hộp thư của nhóm, không gửi tới điện thoại.
+    </div>
+
     <!-- Global Floating Toast Alerts Container -->
     <div th:replace="~{fragments/alerts :: alerts}"></div>
 

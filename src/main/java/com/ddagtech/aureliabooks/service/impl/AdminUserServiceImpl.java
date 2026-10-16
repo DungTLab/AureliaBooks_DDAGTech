@@ -60,8 +60,8 @@ public class AdminUserServiceImpl implements AdminUserService {
      * Eliminates N+1 queries by relying on UserRepository join fetch.
      *
      * @param roleName optional role filter name
-     * @param active optional active status filter
-     * @param keyword optional search term matching name, email, or phone
+     * @param active   optional active status filter
+     * @param keyword  optional search term matching name, email, or phone
      * @param pageable pagination parameters
      * @return page of UserSummary DTOs
      */
@@ -88,8 +88,8 @@ public class AdminUserServiceImpl implements AdminUserService {
      * Validates uniqueness of email and phone, enforces internal role assignment whitelist,
      * hashes credentials with BCrypt, and appends a security audit entry.
      *
-     * @param adminId authenticated administrator user ID performing the operation
-     * @param request creation parameters DTO
+     * @param adminId   authenticated administrator user ID performing the operation
+     * @param request   creation parameters DTO
      * @param ipAddress originating client IP address
      * @return generated persistent user ID
      */
@@ -156,9 +156,9 @@ public class AdminUserServiceImpl implements AdminUserService {
      * Enforces self-lock guard (BR-08-01) and ensures at least one active administrator remains.
      * When deactivated, all concurrent active HTTP sessions for the user are immediately expired.
      *
-     * @param adminId authenticated administrator user ID
-     * @param userId target user ID to update
-     * @param active desired active state
+     * @param adminId   authenticated administrator user ID
+     * @param userId    target user ID to update
+     * @param active    desired active state
      * @param ipAddress originating client IP address
      */
     @Override
@@ -218,8 +218,8 @@ public class AdminUserServiceImpl implements AdminUserService {
      * Prevents demoting the last active administrator and prevents self-demotion from the admin role.
      * Terminates existing user sessions to force re-authentication with fresh GrantedAuthorities.
      *
-     * @param adminId authenticated administrator user ID
-     * @param userId target user ID to update
+     * @param adminId   authenticated administrator user ID
+     * @param userId    target user ID to update
      * @param newRoleId target role ID to assign
      * @param ipAddress originating client IP address
      */

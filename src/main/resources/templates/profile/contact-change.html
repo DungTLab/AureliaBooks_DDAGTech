@@ -1,26 +1,41 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Thay đổi thông tin liên hệ', ~{::#main-content})}">
-<head><title>Thay đổi thông tin liên hệ</title></head>
-<body><section id="main-content" class="max-w-2xl mx-auto px-4 py-10">
-    <div class="bg-white border border-dust_grey rounded-2xl p-6 sm:p-8 space-y-6">
-        <h1 class="font-serif text-2xl font-bold">Thay đổi thông tin liên hệ</h1>
-        <p class="text-sm text-carbon_black-500">Xác thực lại tài khoản, sau đó nhập OTP gửi tới email hoặc SĐT mới. Thông tin chỉ được lưu khi mã hợp lệ.</p>
-        <p class="text-sm text-carbon_black-500">Bạn cũng có thể nhập lại email/SĐT hiện tại chưa xác minh để xác minh quyền sở hữu và dùng cho khôi phục mật khẩu.</p>
-        <form th:unless="${passwordRequired}" th:action="@{/profile/google/reauth}" method="post"><button class="rounded-xl border border-dust_grey px-4 py-3">Xác thực lại bằng Google</button></form>
-        <p th:if="${contactMessage != null}" th:text="${contactMessage}" role="status" class="rounded-xl bg-parchment p-4 text-sm"></p>
-        <form th:action="@{/profile/contact-change/start}" method="post" class="space-y-4">
-            <div><label for="contactType" class="block text-sm font-semibold mb-2">Thông tin cần đổi</label>
-                <select id="contactType" name="type" class="w-full border border-dust_grey rounded-xl p-3">
-                    <option value="EMAIL" th:selected="${selectedType == 'EMAIL'}">Email</option><option value="PHONE" th:selected="${selectedType == 'PHONE'}">Số điện thoại</option>
-                </select></div>
-            <div><label for="contactValue" class="block text-sm font-semibold mb-2">Email hoặc SĐT mới</label>
-                <input id="contactValue" name="value" type="text" required maxlength="100" autocomplete="off" class="w-full border border-dust_grey rounded-xl p-3"></div>
-            <div th:if="${passwordRequired}"><label for="contactPassword" class="block text-sm font-semibold mb-2">Mật khẩu hiện tại</label><div class="relative" data-password-field>
-                <input id="contactPassword" name="password" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl p-3 pr-14">
-                <button type="button" data-password-toggle aria-controls="contactPassword" aria-label="Hiện mật khẩu hiện tại" aria-pressed="false" class="absolute right-2 top-1/2 -translate-y-1/2 p-2"><i class="bi bi-eye" aria-hidden="true"></i></button></div>
-                <a th:href="@{/auth/forgot-password}" class="text-sm underline">Quên mật khẩu?</a></div>
-            <button type="submit" class="rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold">Gửi mã xác thực</button>
-        </form>
-        <a th:href="@{/profile}" class="inline-block text-sm underline">Quay về hồ sơ</a>
-    </div>
-</section></body></html>
+    <head>
+        <title>Thay đổi thông tin liên hệ</title>
+    </head>
+    <body>
+        <section id="main-content" class="max-w-2xl mx-auto px-4 py-10">
+            <div class="bg-white border border-dust_grey rounded-2xl p-6 sm:p-8 space-y-6">
+                <h1 class="font-serif text-2xl font-bold" th:text="${addingContact ? 'Bổ sung thông tin liên hệ' : 'Thay đổi thông tin liên hệ'}">Thông tin liên hệ</h1>
+                <p class="text-sm text-carbon_black-500">Xác thực lại tài khoản, sau đó nhập OTP gửi tới email hoặc SĐT mới. Thông tin chỉ được lưu khi mã hợp lệ.</p>
+                <p class="text-sm text-carbon_black-500">Bạn cũng có thể nhập lại email/SĐT hiện tại chưa xác minh để xác minh quyền sở hữu và dùng cho khôi phục mật khẩu.</p>
+                <form th:unless="${passwordRequired}" th:action="@{/profile/google/reauth}" method="post">
+                    <button class="rounded-xl border border-dust_grey px-4 py-3">Xác thực lại bằng Google</button>
+                </form>
+                <p th:if="${contactMessage != null}" th:text="${contactMessage}" role="status" class="rounded-xl bg-parchment p-4 text-sm">
+                </p>
+                <form th:action="@{/profile/contact-change/start}" method="post" class="space-y-4">
+                    <input type="hidden" name="type" th:value="${selectedType}">
+                    <div>
+                        <label for="contactValue" class="block text-sm font-semibold mb-2" th:text="${selectedType == 'EMAIL' ? (addingContact ? 'Email cần bổ sung' : 'Email mới') : (addingContact ? 'Số điện thoại cần bổ sung' : 'Số điện thoại mới')}">
+                        </label>
+                        <input id="contactValue" name="value" th:type="${selectedType == 'EMAIL' ? 'email' : 'tel'}" th:maxlength="${selectedType == 'EMAIL' ? 100 : 10}" th:pattern="${selectedType == 'PHONE' ? '0[0-9]{9}' : null}" th:autocomplete="${selectedType == 'EMAIL' ? 'email' : 'tel'}" required class="w-full border border-dust_grey rounded-xl p-3">
+                    </div>
+                    <div th:if="${passwordRequired}">
+                        <label for="contactPassword" class="block text-sm font-semibold mb-2">Mật khẩu hiện tại</label>
+                        <div class="relative" data-password-field>
+                            <input id="contactPassword" name="password" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl p-3 pr-14">
+                            <button type="button" data-password-toggle aria-controls="contactPassword" aria-label="Hiện mật khẩu hiện tại" aria-pressed="false" class="absolute right-2 top-1/2 -translate-y-1/2 p-2">
+                                <i class="bi bi-eye" aria-hidden="true">
+                                </i>
+                            </button>
+                        </div>
+                        <a th:href="@{/auth/forgot-password}" class="text-sm underline">Quên mật khẩu?</a>
+                    </div>
+                    <button type="submit" class="rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold">Gửi mã xác thực</button>
+                </form>
+                <a th:href="@{/profile}" class="inline-block text-sm underline">Quay về hồ sơ</a>
+            </div>
+        </section>
+    </body>
+</html>

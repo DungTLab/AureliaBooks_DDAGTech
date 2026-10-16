@@ -93,4 +93,21 @@ class ContactChangeControllerTest {
   mvc.perform(post("/profile/contact-change/resend").with(user("customer").roles("CUSTOMER")).with(csrf()))
    .andExpect(redirectedUrl("/profile/contact-change/verification"));
  }
+    @Test
+    void missingEmailOffersAdditionWithoutContactSelector() throws Exception {
+        when(identity.resolve(any())).thenReturn(7L);
+        when(security.customer(7L)).thenReturn(com.ddagtech.aureliabooks.entity.User.builder()
+                .phone("0912345678").passwordHash("hash").build());
+        mvc.perform(get("/profile/contact-change").param("type", "EMAIL")
+                .with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("addingContact", true))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("id=\"contactType\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("type=\"email\"")))
+                .andExpect(model().attribute("selectedType", "EMAIL"));
+        mvc.perform(get("/profile/contact-change").param("type", "PHONE")
+                .with(user("customer").roles("CUSTOMER")))
+                .andExpect(model().attribute("addingContact", false))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("type=\"tel\"")));
+    }
 }

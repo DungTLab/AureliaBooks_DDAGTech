@@ -22,7 +22,9 @@ public class AuthController {
     private final ObjectProvider<com.ddagtech.aureliabooks.service.AccountOtpService> accountOtp;
 
     @GetMapping("/auth/login")
-    public String login() { return "auth/login"; }
+    public String login() {
+        return "auth/login";
+    }
 
     @GetMapping("/auth/google/login")
     public String googleLogin(jakarta.servlet.http.HttpServletRequest request) {
@@ -57,11 +59,12 @@ public class AuthController {
                            RedirectAttributes redirect, jakarta.servlet.http.HttpServletRequest request) {
         if (errors.hasErrors()) return "auth/register";
         try {
-            var local=new RegisterRequest(null,registerRequest.password(),registerRequest.fullName(),registerRequest.phone(),registerRequest.dob(),registerRequest.confirmPassword(),registerRequest.gender(),registerRequest.agreeTerms());
-            String flow=accountOtp.getObject().registration(local,request.getSession().getId(),com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request));
-            request.getSession().setAttribute("ACCOUNT_OTP_FLOW",flow);
+            var local = new RegisterRequest(null, registerRequest.password(), registerRequest.fullName(), registerRequest.phone(), registerRequest.dob(), registerRequest.confirmPassword(), registerRequest.gender(), registerRequest.agreeTerms());
+            String flow = accountOtp.getObject().registration(local, request.getSession().getId(), com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request));
+            request.getSession().setAttribute("ACCOUNT_OTP_FLOW", flow);
         } catch (IllegalArgumentException ex) {
-            errors.reject("registration",ex.getMessage());return "auth/register";
+            errors.reject("registration", ex.getMessage());
+            return "auth/register";
         } catch (AppException ex) {
             errors.reject("registration", ex.getMessage());
             return "auth/register";
