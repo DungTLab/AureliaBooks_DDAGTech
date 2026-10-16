@@ -196,9 +196,17 @@
                     <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Chất Liệu
                     </label>
-                    <input type="text" th:field="*{material}" maxlength="100"
-                           placeholder="Ví dụ: Nhựa cao cấp, Kim loại, Giấy tái sinh..."
+                    <input type="text" th:field="*{material}" maxlength="100" list="common-materials"
+                           placeholder="Chọn gợi ý hoặc nhập tự do (Ví dụ: Nhựa cao cấp)..."
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                    <datalist id="common-materials">
+                        <option value="Nhựa ABS cao cấp"></option>
+                        <option value="Kim loại không gỉ"></option>
+                        <option value="Gỗ tự nhiên"></option>
+                        <option value="Giấy tái sinh"></option>
+                        <option value="Vải canvas"></option>
+                        <option value="Cao su mềm"></option>
+                    </datalist>
                 </div>
 
                 <!-- Color -->
@@ -206,9 +214,20 @@
                     <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Màu Sắc
                     </label>
-                    <input type="text" th:field="*{color}" maxlength="50"
-                           placeholder="Ví dụ: Xanh dương, Đỏ, Đen, Trong suốt..."
+                    <input type="text" th:field="*{color}" maxlength="50" list="common-colors"
+                           placeholder="Chọn gợi ý hoặc nhập tự do (Ví dụ: Xanh dương)..."
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                    <datalist id="common-colors">
+                        <option value="Đen"></option>
+                        <option value="Xanh dương"></option>
+                        <option value="Đỏ"></option>
+                        <option value="Vàng"></option>
+                        <option value="Xanh lá"></option>
+                        <option value="Trắng"></option>
+                        <option value="Trong suốt"></option>
+                        <option value="Nhiều màu"></option>
+                        <option value="Pastel"></option>
+                    </datalist>
                 </div>
             </div>
         </div>
