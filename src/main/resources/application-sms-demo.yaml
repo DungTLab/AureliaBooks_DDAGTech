@@ -1,0 +1,5 @@
+# Only use approved test accounts/data. OTP emails are not evidence of phone ownership.
+demo:
+  sms:
+    inbox: ${DEMO_SMS_INBOX:}
+    allowed-phones: ${DEMO_SMS_ALLOWED_PHONES:}
