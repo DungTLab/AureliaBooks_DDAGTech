@@ -1,4 +1,6 @@
 package com.ddagtech.aureliabooks.service;
+
+import com.ddagtech.aureliabooks.service.impl.RegistrationServiceImpl;
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.repository.*;
@@ -21,7 +23,7 @@ class RegistrationServiceTest {
     @BeforeEach void setup() {
         users=mock(UserRepository.class); roles=mock(RoleRepository.class);
         factory=Validation.buildDefaultValidatorFactory(); validator=factory.getValidator();
-        service=new RegistrationService(users,roles,new BCryptPasswordEncoder(4),validator);
+        service=new RegistrationServiceImpl(users,roles,new BCryptPasswordEncoder(4),validator);
         when(roles.findByRoleName("ROLE_CUSTOMER")).thenReturn(Optional.of(customer));
         when(users.saveAndFlush(any())).thenAnswer(i -> { User u=i.getArgument(0); u.setId(10L); return u; });
     }

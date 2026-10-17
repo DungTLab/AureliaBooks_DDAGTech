@@ -2,7 +2,6 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.exception.AppException;
-import com.ddagtech.aureliabooks.service.RegistrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -17,7 +16,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller
 @RequiredArgsConstructor
 public class AuthController {
-    private final RegistrationService registration;
     private final ObjectProvider<ClientRegistrationRepository> clients;
     private final ObjectProvider<com.ddagtech.aureliabooks.service.AccountOtpService> accountOtp;
 

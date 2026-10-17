@@ -1,4 +1,6 @@
 package com.ddagtech.aureliabooks.service;
+
+import com.ddagtech.aureliabooks.service.impl.ContactChangeServiceImpl;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import jakarta.validation.Validation;
@@ -20,7 +22,7 @@ class ContactChangeServiceTest {
         user=User.builder().id(1L).email("old@example.com").phone("0912345678").isActive(true).role(Role.builder().roleName("ROLE_CUSTOMER").build()).build();
         when(users.findById(1L)).thenReturn(Optional.of(user));
         doAnswer(a->{channel=a.getArgument(0);recipient=a.getArgument(1);code=a.getArgument(2);deliveries++;return null;}).when(send).send(anyString(),anyString(),anyString());
-        service=new ContactChangeService(users,vf.getValidator(),send,writer,clock);
+        service=new ContactChangeServiceImpl(users,vf.getValidator(),send,writer,clock);
     }
     @AfterEach void cleanup(){vf.close();}
     void startEmail(){service.startDestination(1L,"session","EMAIL","NEW@example.com","203.0.113.1");}
