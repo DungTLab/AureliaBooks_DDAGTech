@@ -8,11 +8,11 @@ import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
 import com.ddagtech.aureliabooks.dto.response.PublisherSummary;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
-import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Product;
-import com.ddagtech.aureliabooks.entity.Stationery;
+import com.ddagtech.aureliabooks.mapper.MasterDataMapper;
+import com.ddagtech.aureliabooks.mapper.ProductMapper;
 import com.ddagtech.aureliabooks.repository.AuthorRepository;
 import com.ddagtech.aureliabooks.repository.BookRepository;
 import com.ddagtech.aureliabooks.repository.BrandRepository;
@@ -32,7 +32,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +50,8 @@ public class ProductServiceImpl implements ProductService {
     private final AuthorRepository authorRepository;
     private final PublisherRepository publisherRepository;
     private final BrandRepository brandRepository;
+    private ProductMapper productMapper = new ProductMapper();
+    private MasterDataMapper masterDataMapper = new MasterDataMapper();
 
     public ProductServiceImpl(ProductRepository productRepository,
                               CategoryRepository categoryRepository,
@@ -82,6 +83,20 @@ public class ProductServiceImpl implements ProductService {
         this.brandRepository = brandRepository;
     }
 
+    @Autowired(required = false)
+    public void setProductMapper(ProductMapper productMapper) {
+        if (productMapper != null) {
+            this.productMapper = productMapper;
+        }
+    }
+
+    @Autowired(required = false)
+    public void setMasterDataMapper(MasterDataMapper masterDataMapper) {
+        if (masterDataMapper != null) {
+            this.masterDataMapper = masterDataMapper;
+        }
+    }
+
     @Transactional(readOnly = true)
     @Override
     public Page<ProductSummary> browse(ProductFilterRequest filter, Pageable pageable) {
@@ -92,9 +107,9 @@ public class ProductServiceImpl implements ProductService {
         if (filter != null) {
             if (filter.keyword() != null && !filter.keyword().isBlank()) {
                 spec = spec.and(ProductSpecification.hasKeyword(filter.keyword()));
-                spec = spec.and(ProductSpecification.prioritizeExactIdentifier(filter.keyword(),pageable.getSort()));
+                spec = spec.and(ProductSpecification.prioritizeExactIdentifier(filter.keyword(), pageable.getSort()));
 
-                effectivePageable = PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(), Sort.unsorted());
+                effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.unsorted());
             }
             if (filter.categoryId() != null) {
                 List<Long> targetCategoryIds = new ArrayList<>();
@@ -149,7 +164,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        return productPage.map(product -> com.ddagtech.aureliabooks.mapper.ProductMapper.toSummary(
+        return productPage.map(product -> ProductMapper.toSummary(
                 product, bookMap.get(product.getId())));
     }
 
@@ -160,132 +175,33 @@ public class ProductServiceImpl implements ProductService {
                 .filter(Product::getIsActive)
                 .orElseThrow(() -> new NoSuchElementException("Product not found: " + productId));
 
-        String categoryName = product.getCategory() != null ? product.getCategory().getName() : null;
-        Long categoryId = product.getCategory() != null ? product.getCategory().getId() : null;
-
         if (product.getProductType() == Product.ProductType.BOOK) {
             var bookOpt = bookRepository.findById(productId);
             if (bookOpt.isPresent()) {
-                Book book = bookOpt.get();
-                String publisherName = book.getPublisher() != null ? book.getPublisher().getName() : null;
-                Long publisherId = book.getPublisher() != null ? book.getPublisher().getId() : null;
-                List<String> authorNames = book.getAuthors() != null
-                        ? book.getAuthors().stream().map(Author::getName).sorted().toList()
-                        : List.of();
-                List<AuthorSummary> authors = book.getAuthors() != null
-                        ? book.getAuthors().stream()
-                                .map(a -> new AuthorSummary(a.getId(), a.getName()))
-                                .sorted(Comparator.comparing(AuthorSummary::name))
-                                .toList()
-                        : List.of();
-
-                return new ProductDetailResponse(
-                        product.getId(),
-                        product.getBarcode(),
-                        product.getTitle(),
-                        product.getPrice(),
-                        product.getOriginalCost(),
-                        product.getStockQuantity(),
-                        product.getMainImageUrl(),
-                        product.getDescription(),
-                        product.getWeightGrams(),
-                        product.getProductType(),
-                        categoryId,
-                        categoryName,
-                        book.getIsbn(),
-                        publisherId,
-                        publisherName,
-                        authorNames,
-                        book.getSeriesName(),
-                        book.getVolumeNumber(),
-                        book.getIsTextbook(),
-                        book.getPublicationYear(),
-                        book.getEdition(),
-                        book.getPageCount(),
-                        book.getCoverType(),
-                        book.getLanguage(),
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        authors
-                );
+                return productMapper.toBookDetail(product, bookOpt.get());
             }
         } else if (product.getProductType() == Product.ProductType.STATIONERY && stationeryRepository != null) {
             var stationeryOpt = stationeryRepository.findById(productId);
             if (stationeryOpt.isPresent()) {
-                Stationery stationery = stationeryOpt.get();
-                String brandName = stationery.getBrand() != null ? stationery.getBrand().getName() : null;
-                Long brandId = stationery.getBrand() != null ? stationery.getBrand().getId() : null;
-
-                return new ProductDetailResponse(
-                        product.getId(),
-                        product.getBarcode(),
-                        product.getTitle(),
-                        product.getPrice(),
-                        product.getOriginalCost(),
-                        product.getStockQuantity(),
-                        product.getMainImageUrl(),
-                        product.getDescription(),
-                        product.getWeightGrams(),
-                        product.getProductType(),
-                        categoryId,
-                        categoryName,
-                        null,
-                        null,
-                        null,
-                        List.of(),
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        brandId,
-                        brandName,
-                        stationery.getMaterial(),
-                        stationery.getColor(),
-                        stationery.getWarrantyMonths()
-                );
+                return productMapper.toStationeryDetail(product, stationeryOpt.get());
             }
         }
 
-        return new ProductDetailResponse(
-                product.getId(),
-                product.getBarcode(),
-                product.getTitle(),
-                product.getPrice(),
-                product.getOriginalCost(),
-                product.getStockQuantity(),
-                product.getMainImageUrl(),
-                product.getDescription(),
-                product.getWeightGrams(),
-                product.getProductType(),
-                categoryId,
-                categoryName,
-                null, null, null, List.of(), null, null, null, null, null, null, null, null,
-                null, null, null, null, null
-        );
+        return productMapper.toGenericDetail(product);
     }
 
     @Override
     public List<CategorySummary> getActiveCategories() {
         return categoryRepository.findByIsActiveTrue().stream()
-                .map(c -> new CategorySummary(
-                        c.getId(),
-                        c.getName(),
-                        c.getParent() != null ? c.getParent().getId() : null
-                )).toList();
+                .map(masterDataMapper::toCategorySummary)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     @Override
     public List<AuthorSummary> getAuthors() {
         return authorRepository.findAll(Sort.by("name")).stream()
-                .map(a -> new AuthorSummary(a.getId(), a.getName()))
+                .map(masterDataMapper::toAuthorSummary)
                 .toList();
     }
 
@@ -293,7 +209,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public List<PublisherSummary> getPublishers() {
         return publisherRepository.findAll(Sort.by("name")).stream()
-                .map(p -> new PublisherSummary(p.getId(), p.getName()))
+                .map(masterDataMapper::toPublisherSummary)
                 .toList();
     }
 
@@ -301,13 +217,13 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public List<BrandSummary> getBrands() {
         return brandRepository.findAll(Sort.by("name")).stream()
-                .map(b -> new BrandSummary(b.getId(), b.getName()))
+                .map(masterDataMapper::toBrandSummary)
                 .toList();
     }
 
     @Override
     public List<ProductAutoCompleteResponse> autoComplete(String keyword) {
-        if(keyword == null || keyword.trim().length() < 2){
+        if (keyword == null || keyword.trim().length() < 2) {
             return List.of();
         }
 
@@ -320,12 +236,7 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> products = productRepository.findAll(spec, limitFive);
 
         return products.getContent().stream()
-                .map(p -> new ProductAutoCompleteResponse(
-                        p.getId(),
-                        p.getTitle(),
-                        p.getPrice(),
-                        p.getMainImageUrl(),
-                        p.getBarcode()
-                )).toList();
+                .map(productMapper::toAutoComplete)
+                .toList();
     }
 }

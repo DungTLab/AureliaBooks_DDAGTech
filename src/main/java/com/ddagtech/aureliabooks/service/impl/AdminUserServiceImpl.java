@@ -2,10 +2,12 @@ package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
+import com.ddagtech.aureliabooks.dto.response.RoleOption;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.AdminUserMapper;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
@@ -14,6 +16,7 @@ import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.session.SessionInformation;
@@ -54,13 +57,21 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final ReentrantLock adminMutationLock = new ReentrantLock();
+    private AdminUserMapper adminUserMapper = new AdminUserMapper();
+
+    @Autowired(required = false)
+    public void setAdminUserMapper(AdminUserMapper adminUserMapper) {
+        if (adminUserMapper != null) {
+            this.adminUserMapper = adminUserMapper;
+        }
+    }
 
     @Override
     @Transactional(readOnly = true)
-    public List<com.ddagtech.aureliabooks.dto.response.RoleOption> listAssignableRoles() {
+    public List<RoleOption> listAssignableRoles() {
         return roleRepository.findAll().stream()
                 .filter(role -> ALLOWED_INTERNAL_ROLES.contains(role.getRoleName()))
-                .map(role -> new com.ddagtech.aureliabooks.dto.response.RoleOption(role.getId(), role.getRoleName(), role.getDescription()))
+                .map(adminUserMapper::toRoleOption)
                 .toList();
     }
 
@@ -80,7 +91,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         String filterRole = (roleName != null && !roleName.isBlank()) ? roleName.trim() : null;
         String filterKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
         Page<User> staffPage = userRepository.findInternalStaff(filterRole, active, filterKeyword, pageable);
-        return staffPage.map(com.ddagtech.aureliabooks.mapper.AdminUserMapper::toSummary);
+        return staffPage.map(AdminUserMapper::toSummary);
     }
 
     /**
@@ -117,15 +128,11 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.INVALID_ROLE_ASSIGNMENT);
         }
 
-        User user = User.builder()
-                .email(request.email().trim().toLowerCase())
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .fullName(request.fullName().trim())
-                .phone(canonicalPhone)
-                .role(assignedRole)
-                .authProvider(User.AuthProvider.LOCAL)
-                .isActive(true)
-                .build();
+        User user = adminUserMapper.toInternalStaffEntity(
+                request,
+                passwordEncoder.encode(request.password()),
+                assignedRole
+        );
 
         User savedUser = userRepository.save(user);
 

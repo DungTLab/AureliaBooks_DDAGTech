@@ -7,10 +7,12 @@ import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.UserMapper;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,14 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final RoleRepository roles;
     private final PasswordEncoder encoder;
     private final Validator validator;
+    private UserMapper userMapper = new UserMapper();
+
+    @Autowired(required = false)
+    public void setUserMapper(UserMapper userMapper) {
+        if (userMapper != null) {
+            this.userMapper = userMapper;
+        }
+    }
 
     @Transactional
     public Long registerLocal(RegisterRequest request) {
@@ -33,10 +43,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         if ((request.email() != null && users.existsByEmail(request.email())) || users.existsByPhone(request.phone())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
-        User account = User.builder().email(request.email()).phone(request.phone())
-                .fullName(request.fullName()).dob(request.dob()).gender(request.gender())
-                .passwordHash(encoder.encode(request.password())).authProvider(User.AuthProvider.LOCAL)
-                .role(customerRole()).isActive(true).build();
+        User account = userMapper.toLocalCustomerEntity(request, encoder.encode(request.password()), customerRole());
         // Flush: SQL unique constraints remain authoritative for simultaneous requests.
         return users.saveAndFlush(account).getId();
     }

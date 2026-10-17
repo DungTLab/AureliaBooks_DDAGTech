@@ -5,11 +5,13 @@ import com.ddagtech.aureliabooks.dto.request.AddressRequest;
 import com.ddagtech.aureliabooks.dto.response.AddressView;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.ShippingAddressMapper;
 import com.ddagtech.aureliabooks.repository.*;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.AddressService;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,14 +24,20 @@ public class AddressServiceImpl implements AddressService {
     private final UserRepository users;
     private final AddressOrderGuard orders;
     private final Validator validator;
+    private ShippingAddressMapper addressMapper = new ShippingAddressMapper();
+
+    @Autowired(required = false)
+    public void setAddressMapper(ShippingAddressMapper addressMapper) {
+        if (addressMapper != null) {
+            this.addressMapper = addressMapper;
+        }
+    }
 
     @Transactional(readOnly = true)
     public List<AddressView> list(Long ownerId) {
         CustomerIdentity.requireCustomer(users.findById(ownerId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
-        return active(ownerId).stream().map(a -> new AddressView(a.getId(), a.getRecipientName(), a.getPhone(),
-                a.getEconomicRegion(), a.getProvince(), a.getDistrict(), a.getWard(), a.getDetailedAddress(),
-                Boolean.TRUE.equals(a.getIsDefault()))).toList();
+        return active(ownerId).stream().map(addressMapper::toView).toList();
     }
 
     @Transactional
@@ -38,10 +46,8 @@ public class AddressServiceImpl implements AddressService {
         User owner = lockOwner(ownerId);
         var all = active(ownerId);
         if (all.size() >= 5) throw new AppException(ErrorCode.ADDRESS_QUOTA_EXCEEDED);
-        ShippingAddress a = new ShippingAddress();
-        a.setUser(owner);
-        copy(a, request);
-        a.setIsDefault(all.isEmpty() || Boolean.TRUE.equals(request.isDefault()));
+        boolean isDefault = all.isEmpty() || Boolean.TRUE.equals(request.isDefault());
+        ShippingAddress a = addressMapper.toEntity(request, owner, isDefault);
         if (Boolean.TRUE.equals(a.getIsDefault())) all.forEach(existing -> existing.setIsDefault(false));
         all.add(a);
         normalizeDefault(all);
@@ -54,7 +60,7 @@ public class AddressServiceImpl implements AddressService {
         validate(request);
         lockOwner(ownerId);
         ShippingAddress a = owned(ownerId, id);
-        copy(a, request);
+        addressMapper.updateEntity(a, request);
         var all = active(ownerId);
         // A selected default cannot be unset without choosing another address.
         if (Boolean.TRUE.equals(request.isDefault()))
@@ -104,16 +110,6 @@ public class AddressServiceImpl implements AddressService {
         ShippingAddress chosen = all.stream().filter(a -> Boolean.TRUE.equals(a.getIsDefault())).findFirst()
                 .orElse(all.isEmpty() ? null : all.get(0));
         all.forEach(a -> a.setIsDefault(a == chosen));
-    }
-
-    private void copy(ShippingAddress a, AddressRequest r) {
-        a.setRecipientName(r.recipientName().strip());
-        a.setPhone(r.phone());
-        a.setEconomicRegion(r.economicRegion());
-        a.setProvince(r.province().strip());
-        a.setDistrict(r.district().strip());
-        a.setWard(r.ward().strip());
-        a.setDetailedAddress(r.detailedAddress().strip());
     }
 
     private void validate(AddressRequest r) {

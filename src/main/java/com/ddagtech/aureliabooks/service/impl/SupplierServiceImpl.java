@@ -5,11 +5,13 @@ import com.ddagtech.aureliabooks.dto.request.SupplierForm;
 import com.ddagtech.aureliabooks.dto.response.SupplierSummary;
 import com.ddagtech.aureliabooks.entity.Supplier;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.SupplierMapper;
 import com.ddagtech.aureliabooks.repository.GoodsReceiptRepository;
 import com.ddagtech.aureliabooks.repository.SupplierRepository;
 import com.ddagtech.aureliabooks.service.SupplierService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,14 @@ public class SupplierServiceImpl implements SupplierService {
 
     private final SupplierRepository supplierRepository;
     private final GoodsReceiptRepository goodsReceiptRepository;
+    private SupplierMapper supplierMapper = new SupplierMapper();
+
+    @Autowired(required = false)
+    public void setSupplierMapper(SupplierMapper supplierMapper) {
+        if (supplierMapper != null) {
+            this.supplierMapper = supplierMapper;
+        }
+    }
 
     @Override
     @Transactional
@@ -41,15 +51,7 @@ public class SupplierServiceImpl implements SupplierService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Số điện thoại đã được đăng ký cho nhà cung cấp khác.");
         }
 
-        Supplier supplier = Supplier.builder()
-                .name(form.name())
-                .contactName(form.contactName())
-                .phone(form.phone())
-                .email(form.email())
-                .address(form.address())
-                .isActive(form.isActive() != null ? form.isActive() : true)
-                .build();
-
+        Supplier supplier = supplierMapper.toEntity(form);
         Supplier saved = supplierRepository.save(supplier);
         log.info("Created new supplier with ID: {}, Name: '{}'", saved.getId(), saved.getName());
         return saved.getId();
@@ -69,15 +71,7 @@ public class SupplierServiceImpl implements SupplierService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Số điện thoại đã được đăng ký cho nhà cung cấp khác.");
         }
 
-        supplier.setName(form.name());
-        supplier.setContactName(form.contactName());
-        supplier.setPhone(form.phone());
-        supplier.setEmail(form.email());
-        supplier.setAddress(form.address());
-        if (form.isActive() != null) {
-            supplier.setIsActive(form.isActive());
-        }
-
+        supplierMapper.updateEntity(supplier, form);
         supplierRepository.save(supplier);
         log.info("Updated supplier ID: {}, Name: '{}'", supplierId, supplier.getName());
     }
@@ -111,7 +105,7 @@ public class SupplierServiceImpl implements SupplierService {
         Supplier supplier = supplierRepository.findById(supplierId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nhà cung cấp với ID: " + supplierId));
 
-        // Core Business Rule (UC30): Chặn hard-delete NCC có receipt
+        // Core Business Rule (UC30): Block hard-delete when supplier already has goods receipts
         if (goodsReceiptRepository.existsBySupplierId(supplierId)) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA,
                     "Không thể xóa nhà cung cấp đã có chứng từ nhập hàng trong hệ thống. Vui lòng chuyển trạng thái sang Ngừng hợp tác (Inactive).");
@@ -131,7 +125,7 @@ public class SupplierServiceImpl implements SupplierService {
     public SupplierSummary getSummaryById(Long supplierId) {
         Supplier supplier = getById(supplierId);
         long receiptCount = goodsReceiptRepository.countBySupplierId(supplierId);
-        return mapToSummary(supplier, receiptCount);
+        return supplierMapper.toSummary(supplier, receiptCount);
     }
 
     @Override
@@ -140,33 +134,19 @@ public class SupplierServiceImpl implements SupplierService {
         Page<Supplier> page = supplierRepository.searchSuppliers(cleanKeyword, active, pageable);
         return page.map(s -> {
             long receiptCount = goodsReceiptRepository.countBySupplierId(s.getId());
-            return mapToSummary(s, receiptCount);
+            return supplierMapper.toSummary(s, receiptCount);
         });
     }
 
     @Override
     public List<SupplierSummary> getActiveSuppliers() {
         return supplierRepository.findByIsActiveTrueOrderByNameAsc().stream()
-                .map(s -> mapToSummary(s, goodsReceiptRepository.countBySupplierId(s.getId())))
+                .map(s -> supplierMapper.toSummary(s, goodsReceiptRepository.countBySupplierId(s.getId())))
                 .toList();
     }
 
     @Override
     public boolean hasReceipts(Long supplierId) {
         return goodsReceiptRepository.existsBySupplierId(supplierId);
-    }
-
-    private SupplierSummary mapToSummary(Supplier s, long receiptCount) {
-        return new SupplierSummary(
-                s.getId(),
-                s.getName(),
-                s.getContactName(),
-                s.getPhone(),
-                s.getEmail(),
-                s.getAddress(),
-                s.getIsActive(),
-                s.getCreatedAt(),
-                receiptCount
-        );
     }
 }
