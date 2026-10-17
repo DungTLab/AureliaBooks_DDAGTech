@@ -43,14 +43,6 @@ public class MasterDataController {
     // UC17: AUTHORS MANAGEMENT (SCR-M03a)
     // =========================================================================
 
-    /**
-     * Displays the Author directory management screen with search and pagination.
-     *
-     * @param keyword  optional search keyword
-     * @param pageable pagination options
-     * @param model    Spring MVC model
-     * @return template path for author management
-     */
     @GetMapping("/manager/authors")
     public String authors(@RequestParam(value = "keyword", required = false) String keyword,
                           @PageableDefault(size = 10) Pageable pageable,
@@ -68,13 +60,9 @@ public class MasterDataController {
         if (!model.containsAttribute("authorForm")) {
             model.addAttribute("authorForm", new AuthorForm(null, "", ""));
         }
-
         return "admin/catalog/authors";
     }
 
-    /**
-     * Handles author creation.
-     */
     @PostMapping("/manager/authors")
     public String createAuthor(@Valid @ModelAttribute("authorForm") AuthorForm form,
                                BindingResult bindingResult,
@@ -100,21 +88,16 @@ public class MasterDataController {
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
-
         return "redirect:/manager/authors";
     }
 
-    /**
-     * Handles author updating.
-     */
     @PostMapping("/manager/authors/{id}/edit")
     public String updateAuthor(@PathVariable("id") Long id,
                                @Valid @ModelAttribute("authorForm") AuthorForm form,
                                BindingResult bindingResult,
                                RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
-            String firstError = bindingResult.getFieldErrors().get(0).getDefaultMessage();
-            redirectAttributes.addFlashAttribute("errorMessage", firstError);
+            redirectAttributes.addFlashAttribute("errorMessage", bindingResult.getFieldErrors().get(0).getDefaultMessage());
             return "redirect:/manager/authors";
         }
 
@@ -124,13 +107,9 @@ public class MasterDataController {
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
-
         return "redirect:/manager/authors";
     }
 
-    /**
-     * Handles author deletion with reference integrity validation.
-     */
     @PostMapping("/manager/authors/{id}/delete")
     public String deleteAuthor(@PathVariable("id") Long id,
                                RedirectAttributes redirectAttributes) {
@@ -144,15 +123,14 @@ public class MasterDataController {
     }
 
     // =========================================================================
-    // UC18/19/20 SHELLS
+    // UC18: PUBLISHERS MANAGEMENT (SCR-M03b)
     // =========================================================================
 
     @GetMapping("/manager/publishers")
     public String publishers(@RequestParam(value = "keyword", required = false) String keyword,
-            @PageableDefault(size=10) Pageable pageable,
-            Model model) {
-
-        Page<Publisher> publishersPage = masterDataService.listPublishers(keyword,pageable);
+                             @PageableDefault(size = 10) Pageable pageable,
+                             Model model) {
+        Page<Publisher> publishersPage = masterDataService.listPublishers(keyword, pageable);
         model.addAttribute("publishersPage", publishersPage);
         model.addAttribute("keyword", keyword != null ? keyword : "");
 
@@ -161,6 +139,7 @@ public class MasterDataController {
             bookCounts.put(publisher.getId(), masterDataService.countBooksByPublisher(publisher.getId()));
         }
         model.addAttribute("bookCounts", bookCounts);
+
         if (!model.containsAttribute("publisherForm")) {
             model.addAttribute("publisherForm", new PublisherForm("", "", ""));
         }
@@ -217,24 +196,27 @@ public class MasterDataController {
     // =========================================================================
     // UC19: BRANDS MANAGEMENT (SCR-M03c)
     // =========================================================================
+
     @GetMapping("/manager/brands")
     public String brands(@RequestParam(value = "keyword", required = false) String keyword,
                          @PageableDefault(size = 10) Pageable pageable,
                          Model model) {
-
         Page<Brand> brandsPage = masterDataService.listBrands(keyword, pageable);
         model.addAttribute("brandsPage", brandsPage);
         model.addAttribute("keyword", keyword != null ? keyword : "");
+
         Map<Long, Long> stationeryCounts = new HashMap<>();
         for (Brand brand : brandsPage.getContent()) {
             stationeryCounts.put(brand.getId(), masterDataService.countStationeriesByBrand(brand.getId()));
         }
         model.addAttribute("stationeryCounts", stationeryCounts);
+
         if (!model.containsAttribute("brandForm")) {
             model.addAttribute("brandForm", new BrandForm("", ""));
         }
         return "admin/catalog/brands";
     }
+
     @PostMapping("/manager/brands")
     public String createBrand(@Valid @ModelAttribute("brandForm") BrandForm form,
                               BindingResult bindingResult,
@@ -251,6 +233,7 @@ public class MasterDataController {
         }
         return "redirect:/manager/brands";
     }
+
     @PostMapping("/manager/brands/{id}/edit")
     public String updateBrand(@PathVariable("id") Long id,
                               @Valid @ModelAttribute("brandForm") BrandForm form,
@@ -284,15 +267,18 @@ public class MasterDataController {
     // =========================================================================
     // UC20: CATEGORIES MANAGEMENT (SCR-M03d)
     // =========================================================================
+
     @GetMapping("/manager/categories")
     public String categories(Model model) {
         List<Category> allCategories = masterDataService.getAllCategoriesWithParent();
         model.addAttribute("categories", allCategories);
+
         Map<Long, Long> productCounts = new HashMap<>();
         for (Category cat : allCategories) {
             productCounts.put(cat.getId(), masterDataService.countProductsByCategory(cat.getId()));
         }
         model.addAttribute("productCounts", productCounts);
+
         if (!model.containsAttribute("categoryForm")) {
             model.addAttribute("categoryForm", new CategoryForm("", null, "", true));
         }
@@ -315,6 +301,7 @@ public class MasterDataController {
         }
         return "redirect:/manager/categories";
     }
+
     @PostMapping("/manager/categories/{id}/edit")
     public String updateCategory(@PathVariable("id") Long id,
                                  @Valid @ModelAttribute("categoryForm") CategoryForm form,
@@ -332,6 +319,7 @@ public class MasterDataController {
         }
         return "redirect:/manager/categories";
     }
+
     @PostMapping("/manager/categories/{id}/delete")
     public String deleteCategory(@PathVariable("id") Long id,
                                  RedirectAttributes redirectAttributes) {
@@ -343,6 +331,7 @@ public class MasterDataController {
         }
         return "redirect:/manager/categories";
     }
+
     @PostMapping("/manager/categories/{id}/toggle-status")
     public String toggleCategoryStatus(@PathVariable("id") Long id,
                                        RedirectAttributes redirectAttributes) {

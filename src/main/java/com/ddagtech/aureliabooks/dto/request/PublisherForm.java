@@ -5,15 +5,17 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * UC18. Owner: Huỳnh Nhật Duy. SQL has no publisher phone column.
+ * Request payload for Publisher creation and modification (UC18 - SCR-M03b).
  */
 public record PublisherForm(
-        @NotBlank(message = "Tên nahf xuất bản không được để trống")
-        @Size(max =100, message = "Tên nhà xuất bnar không được vượt quá 150 kí tự")
+        @NotBlank(message = "Tên nhà xuất bản không được để trống")
+        @Size(max = 150, message = "Tên nhà xuất bản không được vượt quá 150 ký tự")
         String name,
-        @Size(max = 255, message = "Địa chỉ không được vượt quá 255 kí tự")
+
+        @Size(max = 255, message = "Địa chỉ không được vượt quá 255 ký tự")
         String address,
+
         @Email(message = "Địa chỉ email không đúng định dạng chuẩn")
-        @Size(max=100, message = "Email không được vượt quá 150 kí tự")
-        String email) {
-}
+        @Size(max = 100, message = "Email không được vượt quá 100 ký tự")
+        String email
+) {}

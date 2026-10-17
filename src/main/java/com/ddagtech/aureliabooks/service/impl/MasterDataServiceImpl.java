@@ -40,7 +40,7 @@ public class MasterDataServiceImpl implements MasterDataService {
     private final CategoryRepository categoryRepository;
 
     // =========================================================================
-    // UC17: AUTHORS
+    // UC17: AUTHORS MANAGEMENT (SCR-M03a)
     // =========================================================================
 
     @Override
@@ -118,7 +118,7 @@ public class MasterDataServiceImpl implements MasterDataService {
     }
 
     // =========================================================================
-    // UC18: PUBLISHERS
+    // UC18: PUBLISHERS MANAGEMENT (SCR-M03b)
     // =========================================================================
 
     @Override
@@ -174,12 +174,31 @@ public class MasterDataServiceImpl implements MasterDataService {
     }
 
     @Override
+    public Page<Publisher> listPublishers(String keyword, Pageable pageable) {
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            return publisherRepository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword.trim(), pageable);
+        }
+        return publisherRepository.findAllByOrderByNameAsc(pageable);
+    }
+
+    @Override
+    public Publisher getPublisherById(Long publisherId) {
+        return publisherRepository.findById(publisherId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nhà xuất bản với ID: " + publisherId));
+    }
+
+    @Override
+    public long countBooksByPublisher(Long publisherId) {
+        return publisherRepository.countBooksByPublisherId(publisherId);
+    }
+
+    @Override
     public List<Publisher> getAllPublishers() {
         return publisherRepository.findAllByOrderByNameAsc();
     }
 
     // =========================================================================
-    // UC19: BRANDS
+    // UC19: BRANDS MANAGEMENT (SCR-M03c)
     // =========================================================================
 
     @Override
@@ -223,9 +242,32 @@ public class MasterDataServiceImpl implements MasterDataService {
         Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy thương hiệu với ID: " + brandId));
 
-        // Note: brand reference check in stationeries
+        if (brandRepository.hasStationeries(brandId)) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA,
+                    "Không thể xóa thương hiệu '" + brand.getName() + "' vì đang có sản phẩm văn phòng phẩm liên kết.");
+        }
+
         brandRepository.delete(brand);
         log.info("Deleted brand [id={}, name='{}']", brandId, brand.getName());
+    }
+
+    @Override
+    public Page<Brand> listBrands(String keyword, Pageable pageable) {
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            return brandRepository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword.trim(), pageable);
+        }
+        return brandRepository.findAllByOrderByNameAsc(pageable);
+    }
+
+    @Override
+    public Brand getBrandById(Long brandId) {
+        return brandRepository.findById(brandId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy thương hiệu với ID: " + brandId));
+    }
+
+    @Override
+    public long countStationeriesByBrand(Long brandId) {
+        return brandRepository.countStationeriesByBrandId(brandId);
     }
 
     @Override
@@ -234,7 +276,7 @@ public class MasterDataServiceImpl implements MasterDataService {
     }
 
     // =========================================================================
-    // UC20: CATEGORIES
+    // UC20: CATEGORIES MANAGEMENT (SCR-M03d)
     // =========================================================================
 
     @Override
@@ -322,59 +364,27 @@ public class MasterDataServiceImpl implements MasterDataService {
     }
 
     @Override
+    public List<Category> getAllCategoriesWithParent() {
+        return categoryRepository.findAllWithParent();
+    }
+
+    @Override
     public List<Category> getAllActiveCategories() {
         return categoryRepository.findAllByIsActiveTrueOrderByNameAsc();
     }
 
     @Override
-    public Page<Publisher> listPublishers(String keyword, Pageable pageable) {
-        if (keyword!=null && !keyword.trim().isEmpty()){
-            return publisherRepository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword.trim(), pageable);
-        }
-        return publisherRepository.findAllByOrderByNameAsc(pageable);
-    }
-
-    @Override
-    public Publisher getPublisherById(Long publisherId) {
-        return publisherRepository.findById(publisherId).orElseThrow(()-> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nhà xuất bản với ID: " + publisherId));
-    }
-
-    @Override
-    public long countBooksByPublisher(Long publisherId) {
-        return publisherRepository.countBooksByPublisherId(publisherId);
-    }
-
-    @Override
-    public Page<Brand> listBrands(String keyword, Pageable pageable) {
-        if(keyword != null && !keyword.trim().isEmpty()){
-            return brandRepository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword.trim(),pageable);
-        }
-        return brandRepository.findAllByOrderByNameAsc(pageable);
-    }
-
-    @Override
-    public Brand getBrandById(Long brandId) {
-        return brandRepository.findById(brandId)
-                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy thương hiệu với ID: " + brandId));
-    }
-
-    @Override
-    public long countStationeriesByBrand(Long brandId) {
-        return brandRepository.countStationeriesByBrandId(brandId);
-    }
-
-    @Override
-    public List<Category> getAllCategoriesWithParent() {
-        return List.of();
-    }
-
-    @Override
     public long countProductsByCategory(Long categoryId) {
-        return 0;
+        return categoryRepository.countProductsByCategoryId(categoryId);
     }
 
     @Override
+    @Transactional
     public void toggleCategoryStatus(Long categoryId) {
-
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục với ID: " + categoryId));
+        category.setIsActive(!category.getIsActive());
+        categoryRepository.save(category);
+        log.info("Toggled category status [id={}, active={}]", categoryId, category.getIsActive());
     }
 }
