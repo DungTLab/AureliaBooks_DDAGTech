@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.repository;
 import com.ddagtech.aureliabooks.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -61,5 +62,13 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * @return true if at least one product references this category
      */
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Product p WHERE p.category.id = :categoryId")
-    boolean hasProducts(@org.springframework.data.repository.query.Param("categoryId") Long categoryId);
+    boolean hasProducts(@Param("categoryId") Long categoryId);
+
+    List<Category> findAllByOrderByNameAsc();
+
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.category.id = :categoryId")
+    long countProductsByCategoryId(@Param("categoryId") Long categoryId);
+
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent ORDER BY c.id ASC")
+    List<Category> findAllWithParent();
 }

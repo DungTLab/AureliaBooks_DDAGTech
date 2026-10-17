@@ -32,4 +32,17 @@ public interface MasterDataService {
     List<Publisher> getAllPublishers();
     List<Brand> getAllBrands();
     List<Category> getAllActiveCategories();
+
+
+    Page<Publisher> listPublishers(String keyword, Pageable pageable);
+    Publisher getPublisherById(Long publisherId);
+    long countBooksByPublisher(Long publisherId);
+
+    Page<Brand> listBrands(String keyword, Pageable pageable);
+    Brand getBrandById(Long brandId);
+    long countStationeriesByBrand(Long brandId);
+
+    List<Category> getAllCategoriesWithParent();
+    long countProductsByCategory(Long categoryId);
+    void toggleCategoryStatus(Long categoryId);
 }

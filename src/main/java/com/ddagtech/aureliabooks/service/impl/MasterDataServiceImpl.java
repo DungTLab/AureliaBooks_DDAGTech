@@ -325,4 +325,56 @@ public class MasterDataServiceImpl implements MasterDataService {
     public List<Category> getAllActiveCategories() {
         return categoryRepository.findAllByIsActiveTrueOrderByNameAsc();
     }
+
+    @Override
+    public Page<Publisher> listPublishers(String keyword, Pageable pageable) {
+        if (keyword!=null && !keyword.trim().isEmpty()){
+            return publisherRepository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword.trim(), pageable);
+        }
+        return publisherRepository.findAllByOrderByNameAsc(pageable);
+    }
+
+    @Override
+    public Publisher getPublisherById(Long publisherId) {
+        return publisherRepository.findById(publisherId).orElseThrow(()-> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nhà xuất bản với ID: " + publisherId));
+    }
+
+    @Override
+    public long countBooksByPublisher(Long publisherId) {
+        return publisherRepository.countBooksByPublisherId(publisherId);
+    }
+
+    @Override
+    public Page<Brand> listBrands(String keyword, Pageable pageable) {
+        if(keyword != null && !keyword.trim().isEmpty()){
+            return brandRepository.findByNameContainingIgnoreCaseOrderByNameAsc(keyword.trim(),pageable);
+        }
+        return brandRepository.findAllByOrderByNameAsc(pageable);
+    }
+
+    @Override
+    public Brand getBrandById(Long brandId) {
+        return brandRepository.findById(brandId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy thương hiệu với ID: " + brandId));
+    }
+
+    @Override
+    public long countStationeriesByBrand(Long brandId) {
+        return brandRepository.countStationeriesByBrandId(brandId);
+    }
+
+    @Override
+    public List<Category> getAllCategoriesWithParent() {
+        return List.of();
+    }
+
+    @Override
+    public long countProductsByCategory(Long categoryId) {
+        return 0;
+    }
+
+    @Override
+    public void toggleCategoryStatus(Long categoryId) {
+
+    }
 }

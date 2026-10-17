@@ -1,7 +1,13 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Publisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
 
 public interface PublisherRepository extends JpaRepository<Publisher, Long> {
     /**
@@ -26,7 +32,7 @@ public interface PublisherRepository extends JpaRepository<Publisher, Long> {
      *
      * @return list of publishers
      */
-    java.util.List<Publisher> findAllByOrderByNameAsc();
+    List<Publisher> findAllByOrderByNameAsc();
 
     /**
      * Verifies if any book is currently linked to the specified publisher.
@@ -34,6 +40,14 @@ public interface PublisherRepository extends JpaRepository<Publisher, Long> {
      * @param publisherId publisher ID
      * @return true if at least one book references this publisher
      */
-    @org.springframework.data.jpa.repository.Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Book b WHERE b.publisher.id = :publisherId")
-    boolean hasBooks(@org.springframework.data.repository.query.Param("publisherId") Long publisherId);
+    @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM Book b WHERE b.publisher.id = :publisherId")
+    boolean hasBooks(@Param("publisherId") Long publisherId);
+
+    Page<Publisher> findByNameContainingIgnoreCaseOrderByNameAsc(String keyword, Pageable pageable);
+
+    Page<Publisher> findAllByOrderByNameAsc(Pageable pageable);
+
+    @Query("SELECT COUNT(b) FROM Book b WHERE b.publisher.id = :publisherId")
+    long countBooksByPublisherId(@Param("publisherId") Long publisherId);
+
 }
