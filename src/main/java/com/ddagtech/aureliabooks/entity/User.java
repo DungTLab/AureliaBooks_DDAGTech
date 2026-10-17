@@ -18,7 +18,7 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "email", length = 100, nullable = false, unique = true)
+    @Column(name = "email", length = 100, unique = true)
     private String email;
 
     @Column(name = "password_hash", length = 255)
@@ -29,6 +29,14 @@ public class User extends BaseEntity {
 
     @Column(name = "phone", length = 15, unique = true)
     private String phone;
+
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    @Column(name = "phone_verified", nullable = false)
+    @Builder.Default
+    private boolean phoneVerified = false;
 
     @Column(name = "dob")
     private LocalDate dob;

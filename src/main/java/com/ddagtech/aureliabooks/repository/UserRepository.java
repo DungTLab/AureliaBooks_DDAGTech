@@ -27,8 +27,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.id = :id")
     Optional<User> findOwnerForUpdate(@Param("id") Long id);
-    @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.authProvider = :provider AND u.providerId = :subject")
-    Optional<User> findByGoogleIdentity(@Param("provider") User.AuthProvider provider, @Param("subject") String subject);
+    @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.providerId = :subject")
+    Optional<User> findByProviderId(@Param("subject") String subject);
+    default Optional<User> findByGoogleIdentity(User.AuthProvider provider, String subject) {
+        return provider == User.AuthProvider.GOOGLE ? findByProviderId(subject) : Optional.empty();
+    }
 
     /**
      * Finds a user by email address.
