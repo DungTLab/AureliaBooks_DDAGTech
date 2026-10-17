@@ -22,7 +22,7 @@
         </a>
         <button th:unless="${googleEnabled}" type="button" disabled
                 class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
-        <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng email<hr class="flex-1 border-dust_grey"></div>
+        <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng số điện thoại<hr class="flex-1 border-dust_grey"></div>
         <form th:action="@{/auth/register}" method="post" th:object="${registerRequest}" class="space-y-5">
             <div th:if="${#fields.hasErrors('*')}" role="alert" class="bg-red-50 text-red-800 border border-red-200 rounded-xl p-4">
                 <p class="font-semibold">Vui lòng kiểm tra lại thông tin:</p>
@@ -34,13 +34,6 @@
                     <input id="fullName" th:field="*{fullName}" type="text" autocomplete="name" required minlength="2" maxlength="100"
                            th:attr="aria-invalid=${#fields.hasErrors('fullName')}"
                            th:classappend="${#fields.hasErrors('fullName')} ? 'border-red-600'"
-                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                </div>
-                <div>
-                    <label for="email" class="block font-semibold text-sm mb-2">Email <span class="text-blazing_flame" aria-hidden="true">*</span></label>
-                    <input id="email" th:field="*{email}" type="email" autocomplete="email" required maxlength="100"
-                           th:attr="aria-invalid=${#fields.hasErrors('email')}"
-                           th:classappend="${#fields.hasErrors('email')} ? 'border-red-600'"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
                 <div>

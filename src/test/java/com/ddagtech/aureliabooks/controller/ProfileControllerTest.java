@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ProfileController.class)
 @Import({SecurityConfig.class, com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler.class,
-        AccountPresentationService.class})
+        com.ddagtech.aureliabooks.service.impl.AccountPresentationServiceImpl.class})
 class ProfileControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean UserService users;
@@ -51,10 +51,11 @@ class ProfileControllerTest {
             java.nio.file.Files.writeString(dir.resolve("addresses.html"),book.getResponse().getContentAsString());
         }
     }
-    @Test void googleMissingPhoneHasCompletionInputAndNoPasswordForm() throws Exception {
+    @Test void googleMissingPhoneHasVerifiedChangeLinkAndNoPasswordForm() throws Exception {
         when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"google@example.com","Nguyễn An",null,null,"OTHER",null,true,false,true));
         mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER"))).andExpect(status().isOk())
-            .andExpect(content().string(containsString("name=\"phone\"")))
+            .andExpect(content().string(not(containsString("name=\"phone\""))))
+            .andExpect(content().string(containsString("/profile/contact-change?type=PHONE")))
             .andExpect(content().string(containsString("name=\"dob\"")))
             .andExpect(content().string(containsString("ngày sinh sẽ khóa sau khi lưu")))
             .andExpect(content().string(not(containsString("name=\"currentPassword\""))));
@@ -99,7 +100,7 @@ class ProfileControllerTest {
         mvc.perform(post("/profile/password").with(user("customer").roles("CUSTOMER")).with(csrf())
             .param("currentPassword","secret").param("newPassword","weak").param("confirmPassword","weak"))
             .andExpect(redirectedUrl("/profile")).andExpect(flash().attributeExists("errorMessage"))
-            .andExpect(flash().attributeCount(1));verify(users,never()).changePassword(any(),any());
+            .andExpect(flash().attributeCount(1));verify(users,never()).changePassword(any(),any(), anyString());
     }
     @Test void foreignAvatarNotReturned() throws Exception {
         mvc.perform(get("/profile/avatar/00000000-0000-0000-0000-000000000000.png")
@@ -114,7 +115,7 @@ class ProfileControllerTest {
         mvc.perform(post("/profile/password").session(session).with(user("customer").roles("CUSTOMER")).with(csrf())
             .param("currentPassword","OldPass1!").param("newPassword","NewPass1!").param("confirmPassword","NewPass1!"))
             .andExpect(redirectedUrl("/auth/login?passwordChanged")).andExpect(cookie().maxAge("JSESSIONID",0));
-        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());verify(users).changePassword(eq(7L),any());
+        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());verify(users).changePassword(eq(7L),any(), anyString());
     }
     @Test void inactivePrincipalIsLoggedOutInsteadOfRedirectLoop() throws Exception {
         when(identity.resolve(any())).thenThrow(new com.ddagtech.aureliabooks.exception.AppException(
@@ -150,5 +151,14 @@ class ProfileControllerTest {
                 .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CUSTOMER"))))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("src=\"/profile/avatar/google.png\"")));
         verify(navbarUsers).findByGoogleIdentity(com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE,"nav-subject");
+    }
+    @Test
+    void missingEmailHasAdditionActionInsteadOfReadonlyInput() throws Exception {
+        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L, null, "Nguyễn An",
+                "0912345678", null, "OTHER", null, false, true, true));
+        mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("id=\"email\""))))
+                .andExpect(content().string(containsString("Bổ sung email")));
     }
 }

@@ -12,7 +12,7 @@ import com.ddagtech.aureliabooks.entity.User;
  * credential complexity with BCrypt byte limit (FE-1), and optional past date of birth (BR-07-02).
  */
 public record RegisterRequest(
-        @NotBlank(message = "Vui lòng nhập email.") @Email(message = "Email không hợp lệ.")
+        @Email(message = "Email không hợp lệ.")
         @Size(max = 100, message = "Email tối đa 100 ký tự.") String email,
         @NotBlank(message = "Vui lòng nhập mật khẩu.")
         @Pattern(regexp = "(?s)^(?=.*\\p{Lu})(?=.*[0-9])(?=.*[^\\p{L}\\p{N}\\s]).{8,}$",

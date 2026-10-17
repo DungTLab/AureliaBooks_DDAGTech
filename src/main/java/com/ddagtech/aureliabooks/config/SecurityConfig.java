@@ -86,6 +86,14 @@ public class SecurityConfig {
     }
 
     /**
+     * Google callbacks run in Security filters before MVC; expose their session-bound intent there.
+     */
+    @Bean
+    public org.springframework.web.context.request.RequestContextListener oauthRequestContextListener() {
+        return new org.springframework.web.context.request.RequestContextListener();
+    }
+
+    /**
      * Exposes the AuthenticationManager bean for programmatic authentication flows.
      *
      * @param config authentication configuration
@@ -115,78 +123,78 @@ public class SecurityConfig {
         }
 
         http
-            .authorizeHttpRequests(authorize -> authorize
-                // 1. Public Storefront Catalog, Auth Entry, and Static Assets
-                .requestMatchers(
-                    "/",
-                    "/home",
-                    "/products/**",
-                    "/auth/**",
-                    "/css/**",
-                    "/js/**",
-                    "/images/**",
-                    "/webjars/**",
-                    "/favicon.ico",
-                    "/error/**"
-                ).permitAll()
+                .authorizeHttpRequests(authorize -> authorize
+                        // 1. Public Storefront Catalog, Auth Entry, and Static Assets
+                        .requestMatchers(
+                                "/",
+                                "/home",
+                                "/products/**",
+                                "/auth/**",
+                                "/css/**",
+                                "/js/**",
+                                "/images/**",
+                                "/webjars/**",
+                                "/favicon.ico",
+                                "/error/**"
+                        ).permitAll()
 
-                // 2. Back-Office Administrative Routes (Lean RBAC Governance)
-                .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
-                .requestMatchers("/manager", "/manager/**").hasAnyRole("ADMIN", "MANAGER")
-                .requestMatchers("/staff", "/staff/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/dashboard", "/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                        // 2. Back-Office Administrative Routes (Lean RBAC Governance)
+                        .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/manager", "/manager/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/staff", "/staff/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                        .requestMatchers("/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                        .requestMatchers("/dashboard", "/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
 
-                // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
-                .requestMatchers(
-                    "/cart", "/cart/**",
-                    "/checkout", "/checkout/**",
-                    "/account", "/account/**",
-                    "/orders", "/orders/**",
-                    "/profile", "/profile/**"
-                ).hasRole("CUSTOMER")
+                        // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
+                        .requestMatchers(
+                                "/cart", "/cart/**",
+                                "/checkout", "/checkout/**",
+                                "/account", "/account/**",
+                                "/orders", "/orders/**",
+                                "/profile", "/profile/**"
+                        ).hasRole("CUSTOMER")
 
-                // 4. Default: All other routes require an authenticated session
-                .anyRequest().authenticated()
-            )
-            .formLogin(login -> {
-                login
-                    .loginPage("/auth/login")
-                    .loginProcessingUrl("/auth/login")
-                    .usernameParameter("username")
-                    .passwordParameter("password")
-                    .permitAll();
+                        // 4. Default: All other routes require an authenticated session
+                        .anyRequest().authenticated()
+                )
+                .formLogin(login -> {
+                    login
+                            .loginPage("/auth/login")
+                            .loginProcessingUrl("/auth/login")
+                            .usernameParameter("username")
+                            .passwordParameter("password")
+                            .permitAll();
 
-                RoleBasedAuthenticationSuccessHandler successHandler = authenticationSuccessHandlerProvider.getIfAvailable();
-                if (successHandler != null) {
-                    login.successHandler(successHandler);
-                } else {
-                    login.defaultSuccessUrl("/", false);
-                }
+                    RoleBasedAuthenticationSuccessHandler successHandler = authenticationSuccessHandlerProvider.getIfAvailable();
+                    if (successHandler != null) {
+                        login.successHandler(successHandler);
+                    } else {
+                        login.defaultSuccessUrl("/", false);
+                    }
 
-                CustomAuthenticationFailureHandler failureHandler = authenticationFailureHandlerProvider.getIfAvailable();
-                if (failureHandler != null) {
-                    login.failureHandler(failureHandler);
-                } else {
-                    login.failureUrl("/auth/login?error=true");
-                }
-            })
-            .logout(logout -> {
-                logout
-                .logoutUrl("/auth/logout")
-                .logoutSuccessUrl("/")
-                .invalidateHttpSession(true)
-                .clearAuthentication(true)
-                .deleteCookies("JSESSIONID")
-                .permitAll();
-                var audit=logoutAudit.getIfAvailable();
-                if (audit != null) logout.addLogoutHandler(audit);
-            })
-            .sessionManagement(session -> session
-                .sessionFixation(fixation -> fixation.migrateSession())
-                .maximumSessions(5)
-                .sessionRegistry(sessionRegistry())
-            );
+                    CustomAuthenticationFailureHandler failureHandler = authenticationFailureHandlerProvider.getIfAvailable();
+                    if (failureHandler != null) {
+                        login.failureHandler(failureHandler);
+                    } else {
+                        login.failureUrl("/auth/login?error=true");
+                    }
+                })
+                .logout(logout -> {
+                    logout
+                            .logoutUrl("/auth/logout")
+                            .logoutSuccessUrl("/")
+                            .invalidateHttpSession(true)
+                            .clearAuthentication(true)
+                            .deleteCookies("JSESSIONID")
+                            .permitAll();
+                    var audit = logoutAudit.getIfAvailable();
+                    if (audit != null) logout.addLogoutHandler(audit);
+                })
+                .sessionManagement(session -> session
+                        .sessionFixation(fixation -> fixation.migrateSession())
+                        .maximumSessions(5)
+                        .sessionRegistry(sessionRegistry())
+                );
 
         CustomAccessDeniedHandler accessDeniedHandler = accessDeniedHandlerProvider.getIfAvailable();
         CustomAuthenticationEntryPoint authenticationEntryPoint = authenticationEntryPointProvider.getIfAvailable();
@@ -202,13 +210,14 @@ public class SecurityConfig {
         }
 
         http.headers(headers -> headers
-            .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
         );
 
         // Enable Google only when the opt-in google profile supplies a client registration.
         if (clientRegistrations.getIfAvailable() != null) {
             http.oauth2Login(oauth -> {
                 oauth.loginPage("/auth/login")
+                        .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(new com.ddagtech.aureliabooks.security.GoogleAuthorizationRequestResolver(clientRegistrations.getObject())))
                         .userInfoEndpoint(info -> info.userService(oauthUsers.getObject())
                                 .oidcUserService(oauthUsers.getObject()::loadOidcUser))
                         .failureHandler((request, response, exception) -> {
@@ -223,7 +232,8 @@ public class SecurityConfig {
                             Object origin = request.getSession(false) == null ? null
                                     : request.getSession(false).getAttribute("GOOGLE_AUTH_ORIGIN");
                             String destination = "login".equals(origin) ? "/auth/login" : "/auth/register";
-                            if (request.getSession(false) != null) request.getSession(false).removeAttribute("GOOGLE_AUTH_ORIGIN");
+                            if (request.getSession(false) != null)
+                                request.getSession(false).removeAttribute("GOOGLE_AUTH_ORIGIN");
                             flash.setTargetRequestPath(request.getContextPath() + destination);
                             new SessionFlashMapManager().saveOutputFlashMap(flash, request, response);
                             response.sendRedirect(request.getContextPath() + destination);
