@@ -151,6 +151,15 @@
                             <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/products}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
                                 <i class="bi bi-box-seam"></i> Quản lý kho & SP
                             </a>
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/publishers}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                                <i class="bi bi-building"></i> Quản lý Nhà xuất bản
+                            </a>
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/brands}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                                <i class="bi bi-tag"></i> Quản lý Thương hiệu VPP
+                            </a>
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/categories}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                                <i class="bi bi-diagram-3"></i> Quản trị Cây danh mục
+                            </a>
                             <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/stock/ledger}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors font-semibold">
                                 <i class="bi bi-journal-text"></i> Sổ cái thẻ kho
                             </a>

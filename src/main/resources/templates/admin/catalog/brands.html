@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Quản Lý Thương Hiệu VPP | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Quản Lý Thương Hiệu VPP</title>
+</head>
+<body>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
+        <div>
+            <nav class="flex text-xs text-carbon_black-400 gap-1.5 mb-1">
+                <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Bàn làm việc</a>
+                <span>/</span>
+                <span>Danh mục gốc</span>
+                <span>/</span>
+                <span class="text-carbon_black font-semibold">Thương hiệu VPP</span>
+            </nav>
+            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Lý Danh Bạ Thương Hiệu VPP</h1>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Danh sách thương hiệu văn phòng phẩm, quốc gia xuất xứ và số lượng sản phẩm liên kết</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a th:href="@{/manager/products}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+                <i class="bi bi-arrow-left"></i>
+                <span>Sản Phẩm</span>
+            </a>
+            <a th:href="@{/dashboard}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+                <i class="bi bi-house"></i>
+                <span>Bàn Làm Việc</span>
+            </a>
+            <button type="button" onclick="openBrandModal(null, '', '')"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-sm rounded-xl shadow-flame transition-all">
+                <i class="bi bi-plus-lg"></i>
+                <span>Thêm Thương Hiệu Mới</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Search Toolbar -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 p-4 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <form th:action="@{/manager/brands}" method="get" class="w-full sm:max-w-md flex gap-2">
+            <div class="relative flex-1">
+                <input type="text" name="keyword" th:value="${keyword}"
+                       placeholder="Tìm kiếm theo tên thương hiệu..."
+                       class="w-full pl-9 pr-4 py-2 text-sm bg-alabaster_grey/40 border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:bg-white transition-all">
+                <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs"></i>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-carbon_black text-white rounded-xl text-sm font-semibold hover:bg-carbon_black-600 transition-colors">
+                Tìm
+            </button>
+            <a th:if="${keyword != null and !keyword.isEmpty()}" th:href="@{/manager/brands}"
+               class="px-3 py-2 border border-dust_grey rounded-xl text-sm font-semibold hover:bg-alabaster_grey transition-colors text-carbon_black-600">
+                Đặt lại
+            </a>
+        </form>
+        <div class="text-xs text-carbon_black-500 font-medium self-end sm:self-center">
+            Tổng số: <span class="font-bold text-carbon_black" th:text="${brandsPage.totalElements}">0</span> thương hiệu
+        </div>
+    </div>
+
+    <!-- Brands Table -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-dust_grey/60 text-left text-sm">
+                <thead class="bg-alabaster_grey/50 text-carbon_black-600 text-xs uppercase font-bold tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3.5 w-16">ID</th>
+                        <th class="px-6 py-3.5">Tên Thương Hiệu</th>
+                        <th class="px-6 py-3.5">Quốc Gia Xuất Xứ</th>
+                        <th class="px-6 py-3.5 text-center w-36">Số Sản Phẩm VPP</th>
+                        <th class="px-6 py-3.5 text-right w-36">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/40">
+                    <tr th:each="brand : ${brandsPage.content}" class="hover:bg-alabaster_grey/20 transition-colors">
+                        <td class="px-6 py-4 font-mono text-xs text-carbon_black-400" th:text="${brand.id}">1</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                                <i class="bi bi-tag text-carbon_black-400 text-xs"></i>
+                                <span class="font-bold text-carbon_black text-sm" th:text="${brand.name}">Thiên Long</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-alabaster_grey/60 text-carbon_black-600 border border-dust_grey/60"
+                                  th:text="${brand.originCountry != null and !brand.originCountry.isEmpty() ? brand.originCountry : 'Chưa cập nhật'}">
+                                Việt Nam
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                                  th:classappend="${stationeryCounts.get(brand.id) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'}"
+                                  th:text="${stationeryCounts.get(brand.id) + ' món'}">
+                                0 món
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button"
+                                        th:data-id="${brand.id}"
+                                        th:data-name="${brand.name}"
+                                        th:data-origin="${brand.originCountry != null ? brand.originCountry : ''}"
+                                        onclick="openBrandModal(this.getAttribute('data-id'), this.getAttribute('data-name'), this.getAttribute('data-origin'))"
+                                        class="p-2 text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 rounded-lg transition-colors"
+                                        title="Chỉnh sửa">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <form th:action="@{/manager/brands/{id}/delete(id=${brand.id})}" method="post" class="inline"
+                                      onsubmit="return confirm('Bạn có chắc chắn muốn xóa thương hiệu này không? Hệ thống sẽ chặn xóa nếu đang có sản phẩm văn phòng phẩm liên kết.');">
+                                    <button type="submit"
+                                            class="p-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors"
+                                            title="Xóa thương hiệu">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:if="${brandsPage.content.isEmpty()}">
+                        <td colspan="5" class="px-6 py-12 text-center text-carbon_black-400">
+                            <i class="bi bi-tag-fill text-3xl mb-2 block opacity-30"></i>
+                            <p class="text-sm font-medium">Không tìm thấy thương hiệu nào phù hợp.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div th:if="${brandsPage.totalPages > 1}" class="px-6 py-4 bg-alabaster_grey/30 border-t border-dust_grey/60 flex items-center justify-between">
+            <span class="text-xs text-carbon_black-500">
+                Trang <span class="font-bold" th:text="${brandsPage.number + 1}">1</span> / <span th:text="${brandsPage.totalPages}">1</span>
+            </span>
+            <div class="flex gap-1.5">
+                <a th:if="${!brandsPage.first}"
+                   th:href="@{/manager/brands(page=${brandsPage.number - 1}, keyword=${keyword})}"
+                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
+                    Trước
+                </a>
+                <a th:if="${!brandsPage.last}"
+                   th:href="@{/manager/brands(page=${brandsPage.number + 1}, keyword=${keyword})}"
+                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
+                    Sau
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Create / Edit Brand) -->
+    <div id="brandModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl border border-dust_grey shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-down">
+            <div class="px-6 py-4 bg-alabaster_grey/40 border-b border-dust_grey/60 flex items-center justify-between">
+                <h3 id="brandModalTitle" class="font-serif font-bold text-lg text-carbon_black">Thêm Thương Hiệu Mới</h3>
+                <button type="button" onclick="closeBrandModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <form id="brandForm" th:action="@{/manager/brands}" method="post" class="p-6 space-y-4">
+                <div>
+                    <label for="brandNameInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Tên Thương Hiệu <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="text" id="brandNameInput" name="name" required maxlength="100"
+                           placeholder="Ví dụ: Thiên Long, Pentel, Deli, Campus, Faber-Castell..."
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame">
+                </div>
+                <div>
+                    <label for="brandOriginInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Quốc Gia Xuất Xứ
+                    </label>
+                    <input type="text" id="brandOriginInput" name="originCountry" maxlength="100"
+                           placeholder="Ví dụ: Việt Nam, Nhật Bản, Đức, Trung Quốc..."
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame">
+                </div>
+                <div class="pt-3 flex items-center justify-end gap-3 border-t border-dust_grey/60">
+                    <button type="button" onclick="closeBrandModal()"
+                            class="px-4 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey rounded-xl text-sm font-semibold text-carbon_black transition-colors">
+                        Hủy
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-sm font-bold shadow-flame transition-colors">
+                        Lưu Thông Tin
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openBrandModal(id, name, originCountry) {
+            const modal = document.getElementById('brandModal');
+            const title = document.getElementById('brandModalTitle');
+            const form = document.getElementById('brandForm');
+            const nameInput = document.getElementById('brandNameInput');
+            const originInput = document.getElementById('brandOriginInput');
+
+            if (id) {
+                title.textContent = 'Chỉnh Sửa Thông Tin Thương Hiệu';
+                form.action = '/manager/brands/' + id + '/edit';
+                nameInput.value = name || '';
+                originInput.value = originCountry || '';
+            } else {
+                title.textContent = 'Thêm Thương Hiệu Mới';
+                form.action = '/manager/brands';
+                nameInput.value = '';
+                originInput.value = '';
+            }
+
+            modal.classList.remove('hidden');
+            nameInput.focus();
+        }
+
+        function closeBrandModal() {
+            document.getElementById('brandModal').classList.add('hidden');
+        }
+    </script>
+</div>
+</body>
+</html>

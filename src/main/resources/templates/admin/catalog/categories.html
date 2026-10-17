@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Quản Trị Cây Danh Mục | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Quản Trị Cây Danh Mục</title>
+</head>
+<body>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
+        <div>
+            <nav class="flex text-xs text-carbon_black-400 gap-1.5 mb-1">
+                <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Bàn làm việc</a>
+                <span>/</span>
+                <span>Danh mục gốc</span>
+                <span>/</span>
+                <span class="text-carbon_black font-semibold">Cây danh mục</span>
+            </nav>
+            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Trị Cây Danh Mục Sản Phẩm</h1>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Cấu trúc phân cấp đa tầng (Cha - Con) áp dụng cho cả Sách và Văn phòng phẩm</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a th:href="@{/manager/products}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+                <i class="bi bi-arrow-left"></i>
+                <span>Sản Phẩm</span>
+            </a>
+            <a th:href="@{/dashboard}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+                <i class="bi bi-house"></i>
+                <span>Bàn Làm Việc</span>
+            </a>
+            <button type="button" onclick="openCategoryModal(null, '', '', '', true)"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-sm rounded-xl shadow-flame transition-all">
+                <i class="bi bi-plus-lg"></i>
+                <span>Thêm Danh Mục Mới</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Category Tree Summary Banner -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-blazing_flame/10 flex items-center justify-center text-blazing_flame">
+                <i class="bi bi-diagram-3-fill text-lg"></i>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-carbon_black">Cây Phân Cấp Taxonomy</h4>
+                <p class="text-xs text-carbon_black-500">Hỗ trợ danh mục gốc và danh mục con đa cấp độ, bảo toàn tính toàn vẹn khi xóa</p>
+            </div>
+        </div>
+        <div class="text-xs text-carbon_black-600 font-medium">
+            Tổng số: <span class="font-bold text-carbon_black" th:text="${categories.size()}">0</span> danh mục hệ thống
+        </div>
+    </div>
+
+    <!-- Categories Table -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-dust_grey/60 text-left text-sm">
+                <thead class="bg-alabaster_grey/50 text-carbon_black-600 text-xs uppercase font-bold tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3.5 w-16">ID</th>
+                        <th class="px-6 py-3.5">Tên Danh Mục</th>
+                        <th class="px-6 py-3.5">Danh Mục Cha</th>
+                        <th class="px-6 py-3.5">Mô Tả</th>
+                        <th class="px-6 py-3.5 text-center w-28">Số SP</th>
+                        <th class="px-6 py-3.5 text-center w-36">Trạng Thái</th>
+                        <th class="px-6 py-3.5 text-right w-36">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/40">
+                    <tr th:each="cat : ${categories}" class="hover:bg-alabaster_grey/20 transition-colors">
+                        <td class="px-6 py-4 font-mono text-xs text-carbon_black-400" th:text="${cat.id}">1</td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-2" th:classappend="${cat.parent != null ? 'pl-6' : ''}">
+                                <i th:if="${cat.parent == null}" class="bi bi-folder-fill text-amber-500 text-base"></i>
+                                <i th:if="${cat.parent != null}" class="bi bi-arrow-return-right text-carbon_black-400 text-sm"></i>
+                                <span class="font-bold text-carbon_black text-sm" th:text="${cat.name}">Sách Trong Nước</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span th:if="${cat.parent != null}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-alabaster_grey text-carbon_black-600 border border-dust_grey/60">
+                                <i class="bi bi-folder text-[10px]"></i>
+                                <span th:text="${cat.parent.name}">Cha</span>
+                            </span>
+                            <span th:if="${cat.parent == null}"
+                                  class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                Danh mục gốc
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 max-w-xs">
+                            <span class="text-xs text-carbon_black-600 line-clamp-1"
+                                  th:text="${cat.description != null and !cat.description.isEmpty() ? cat.description : '—'}">
+                                Mô tả
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
+                                  th:classappend="${productCounts.get(cat.id) > 0 ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-600'}"
+                                  th:text="${productCounts.get(cat.id)}">
+                                0
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <form th:action="@{/manager/categories/{id}/toggle-status(id=${cat.id})}" method="post" class="inline">
+                                <button type="submit"
+                                        th:title="${cat.isActive ? 'Nhấn để tạm ẩn danh mục' : 'Nhấn để kích hoạt danh mục'}"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all"
+                                        th:classappend="${cat.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                                    <i class="bi" th:classappend="${cat.isActive ? 'bi-check-circle-fill text-emerald-600' : 'bi-dash-circle-fill text-gray-400'}"></i>
+                                    <span th:text="${cat.isActive ? 'Hoạt động' : 'Tạm ẩn'}">Hoạt động</span>
+                                </button>
+                            </form>
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button"
+                                        th:data-id="${cat.id}"
+                                        th:data-name="${cat.name}"
+                                        th:data-parent-id="${cat.parent != null ? cat.parent.id : ''}"
+                                        th:data-description="${cat.description != null ? cat.description : ''}"
+                                        th:data-active="${cat.isActive}"
+                                        onclick="openCategoryModal(this.getAttribute('data-id'), this.getAttribute('data-name'), this.getAttribute('data-parent-id'), this.getAttribute('data-description'), this.getAttribute('data-active') === 'true')"
+                                        class="p-2 text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 rounded-lg transition-colors"
+                                        title="Chỉnh sửa">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <form th:action="@{/manager/categories/{id}/delete(id=${cat.id})}" method="post" class="inline"
+                                      onsubmit="return confirm('Bạn có chắc chắn muốn xóa danh mục này không? Hệ thống sẽ chặn xóa nếu đang chứa danh mục con hoặc sản phẩm.');">
+                                    <button type="submit"
+                                            class="p-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors"
+                                            title="Xóa danh mục">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:if="${categories.isEmpty()}">
+                        <td colspan="7" class="px-6 py-12 text-center text-carbon_black-400">
+                            <i class="bi bi-folder-x text-3xl mb-2 block opacity-30"></i>
+                            <p class="text-sm font-medium">Chưa có danh mục nào trong hệ thống.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Form (Create / Edit Category) -->
+    <div id="categoryModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl border border-dust_grey shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-down">
+            <div class="px-6 py-4 bg-alabaster_grey/40 border-b border-dust_grey/60 flex items-center justify-between">
+                <h3 id="categoryModalTitle" class="font-serif font-bold text-lg text-carbon_black">Thêm Danh Mục Mới</h3>
+                <button type="button" onclick="closeCategoryModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <form id="categoryForm" th:action="@{/manager/categories}" method="post" class="p-6 space-y-4">
+                <div>
+                    <label for="categoryNameInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Tên Danh Mục <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="text" id="categoryNameInput" name="name" required maxlength="100"
+                           placeholder="Ví dụ: Sách Văn Học, Bút Viết, Dụng Cụ Học Sinh..."
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame">
+                </div>
+                <div>
+                    <label for="categoryParentSelect" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Danh Mục Cha
+                    </label>
+                    <select id="categoryParentSelect" name="parentId"
+                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame">
+                        <option value="">-- Là Danh Mục Gốc (Không có cha) --</option>
+                        <option th:each="c : ${categories}"
+                                th:value="${c.id}"
+                                th:text="${(c.parent != null ? '↳ ' + c.parent.name + ' > ' : '📁 ') + c.name}">
+                            Danh mục
+                        </option>
+                    </select>
+                    <p class="text-[11px] text-carbon_black-400 mt-1">Hệ thống có thuật toán chống chọn vòng tròn (Cycle Detection).</p>
+                </div>
+                <div>
+                    <label for="categoryDescInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Mô Tả Danh Mục
+                    </label>
+                    <textarea id="categoryDescInput" name="description" rows="3" maxlength="255"
+                              placeholder="Mô tả tóm tắt về nhóm danh mục sản phẩm này..."
+                              class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"></textarea>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                    <input type="checkbox" id="categoryActiveCheckbox" name="active" value="true" checked
+                           class="w-4 h-4 text-blazing_flame border-dust_grey rounded focus:ring-blazing_flame">
+                    <label for="categoryActiveCheckbox" class="text-xs font-semibold text-carbon_black cursor-pointer">
+                        Kích hoạt hiển thị trên Storefront
+                    </label>
+                </div>
+                <div class="pt-3 flex items-center justify-end gap-3 border-t border-dust_grey/60">
+                    <button type="button" onclick="closeCategoryModal()"
+                            class="px-4 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey rounded-xl text-sm font-semibold text-carbon_black transition-colors">
+                        Hủy
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-sm font-bold shadow-flame transition-colors">
+                        Lưu Thông Tin
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openCategoryModal(id, name, parentId, description, active) {
+            const modal = document.getElementById('categoryModal');
+            const title = document.getElementById('categoryModalTitle');
+            const form = document.getElementById('categoryForm');
+            const nameInput = document.getElementById('categoryNameInput');
+            const parentSelect = document.getElementById('categoryParentSelect');
+            const descInput = document.getElementById('categoryDescInput');
+            const activeCheckbox = document.getElementById('categoryActiveCheckbox');
+
+            // Reset options disabled state
+            for (let i = 0; i < parentSelect.options.length; i++) {
+                parentSelect.options[i].disabled = false;
+            }
+
+            if (id) {
+                title.textContent = 'Chỉnh Sửa Danh Mục Sản Phẩm';
+                form.action = '/manager/categories/' + id + '/edit';
+                nameInput.value = name || '';
+                parentSelect.value = parentId || '';
+                descInput.value = description || '';
+                activeCheckbox.checked = active !== false;
+
+                // Disable selecting itself as parent
+                for (let i = 0; i < parentSelect.options.length; i++) {
+                    if (parentSelect.options[i].value === id) {
+                        parentSelect.options[i].disabled = true;
+                    }
+                }
+            } else {
+                title.textContent = 'Thêm Danh Mục Mới';
+                form.action = '/manager/categories';
+                nameInput.value = '';
+                parentSelect.value = '';
+                descInput.value = '';
+                activeCheckbox.checked = true;
+            }
+
+            modal.classList.remove('hidden');
+            nameInput.focus();
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('categoryModal').classList.add('hidden');
+        }
+    </script>
+</div>
+</body>
+</html>
