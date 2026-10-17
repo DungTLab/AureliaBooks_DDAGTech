@@ -11,7 +11,7 @@
 
         const visible = input.type === 'password';
         input.type = visible ? 'text' : 'password';
-        const label = `${visible ? 'Ẩn' : 'Hiện'} ${button.dataset.passwordLabel}`;
+        const label = `${visible ? 'Ẩn' : 'Hiện'} ${button.dataset.passwordLabel || 'mật khẩu'}`;
         button.setAttribute('aria-pressed', String(visible));
         button.setAttribute('aria-label', label);
         button.title = label;

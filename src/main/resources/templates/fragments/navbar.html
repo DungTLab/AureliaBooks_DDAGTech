@@ -87,7 +87,7 @@
                     <i class="bi bi-bag text-2xl"></i>
                     <span id="cartBadge"
                           class="absolute top-1 right-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-blazing_flame rounded-full border-2 border-white shadow-sm"
-                          th:text="${cartItemCount != null ? cartItemCount : 0}">
+                          th:text="${cartItemCount != null ? cartItemCount : '–'}">
                         0
                     </span>
                 </a>
@@ -492,7 +492,7 @@
         </a>
         <a th:href="@{/cart}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <span><i class="bi bi-bag me-2 text-blazing_flame"></i>Giỏ Hàng</span>
-            <span class="bg-blazing_flame text-white text-xs font-bold px-2 py-0.5 rounded-full" th:text="${cartItemCount != null ? cartItemCount : 0}">0</span>
+            <span class="bg-blazing_flame text-white text-xs font-bold px-2 py-0.5 rounded-full" th:text="${cartItemCount != null ? cartItemCount : '–'}">0</span>
         </a>
 
         <!-- Guest Mobile Actions -->
