@@ -32,6 +32,10 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name= "shipping_address_id")
+    private ShippingAddress shippingAddress;
+
     @Column(name = "shipping_recipient_name", length = 100, nullable = false)
     private String shippingRecipientName;
 
@@ -110,6 +114,11 @@ public class Order extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<OrderItem> items = new ArrayList<>();
+
+    public void addItem(OrderItem item){
+        this.items.add(item);
+        item.setOrder(this);
+    }
 
     public enum OrderStatus {
         PENDING_PAYMENT,
