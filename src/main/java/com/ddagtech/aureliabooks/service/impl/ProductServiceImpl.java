@@ -149,27 +149,8 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        return productPage.map(p -> {
-            String seriesName = null;
-            Integer volumeNumber = null;
-            if (p.getProductType() == Product.ProductType.BOOK) {
-                Book book = bookMap.get(p.getId());
-                if (book != null) {
-                    seriesName = book.getSeriesName();
-                    volumeNumber = book.getVolumeNumber();
-                }
-            }
-            return new ProductSummary(
-                    p.getId(),
-                    p.getTitle(),
-                    p.getPrice(),
-                    p.getStockQuantity(),
-                    p.getMainImageUrl(),
-                    p.getProductType(),
-                    seriesName,
-                    volumeNumber
-            );
-        });
+        return productPage.map(product -> com.ddagtech.aureliabooks.mapper.ProductMapper.toSummary(
+                product, bookMap.get(product.getId())));
     }
 
     @Transactional(readOnly = true)

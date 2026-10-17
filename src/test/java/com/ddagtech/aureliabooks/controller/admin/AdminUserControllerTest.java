@@ -81,7 +81,8 @@ class AdminUserControllerTest {
                 .build();
         staffUserDetails = new CustomUserDetails(staffEntity);
 
-        when(roleRepository.findAll()).thenReturn(List.of(adminRole, managerRole, staffRole));
+        when(adminUserService.listAssignableRoles()).thenReturn(List.of(adminRole, managerRole, staffRole).stream()
+                .map(role -> new com.ddagtech.aureliabooks.dto.response.RoleOption(role.getId(), role.getRoleName(), role.getDescription())).toList());
     }
 
     @Test

@@ -25,14 +25,14 @@ public class ContactChangeController {
     public String view(Authentication auth, HttpServletRequest request, Model model,
                        @RequestParam(defaultValue = "EMAIL") String type) {
         Long owner = identity.resolve(auth);
-        var customer = security.customer(owner);
-        model.addAttribute("passwordRequired", customer.getPasswordHash() != null);
+        var customer = security.contactSettings(owner);
+        model.addAttribute("passwordRequired", customer.passwordRequired());
         var flow = changes.view(owner, request.getSession().getId());
         model.addAttribute("change", flow);
         String selectedType = "PHONE".equals(type) ? "PHONE" : "EMAIL";
-        String currentValue = "PHONE".equals(selectedType) ? customer.getPhone() : customer.getEmail();
+        boolean hasContact = "PHONE".equals(selectedType) ? customer.phonePresent() : customer.emailPresent();
         model.addAttribute("selectedType", selectedType);
-        model.addAttribute("addingContact", currentValue == null || currentValue.isBlank());
+        model.addAttribute("addingContact", !hasContact);
         return "profile/contact-change";
     }
 

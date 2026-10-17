@@ -2,9 +2,8 @@ package com.ddagtech.aureliabooks.controller.admin;
 
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
-import com.ddagtech.aureliabooks.entity.Role;
+import com.ddagtech.aureliabooks.dto.response.RoleOption;
 import com.ddagtech.aureliabooks.exception.AppException;
-import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.AdminUserService;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * Controller managing internal back-office staff accounts and RBAC role assignments (UC28).
@@ -38,14 +36,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AdminUserController {
 
-    private static final Set<String> INTERNAL_ROLE_NAMES = Set.of(
-            "ROLE_ADMIN",
-            "ROLE_MANAGER",
-            "ROLE_SALE_STAFF"
-    );
-
     private final AdminUserService adminUserService;
-    private final RoleRepository roleRepository;
 
     /**
      * Displays the paginated staff user list filtered optionally by role, active status, and search keyword.
@@ -74,9 +65,7 @@ public class AdminUserController {
                 PageRequest.of(page, size, Sort.by("id").descending())
         );
 
-        List<Role> internalRoles = roleRepository.findAll().stream()
-                .filter(r -> INTERNAL_ROLE_NAMES.contains(r.getRoleName()))
-                .toList();
+        List<RoleOption> internalRoles = adminUserService.listAssignableRoles();
 
         model.addAttribute("usersPage", usersPage);
         model.addAttribute("selectedRole", role);

@@ -6,6 +6,8 @@ import org.springframework.data.domain.*;
 
 /** UC28. Owner: Trần Huỳnh Giác. Sprint 1 scaffold; business implementation pending. */
 public interface AdminUserService {
+    java.util.List<RoleOption> listAssignableRoles();
+
     default Page<UserSummary> list(String roleName, Pageable pageable) {
         return list(roleName, null, null, pageable);
     }

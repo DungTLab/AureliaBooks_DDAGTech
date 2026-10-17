@@ -55,6 +55,15 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final ObjectMapper objectMapper;
     private final ReentrantLock adminMutationLock = new ReentrantLock();
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.ddagtech.aureliabooks.dto.response.RoleOption> listAssignableRoles() {
+        return roleRepository.findAll().stream()
+                .filter(role -> ALLOWED_INTERNAL_ROLES.contains(role.getRoleName()))
+                .map(role -> new com.ddagtech.aureliabooks.dto.response.RoleOption(role.getId(), role.getRoleName(), role.getDescription()))
+                .toList();
+    }
+
     /**
      * Retrieves paginated internal staff users filtered by optional role name, active status, and search keyword.
      * Eliminates N+1 queries by relying on UserRepository join fetch.
@@ -71,16 +80,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         String filterRole = (roleName != null && !roleName.isBlank()) ? roleName.trim() : null;
         String filterKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
         Page<User> staffPage = userRepository.findInternalStaff(filterRole, active, filterKeyword, pageable);
-        return staffPage.map(user -> new UserSummary(
-                user.getId(),
-                user.getEmail(),
-                user.getFullName(),
-                user.getPhone(),
-                user.getRole() != null ? user.getRole().getId() : null,
-                user.getRole() != null ? user.getRole().getRoleName() : null,
-                user.getIsActive(),
-                user.getCreatedAt()
-        ));
+        return staffPage.map(com.ddagtech.aureliabooks.mapper.AdminUserMapper::toSummary);
     }
 
     /**
