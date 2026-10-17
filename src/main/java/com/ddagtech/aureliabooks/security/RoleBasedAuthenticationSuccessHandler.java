@@ -32,6 +32,11 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
+        var session=request.getSession(false);
+        if(session!=null&&session.getAttribute("GOOGLE_PROFILE_ACTION_DONE")!=null){
+            String action=(String)session.getAttribute("GOOGLE_PROFILE_ACTION_DONE");session.removeAttribute("GOOGLE_PROFILE_ACTION_DONE");
+            requestCache.removeRequest(request,response);redirectStrategy.sendRedirect(request,response,"REAUTH".equals(action)?"/profile/contact-change":"/profile");return;
+        }
         String targetUrl = determineTargetUrl(request, response, authentication);
 
         if (response.isCommitted()) {

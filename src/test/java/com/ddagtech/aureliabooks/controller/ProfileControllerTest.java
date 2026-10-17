@@ -51,10 +51,11 @@ class ProfileControllerTest {
             java.nio.file.Files.writeString(dir.resolve("addresses.html"),book.getResponse().getContentAsString());
         }
     }
-    @Test void googleMissingPhoneHasCompletionInputAndNoPasswordForm() throws Exception {
+    @Test void googleMissingPhoneHasVerifiedChangeLinkAndNoPasswordForm() throws Exception {
         when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"google@example.com","Nguyễn An",null,null,"OTHER",null,true,false,true));
         mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER"))).andExpect(status().isOk())
-            .andExpect(content().string(containsString("name=\"phone\"")))
+            .andExpect(content().string(not(containsString("name=\"phone\""))))
+            .andExpect(content().string(containsString("/profile/contact-change?type=PHONE")))
             .andExpect(content().string(containsString("name=\"dob\"")))
             .andExpect(content().string(containsString("ngày sinh sẽ khóa sau khi lưu")))
             .andExpect(content().string(not(containsString("name=\"currentPassword\""))));
@@ -150,5 +151,14 @@ class ProfileControllerTest {
                 .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CUSTOMER"))))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("src=\"/profile/avatar/google.png\"")));
         verify(navbarUsers).findByGoogleIdentity(com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE,"nav-subject");
+    }
+    @Test
+    void missingEmailHasAdditionActionInsteadOfReadonlyInput() throws Exception {
+        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L, null, "Nguyễn An",
+                "0912345678", null, "OTHER", null, false, true, true));
+        mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("id=\"email\""))))
+                .andExpect(content().string(containsString("Bổ sung email")));
     }
 }
