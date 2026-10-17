@@ -2,25 +2,20 @@
 <html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)" lang="vi" class="h-full">
 <head th:replace="~{fragments/head :: head(${title})}"></head>
 <body class="min-h-full flex flex-col bg-parchment text-carbon_black font-sans antialiased selection:bg-blazing_flame selection:text-white">
-    <!-- Main Global Navbar Header -->
-    <div th:replace="~{fragments/navbar :: navbar}"></div>
+<!-- Main Global Navbar Header -->
+<div th:replace="~{fragments/navbar :: navbar}"></div>
 
-    <div th:if="${smsDemoEnabled == true}" role="status"
-         class="bg-amber-100 text-amber-900 px-4 py-3 text-center text-sm">
-        Chế độ demo: SMS được mô phỏng qua hộp thư của nhóm, không gửi tới điện thoại.
-    </div>
+<!-- Global Floating Toast Alerts Container -->
+<div th:replace="~{fragments/alerts :: alerts}"></div>
 
-    <!-- Global Floating Toast Alerts Container -->
-    <div th:replace="~{fragments/alerts :: alerts}"></div>
+<!-- Dynamic Main Content Slot -->
+<main class="flex-1 w-full">
+    <th:block th:replace="${content}"/>
+</main>
 
-    <!-- Dynamic Main Content Slot -->
-    <main class="flex-1 w-full">
-        <th:block th:replace="${content}" />
-    </main>
-
-    <!-- Global Footer -->
-    <div th:replace="~{fragments/footer :: footer}"></div>
-    <script th:src="@{/js/password-visibility.js}" defer></script>
-    <script th:src="@{/js/cart.js}" defer></script>
+<!-- Global Footer -->
+<div th:replace="~{fragments/footer :: footer}"></div>
+<script th:src="@{/js/password-visibility.js}" defer></script>
+<script th:src="@{/js/cart.js}" defer></script>
 </body>
 </html>
