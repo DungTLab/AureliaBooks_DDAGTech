@@ -36,7 +36,7 @@ public record ProductStockAlertDto(
         String badgeClass;
         String label;
 
-        if (qty == 0) {
+        if (qty <= 0) {
             status = "OUT_OF_STOCK";
             badgeClass = "bg-rose-100 text-rose-800 border-rose-300";
             label = "Hết hàng";

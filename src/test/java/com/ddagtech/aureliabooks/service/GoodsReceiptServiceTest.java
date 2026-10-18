@@ -533,15 +533,20 @@ class GoodsReceiptServiceTest {
             ProductStockAlertDto dto11 = ProductStockAlertDto.of(p11, "Category", false);
             assertThat(dto11.alertStatus()).isEqualTo("SAFE_STOCK");
             assertThat(dto11.alertLabel()).isEqualTo("An toàn");
+
+            // Phòng thủ tồn kho âm (F04: Negative stock defense)
+            Product pNeg = new Product();
+            pNeg.setId(5L);
+            pNeg.setStockQuantity(-5);
+            ProductStockAlertDto dtoNeg = ProductStockAlertDto.of(pNeg, "Category", false);
+            assertThat(dtoNeg.alertStatus()).isEqualTo("OUT_OF_STOCK");
+            assertThat(dtoNeg.alertLabel()).isEqualTo("Hết hàng");
         }
 
         @Test
         @DisplayName("Chỉ số tổng hợp metrics khớp đúng dữ liệu thực tế: Total, OutOfStock, LowStock, SafeStock")
         void getStockMetrics_exactMatches() {
-            when(productRepository.count()).thenReturn(100L);
-            when(productRepository.countByStockQuantityEquals(0)).thenReturn(15L);
-            when(productRepository.countByStockQuantityBetween(1, 10)).thenReturn(25L);
-            when(productRepository.countByStockQuantityGreaterThan(10)).thenReturn(60L);
+            when(productRepository.getActiveStockMetrics()).thenReturn(new StockMetricSummary(100L, 15L, 25L, 60L));
 
             StockMetricSummary metrics = service.getStockMetrics();
 

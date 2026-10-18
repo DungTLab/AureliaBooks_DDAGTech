@@ -246,6 +246,19 @@ class AdminReceiptControllerTest {
     }
 
     @Test
+    @DisplayName("GET /manager/stock/alerts: SALE_STAFF truy cập thành công qua RBAC (F01 fix)")
+    void stockAlerts_saleStaff_viaManagerUrl_accessGranted() throws Exception {
+        when(goodsReceiptService.getStockMetrics()).thenReturn(new StockMetricSummary(100, 15, 25, 60));
+        when(goodsReceiptService.getStockAlerts(any(), any(), any(), any(), any())).thenReturn(Page.empty());
+        when(categoryRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(Collections.emptyList());
+
+        mvc.perform(get("/manager/stock/alerts").with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/stock/alerts"))
+                .andExpect(model().attribute("baseUri", "/manager/stock/alerts"));
+    }
+
+    @Test
     @DisplayName("POST /api/products/quick-create: Tạo nhanh sản phẩm thành công trả về 200 OK và JSON")
     void quickCreateProduct_success() throws Exception {
         com.ddagtech.aureliabooks.dto.response.QuickProductResponse res =

@@ -276,9 +276,10 @@ public class AdminReceiptController {
      * UC21: Displays real-time inventory monitoring and stock alert badges.
      * Thresholds: 0 (Hết hàng / Danger), 1-10 (Tồn kho thấp / Warning), >10 (An toàn / Success).
      */
-    @GetMapping({"/manager/stock/alerts", "/staff/stock/alerts"})
+    @GetMapping({"/manager/stock/alerts", "/staff/stock/alerts", "/inventory/stock/alerts"})
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
     public String stockAlerts(
+            jakarta.servlet.http.HttpServletRequest request,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Product.ProductType productType,
@@ -287,6 +288,7 @@ public class AdminReceiptController {
             @RequestParam(defaultValue = "15") int size,
             Model model
     ) {
+        String baseUri = request != null && request.getRequestURI() != null ? request.getRequestURI() : "/manager/stock/alerts";
         StockMetricSummary metrics = goodsReceiptService.getStockMetrics();
         Page<ProductStockAlertDto> alertsPage = goodsReceiptService.getStockAlerts(
                 keyword,
@@ -296,6 +298,7 @@ public class AdminReceiptController {
                 PageRequest.of(page, size, Sort.by("stockQuantity").ascending().and(Sort.by("id").descending()))
         );
 
+        model.addAttribute("baseUri", baseUri);
         model.addAttribute("metrics", metrics);
         model.addAttribute("alertsPage", alertsPage);
         model.addAttribute("categories", categoryRepository.findByIsActiveTrueOrderByNameAsc());

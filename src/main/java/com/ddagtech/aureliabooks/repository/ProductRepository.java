@@ -34,5 +34,21 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @EntityGraph(attributePaths = {"category"})
     List<Product> findByIsActiveTrueOrderByTitleAsc();
 
+    @Override
+    @EntityGraph(attributePaths = {"category"})
+    org.springframework.data.domain.Page<Product> findAll(org.springframework.data.jpa.domain.Specification<Product> spec, org.springframework.data.domain.Pageable pageable);
+
+    @Query("""
+        SELECT new com.ddagtech.aureliabooks.dto.response.StockMetricSummary(
+            COUNT(p),
+            COALESCE(SUM(CASE WHEN p.stockQuantity <= 0 THEN 1L ELSE 0L END), 0L),
+            COALESCE(SUM(CASE WHEN p.stockQuantity >= 1 AND p.stockQuantity <= 10 THEN 1L ELSE 0L END), 0L),
+            COALESCE(SUM(CASE WHEN p.stockQuantity > 10 THEN 1L ELSE 0L END), 0L)
+        )
+        FROM Product p
+        WHERE p.isActive = true
+    """)
+    com.ddagtech.aureliabooks.dto.response.StockMetricSummary getActiveStockMetrics();
+
     boolean existsByBarcode(String barcode);
 }

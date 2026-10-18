@@ -363,12 +363,8 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     @Override
     @Transactional(readOnly = true)
     public StockMetricSummary getStockMetrics() {
-        long total = productRepository.count();
-        long outOfStock = productRepository.countByStockQuantityEquals(0);
-        long lowStock = productRepository.countByStockQuantityBetween(1, 10);
-        long safeStock = productRepository.countByStockQuantityGreaterThan(10);
-
-        return new StockMetricSummary(total, outOfStock, lowStock, safeStock);
+        StockMetricSummary metrics = productRepository.getActiveStockMetrics();
+        return metrics != null ? metrics : new StockMetricSummary(0L, 0L, 0L, 0L);
     }
 
     /**
@@ -385,6 +381,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     ) {
         Specification<Product> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.isTrue(root.get("isActive")));
 
             if (keyword != null && !keyword.trim().isEmpty()) {
                 String search = "%" + keyword.trim().toLowerCase() + "%";
@@ -404,7 +401,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             if (alertLevel != null && !alertLevel.trim().isEmpty()) {
                 String level = alertLevel.trim().toUpperCase();
                 switch (level) {
-                    case "OUT_OF_STOCK" -> predicates.add(cb.equal(root.get("stockQuantity"), 0));
+                    case "OUT_OF_STOCK" -> predicates.add(cb.lessThanOrEqualTo(root.get("stockQuantity"), 0));
                     case "LOW_STOCK" -> predicates.add(cb.and(
                             cb.greaterThanOrEqualTo(root.get("stockQuantity"), 1),
                             cb.lessThanOrEqualTo(root.get("stockQuantity"), 10)
@@ -418,12 +415,11 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
 
         Page<Product> products = productRepository.findAll(spec, pageable);
 
+        List<Long> productIds = products.getContent().stream().map(Product::getId).toList();
+        Set<Long> textbookIds = productIds.isEmpty() ? Collections.emptySet() : bookRepository.findTextbookProductIdsIn(productIds);
+
         return products.map(prod -> {
-            boolean isTextbook = false;
-            Optional<Book> bookOpt = bookRepository.findById(prod.getId());
-            if (bookOpt.isPresent() && Boolean.TRUE.equals(bookOpt.get().getIsTextbook())) {
-                isTextbook = true;
-            }
+            boolean isTextbook = textbookIds.contains(prod.getId());
             String catName = prod.getCategory() != null ? prod.getCategory().getName() : "-";
             return ProductStockAlertDto.of(prod, catName, isTextbook);
         });
