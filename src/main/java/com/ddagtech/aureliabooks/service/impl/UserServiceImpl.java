@@ -4,6 +4,7 @@ import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.*;
 import com.ddagtech.aureliabooks.dto.response.ProfileView;
 import com.ddagtech.aureliabooks.entity.User;
+import com.ddagtech.aureliabooks.mapper.UserMapper;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.*;
@@ -17,10 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-import jakarta.servlet.http.HttpServletRequest;
-import com.ddagtech.aureliabooks.util.HttpRequestUtil;
 import java.util.Objects;
 
 @Service
@@ -39,9 +36,7 @@ public class UserServiceImpl implements UserService {
     public ProfileView viewProfile(Long id) {
         User u = users.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         CustomerIdentity.requireCustomer(u);
-        return new ProfileView(u.getId(), u.getEmail(), u.getFullName(), u.getPhone(), u.getDob(),
-                u.getGender().name(), u.getAvatarUrl(), canCompletePhone(u), u.getPasswordHash() != null,
-                canCompleteDob(u));
+        return UserMapper.toProfile(u);
     }
     @Transactional
     public void updateProfile(Long id, ProfileUpdateRequest request) {
@@ -52,16 +47,14 @@ public class UserServiceImpl implements UserService {
             u.setDob(request.dob());
         }
         if (request.phone() != null && !Objects.equals(request.phone(), u.getPhone())) {
-            if (!canCompletePhone(u)) throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Không thể thay đổi số điện thoại đã đăng ký.");
-            if (users.existsByPhone(request.phone())) throw new AppException(ErrorCode.USER_EXISTED);
-            u.setPhone(request.phone());
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng xác thực OTP qua chức năng đổi thông tin liên hệ.");
         }
         u.setFullName(request.fullName());
         u.setGender(request.gender());
-        users.saveAndFlush(u); // Unique index is authoritative for simultaneous phone completion.
+        users.saveAndFlush(u);
     }
     @Transactional
-    public void changePassword(Long id, PasswordChangeRequest request) {
+    public void changePassword(Long id, PasswordChangeRequest request, String clientIp) {
         validate(request);
         User u = owner(id);
         if (u.getPasswordHash() == null) throw new AppException(ErrorCode.INVALID_INPUT_DATA,
@@ -76,7 +69,7 @@ public class UserServiceImpl implements UserService {
                 "users",
                 id,
                 "{\"message\":\"Thay đổi mật khẩu tài khoản thành công\"}",
-                resolveClientIp()
+                clientIp
         );
         afterCommit(() -> sessions.getAllPrincipals().stream()
                 .filter(p -> p instanceof CustomUserDetails local && id.equals(local.getId())
@@ -100,11 +93,8 @@ public class UserServiceImpl implements UserService {
         User u = users.findOwnerForUpdate(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         CustomerIdentity.requireCustomer(u); return u;
     }
-    private boolean canCompletePhone(User u) {
-        return u.getAuthProvider() == User.AuthProvider.GOOGLE && (u.getPhone() == null || u.getPhone().isBlank());
-    }
     private boolean canCompleteDob(User u) {
-        return u.getAuthProvider() == User.AuthProvider.GOOGLE && u.getDob() == null;
+        return u.getDob() == null;
     }
     private void validate(Object request) {
         var violations = validator.validate(request);
@@ -117,11 +107,4 @@ public class UserServiceImpl implements UserService {
         });
     }
 
-    private String resolveClientIp() {
-        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
-            HttpServletRequest request = attributes.getRequest();
-            return HttpRequestUtil.getClientIp(request);
-        }
-        return "127.0.0.1";
-    }
 }

@@ -168,22 +168,23 @@
 
                 <!-- 3. Add to Cart & Purchase Area -->
                 <div class="pt-6 border-t border-dust_grey/60">
-                    <form th:action="@{/cart/add}" method="post" class="space-y-4">
+                    <form th:action="@{/cart/items}" method="post" class="space-y-4">
                         <input type="hidden" name="productId" th:value="${product.id}">
 
                         <!-- Quantity Selector & Action Button -->
                         <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
                             <!-- Quantity Box -->
-                            <div class="flex items-center justify-between border border-dust_grey rounded-2xl bg-white px-3 py-1.5 w-full sm:w-36">
-                                <button type="button"
-                                        onclick="let q = document.getElementById('qtyInput'); if(q.value > 1) q.value--;"
+                            <div data-quantity-control class="flex items-center justify-between border border-dust_grey rounded-2xl bg-white px-3 py-1.5 w-full sm:w-36">
+                                <button type="button" data-quantity-step="-1" aria-label="Giảm số lượng" disabled
                                         class="w-8 h-8 rounded-lg hover:bg-parchment-200 text-carbon_black font-bold flex items-center justify-center transition-colors">
                                     <i class="bi bi-dash"></i>
                                 </button>
-                                <input type="number" id="qtyInput" name="quantity" value="1" min="1" th:max="${product.stockQuantity}"
+                                <input type="number" id="qtyInput" name="quantity" value="1" min="1" step="1" required
+                                       th:max="${T(java.lang.Math).min(T(com.ddagtech.aureliabooks.dto.request.CartQuantityRequest).MAX_QUANTITY, product.stockQuantity)}"
+                                       th:disabled="${product.stockQuantity <= 0}"
                                        class="w-12 text-center text-sm font-bold text-carbon_black focus:outline-none border-none bg-transparent">
-                                <button type="button"
-                                        th:onclick="'let q = document.getElementById(\'qtyInput\'); if(q.value < ' + ${product.stockQuantity} + ') q.value++;'"
+                                <button type="button" data-quantity-step="1" aria-label="Tăng số lượng"
+                                        th:disabled="${product.stockQuantity <= 1}"
                                         class="w-8 h-8 rounded-lg hover:bg-parchment-200 text-carbon_black font-bold flex items-center justify-center transition-colors">
                                     <i class="bi bi-plus"></i>
                                 </button>

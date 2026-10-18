@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptForm;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptItemForm;
+import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
 import com.ddagtech.aureliabooks.dto.response.*;
 import com.ddagtech.aureliabooks.entity.GoodsReceipt;
 import com.ddagtech.aureliabooks.entity.Product;
@@ -27,9 +28,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
-import com.ddagtech.aureliabooks.dto.response.QuickProductResponse;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +39,8 @@ import java.util.Map;
  *  - /staff/receipts/** -> Sale Staff, Manager, Admin
  *  - /manager/receipts/** -> Manager, Admin
  *  - /manager/stock/alerts & /staff/stock/alerts -> Sale Staff, Manager, Admin
+ *
+ * Owner: Nguyễn Trần Đức Anh.
  */
 @Slf4j
 @Controller

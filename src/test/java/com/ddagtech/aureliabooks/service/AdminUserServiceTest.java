@@ -83,6 +83,15 @@ class AdminUserServiceTest {
     }
 
     @Test
+    void assignableRolesExcludeCustomerAndUnknownRoles() {
+        Role unknown = Role.builder().id(99L).roleName("ROLE_UNKNOWN").build();
+        when(roleRepository.findAll()).thenReturn(List.of(adminRole, customerRole, managerRole, staffRole, unknown));
+        assertThat(adminUserService.listAssignableRoles())
+                .extracting(com.ddagtech.aureliabooks.dto.response.RoleOption::roleName)
+                .containsExactly("ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SALE_STAFF");
+    }
+
+    @Test
     @DisplayName("list() should map internal staff entities to UserSummary DTOs")
     void testList_Success() {
         User staff = User.builder()

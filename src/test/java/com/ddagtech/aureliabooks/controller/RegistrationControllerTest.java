@@ -22,6 +22,7 @@ import static org.mockito.Mockito.*;
 class RegistrationControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean RegistrationService registration;
+    @MockitoBean com.ddagtech.aureliabooks.service.AccountOtpService otp;
     MockHttpServletRequestBuilder form() {
         return post("/auth/register").with(csrf()).param("email","a@example.com").param("fullName","Nguyễn Văn Dũng")
                 .param("phone","0912345678").param("password","Abcd123!").param("confirmPassword","Abcd123!")
@@ -36,10 +37,12 @@ class RegistrationControllerTest {
         Files.writeString(dir.resolve("rendered-register.html"),result.getResponse().getContentAsString());
     }
     @Test void validFormRedirectsAndCannotAssignAdmin() throws Exception {
+        when(otp.registration(any(),anyString(),anyString())).thenReturn("flow");
         mvc.perform(form().param("role","ROLE_ADMIN").param("dob",LocalDate.now().minusDays(1).toString()))
-                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/auth/login"))
-                .andExpect(flash().attributeExists("successMessage"));
-        verify(registration).registerLocal(argThat(r->r.gender()!=null && r.dob().equals(LocalDate.now().minusDays(1))));
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/auth/verification"))
+                .andExpect(flash().attributeExists("verificationMessage"));
+        verify(otp).registration(argThat(r->r.email()==null&&r.gender()!=null && r.dob().equals(LocalDate.now().minusDays(1))),anyString(),anyString());
+        verifyNoInteractions(registration);
     }
     @Test void missingCsrfNeverReachesRegistration() throws Exception {
         mvc.perform(post("/auth/register")).andExpect(status().isForbidden())
@@ -61,7 +64,7 @@ class RegistrationControllerTest {
         verifyNoInteractions(registration);
     }
     @Test void concurrentDuplicateConstraintIsTranslatedWithoutSqlLeak() throws Exception {
-        when(registration.registerLocal(any())).thenThrow(new DataIntegrityViolationException("SQL secret"));
+        when(otp.registration(any(),anyString(),anyString())).thenThrow(new DataIntegrityViolationException("SQL secret"));
         mvc.perform(form()).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Email hoặc số điện thoại này đã được đăng ký.")))
                 .andExpect(content().string(not(containsString("SQL secret"))));

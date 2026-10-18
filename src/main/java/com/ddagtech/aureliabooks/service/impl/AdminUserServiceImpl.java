@@ -2,10 +2,12 @@ package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
+import com.ddagtech.aureliabooks.dto.response.RoleOption;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.AdminUserMapper;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
@@ -14,6 +16,7 @@ import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.session.SessionInformation;
@@ -54,14 +57,31 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final ReentrantLock adminMutationLock = new ReentrantLock();
+    private AdminUserMapper adminUserMapper = new AdminUserMapper();
+
+    @Autowired(required = false)
+    public void setAdminUserMapper(AdminUserMapper adminUserMapper) {
+        if (adminUserMapper != null) {
+            this.adminUserMapper = adminUserMapper;
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RoleOption> listAssignableRoles() {
+        return roleRepository.findAll().stream()
+                .filter(role -> ALLOWED_INTERNAL_ROLES.contains(role.getRoleName()))
+                .map(adminUserMapper::toRoleOption)
+                .toList();
+    }
 
     /**
      * Retrieves paginated internal staff users filtered by optional role name, active status, and search keyword.
      * Eliminates N+1 queries by relying on UserRepository join fetch.
      *
      * @param roleName optional role filter name
-     * @param active optional active status filter
-     * @param keyword optional search term matching name, email, or phone
+     * @param active   optional active status filter
+     * @param keyword  optional search term matching name, email, or phone
      * @param pageable pagination parameters
      * @return page of UserSummary DTOs
      */
@@ -71,16 +91,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         String filterRole = (roleName != null && !roleName.isBlank()) ? roleName.trim() : null;
         String filterKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
         Page<User> staffPage = userRepository.findInternalStaff(filterRole, active, filterKeyword, pageable);
-        return staffPage.map(user -> new UserSummary(
-                user.getId(),
-                user.getEmail(),
-                user.getFullName(),
-                user.getPhone(),
-                user.getRole() != null ? user.getRole().getId() : null,
-                user.getRole() != null ? user.getRole().getRoleName() : null,
-                user.getIsActive(),
-                user.getCreatedAt()
-        ));
+        return staffPage.map(AdminUserMapper::toSummary);
     }
 
     /**
@@ -88,8 +99,8 @@ public class AdminUserServiceImpl implements AdminUserService {
      * Validates uniqueness of email and phone, enforces internal role assignment whitelist,
      * hashes credentials with BCrypt, and appends a security audit entry.
      *
-     * @param adminId authenticated administrator user ID performing the operation
-     * @param request creation parameters DTO
+     * @param adminId   authenticated administrator user ID performing the operation
+     * @param request   creation parameters DTO
      * @param ipAddress originating client IP address
      * @return generated persistent user ID
      */
@@ -117,15 +128,11 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.INVALID_ROLE_ASSIGNMENT);
         }
 
-        User user = User.builder()
-                .email(request.email().trim().toLowerCase())
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .fullName(request.fullName().trim())
-                .phone(canonicalPhone)
-                .role(assignedRole)
-                .authProvider(User.AuthProvider.LOCAL)
-                .isActive(true)
-                .build();
+        User user = adminUserMapper.toInternalStaffEntity(
+                request,
+                passwordEncoder.encode(request.password()),
+                assignedRole
+        );
 
         User savedUser = userRepository.save(user);
 
@@ -156,9 +163,9 @@ public class AdminUserServiceImpl implements AdminUserService {
      * Enforces self-lock guard (BR-08-01) and ensures at least one active administrator remains.
      * When deactivated, all concurrent active HTTP sessions for the user are immediately expired.
      *
-     * @param adminId authenticated administrator user ID
-     * @param userId target user ID to update
-     * @param active desired active state
+     * @param adminId   authenticated administrator user ID
+     * @param userId    target user ID to update
+     * @param active    desired active state
      * @param ipAddress originating client IP address
      */
     @Override
@@ -218,8 +225,8 @@ public class AdminUserServiceImpl implements AdminUserService {
      * Prevents demoting the last active administrator and prevents self-demotion from the admin role.
      * Terminates existing user sessions to force re-authentication with fresh GrantedAuthorities.
      *
-     * @param adminId authenticated administrator user ID
-     * @param userId target user ID to update
+     * @param adminId   authenticated administrator user ID
+     * @param userId    target user ID to update
      * @param newRoleId target role ID to assign
      * @param ipAddress originating client IP address
      */

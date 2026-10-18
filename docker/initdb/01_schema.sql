@@ -45,10 +45,12 @@ CREATE TABLE roles (
 CREATE TABLE users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     role_id BIGINT NOT NULL COMMENT 'Exactly one role per user',
-    email VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NULL,
     password_hash VARCHAR(255) NULL COMMENT 'BCrypt hash (Nullable for Google OAuth2 SSO accounts)',
     full_name VARCHAR(100) NOT NULL,
     phone VARCHAR(15) NULL COMMENT 'Nullable upon Google SSO registration; required before checkout',
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
     dob DATE NULL COMMENT 'Nullable to streamline initial customer registration',
     gender ENUM('MALE','FEMALE','OTHER') NOT NULL DEFAULT 'OTHER',
     avatar_url VARCHAR(500) NULL COMMENT 'Profile picture URL from Google OAuth2 or local storage',
@@ -60,7 +62,7 @@ CREATE TABLE users (
     CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT,
     CONSTRAINT uk_users_email UNIQUE (email),
     CONSTRAINT uk_users_phone UNIQUE (phone),
-    CONSTRAINT uk_users_provider UNIQUE (auth_provider, provider_id),
+    CONSTRAINT uk_users_provider UNIQUE (provider_id),
     CONSTRAINT chk_auth_credentials CHECK (
         (auth_provider = 'LOCAL' AND password_hash IS NOT NULL)
         OR

@@ -37,20 +37,28 @@ class ProfileServiceTest {
         assertThrows(AppException.class,()->service.updateProfile(1L,new ProfileUpdateRequest("Nguyễn An",null,LocalDate.of(2006,1,1),User.Gender.MALE)));
         assertEquals("0912345678",user.getPhone());
     }
-    @Test void googleCompletesPhoneOnceAndRejectsDuplicate() {
+    @Test void localAccountMayCompleteMissingDobThenItLocks() {
+        user.setDob(null);
+        when(users.findById(1L)).thenReturn(Optional.of(user));
+        assertTrue(service.viewProfile(1L).canCompleteDob());
+        var dob=LocalDate.now().minusYears(12);
+        service.updateProfile(1L,new ProfileUpdateRequest("Nguyễn An",null,dob,User.Gender.MALE));
+        assertEquals(dob,user.getDob());
+        assertFalse(service.viewProfile(1L).canCompleteDob());
+        assertThrows(AppException.class,()->service.updateProfile(1L,
+                new ProfileUpdateRequest("Nguyễn An",null,dob.minusDays(1),User.Gender.MALE)));
+    }
+    @Test void googleMissingPhoneCannotBypassContactVerification() {
         user.setAuthProvider(User.AuthProvider.GOOGLE); user.setPhone(null);
-        when(users.existsByPhone("0987654321")).thenReturn(true);
         assertThrows(AppException.class,()->service.updateProfile(1L,new ProfileUpdateRequest("Nguyễn An","0987654321",null,User.Gender.OTHER)));
-        when(users.existsByPhone("0987654321")).thenReturn(false);
-        service.updateProfile(1L,new ProfileUpdateRequest("Nguyễn An","0987654321",null,User.Gender.OTHER));
-        assertEquals("0987654321",user.getPhone());
-        assertThrows(AppException.class,()->service.updateProfile(1L,new ProfileUpdateRequest("Nguyễn An","0901234567",null,User.Gender.OTHER)));
+        assertNull(user.getPhone());
+        verify(users,never()).saveAndFlush(any());
     }
     @Test void incorrectOldPasswordAndWeakOrMismatchedNewPasswordDoNotWrite() {
         for(var request: java.util.List.of(new PasswordChangeRequest("wrong","NewPass1!","NewPass1!"),
                 new PasswordChangeRequest("OldPass1!","weak","weak"),
                 new PasswordChangeRequest("OldPass1!","NewPass1!","different"))) {
-            assertThrows(AppException.class,()->service.changePassword(1L,request));
+            assertThrows(AppException.class,()->service.changePassword(1L,request, "127.0.0.1"));
         }
         verify(users,never()).saveAndFlush(any());
     }
@@ -79,10 +87,12 @@ class ProfileServiceTest {
         assertNull(user.getDob());
         verify(users,never()).saveAndFlush(any());
     }
-    @Test void localAccountCannotCompleteMissingDob() {
+    @Test void localMissingDobRejectsTodayAndFuture() {
         user.setDob(null);
         assertThrows(AppException.class,()->service.updateProfile(1L,
-                new ProfileUpdateRequest("Nguyễn An",null,LocalDate.now().minusDays(1),User.Gender.MALE)));
+                new ProfileUpdateRequest("Nguyễn An",null,LocalDate.now(),User.Gender.MALE)));
+        assertThrows(AppException.class,()->service.updateProfile(1L,
+                new ProfileUpdateRequest("Nguyễn An",null,LocalDate.now().plusDays(1),User.Gender.MALE)));
         assertNull(user.getDob());
     }
     @Test void passwordChangeStoresBcryptAndRegistersSessionExpiryOnlyAfterCommit() {
@@ -92,7 +102,7 @@ class ProfileServiceTest {
         when(sessions.getAllSessions(principal,false)).thenReturn(java.util.List.of(session));
         TransactionSynchronizationManager.initSynchronization();
         try {
-            service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!"));
+            service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!"), "127.0.0.1");
             assertTrue(new BCryptPasswordEncoder().matches("NewPass1!",user.getPasswordHash()));
             assertFalse(new BCryptPasswordEncoder().matches("OldPass1!",user.getPasswordHash()));
             assertEquals(1,TransactionSynchronizationManager.getSynchronizations().size());
@@ -103,7 +113,7 @@ class ProfileServiceTest {
     }
     @Test void googleWithoutLocalPasswordCannotSetPasswordBySupplyingOldPassword() {
         user.setPasswordHash(null);
-        assertThrows(AppException.class,()->service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!")));
+        assertThrows(AppException.class,()->service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!"), "127.0.0.1"));
     }
     @Test void inactiveCustomerCannotMutateProfile() {
         user.setIsActive(false);
@@ -112,7 +122,7 @@ class ProfileServiceTest {
     @Test void passwordChangeSuccessEmitsAuditLogWithoutSensitivePayload() {
         TransactionSynchronizationManager.initSynchronization();
         try {
-            service.changePassword(1L, new PasswordChangeRequest("OldPass1!", "NewPass1!", "NewPass1!"));
+            service.changePassword(1L, new PasswordChangeRequest("OldPass1!", "NewPass1!", "NewPass1!"), "127.0.0.1");
             verify(auditLogService, times(1)).record(
                     eq(1L),
                     eq("PASSWORD_CHANGED"),
@@ -126,7 +136,7 @@ class ProfileServiceTest {
         }
     }
     @Test void passwordChangeFailureNeverEmitsAuditLog() {
-        assertThrows(AppException.class, () -> service.changePassword(1L, new PasswordChangeRequest("WrongPass!", "NewPass1!", "NewPass1!")));
+        assertThrows(AppException.class, () -> service.changePassword(1L, new PasswordChangeRequest("WrongPass!", "NewPass1!", "NewPass1!"), "127.0.0.1"));
         verify(auditLogService, never()).record(any(), any(), any(), any(), any(), any());
     }
 }
