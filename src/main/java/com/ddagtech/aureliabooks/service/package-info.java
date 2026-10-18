@@ -1,8 +1,7 @@
 /**
- * Business Logic Layer Service Contracts: Pure Java business service interfaces defining use cases and transactional boundaries.
- * <p>
- * Architectural Layer defined in RDS Section 3.2 (Table 7).
- * Root namespace: <code>com.ddagtech.aureliabooks.service</code>
- * </p>
+ * Application service contracts for account, catalog and administrative use cases.
+ * Implementations and their transaction boundaries live in service.impl.
+ * Contracts may expose existing framework-facing types used by this layered monolith;
+ * this package does not claim framework-independent Clean Architecture.
  */
 package com.ddagtech.aureliabooks.service;

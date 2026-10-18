@@ -24,7 +24,7 @@ class ContactChangeControllerTest {
  @MockitoBean com.ddagtech.aureliabooks.service.AccountSecurityService security;
  @Test void customerGetsFormsWithCsrfAndGuestIsRedirected()throws Exception{
   when(identity.resolve(any())).thenReturn(7L);
-  when(security.customer(7L)).thenReturn(com.ddagtech.aureliabooks.entity.User.builder().passwordHash("hash").build());
+  when(security.contactSettings(7L)).thenReturn(new com.ddagtech.aureliabooks.dto.response.ContactSettingsView(true, false, false));
   mvc.perform(get("/profile/contact-change").with(user("customer").roles("CUSTOMER"))).andExpect(status().isOk())
    .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")));
   mvc.perform(get("/profile/contact-change")).andExpect(status().is3xxRedirection());
@@ -73,7 +73,7 @@ class ContactChangeControllerTest {
  }
  @Test void entryPageDoesNotContainOtpEvenWithPendingRequest()throws Exception{
   when(identity.resolve(any())).thenReturn(7L);
-  when(security.customer(7L)).thenReturn(com.ddagtech.aureliabooks.entity.User.builder().passwordHash("hash").build());
+  when(security.contactSettings(7L)).thenReturn(new com.ddagtech.aureliabooks.dto.response.ContactSettingsView(true, false, false));
   when(changes.view(eq(7L),anyString())).thenReturn(new ContactChangeService.View("EMAIL","DESTINATION","n***@example.com",299,60,5));
   mvc.perform(get("/profile/contact-change").with(user("customer").roles("CUSTOMER")))
    .andExpect(status().isOk())
@@ -96,8 +96,7 @@ class ContactChangeControllerTest {
     @Test
     void missingEmailOffersAdditionWithoutContactSelector() throws Exception {
         when(identity.resolve(any())).thenReturn(7L);
-        when(security.customer(7L)).thenReturn(com.ddagtech.aureliabooks.entity.User.builder()
-                .phone("0912345678").passwordHash("hash").build());
+        when(security.contactSettings(7L)).thenReturn(new com.ddagtech.aureliabooks.dto.response.ContactSettingsView(true, false, true));
         mvc.perform(get("/profile/contact-change").param("type", "EMAIL")
                 .with(user("customer").roles("CUSTOMER")))
                 .andExpect(status().isOk())

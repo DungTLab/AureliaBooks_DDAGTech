@@ -5,7 +5,6 @@ import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
-import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.service.ProductService;
 import com.ddagtech.aureliabooks.util.PageableUtils;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -9,6 +9,6 @@ public interface UserService {
     Long register(RegisterRequest request);
     ProfileView viewProfile(Long authenticatedUserId);
     void updateProfile(Long authenticatedUserId, ProfileUpdateRequest request);
-    void changePassword(Long authenticatedUserId, PasswordChangeRequest request);
+    void changePassword(Long authenticatedUserId, PasswordChangeRequest request, String clientIp);
     void updateAvatar(Long authenticatedUserId, org.springframework.web.multipart.MultipartFile file);
 }

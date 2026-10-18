@@ -39,7 +39,7 @@
                             <i class="bi bi-book text-base"></i>
                             <span>Khám Phá Danh Mục Sách</span>
                         </a>
-                        <a th:href="@{/products(type='STATIONERY')}"
+                        <a th:href="@{/products(productType='STATIONERY')}"
                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl font-bold text-sm bg-white hover:bg-parchment-200 text-carbon_black border-2 border-carbon_black transition-all shadow-sm">
                             <i class="bi bi-pencil-square text-base text-blazing_flame"></i>
                             <span>Văn Phòng Phẩm</span>
@@ -315,7 +315,7 @@
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                <a th:href="@{/products(category=2)}"
+                <a th:href="@{/products(categoryId=2)}"
                    class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
                     <div class="w-14 h-14 mx-auto rounded-xl bg-blazing_flame-100 text-blazing_flame flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                         <i class="bi bi-book"></i>
@@ -324,7 +324,7 @@
                     <span class="text-[11px] text-carbon_black-500">Tiểu thuyết, truyện</span>
                 </a>
 
-                <a th:href="@{/products(category=3)}"
+                <a th:href="@{/products(categoryId=3)}"
                    class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
                     <div class="w-14 h-14 mx-auto rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                         <i class="bi bi-graph-up-arrow"></i>
@@ -333,7 +333,7 @@
                     <span class="text-[11px] text-carbon_black-500">Khởi nghiệp, quản trị</span>
                 </a>
 
-                <a th:href="@{/products(category=4)}"
+                <a th:href="@{/products(categoryId=4)}"
                    class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
                     <div class="w-14 h-14 mx-auto rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                         <i class="bi bi-laptop"></i>
@@ -342,7 +342,7 @@
                     <span class="text-[11px] text-carbon_black-500">Lập trình, AI, dữ liệu</span>
                 </a>
 
-                <a th:href="@{/products(category=6)}"
+                <a th:href="@{/products(categoryId=6)}"
                    class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
                     <div class="w-14 h-14 mx-auto rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                         <i class="bi bi-pen"></i>
@@ -351,7 +351,7 @@
                     <span class="text-[11px] text-carbon_black-500">Bút máy, bút bi cao cấp</span>
                 </a>
 
-                <a th:href="@{/products(category=7)}"
+                <a th:href="@{/products(categoryId=7)}"
                    class="group p-5 bg-parchment-100 rounded-2xl border border-dust_grey/60 hover:border-blazing_flame/60 hover:bg-white hover:shadow-soft text-center transition-all">
                     <div class="w-14 h-14 mx-auto rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                         <i class="bi bi-journal-bookmark"></i>
