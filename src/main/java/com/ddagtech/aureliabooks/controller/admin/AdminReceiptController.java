@@ -63,11 +63,15 @@ public class AdminReceiptController {
     @GetMapping({"/staff/receipts/new", "/manager/receipts/new"})
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
     public String draftForm(
+            @AuthenticationPrincipal CustomUserDetails user,
             @RequestParam(name = "productId", required = false) List<Long> productIds,
             @RequestParam(name = "productIds", required = false) List<Long> productIdsPlural,
             Model model
     ) {
         populateFormReferenceData(model);
+        String baseUri = isManagerOrAdmin(user) ? "/manager/receipts" : "/staff/receipts";
+        model.addAttribute("baseUri", baseUri);
+
         if (!model.containsAttribute("receiptForm")) {
             List<Long> targetIds = new ArrayList<>();
             if (productIds != null) targetIds.addAll(productIds);
@@ -101,7 +105,10 @@ public class AdminReceiptController {
             RedirectAttributes redirectAttributes,
             Model model
     ) {
-        Long staffId = user != null ? user.getId() : 1L;
+        if (user == null || user.getId() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        Long staffId = user.getId();
 
         if (bindingResult.hasErrors()) {
             String firstError = bindingResult.getAllErrors().get(0).getDefaultMessage();
@@ -127,13 +134,21 @@ public class AdminReceiptController {
      */
     @GetMapping({"/staff/receipts/{id}/edit", "/manager/receipts/{id}/edit"})
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
-    public String editForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+    public String editForm(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails user,
+            Model model,
+            RedirectAttributes redirectAttributes
+    ) {
+        String baseUri = isManagerOrAdmin(user) ? "/manager/receipts" : "/staff/receipts";
+        model.addAttribute("baseUri", baseUri);
+
         try {
             GoodsReceiptDetailDto detail = goodsReceiptService.getReceiptDetail(id);
             if (detail.status() == GoodsReceipt.Status.RECEIVED) {
                 redirectAttributes.addFlashAttribute("errorMessage",
                         "Phiếu nhập kho đã hoàn tất (RECEIVED), không được phép chỉnh sửa!");
-                return "redirect:/manager/receipts";
+                return isManagerOrAdmin(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
             }
 
             populateFormReferenceData(model);
@@ -150,7 +165,7 @@ public class AdminReceiptController {
             return "admin/receipts/form";
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return "redirect:/manager/receipts";
+            return isManagerOrAdmin(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
         }
     }
 
@@ -166,7 +181,10 @@ public class AdminReceiptController {
             BindingResult bindingResult,
             RedirectAttributes redirectAttributes
     ) {
-        Long staffId = user != null ? user.getId() : 1L;
+        if (user == null || user.getId() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        Long staffId = user.getId();
 
         if (bindingResult.hasErrors()) {
             String firstError = bindingResult.getAllErrors().get(0).getDefaultMessage();
@@ -195,7 +213,10 @@ public class AdminReceiptController {
             @AuthenticationPrincipal CustomUserDetails user,
             RedirectAttributes redirectAttributes
     ) {
-        Long staffId = user != null ? user.getId() : 1L;
+        if (user == null || user.getId() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        Long staffId = user.getId();
         try {
             goodsReceiptService.deleteDraft(staffId, id);
             redirectAttributes.addFlashAttribute("successMessage", "Đã xóa phiếu nhập kho nháp thành công.");
@@ -211,18 +232,21 @@ public class AdminReceiptController {
     @GetMapping({"/manager/receipts", "/staff/receipts"})
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
     public String listReceipts(
+            jakarta.servlet.http.HttpServletRequest request,
             @RequestParam(required = false) GoodsReceipt.Status status,
             @RequestParam(required = false) Long supplierId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Model model
     ) {
+        String baseUri = request != null && request.getRequestURI() != null ? request.getRequestURI() : "/manager/receipts";
         Page<ReceiptSummary> receiptsPage = goodsReceiptService.getReceipts(
                 status,
                 supplierId,
                 PageRequest.of(page, size, Sort.by("createdAt").descending())
         );
 
+        model.addAttribute("baseUri", baseUri);
         model.addAttribute("receiptsPage", receiptsPage);
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedSupplierId", supplierId);
@@ -246,7 +270,10 @@ public class AdminReceiptController {
             @AuthenticationPrincipal CustomUserDetails user,
             RedirectAttributes redirectAttributes
     ) {
-        Long managerId = user != null ? user.getId() : 1L;
+        if (user == null || user.getId() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        Long managerId = user.getId();
         try {
             goodsReceiptService.receive(managerId, id);
             redirectAttributes.addFlashAttribute("successMessage",

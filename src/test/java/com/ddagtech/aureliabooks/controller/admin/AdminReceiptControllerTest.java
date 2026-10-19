@@ -140,14 +140,27 @@ class AdminReceiptControllerTest {
     }
 
     @Test
-    @DisplayName("GET /manager/receipts: MANAGER truy cập được, trả về 200 OK")
+    @DisplayName("GET /manager/receipts: MANAGER truy cập được, trả về 200 OK và baseUri = /manager/receipts")
     void listReceipts_manager_accessGranted() throws Exception {
         when(goodsReceiptService.getReceipts(any(), any(), any())).thenReturn(Page.empty());
         when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(Collections.emptyList());
 
         mvc.perform(get("/manager/receipts").with(user(mockUser(20L, "manager@aureliabooks.com", "MANAGER"))))
                 .andExpect(status().isOk())
-                .andExpect(view().name("admin/receipts/list"));
+                .andExpect(view().name("admin/receipts/list"))
+                .andExpect(model().attribute("baseUri", "/manager/receipts"));
+    }
+
+    @Test
+    @DisplayName("GET /staff/receipts: SALE_STAFF truy cập được, trả về 200 OK và baseUri = /staff/receipts")
+    void listReceipts_saleStaff_accessGranted() throws Exception {
+        when(goodsReceiptService.getReceipts(any(), any(), any())).thenReturn(Page.empty());
+        when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(Collections.emptyList());
+
+        mvc.perform(get("/staff/receipts").with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/receipts/list"))
+                .andExpect(model().attribute("baseUri", "/staff/receipts"));
     }
 
     // =========================================================================

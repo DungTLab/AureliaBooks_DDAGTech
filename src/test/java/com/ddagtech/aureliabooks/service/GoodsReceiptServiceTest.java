@@ -245,6 +245,27 @@ class GoodsReceiptServiceTest {
         }
 
         @Test
+        @DisplayName("BR-01-01 Fix: Sản phẩm cũ hết hàng (stock = 0) nhưng đã từng nhập kho (hasReceived = true) -> Cho phép nhập số lượng lớn (> 100) không bị giới hạn lần đầu")
+        void createDraft_existingProductOutOfStock_allowsRestockQuantityAboveQuota() {
+            when(userRepository.findById(10L)).thenReturn(Optional.of(staffUser));
+            when(supplierRepository.findById(1L)).thenReturn(Optional.of(activeSupplier));
+            when(productRepository.findById(100L)).thenReturn(Optional.of(standardBook));
+            when(goodsReceiptItemRepository.hasReceivedReceiptForProduct(100L)).thenReturn(true);
+
+            when(goodsReceiptRepository.save(any(GoodsReceipt.class))).thenAnswer(inv -> {
+                GoodsReceipt gr = inv.getArgument(0);
+                if (gr.getId() == null) gr.setId(1000L);
+                return gr;
+            });
+
+            GoodsReceiptItemForm itemForm = new GoodsReceiptItemForm(100L, 500, new BigDecimal("45000.00"));
+            GoodsReceiptForm form = new GoodsReceiptForm(1L, "Tái nhập kho số lượng lớn 500 cuốn", List.of(itemForm));
+
+            Long createdId = service.createDraft(10L, form);
+            assertThat(createdId).isNotNull();
+        }
+
+        @Test
         @DisplayName("Đơn giá nhập cost = 0 (hàng mẫu, tài trợ) -> Hợp lệ theo schema >= 0")
         void createDraft_zeroCost_allowed() {
             when(userRepository.findById(10L)).thenReturn(Optional.of(staffUser));
@@ -764,6 +785,18 @@ class GoodsReceiptServiceTest {
             assertThatThrownBy(() -> service.quickCreateProduct(req))
                     .isInstanceOf(AppException.class)
                     .hasMessageContaining("Giá niêm yết không được thấp hơn giá vốn nhập");
+        }
+
+        @Test
+        @DisplayName("getTextbookProductIds: Ủy thác trực tiếp cho BookRepository không qua findAll để tối ưu RAM")
+        void getTextbookProductIds_delegatesDirectlyToRepository() {
+            when(bookRepository.findProductIdsByIsTextbookTrue()).thenReturn(Set.of(200L, 201L));
+
+            Set<Long> textbookIds = service.getTextbookProductIds();
+
+            assertThat(textbookIds).containsExactlyInAnyOrder(200L, 201L);
+            verify(bookRepository, times(1)).findProductIdsByIsTextbookTrue();
+            verify(bookRepository, never()).findAll();
         }
     }
 }

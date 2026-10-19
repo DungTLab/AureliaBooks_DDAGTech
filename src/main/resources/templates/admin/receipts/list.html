@@ -42,7 +42,7 @@
 
     <!-- Filter Toolbar -->
     <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
-        <form method="get" th:action="@{/manager/receipts}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <form method="get" th:action="@{${baseUri ?: '/manager/receipts'}}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div class="flex flex-wrap items-center gap-3">
                 <!-- Status Filter -->
                 <select name="status"
@@ -71,7 +71,7 @@
                     <span>Lọc</span>
                 </button>
 
-                <a th:href="@{/manager/receipts}" class="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-carbon_black-600 hover:text-blazing_flame transition">
+                <a th:href="@{${baseUri ?: '/manager/receipts'}}" class="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-carbon_black-600 hover:text-blazing_flame transition">
                     <i class="bi bi-arrow-counterclockwise"></i>
                     <span>Đặt lại</span>
                 </a>
@@ -209,12 +209,12 @@
 
             <div class="flex items-center gap-1">
                 <a th:if="${receiptsPage.hasPrevious()}"
-                   th:href="@{/manager/receipts(page=${receiptsPage.number - 1}, status=${selectedStatus}, supplierId=${selectedSupplierId})}"
+                   th:href="@{${baseUri ?: '/manager/receipts'}(page=${receiptsPage.number - 1}, status=${selectedStatus}, supplierId=${selectedSupplierId})}"
                    class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg hover:bg-parchment-200 font-semibold transition">
                     &laquo; Trước
                 </a>
                 <a th:if="${receiptsPage.hasNext()}"
-                   th:href="@{/manager/receipts(page=${receiptsPage.number + 1}, status=${selectedStatus}, supplierId=${selectedSupplierId})}"
+                   th:href="@{${baseUri ?: '/manager/receipts'}(page=${receiptsPage.number + 1}, status=${selectedStatus}, supplierId=${selectedSupplierId})}"
                    class="px-3 py-1.5 bg-white border border-dust_grey rounded-lg hover:bg-parchment-200 font-semibold transition">
                     Sau &raquo;
                 </a>
@@ -456,8 +456,8 @@
 
                         tr.innerHTML = `
                             <td class="py-2.5 px-3 text-center text-carbon_black-500">${index + 1}</td>
-                            <td class="py-2.5 px-3 font-medium text-carbon_black">${item.productTitle || ''}</td>
-                            <td class="py-2.5 px-3 font-mono text-carbon_black-600">${item.productBarcode || '-'}</td>
+                            <td class="py-2.5 px-3 font-medium text-carbon_black">${escapeHtml(item.productTitle || '')}</td>
+                            <td class="py-2.5 px-3 font-mono text-carbon_black-600">${escapeHtml(item.productBarcode || '-')}</td>
                             <td class="py-2.5 px-3 text-center">${sgkBadge}</td>
                             <td class="py-2.5 px-3 text-right">${Number(item.unitCost || 0).toLocaleString('vi-VN')} đ</td>
                             <td class="py-2.5 px-3 text-center font-bold text-carbon_black">${item.receivedQuantity || 0}</td>
@@ -470,8 +470,18 @@
                 }
             })
             .catch(err => {
-                document.getElementById('modalItemsTableBody').innerHTML = '<tr><td colspan="7" class="py-4 text-center text-rose-600 font-medium">' + err.message + '</td></tr>';
+                document.getElementById('modalItemsTableBody').innerHTML = '<tr><td colspan="7" class="py-4 text-center text-rose-600 font-medium">' + escapeHtml(err.message) + '</td></tr>';
             });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 </script>
 </div>

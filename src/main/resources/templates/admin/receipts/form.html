@@ -26,9 +26,9 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
-                <a th:href="@{/manager/receipts}" class="hover:text-blazing_flame transition">Quản trị kho</a>
+                <a th:href="@{${baseUri ?: '/staff/receipts'}}" class="hover:text-blazing_flame transition">Quản trị kho</a>
                 <i class="bi bi-chevron-right text-[10px]"></i>
-                <a th:href="@{/manager/receipts}" class="hover:text-blazing_flame transition">Phiếu nhập kho</a>
+                <a th:href="@{${baseUri ?: '/staff/receipts'}}" class="hover:text-blazing_flame transition">Phiếu nhập kho</a>
                 <i class="bi bi-chevron-right text-[10px]"></i>
                 <span class="text-blazing_flame font-bold" th:text="${isEdit ? 'Chỉnh sửa phiếu' : 'Lập phiếu mới'}">Lập phiếu mới</span>
             </div>
@@ -41,7 +41,7 @@
             </p>
         </div>
 
-        <a th:href="@{/manager/receipts}"
+        <a th:href="@{${baseUri ?: '/staff/receipts'}}"
            class="inline-flex items-center gap-2 px-4 py-2 bg-parchment-200 hover:bg-parchment-300 text-carbon_black font-semibold rounded-xl transition">
             <i class="bi bi-arrow-left"></i>
             <span>Quay lại danh sách</span>
@@ -258,7 +258,7 @@
 
         <!-- Form Submission Buttons -->
         <div class="flex items-center justify-end gap-3 pt-2">
-            <a th:href="@{/manager/receipts}"
+            <a th:href="@{${baseUri ?: '/staff/receipts'}}"
                class="px-5 py-2.5 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl transition">
                 Hủy bỏ
             </a>

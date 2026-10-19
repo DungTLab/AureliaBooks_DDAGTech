@@ -472,7 +472,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
         }
 
         // BR-01-01 Initial Import Batch Cap Check
-        boolean isFirstImport = isProductFirstImport(product.getId(), product.getStockQuantity());
+        boolean isFirstImport = isProductFirstImport(product.getId());
         if (isFirstImport) {
             boolean isTextbook = isProductTextbook(product.getId());
             if (isTextbook) {
@@ -493,12 +493,9 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
 
     /**
      * Determines whether a product is in its initial import batch.
-     * Evaluates true if product currently has zero stock OR has never had a finalized (RECEIVED) receipt.
+     * Evaluates true if product has never had a finalized (RECEIVED) receipt.
      */
-    private boolean isProductFirstImport(Long productId, Integer currentStock) {
-        if (currentStock == null || currentStock == 0) {
-            return true;
-        }
+    private boolean isProductFirstImport(Long productId) {
         return !goodsReceiptItemRepository.hasReceivedReceiptForProduct(productId);
     }
 
@@ -656,9 +653,6 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
     @Override
     @Transactional(readOnly = true)
     public java.util.Set<Long> getTextbookProductIds() {
-        return bookRepository.findAll().stream()
-                .filter(b -> Boolean.TRUE.equals(b.getIsTextbook()))
-                .map(Book::getProductId)
-                .collect(java.util.stream.Collectors.toSet());
+        return bookRepository.findProductIdsByIsTextbookTrue();
     }
 }
