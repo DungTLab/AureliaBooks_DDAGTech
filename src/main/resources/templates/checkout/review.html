@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Xác nhận đặt hàng', ~{::#main-content})}">
+<head><title>Xác nhận đặt hàng</title></head><body>
+<section id="main-content" class="checkout-page">
+    <link rel="stylesheet" th:href="@{/css/checkout.css}"><script th:src="@{/js/checkout.js}" defer></script>
+    <nav class="checkout-breadcrumb" aria-label="Đường dẫn"><a th:href="@{/cart}">Giỏ hàng</a><span>/</span><a th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod})}">Thanh toán</a><span>/</span><span aria-current="page">Xác nhận</span></nav>
+    <div class="checkout-heading"><div><p class="checkout-eyebrow">Kiểm tra lần cuối</p><h1>Xác nhận đơn hàng</h1><p>Đơn hàng chỉ được tạo khi bạn bấm “Đặt hàng”.</p></div></div>
+    <div th:replace="~{checkout/fragments :: steps(2)}"></div>
+    <div class="checkout-grid">
+        <div class="checkout-main">
+            <section class="checkout-card"><div class="checkout-card-heading"><h2><i class="bi bi-geo-alt" aria-hidden="true"></i> Giao đến</h2><a th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod})}" class="checkout-text-link">Thay đổi</a></div><strong th:text="${delivery.recipientName}"></strong><p th:text="${delivery.phone}" class="checkout-muted"></p><p th:text="${delivery.detailedAddress + ', ' + delivery.ward + ', ' + delivery.district + ', ' + delivery.province}" class="checkout-delivery-text"></p></section>
+            <section class="checkout-card"><div class="checkout-card-heading"><h2><i class="bi bi-wallet2" aria-hidden="true"></i> Thanh toán</h2></div><strong th:text="${review.paymentMethod.name() == 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'Thanh toán qua VNPay'}"></strong><p class="checkout-help" th:text="${review.paymentMethod.name() == 'COD' ? 'Bạn thanh toán khi nhận hàng. Cửa hàng sẽ xác nhận đơn trước khi giao.' : 'Bạn sẽ được chuyển đến cổng VNPay sau khi tạo đơn.'}"></p><p th:if="${review.paymentMethod.name() == 'VNPAY' and !onlinePaymentAvailable}" class="checkout-notice is-error">Thanh toán trực tuyến tạm thời chưa khả dụng. Vui lòng quay lại chọn COD.</p></section>
+            <section class="checkout-card"><div class="checkout-card-heading"><h2>Sản phẩm đã chọn</h2><a th:href="@{/cart}" class="checkout-text-link">Sửa giỏ hàng</a></div><div th:replace="~{checkout/fragments :: items(${checkout.items})}"></div></section>
+        </div>
+        <aside class="checkout-card checkout-summary"><p class="checkout-eyebrow">Sẵn sàng đặt hàng</p><h2>Tổng thanh toán</h2><div th:replace="~{checkout/fragments :: totals(${checkout.merchandiseSubtotal}, ${checkout.productDiscount}, ${checkout.shippingFee}, ${checkout.finalTotalAmount})}"></div>
+            <form th:action="@{/checkout/place}" method="post" data-checkout-submit><input type="hidden" name="checkoutToken" th:value="${review.checkoutToken}"><input type="hidden" name="shippingAddressId" th:value="${checkout.selectedAddressId}"><input type="hidden" name="paymentMethod" th:value="${review.paymentMethod}"><button type="submit" class="checkout-button" th:disabled="${review.paymentMethod.name() == 'VNPAY' and !onlinePaymentAvailable}"><i class="bi bi-bag-check" aria-hidden="true"></i> Đặt hàng</button></form>
+            <p class="checkout-security">Giá và tình trạng sản phẩm được kiểm tra lại khi đặt hàng. Nếu có thay đổi, bạn sẽ được yêu cầu xác nhận lại.</p><a th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod})}" class="checkout-back-link">Quay lại chỉnh sửa</a>
+        </aside>
+    </div>
+</section></body></html>

@@ -91,7 +91,8 @@
                 <div class="flex justify-between gap-3 border-t border-dust_grey/60 pt-5"><dt class="font-semibold">Tạm tính</dt><dd class="font-extrabold text-blazing_flame text-xl whitespace-nowrap"><span th:text="${#numbers.formatDecimal(cart.merchandiseSubtotal, 0, 'POINT', 0, 'COMMA')}">300.000</span> đ</dd></div>
             </dl>
             <p class="mt-4 text-xs text-carbon_black-500 leading-relaxed">Tạm tính chỉ gồm giá sản phẩm. Phí giao hàng và ưu đãi được tính khi đặt hàng.</p>
-            <a th:href="@{/products}" class="mt-6 w-full inline-flex justify-center items-center gap-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl px-4 py-3.5 text-sm font-bold shadow-flame focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:ring-offset-2 transition-colors"><i class="bi bi-plus-lg"></i>Tiếp tục mua sắm</a>
+            <a th:href="@{/checkout}" class="mt-6 w-full inline-flex justify-center items-center gap-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl px-4 py-3.5 text-sm font-bold shadow-flame focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:ring-offset-2 transition-colors">Tiến hành thanh toán<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+            <a th:href="@{/products}" class="mt-4 w-full inline-flex justify-center items-center gap-2 text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame">Tiếp tục mua sắm</a>
             <div class="mt-5 pt-5 border-t border-dust_grey/60 flex gap-2 text-xs text-carbon_black-500 leading-relaxed"><i class="bi bi-info-circle text-blazing_flame mt-0.5"></i><p>Giá và tồn kho được kiểm tra lại khi đặt hàng. Thêm vào giỏ chưa giữ hàng cho bạn.</p></div>
         </aside>
     </div>

@@ -42,7 +42,7 @@ public enum ErrorCode {
     // 3xxx: Generic & Resource Validation — Shared (2 codes)
     RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
     INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST),
-    CHECKOUT_CHANGED(3003, "Thông tin đặt hàng đã thay đổi. Vui lòng kiểm tra và xác nhận lại.", HttpStatus.CONFLICT);
+    CHECKOUT_CHANGED(3003, "Thông tin đặt hàng đã thay đổi. Vui lòng kiểm tra và xác nhận lại.", HttpStatus.CONFLICT),
 
     // 4xxx: Catalog & Master Data Management — Huỳnh Nhật Duy (6 codes)
     PRODUCT_NOT_FOUND(4001, "Không tìm thấy sản phẩm hoặc sản phẩm đã ngừng kinh doanh.", HttpStatus.NOT_FOUND),
