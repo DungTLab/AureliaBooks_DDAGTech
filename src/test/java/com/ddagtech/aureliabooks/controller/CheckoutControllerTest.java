@@ -41,6 +41,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/** Render Thymeleaf thật với service mock: kiểm tra form, CSRF, quyền sở hữu, session review và bàn giao VNPay. */
 @WebMvcTest(CheckoutController.class)
 @Import({SecurityConfig.class, CustomAccessDeniedHandler.class, AccountPresentationServiceImpl.class,
         CheckoutSessionStore.class})
@@ -105,6 +106,7 @@ class CheckoutControllerTest {
                 .andExpect(content().string(containsString("Chọn địa chỉ")));
     }
 
+    /** Gửi kèm userId/tổng tiền giả để chứng minh controller vẫn dùng owner và dữ liệu phía server. */
     @Test void preparesServerReviewAndReusesItOnRepeatedSubmission() throws Exception {
         MockHttpSession session = new MockHttpSession();
         var first = mvc.perform(post("/checkout/review").session(session)
@@ -172,6 +174,7 @@ class CheckoutControllerTest {
         verify(orders, never()).placeOrder(any(), any(), any());
     }
 
+    /** Adapter ở đây là mock kiểm tra bàn giao; không mô phỏng callback hoặc khẳng định VNPay đã thanh toán. */
     @Test void configuredGatewayReceivesCommittedOrderOnly() throws Exception {
         when(gateway.isAvailable()).thenReturn(true);
         MockHttpSession session = new MockHttpSession();
@@ -186,6 +189,7 @@ class CheckoutControllerTest {
         sequence.verify(gateway).startPayment(7L, review.checkoutToken());
     }
 
+    /** Mở cổng lỗi sau tạo đơn phải giữ đơn đã commit và hiển thị cách thử lại. */
     @Test void gatewayFailureKeepsCommittedOrderAndShowsRetryMessage() throws Exception {
         when(gateway.isAvailable()).thenReturn(true);
         when(orders.placeOrder(eq(7L), any(), isNull())).thenReturn(CODE);
@@ -268,6 +272,7 @@ class CheckoutControllerTest {
                 .andExpect(status().isServiceUnavailable()).andExpect(view().name("checkout/load-error"));
     }
 
+    /** Xuất HTML từ Thymeleaf vào target để kiểm tra bố cục; chỉ chứa dữ liệu fixture. */
     @Test void capturesRenderedScreensForVisualQa() throws Exception {
         Path directory = Path.of("target/uc11-preview"); Files.createDirectories(directory);
         var session = new MockHttpSession();

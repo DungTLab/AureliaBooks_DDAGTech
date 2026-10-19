@@ -34,6 +34,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/** Unit test nghiệp vụ bằng repository mock; kiểm tra quyết định xử lý, không dùng làm bằng chứng rollback SQL. */
 @ExtendWith(MockitoExtension.class)
 class OrderPlacementServiceTest {
     private static final String TOKEN = "0123456789abcdef0123456789abcdef";
@@ -94,6 +95,7 @@ class OrderPlacementServiceTest {
                 service.getCheckoutView(owner.getId(), address.getId()), request.getPaymentMethod(), null);
     }
 
+    /** Chạy cùng yêu cầu về snapshot/trừ tồn cho cả COD và VNPay. */
     @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
     void placesBothMethodsWithSnapshotsAndOneDeduction(Order.PaymentMethod method) {
         request.setPaymentMethod(method);
@@ -224,6 +226,7 @@ class OrderPlacementServiceTest {
                 reviewed.reviewedCheckout(), Order.PaymentMethod.COD, null));
     }
 
+    /** Mô phỏng review đã xóa sau thành công; gửi lại phải trả đơn cũ và giữ nguyên giỏ mới. */
     @Test void replaysCommittedOrderWithoutTouchingNewCartOrRequiringSession() {
         Order existing = Order.builder().orderCode(TOKEN).user(owner).shippingAddress(address)
                 .paymentMethod(Order.PaymentMethod.COD).build();

@@ -28,7 +28,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Full Security -> MVC -> service -> InnoDB flow, without mocking business services. */
+/** Kiểm tra đầy đủ Security → MVC → service → MySQL thật, gồm tài khoản chưa có SĐT và snapshot SĐT nhận hàng. */
 @SpringBootTest
 @AutoConfigureMockMvc
 @EnabledIfSystemProperty(named = "checkout.mysql", matches = "true")
@@ -69,6 +69,7 @@ class CheckoutFlowMySqlTest {
         session = new MockHttpSession();
     }
 
+    /** Đi hết luồng COD bằng tài khoản không có SĐT; đơn phải lưu SĐT địa chỉ và chống tạo trùng. */
     @Test void customerCompletesCodCheckoutAndReplayKeepsSingleOrder() throws Exception {
         jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", owner);
         principal = new CustomUserDetails(users.findById(owner).orElseThrow());
@@ -103,6 +104,7 @@ class CheckoutFlowMySqlTest {
         mvc.perform(get("/orders/" + token).with(user(otherPrincipal))).andExpect(status().isNotFound());
     }
 
+    /** Đổi giá sau review: request cũ bị từ chối, review mới có token và tổng tiền mới. */
     @Test void stalePriceRequiresNewReviewBeforeAnyOrderOrStockChange() throws Exception {
         CheckoutConfirmation review = prepare();
         jdbc.update("UPDATE products SET price=110000 WHERE id=?", product);
@@ -135,6 +137,7 @@ class CheckoutFlowMySqlTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
     }
 
+    /** Chuẩn bị review qua HTTP thật và đọc model từ trang xác nhận, không dựng confirmation giả trong test. */
     private CheckoutConfirmation prepare() throws Exception {
         String destination = mvc.perform(post("/checkout/review").session(session).with(user(principal)).with(csrf())
                         .param("shippingAddressId", Long.toString(address)).param("paymentMethod", "COD"))

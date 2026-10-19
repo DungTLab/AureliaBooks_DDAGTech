@@ -42,6 +42,7 @@ public enum ErrorCode {
     // 3xxx: Generic & Resource Validation — Shared (2 codes)
     RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
     INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST),
+    /** Review không khớp dữ liệu hiện tại hoặc token không hợp lệ: yêu cầu khách xác nhận lại trước khi tạo đơn. */
     CHECKOUT_CHANGED(3003, "Thông tin đặt hàng đã thay đổi. Vui lòng kiểm tra và xác nhận lại.", HttpStatus.CONFLICT),
 
     // 4xxx: Catalog & Master Data Management — Huỳnh Nhật Duy (6 codes)

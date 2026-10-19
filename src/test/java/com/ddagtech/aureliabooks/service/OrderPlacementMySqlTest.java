@@ -62,7 +62,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Real InnoDB tests; creates and drops only its own local uc11_qa_<uuid> database. */
+/** Kiểm chứng transaction và tranh chấp trên InnoDB thật; chỉ tạo/xóa database QA có tên ngẫu nhiên riêng. */
 @DataJpaTest(properties = {
         "spring.jpa.hibernate.ddl-auto=validate",
         "spring.datasource.hikari.maximum-pool-size=6",
@@ -72,6 +72,7 @@ import static org.mockito.Mockito.*;
 @Import({OrderPlacementServiceImpl.class, CartServiceImpl.class, AddressServiceImpl.class,
         CartMapper.class, ShippingAddressMapper.class, OrderMapper.class, AuditLogServiceImpl.class,
         AddressOrderGuard.class, StockMutationServiceImpl.class, OrderPlacementMySqlTest.Support.class})
+// Không bọc test trong transaction của Spring Test để kiểm chứng commit/rollback do chính service thực hiện.
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @EnabledIfSystemProperty(named = "checkout.mysql", matches = "true")
 class OrderPlacementMySqlTest {
@@ -99,6 +100,7 @@ class OrderPlacementMySqlTest {
         @Bean Validator validator(ValidatorFactory factory) { return factory.getValidator(); }
     }
 
+    /** Tách database QA khỏi database ứng dụng; chỉ cho phép MySQL cục bộ và tên QA đúng định dạng. */
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) throws Exception {
         StandardEnvironment environment = new StandardEnvironment();
@@ -125,7 +127,7 @@ class OrderPlacementMySqlTest {
         String testUrl = configured.substring(0, pathStart + 1) + database + options;
         try (Connection connection = DriverManager.getConnection(testUrl, username, password)) {
             String schema = Files.readString(Path.of("docker/initdb/01_schema.sql"));
-            // Exclude DROP/CREATE DATABASE/USE from the canonical schema. The target is already selected.
+            // Bỏ DROP/CREATE DATABASE/USE trong schema gốc; connection đã chọn đúng database QA.
             schema = schema.substring(schema.indexOf("CREATE TABLE roles"));
             new ResourceDatabasePopulator(new ByteArrayResource(
                     schema.getBytes(StandardCharsets.UTF_8))).populate(connection);
@@ -135,6 +137,7 @@ class OrderPlacementMySqlTest {
         registry.add("spring.datasource.password", () -> password);
     }
 
+    /** Chỉ dọn database do lần test này tạo; kiểm tra lại tên trước thao tác DROP. */
     @AfterAll static void dropOnlyCreatedQaDatabase() throws Exception {
         if (!created) return;
         verifyDatabaseName();
@@ -186,7 +189,7 @@ class OrderPlacementMySqlTest {
                 java.math.BigDecimal.class, orderId, productIds.getFirst())).isEqualByComparingTo("100000");
         assertThat(jdbc.queryForObject("SELECT shipping_full_address FROM orders WHERE id=?", String.class, orderId))
                 .startsWith("12 Đội Cấn");
-        // Future confirmation/payment handlers calling the existing stock engine cannot deduct again.
+        // Gọi lại stock engine như luồng xác nhận/thanh toán: marker phải ngăn trừ tồn lần hai.
         stockMutations.deductOrder(orderId);
         assertThat(stock(productIds.getFirst())).isEqualTo(8);
         assertThat(stock(productIds.getLast())).isEqualTo(7);
@@ -205,6 +208,7 @@ class OrderPlacementMySqlTest {
         assertThat(cartLines(buyer)).isEqualTo(2);
     }
 
+    /** Ép dòng trừ kho thứ hai thất bại sau khi dòng đầu đã chạy để kiểm chứng rollback SQL thực sự. */
     @Test void failingSecondAtomicUpdateRollsBackOrderItemsAndFirstDeduction() {
         List<Long> ids = List.of(product(10, "100000"), product(10, "50000"));
         Buyer buyer = buyer(ids, List.of(2, 2));
@@ -218,6 +222,7 @@ class OrderPlacementMySqlTest {
         verify(products).deductStockIfAvailable(ids.getFirst(), 2);
     }
 
+    /** Gây lỗi muộn sau flush để kiểm chứng tồn, order/items và dòng giỏ đều được khôi phục. */
     @Test void lateAuditFailureRollsBackStockOrderAndCartDeletion() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(2));
@@ -244,6 +249,7 @@ class OrderPlacementMySqlTest {
         assertThat(stock(productId)).isEqualTo(5);
     }
 
+    /** Hai khách bắt đầu đồng thời bằng latch; chỉ một người mua được đơn vị tồn cuối. */
     @Test void twoBuyersCompetingForLastUnitProduceOnlyOneOrder() throws Exception {
         long productId = product(1, "100000");
         Buyer first = buyer(List.of(productId), List.of(1));
@@ -261,6 +267,7 @@ class OrderPlacementMySqlTest {
                 Integer.class, first.id(), second.id())).isEqualTo(1);
     }
 
+    /** Hai request cùng token phải trả cùng đơn; gửi lại sau khi thêm giỏ mới cũng không xóa giỏ đó. */
     @Test void concurrentDuplicateSubmissionReturnsSameOrderAndDoesNotClearRefilledCart() throws Exception {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(2));

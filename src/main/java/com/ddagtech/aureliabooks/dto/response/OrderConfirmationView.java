@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Only persisted snapshots are exposed on the result/print page. */
+/** Trang kết quả/in đọc snapshot đã lưu; trạng thái đơn và trạng thái thanh toán được hiển thị độc lập. */
 public record OrderConfirmationView(
         String orderCode, LocalDateTime createdAt,
         String recipientName, String phone, String fullAddress,
@@ -36,6 +36,7 @@ public record OrderConfirmationView(
         };
     }
 
+    /** Chỉ mở lại thanh toán khi đúng đơn VNPay chưa trả tiền và vẫn ở trạng thái chờ thanh toán. */
     public boolean awaitingOnlinePayment() {
         return paymentMethod == Order.PaymentMethod.VNPAY
                 && orderStatus == Order.OrderStatus.PENDING_PAYMENT

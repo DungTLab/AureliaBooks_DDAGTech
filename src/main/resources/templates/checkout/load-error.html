@@ -1,3 +1,4 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Chưa thể tải thông tin', ~{::#main-content})}">
+<!-- Controller trả trang này với HTTP 503 khi đọc thất bại; không giả lập giỏ trống hoặc tự gửi lại đặt hàng. -->
 <head><title>Chưa thể tải thông tin</title></head><body><section id="main-content" class="checkout-page"><link rel="stylesheet" th:href="@{/css/checkout.css}"><div class="checkout-card checkout-result-heading" role="alert"><div class="checkout-result-icon" aria-hidden="true"><i class="bi bi-cloud-slash"></i></div><h1>Chưa thể tải thông tin</h1><p>Vui lòng thử lại sau ít phút. Nếu bạn vừa đặt hàng, hãy kiểm tra trang đơn hàng trước khi tạo đơn mới.</p><div class="checkout-result-actions"><a th:href="@{/checkout}" class="checkout-button">Trở lại thanh toán</a><a th:href="@{/cart}" class="checkout-button is-secondary">Xem giỏ hàng</a></div></div></section></body></html>

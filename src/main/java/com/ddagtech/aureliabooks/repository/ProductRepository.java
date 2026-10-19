@@ -11,6 +11,7 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
+    /** Trừ kho có điều kiện ngay tại database; service chỉ chấp nhận 1 dòng cập nhật, 0 dòng phải rollback toàn đơn. */
     @Modifying(flushAutomatically = true)
     @Query("""
         UPDATE Product p
