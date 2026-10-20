@@ -50,7 +50,8 @@ class AdminStockHistoryControllerTest {
                             .with(user("manager").roles("MANAGER")))
                     .andExpect(status().isOk())
                     .andExpect(view().name("admin/stock/history"))
-                    .andExpect(model().attributeExists("movementsPage", "movementTypes", "filter"));
+                    .andExpect(model().attributeExists("movementsPage", "movementTypes", "filter"))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Lịch sử Biến động Kho")));
         }
 
         @Test
