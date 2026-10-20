@@ -1,10 +1,356 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout('Lịch sử Biến động Kho - AureliaBooks', ~{::#main-content})}">
 <head>
-    <meta charset="UTF-8">
-    <title>Lịch sử biến động kho - AureliaBook</title>
+    <title>Lịch sử Biến động Kho - AureliaBooks</title>
 </head>
 <body>
-    <h1>Lịch sử biến động kho</h1>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header & Policy Badge (SCR-DB-08) -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Quản trị kho</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Lịch sử kho</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
+                    <i class="bi bi-clock-history text-blazing_flame"></i>
+                    <span>Lịch sử Biến động Kho</span>
+                </h1>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    Chỉ đọc từ chứng từ gốc (BR-01-04)
+                </span>
+            </div>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Thanh tra lịch sử nhập kho từ nhà cung cấp, trừ tồn khi bán hàng, và hoàn tồn khi hủy đơn hoặc trả hàng. Dữ liệu chỉ đọc tổng hợp trực tiếp từ chứng từ nguồn đã xác nhận (Posting).
+            </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <a th:href="@{/manager/stock/alerts}"
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-parchment text-carbon_black border border-dust_grey font-semibold rounded-xl shadow-sm transition">
+                <i class="bi bi-boxes text-carbon_black-600"></i>
+                <span>Cảnh báo tồn kho</span>
+            </a>
+            <a th:href="@{/manager/receipts}"
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-sm transition">
+                <i class="bi bi-receipt"></i>
+                <span>Phiếu nhập kho</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Multi-Criteria Filter Bar (SCR-DB-08) -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm space-y-4">
+        <!-- Validation Error Message Banner (RDS 1.0.E1) -->
+        <div th:if="${#fields != null and #fields.hasErrors('filter.*')}"
+             class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start gap-3">
+            <i class="bi bi-exclamation-triangle-fill text-lg flex-shrink-0 text-rose-500 mt-0.5"></i>
+            <div>
+                <p class="font-bold">Lỗi xác thực bộ lọc thời gian (Ngoại lệ 1.0.E1):</p>
+                <ul class="list-disc list-inside mt-1 space-y-1">
+                    <li th:each="err : ${#fields.errors('filter.*')}" th:text="${err}">Từ ngày không được lớn hơn Đến ngày.</li>
+                </ul>
+            </div>
+        </div>
+
+        <form method="get" th:action="@{/manager/stock/history}" th:object="${filter}" class="space-y-4">
+            <input type="hidden" name="size" th:value="${pageSize != null ? pageSize : 20}" />
+            <input th:if="${filter.productId != null}" type="hidden" name="productId" th:value="${filter.productId}" />
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Search Keyword -->
+                <div>
+                    <label for="keywordInput" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                        Từ khóa tìm kiếm
+                    </label>
+                    <div class="relative">
+                        <input id="keywordInput" type="text" name="keyword" th:value="${filter.keyword}"
+                               placeholder="Tên sản phẩm, barcode, ISBN, mã chứng từ..."
+                               class="w-full pl-9 pr-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                        <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-sm"></i>
+                    </div>
+                </div>
+
+                <!-- Movement Type Classification -->
+                <div>
+                    <label for="typeSelect" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                        Loại biến động
+                    </label>
+                    <select id="typeSelect" name="movementType"
+                            class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
+                        <option value="" th:selected="${filter.movementType == null}">Tất cả phân loại</option>
+                        <option value="IMPORT" th:selected="${filter.movementType != null and filter.movementType.name() == 'IMPORT'}">
+                            Nhập kho nhà cung cấp (IMPORT)
+                        </option>
+                        <option value="ORDER_DEDUCT" th:selected="${filter.movementType != null and filter.movementType.name() == 'ORDER_DEDUCT'}">
+                            Trừ kho đơn bán hàng (ORDER_DEDUCT)
+                        </option>
+                        <option value="ORDER_CANCELLED_RESTOCK" th:selected="${filter.movementType != null and filter.movementType.name() == 'ORDER_CANCELLED_RESTOCK'}">
+                            Hoàn tồn hủy đơn hàng (ORDER_CANCELLED_RESTOCK)
+                        </option>
+                        <option value="ORDER_RETURNED_RESTOCK" th:selected="${filter.movementType != null and filter.movementType.name() == 'ORDER_RETURNED_RESTOCK'}">
+                            Hoàn tồn trả hàng (ORDER_RETURNED_RESTOCK)
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Start Date -->
+                <div>
+                    <label for="startDateInput" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                        Từ ngày
+                    </label>
+                    <input id="startDateInput" type="date" name="startDate" th:value="${filter.startDate}"
+                           class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                </div>
+
+                <!-- End Date -->
+                <div>
+                    <label for="endDateInput" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                        Đến ngày
+                    </label>
+                    <input id="endDateInput" type="date" name="endDate" th:value="${filter.endDate}"
+                           class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                </div>
+            </div>
+
+            <!-- Action Buttons & Quick Filter Tags -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-dust_grey/60">
+                <div class="flex items-center gap-2">
+                    <button type="submit"
+                            class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl transition shadow-sm">
+                        <i class="bi bi-funnel-fill text-xs"></i>
+                        <span>Lọc dữ liệu</span>
+                    </button>
+
+                    <a th:href="@{/manager/stock/history}"
+                       class="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-parchment text-carbon_black-600 border border-dust_grey text-sm font-semibold rounded-xl transition">
+                        <i class="bi bi-arrow-counterclockwise text-xs"></i>
+                        <span>Xóa bộ lọc</span>
+                    </a>
+                </div>
+
+                <!-- Filter indicator if product filtered -->
+                <div th:if="${filter.productId != null}" class="text-xs text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 flex items-center gap-1.5">
+                    <i class="bi bi-info-circle"></i>
+                    <span>Đang lọc theo sản phẩm cụ thể (ID: <strong th:text="${filter.productId}"></strong>).</span>
+                    <a th:href="@{/manager/stock/history}" class="underline font-semibold hover:text-amber-900 ml-1">Xem tất cả</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Data Table Card (SCR-DB-08) -->
+    <div class="bg-white border border-dust_grey rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                <tr class="bg-carbon_black-50/50 border-b border-dust_grey text-[11px] font-semibold text-carbon_black-600 uppercase tracking-wider">
+                    <th scope="col" class="py-3.5 px-4 whitespace-nowrap">Thời điểm (Posting)</th>
+                    <th scope="col" class="py-3.5 px-4 min-w-[200px]">Sản phẩm &amp; Mã vạch</th>
+                    <th scope="col" class="py-3.5 px-4 whitespace-nowrap">Loại biến động</th>
+                    <th scope="col" class="py-3.5 px-4 text-right whitespace-nowrap">Biến động tồn</th>
+                    <th scope="col" class="py-3.5 px-4 whitespace-nowrap">Chứng từ gốc</th>
+                    <th scope="col" class="py-3.5 px-4 whitespace-nowrap">Người thực hiện</th>
+                    <th scope="col" class="py-3.5 px-4 min-w-[180px]">Ghi chú / Lý do</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/60 text-sm">
+                <!-- Data Row -->
+                <tr th:each="item : ${movementsPage.content}"
+                    class="hover:bg-carbon_black-50/30 transition duration-150">
+                    <!-- Timestamp -->
+                    <td class="py-3.5 px-4 font-mono text-xs text-carbon_black-600 whitespace-nowrap"
+                        th:text="${item.occurredAt != null ? #temporals.format(item.occurredAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">
+                        2026-10-15 14:30:00
+                    </td>
+
+                    <!-- Product Details -->
+                    <td class="py-3.5 px-4">
+                        <div class="font-medium text-carbon_black line-clamp-1" th:text="${item.productTitle}">
+                            Dế Mèn Phiêu Lưu Ký
+                        </div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="inline-flex items-center gap-1 font-mono text-[11px] text-carbon_black-500 bg-carbon_black-50 px-1.5 py-0.5 rounded">
+                                <i class="bi bi-upc-scan text-[10px]"></i>
+                                <span th:text="${item.productBarcode}">8935244812345</span>
+                            </span>
+                        </div>
+                    </td>
+
+                    <!-- Movement Type Badge -->
+                    <td class="py-3.5 px-4 whitespace-nowrap">
+                        <!-- IMPORT -->
+                        <span th:if="${item.movementType != null and item.movementType.name() == 'IMPORT'}"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                            <i class="bi bi-box-arrow-in-down text-sky-600"></i>
+                            Nhập kho (PO)
+                        </span>
+
+                        <!-- ORDER_DEDUCT -->
+                        <span th:if="${item.movementType != null and item.movementType.name() == 'ORDER_DEDUCT'}"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            <i class="bi bi-cart-dash text-rose-600"></i>
+                            Trừ đơn bán (SO)
+                        </span>
+
+                        <!-- ORDER_CANCELLED_RESTOCK -->
+                        <span th:if="${item.movementType != null and item.movementType.name() == 'ORDER_CANCELLED_RESTOCK'}"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            <i class="bi bi-arrow-counterclockwise text-amber-600"></i>
+                            Hoàn kho hủy đơn
+                        </span>
+
+                        <!-- ORDER_RETURNED_RESTOCK -->
+                        <span th:if="${item.movementType != null and item.movementType.name() == 'ORDER_RETURNED_RESTOCK'}"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <i class="bi bi-box-seam text-emerald-600"></i>
+                            Hoàn kho trả hàng
+                        </span>
+                    </td>
+
+                    <!-- Quantity Delta -->
+                    <td class="py-3.5 px-4 text-right whitespace-nowrap font-mono font-bold text-sm">
+                        <!-- Inflow (+) -->
+                        <span th:if="${item.inflow}"
+                              class="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold">
+                            <span th:text="${item.formattedQuantityChange}">+50</span>
+                        </span>
+
+                        <!-- Outflow (-) -->
+                        <span th:if="${item.outflow}"
+                              class="inline-flex items-center px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 font-extrabold">
+                            <span th:text="${item.formattedQuantityChange}">-2</span>
+                        </span>
+
+                        <!-- Zero / Fallback -->
+                        <span th:if="${!item.inflow and !item.outflow}"
+                              class="inline-flex items-center px-2 py-0.5 rounded-lg bg-carbon_black-50 text-carbon_black-600">
+                            0
+                        </span>
+                    </td>
+
+                    <!-- Source Document Link -->
+                    <td class="py-3.5 px-4 whitespace-nowrap">
+                        <!-- Receipt Document -->
+                        <a th:if="${item.sourceTable == 'goods_receipts'}"
+                           th:href="@{/manager/receipts}"
+                           class="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-blazing_flame hover:underline group"
+                           title="Xem danh sách phiếu nhập kho">
+                            <i class="bi bi-file-earmark-text text-sm group-hover:scale-110 transition-transform"></i>
+                            <span th:text="${item.referenceCode}">GR-20261015-001</span>
+                        </a>
+
+                        <!-- Order Document -->
+                        <a th:if="${item.sourceTable == 'orders'}"
+                           th:href="@{/manager/orders}"
+                           class="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-sky-600 hover:underline group"
+                           title="Xem đơn hàng gốc">
+                            <i class="bi bi-bag-check text-sm group-hover:scale-110 transition-transform"></i>
+                            <span th:text="${item.referenceCode}">ORD-20261015-001</span>
+                        </a>
+
+                        <!-- Other fallback -->
+                        <span th:if="${item.sourceTable != 'goods_receipts' and item.sourceTable != 'orders'}"
+                              class="font-mono text-xs text-carbon_black-600"
+                              th:text="${item.referenceCode}">
+                            REF-001
+                        </span>
+                    </td>
+
+                    <!-- Actor Identity -->
+                    <td class="py-3.5 px-4 whitespace-nowrap text-xs text-carbon_black-600">
+                        <div class="flex items-center gap-1.5">
+                            <i class="bi bi-person-fill text-carbon_black-400"></i>
+                            <span th:text="${item.displayActor}">Nguyễn Quản Lý</span>
+                        </div>
+                    </td>
+
+                    <!-- Contextual Note / Reason -->
+                    <td class="py-3.5 px-4 text-xs text-carbon_black-500 max-w-[250px] truncate"
+                        th:text="${item.note != null and !#strings.isEmpty(item.note) ? item.note : '—'}"
+                        th:title="${item.note}">
+                        Nhập hàng bổ sung đợt 1
+                    </td>
+                </tr>
+
+                <!-- Empty State -->
+                <tr th:if="${movementsPage == null or movementsPage.isEmpty()}">
+                    <td colspan="7" class="py-12 text-center">
+                        <div class="flex flex-col items-center justify-center space-y-3">
+                            <div class="w-16 h-16 rounded-full bg-carbon_black-50 flex items-center justify-center text-3xl text-carbon_black-400">
+                                <i class="bi bi-journal-x"></i>
+                            </div>
+                            <div class="text-base font-semibold text-carbon_black">Không tìm thấy dữ liệu biến động kho</div>
+                            <p class="text-xs text-carbon_black-500 max-w-sm">
+                                Không có giao dịch biến động nào phù hợp với bộ lọc hiện tại, hoặc chưa có chứng từ nào được xác nhận (Posting).
+                            </p>
+                            <a th:href="@{/manager/stock/history}"
+                               class="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-parchment text-carbon_black-600 border border-dust_grey text-xs font-semibold rounded-xl transition">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                                <span>Đặt lại bộ lọc</span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination & Footer Summary -->
+        <div th:if="${movementsPage != null and !movementsPage.isEmpty()}"
+             class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border-t border-dust_grey bg-carbon_black-50/20 text-xs text-carbon_black-600">
+            <div>
+                <span>Hiển thị trang <strong th:text="${movementsPage.number + 1}">1</strong> / <strong th:text="${movementsPage.totalPages}">5</strong></span>
+                <span class="mx-1.5">•</span>
+                <span>Tổng cộng <strong th:text="${movementsPage.totalElements}">100</strong> bản ghi biến động</span>
+            </div>
+
+            <!-- Page Navigation Buttons -->
+            <div class="flex items-center gap-1">
+                <!-- First Page -->
+                <a th:href="@{/manager/stock/history(page=0, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                   th:classappend="${movementsPage.first} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
+                   class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
+                   title="Trang đầu">
+                    <i class="bi bi-chevron-double-left"></i>
+                </a>
+
+                <!-- Previous Page -->
+                <a th:href="@{/manager/stock/history(page=${movementsPage.number - 1}, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                   th:classappend="${!movementsPage.hasPrevious()} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
+                   class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
+                   title="Trang trước">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+
+                <!-- Current Page Indicator -->
+                <span class="px-3 py-1.5 rounded-lg bg-blazing_flame text-white font-bold"
+                      th:text="${movementsPage.number + 1}">1</span>
+
+                <!-- Next Page -->
+                <a th:href="@{/manager/stock/history(page=${movementsPage.number + 1}, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                   th:classappend="${!movementsPage.hasNext()} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
+                   class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
+                   title="Trang kế">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+
+                <!-- Last Page -->
+                <a th:href="@{/manager/stock/history(page=${movementsPage.totalPages - 1}, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                   th:classappend="${movementsPage.last} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
+                   class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
+                   title="Trang cuối">
+                    <i class="bi bi-chevron-double-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
