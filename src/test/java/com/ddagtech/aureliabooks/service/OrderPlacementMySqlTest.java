@@ -17,6 +17,8 @@ import com.ddagtech.aureliabooks.service.impl.CartServiceImpl;
 import com.ddagtech.aureliabooks.service.impl.OrderPlacementServiceImpl;
 import com.ddagtech.aureliabooks.service.impl.StockMutationServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ddagtech.aureliabooks.entity.Product;
+import jakarta.persistence.EntityManager;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
@@ -44,6 +46,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -86,6 +90,8 @@ class OrderPlacementMySqlTest {
     @Autowired OrderPlacementService service;
     @Autowired StockMutationService stockMutations;
     @Autowired JdbcTemplate jdbc;
+    @Autowired EntityManager entityManager;
+    @Autowired PlatformTransactionManager transactionManager;
     @MockitoSpyBean ProductRepository products;
     @MockitoSpyBean AuditLogService audit;
     private long roleId;
@@ -193,6 +199,8 @@ class OrderPlacementMySqlTest {
         stockMutations.deductOrder(orderId);
         assertThat(stock(productIds.getFirst())).isEqualTo(8);
         assertThat(stock(productIds.getLast())).isEqualTo(7);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_DEDUCT_STOCK'",
+                Integer.class, orderId)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM inventory_movements WHERE reference_code=? AND movement_type='ORDER_DEDUCT'",
                 Integer.class, attempt.request().getCheckoutToken())).isEqualTo(2);
     }
@@ -220,6 +228,51 @@ class OrderPlacementMySqlTest {
         assertThat(stock(ids.getLast())).isEqualTo(10);
         assertThat(cartLines(buyer)).isEqualTo(2);
         verify(products).deductStockIfAvailable(ids.getFirst(), 2);
+    }
+
+    /** Entity cũ trong transaction ngoài không được làm engine trừ lần hai sau transaction trong đã commit. */
+    @Test void stockEngineRefreshesPreviouslyLoadedOrderBeforeReplayCheck() {
+        long productId = product(5, "100000");
+        Buyer buyer = buyer(List.of(productId), List.of(2));
+        Attempt attempt = attempt(buyer, Order.PaymentMethod.COD);
+        service.placeOrder(buyer.id(), attempt.request(), attempt.confirmation());
+        long orderId = orderId(attempt);
+        // Chuẩn bị đơn chưa trừ kho để tập trung kiểm tra marker giữa hai persistence context.
+        jdbc.update("UPDATE orders SET stock_deducted_at=NULL WHERE id=?", orderId);
+        jdbc.update("UPDATE products SET stock_quantity=5 WHERE id=?", productId);
+        jdbc.update("DELETE FROM audit_logs WHERE target_id=? AND action='ORDER_DEDUCT_STOCK'", orderId);
+
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            Order cached = entityManager.find(Order.class, orderId);
+            entityManager.find(Product.class, productId);
+            assertThat(cached.getStockDeductedAt()).isNull();
+
+            TransactionTemplate separate = new TransactionTemplate(transactionManager);
+            separate.setPropagationBehavior(Propagation.REQUIRES_NEW.value());
+            separate.executeWithoutResult(inner -> stockMutations.deductOrder(orderId));
+
+            // Bản trong bộ nhớ vẫn cũ; engine phải refresh marker dưới khóa trước khi quyết định.
+            assertThat(cached.getStockDeductedAt()).isNull();
+            stockMutations.deductOrder(orderId);
+            assertThat(cached.getStockDeductedAt()).isNotNull();
+        });
+        assertThat(stock(productId)).isEqualTo(3);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_DEDUCT_STOCK'",
+                Integer.class, orderId)).isEqualTo(1);
+    }
+
+    /** Lỗi audit của engine phải rollback cả order/items được checkout lưu trước khi gọi engine. */
+    @Test void stockAuditFailureRollsBackNewOrderAndDeductions() {
+        long productId = product(5, "100000");
+        Buyer buyer = buyer(List.of(productId), List.of(2));
+        Attempt attempt = attempt(buyer, Order.PaymentMethod.VNPAY);
+        doThrow(new IllegalStateException("QA stock audit failure")).when(audit)
+                .record(eq(buyer.id()), eq("ORDER_DEDUCT_STOCK"), anyString(), anyLong(), anyString(), isNull());
+        assertThatThrownBy(() -> service.placeOrder(buyer.id(), attempt.request(), attempt.confirmation()))
+                .isInstanceOf(IllegalStateException.class);
+        assertNoOrder(buyer);
+        assertThat(stock(productId)).isEqualTo(5);
+        assertThat(cartLines(buyer)).isEqualTo(1);
     }
 
     /** Gây lỗi muộn sau flush để kiểm chứng tồn, order/items và dòng giỏ đều được khôi phục. */
@@ -328,6 +381,8 @@ class OrderPlacementMySqlTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.user_id=?",
                 Integer.class, buyer.id())).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE user_id=? AND action='ORDER_PLACED'",
+                Integer.class, buyer.id())).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE user_id=? AND action='ORDER_DEDUCT_STOCK'",
                 Integer.class, buyer.id())).isZero();
     }
 

@@ -27,6 +27,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,7 +45,7 @@ class OrderPlacementServiceTest {
     @Mock UserRepository users;
     @Mock OrderRepository orders;
     @Mock CartRepository carts;
-    @Mock ProductRepository products;
+    @Mock StockMutationService stockMutations;
     @Mock ShippingAddressRepository addresses;
     @Mock EntityManager entities;
     @Mock AuditLogService audit;
@@ -55,6 +56,7 @@ class OrderPlacementServiceTest {
     private Product product;
     private Cart cart;
     private CheckoutRequest request;
+    private Order savedOrder;
     private final CartMapper cartMapper = new CartMapper();
     private final ShippingAddressMapper addressMapper = new ShippingAddressMapper();
 
@@ -63,7 +65,7 @@ class OrderPlacementServiceTest {
 
     @BeforeEach void setUp() {
         service = new OrderPlacementServiceImpl(cartService, addressService, validation.getValidator(),
-                users, orders, carts, products, addresses, entities, cartMapper, addressMapper,
+                users, orders, carts, stockMutations, addresses, entities, cartMapper, addressMapper,
                 new OrderMapper(), audit, new ObjectMapper());
         owner = User.builder().id(1L).role(Role.builder().roleName("ROLE_CUSTOMER").build())
                 .fullName("Khách hàng").phone("0912345678").phoneVerified(true).build();
@@ -83,7 +85,16 @@ class OrderPlacementServiceTest {
         lenient().when(carts.findByUser_Id(owner.getId())).thenReturn(Optional.of(cart));
         lenient().when(addresses.findByIdAndUserIdAndIsActiveTrue(address.getId(), owner.getId()))
                 .thenReturn(Optional.of(address));
-        lenient().when(products.deductStockIfAvailable(product.getId(), 2)).thenReturn(1);
+        lenient().when(orders.saveAndFlush(any(Order.class))).thenAnswer(call -> {
+            savedOrder = call.getArgument(0);
+            savedOrder.setId(100L);
+            return savedOrder;
+        });
+        // Mock chỉ đại diện contract engine: engine chịu trách nhiệm ghi marker sau trừ kho thành công.
+        lenient().doAnswer(call -> {
+            savedOrder.setStockDeductedAt(LocalDateTime.now());
+            return null;
+        }).when(stockMutations).deductOrder(100L);
         lenient().when(cartService.viewCart(owner.getId()))
                 .thenAnswer(call -> cartMapper.toCartView(cart.getItems()));
         lenient().when(addressService.list(owner.getId()))
@@ -117,9 +128,9 @@ class OrderPlacementServiceTest {
         assertThat(order.getItems().getFirst().getUnitPriceSnapshot()).isEqualByComparingTo("100000");
         assertThat(order.getShippingFullAddress()).isEqualTo("12 Đội Cấn, Đội Cấn, Ba Đình, Hà Nội");
         assertThat(cart.getItems()).isEmpty();
-        verify(products).deductStockIfAvailable(20L, 2);
+        verify(stockMutations).deductOrder(100L);
         verify(entities).refresh(product, LockModeType.PESSIMISTIC_WRITE);
-        verify(audit).record(eq(1L), eq("ORDER_PLACED"), eq("orders"), isNull(), anyString(), isNull());
+        verify(audit).record(eq(1L), eq("ORDER_PLACED"), eq("orders"), eq(100L), anyString(), isNull());
     }
 
     @ParameterizedTest @EnumSource(ShippingAddress.EconomicRegion.class)
@@ -132,7 +143,7 @@ class OrderPlacementServiceTest {
         };
         CheckoutView view = service.getCheckoutView(1L, null);
         assertThat(view.shippingFee()).isEqualByComparingTo(fee);
-        verifyNoInteractions(products, orders);
+        verifyNoInteractions(stockMutations, orders);
     }
 
     @Test void doesNotInventFreeShippingAtUnconfirmedThresholds() {
@@ -152,7 +163,7 @@ class OrderPlacementServiceTest {
         CheckoutConfirmation reviewed = confirmation();
         product.setPrice(new BigDecimal("110000"));
         assertError(ErrorCode.CHECKOUT_CHANGED, reviewed);
-        verifyNoInteractions(products);
+        verifyNoInteractions(stockMutations);
         verify(orders, never()).saveAndFlush(any());
     }
 
@@ -209,13 +220,13 @@ class OrderPlacementServiceTest {
         address.setPhone(phone);
         assertError(ErrorCode.INVALID_INPUT_DATA, confirmation());
         verify(orders, never()).saveAndFlush(any());
-        verifyNoInteractions(products);
+        verifyNoInteractions(stockMutations);
     }
 
     @Test void rejectsVoucherWithoutImplementingVoucherLogic() {
         request.setVoucherCode("SALE10");
         assertError(ErrorCode.INVALID_INPUT_DATA, null);
-        verifyNoInteractions(users, orders, products);
+        verifyNoInteractions(users, orders, stockMutations);
     }
 
     @Test void rejectsForeignAddressAndMismatchedConfirmation() {
@@ -233,7 +244,7 @@ class OrderPlacementServiceTest {
         when(orders.findByOrderCode(TOKEN)).thenReturn(Optional.of(existing));
         assertThat(service.placeOrder(1L, request, null)).isEqualTo(TOKEN);
         assertThat(cart.getItems()).hasSize(1);
-        verifyNoInteractions(carts, products, addresses, audit);
+        verifyNoInteractions(carts, stockMutations, addresses, audit);
         request.setPaymentMethod(Order.PaymentMethod.VNPAY);
         assertError(ErrorCode.CHECKOUT_CHANGED, null);
     }
@@ -252,9 +263,9 @@ class OrderPlacementServiceTest {
                 .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.UNAUTHENTICATED);
     }
 
-    @Test void conditionalUpdateFailureDoesNotClearCart() {
+    @Test void stockEngineFailureDoesNotClearCart() {
         CheckoutConfirmation reviewed = confirmation();
-        when(products.deductStockIfAvailable(20L, 2)).thenReturn(0);
+        doThrow(new AppException(ErrorCode.INSUFFICIENT_STOCK)).when(stockMutations).deductOrder(100L);
         assertError(ErrorCode.INSUFFICIENT_STOCK, reviewed);
         assertThat(cart.getItems()).hasSize(1);
         verifyNoInteractions(audit);

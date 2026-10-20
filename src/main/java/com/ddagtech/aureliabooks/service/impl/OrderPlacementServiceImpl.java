@@ -23,13 +23,13 @@ import com.ddagtech.aureliabooks.mapper.ShippingAddressMapper;
 import com.ddagtech.aureliabooks.repository.CartRepository;
 import com.ddagtech.aureliabooks.repository.OrderRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
-import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.ShippingAddressRepository;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.AddressService;
 import com.ddagtech.aureliabooks.service.CartService;
 import com.ddagtech.aureliabooks.service.OrderPlacementService;
 import com.ddagtech.aureliabooks.service.AuditLogService;
+import com.ddagtech.aureliabooks.service.StockMutationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
@@ -58,7 +58,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
-    private final ProductRepository productRepository;
+    private final StockMutationService stockMutationService;
     private final ShippingAddressRepository shippingAddressRepository;
     private final EntityManager entityManager;
     private final CartMapper cartMapper;
@@ -226,21 +226,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         Order order = orderMapper.toNewOrder(owner, address, items, request, current, status);
         orderRepository.saveAndFlush(order);
 
-        for (CartItem item : items) {
-            if (productRepository.deductStockIfAvailable(item.getProduct().getId(),
-                    item.getQuantity()) != 1) {
-                throw new AppException(ErrorCode.INSUFFICIENT_STOCK,
-                        "Không đủ tồn kho cho sản phẩm: " + item.getProduct().getTitle());
-            }
-            // JPQL UPDATE bỏ qua entity đang được quản lý; refresh để persistence context khớp tồn trong DB.
-            entityManager.refresh(item.getProduct());
-        }
+        // Engine kho sở hữu cập nhật tồn/marker/audit; REQUIRED tham gia transaction tạo đơn hiện tại.
+        // Lỗi bất kỳ dòng nào phải rollback cả order/items và các dòng tồn đã cập nhật trước đó.
+        stockMutationService.deductOrder(order.getId());
 
-        // Ghi mốc sau khi tất cả dòng trừ tồn thành công; callback thanh toán không được trừ thêm.
-        LocalDateTime postedAt = LocalDateTime.now();
-        order.setStockDeductedAt(postedAt);
         cart.getItems().clear(); // orphanRemoval xóa các dòng giỏ trong cùng transaction.
-        cart.setUpdatedAt(postedAt);
+        cart.setUpdatedAt(LocalDateTime.now());
         entityManager.flush();
         recordPlacement(order);
 
