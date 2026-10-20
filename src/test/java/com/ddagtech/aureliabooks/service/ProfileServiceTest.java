@@ -58,7 +58,7 @@ class ProfileServiceTest {
         for(var request: java.util.List.of(new PasswordChangeRequest("wrong","NewPass1!","NewPass1!"),
                 new PasswordChangeRequest("OldPass1!","weak","weak"),
                 new PasswordChangeRequest("OldPass1!","NewPass1!","different"))) {
-            assertThrows(AppException.class,()->service.changePassword(1L,request));
+            assertThrows(AppException.class,()->service.changePassword(1L,request, "127.0.0.1"));
         }
         verify(users,never()).saveAndFlush(any());
     }
@@ -102,7 +102,7 @@ class ProfileServiceTest {
         when(sessions.getAllSessions(principal,false)).thenReturn(java.util.List.of(session));
         TransactionSynchronizationManager.initSynchronization();
         try {
-            service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!"));
+            service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!"), "127.0.0.1");
             assertTrue(new BCryptPasswordEncoder().matches("NewPass1!",user.getPasswordHash()));
             assertFalse(new BCryptPasswordEncoder().matches("OldPass1!",user.getPasswordHash()));
             assertEquals(1,TransactionSynchronizationManager.getSynchronizations().size());
@@ -113,7 +113,7 @@ class ProfileServiceTest {
     }
     @Test void googleWithoutLocalPasswordCannotSetPasswordBySupplyingOldPassword() {
         user.setPasswordHash(null);
-        assertThrows(AppException.class,()->service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!")));
+        assertThrows(AppException.class,()->service.changePassword(1L,new PasswordChangeRequest("OldPass1!","NewPass1!","NewPass1!"), "127.0.0.1"));
     }
     @Test void inactiveCustomerCannotMutateProfile() {
         user.setIsActive(false);
@@ -122,7 +122,7 @@ class ProfileServiceTest {
     @Test void passwordChangeSuccessEmitsAuditLogWithoutSensitivePayload() {
         TransactionSynchronizationManager.initSynchronization();
         try {
-            service.changePassword(1L, new PasswordChangeRequest("OldPass1!", "NewPass1!", "NewPass1!"));
+            service.changePassword(1L, new PasswordChangeRequest("OldPass1!", "NewPass1!", "NewPass1!"), "127.0.0.1");
             verify(auditLogService, times(1)).record(
                     eq(1L),
                     eq("PASSWORD_CHANGED"),
@@ -136,7 +136,7 @@ class ProfileServiceTest {
         }
     }
     @Test void passwordChangeFailureNeverEmitsAuditLog() {
-        assertThrows(AppException.class, () -> service.changePassword(1L, new PasswordChangeRequest("WrongPass!", "NewPass1!", "NewPass1!")));
+        assertThrows(AppException.class, () -> service.changePassword(1L, new PasswordChangeRequest("WrongPass!", "NewPass1!", "NewPass1!"), "127.0.0.1"));
         verify(auditLogService, never()).record(any(), any(), any(), any(), any(), any());
     }
 }

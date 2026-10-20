@@ -4,6 +4,7 @@ import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.entity.AuditLog;
 import com.ddagtech.aureliabooks.entity.User;
+import com.ddagtech.aureliabooks.mapper.AuditLogMapper;
 import com.ddagtech.aureliabooks.repository.AuditLogRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.AuditLogService;
@@ -37,6 +38,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private AuditLogMapper auditLogMapper = new AuditLogMapper();
 
     /**
      * Primary constructor injecting dependencies managed by Spring ApplicationContext.
@@ -52,6 +54,13 @@ public class AuditLogServiceImpl implements AuditLogService {
         this.auditLogRepository = auditLogRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+    }
+
+    @Autowired(required = false)
+    public void setAuditLogMapper(AuditLogMapper auditLogMapper) {
+        if (auditLogMapper != null) {
+            this.auditLogMapper = auditLogMapper;
+        }
     }
 
     /**
@@ -139,7 +148,7 @@ public class AuditLogServiceImpl implements AuditLogService {
                 pageable
         );
 
-        return entityPage.map(AuditLogResponse::fromEntity);
+        return entityPage.map(auditLogMapper::toResponse);
     }
 
     /**

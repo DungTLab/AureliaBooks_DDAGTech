@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/password-fields.css">
+    <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
+    
+    <!-- Spring Security CSRF Meta Tokens -->
+    <meta name="_csrf" content="Py9BB4ZsuIlikhyINqrvis58ujJjuvsWSBKXbURNlUqJ5F2aDEl0Pr4KibFP9C68V4fbuapPlwpRj807LCH0WSAv8X_q026v">
+    <meta name="_csrf_header" content="X-CSRF-TOKEN">
+
+    <title>Đăng ký tài khoản - AureliaBook</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans (Modern Clean Sans) & Playfair Display (High-End Literary Serif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap Icons for clean, consistent vector iconography -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <!-- Tailwind CSS CDN (v3.4) with Balanced Warm Literary Editorial Bookstore Palette -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        // Brand Accent: Warm Terracotta / Burnt Sienna (Sophisticated, eye-friendly, bookish warmth)
+                        'blazing_flame': {
+                            DEFAULT: '#d94a26',
+                            50: '#fdf4f0',
+                            100: '#faebe5',
+                            200: '#f5d4c7',
+                            300: '#eeb39f',
+                            400: '#e5876d',
+                            500: '#d94a26',
+                            600: '#c23c1a',
+                            700: '#a32f13',
+                            800: '#842611',
+                            900: '#6c2211'
+                        },
+                        // Canvas Background: Warm Book Paper / Natural Linen Parchment (Prevents glare and eye strain)
+                        'parchment': {
+                            DEFAULT: '#f5f1e8',
+                            50: '#fdfbf7',
+                            100: '#faf6f0',
+                            200: '#f5f1e8',
+                            300: '#ece5d8',
+                            400: '#dfd6c4',
+                            500: '#cdbfab',
+                            600: '#b8a68f',
+                            700: '#9b8772',
+                            800: '#7f6e5e',
+                            900: '#685a4e'
+                        },
+                        // High Contrast Typography: Warm Espresso Charcoal (Sharp readability without stark coldness)
+                        'carbon_black': {
+                            DEFAULT: '#1f1c19',
+                            50: '#f6f5f4',
+                            100: '#e7e5e3',
+                            200: '#d1ccc7',
+                            300: '#b3aca4',
+                            400: '#8b8278',
+                            500: '#665d53',
+                            600: '#4e463d',
+                            700: '#3a332c',
+                            800: '#28231e',
+                            900: '#1f1c19'
+                        },
+                        // Secondary Structural Neutral: Soft Alabaster Linen
+                        'alabaster_grey': {
+                            DEFAULT: '#eae4d8',
+                            50: '#fbf9f5',
+                            100: '#f5f2eb',
+                            200: '#eae4d8',
+                            300: '#ded5c5',
+                            400: '#cdbfab',
+                            500: '#b4a189',
+                            600: '#9b866e',
+                            700: '#7f6c57',
+                            800: '#685746',
+                            900: '#554739'
+                        },
+                        // Delicate Border & Divider Neutral: Warm Sandstone Grey
+                        'dust_grey': {
+                            DEFAULT: '#dcd4c6',
+                            50: '#faf8f5',
+                            100: '#f3efe8',
+                            200: '#e6dfd3',
+                            300: '#dcd4c6',
+                            400: '#c7bca9',
+                            500: '#aea18b',
+                            600: '#92846f',
+                            700: '#766957',
+                            800: '#605547',
+                            900: '#4f463b'
+                        },
+                        'white': {
+                            DEFAULT: '#ffffff',
+                            warm: '#fffdfa'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'Georgia', 'serif']
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(31, 28, 25, 0.05)',
+                        'hover': '0 12px 28px -4px rgba(31, 28, 25, 0.09)',
+                        'flame': '0 8px 24px -4px rgba(217, 74, 38, 0.32)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS utilities -->
+    <style>
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translate3d(0, -20px, 0);
+            }
+            to {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
+        }
+        @keyframes fadeOutRight {
+            from {
+                opacity: 1;
+                transform: translate3d(0, 0, 0);
+            }
+            to {
+                opacity: 0;
+                transform: translate3d(100%, 0, 0);
+            }
+        }
+        .animate-fade-in-down {
+            animation: fadeInDown 0.35s ease-out forwards;
+        }
+        .animate-fade-out-right {
+            animation: fadeOutRight 0.35s ease-in forwards;
+        }
+        /* Custom warm editorial scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #ede6da;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c5baa8;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ab9d87;
+        }
+    </style>
+</head>
+<body class="min-h-full flex flex-col bg-parchment text-carbon_black font-sans antialiased selection:bg-blazing_flame selection:text-white">
+<!-- Main Global Navbar Header -->
+<header class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300">
+    <!-- Top Utility Announcement Bar (Grounding Warm Espresso Anchor) -->
+    <div class="hidden sm:block bg-[#1f1c19] text-[#ded7cc] text-xs py-2 px-4 border-b border-[#2d2824]">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-6">
+                <span class="inline-flex items-center gap-1.5 hover:text-[#ff8a5c] transition-colors">
+                    <i class="bi bi-geo-alt-fill text-[#ff7c4d]"></i>
+                    <span>Showroom: Khu CNC Hòa Lạc, Km29 Đại lộ Thăng Long, Hà Nội</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5 hover:text-[#ff8a5c] transition-colors">
+                    <i class="bi bi-telephone-fill text-[#ff7c4d]"></i>
+                    <span>Hotline: (024) 7300 1866</span>
+                </span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-[#ff8a5c] font-bold inline-flex items-center gap-1.5">
+                    <i class="bi bi-lightning-charge-fill text-[#ff7c4d]"></i>
+                    <span>Miễn phí giao hàng: từ 250k (Miền Nam) &amp; 350k (Toàn quốc)</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Navigation Bar -->
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-18 lg:h-20 gap-4">
+
+            <!-- Brand Logo with Warm Terracotta Identity -->
+            <a href="/" class="flex items-center gap-3 group flex-shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 flex items-center justify-center text-white shadow-flame group-hover:scale-105 transition-transform duration-200">
+                    <i class="bi bi-book-half text-xl"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-serif font-extrabold text-2xl tracking-tight text-carbon_black group-hover:text-blazing_flame transition-colors">
+                        Aurelia<span class="text-blazing_flame font-sans">Book</span>
+                    </span>
+                    <span class="text-[10px] uppercase tracking-widest text-carbon_black-500 font-bold -mt-1 hidden sm:block">
+                        Nhà Sách Trực Tuyến & Văn Phòng Phẩm
+                    </span>
+                </div>
+            </a>
+
+            <!-- Global Search Bar (UC02 - Search by Keyword, Author, ISBN) -->
+            <form class="hidden md:flex flex-1 max-w-xl mx-6 relative" action="/products/search" method="get"
+                  autocomplete="off">
+                <div class="relative w-full">
+                    <input type="search" aria-label="Tìm kiếm sản phẩm"
+                           id="globalSearchInput"
+                           name="keyword"
+                           value=""
+                           placeholder="Tìm tựa sách, tác giả, ISBN, văn phòng phẩm..."
+                           class="w-full bg-parchment-100 text-carbon_black placeholder-carbon_black-400 text-sm rounded-full pl-11 pr-24 py-2.5 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame focus:bg-white transition-all shadow-inner"
+                           required
+                           autocomplete="off">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-carbon_black-400">
+                        <i class="bi bi-search text-base"></i>
+                    </div>
+                    <button type="submit"
+                            class="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-xs rounded-full transition-colors flex items-center gap-1.5 shadow-sm">
+                        <span>Tìm</span>
+                    </button>
+                    <!-- Autocomplete Suggestions Dropdown (UC02 - Max 5 items) -->
+                    <div id="autocompleteDropdown"
+                         class="hidden absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border border-dust_grey shadow-xl overflow-hidden z-50">
+                        <div id="autocompleteList" class="divide-y divide-dust_grey/40">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Navigation Actions & Cart -->
+            <div class="flex items-center space-x-3 sm:space-x-4">
+                <!-- Catalog Direct Link -->
+                <a href="/products"
+                   class="hidden lg:inline-flex items-center gap-1.5 text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 px-3.5 py-2 rounded-xl transition-colors">
+                    <i class="bi bi-grid text-blazing_flame"></i>
+                    <span>Danh Mục</span>
+                </a>
+
+                <!-- Cart Icon with Live Item Badge (UC10) -->
+                <a href="/cart"
+                   class="relative inline-flex items-center justify-center p-2.5 rounded-xl text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors"
+                   title="Giỏ hàng của bạn">
+                    <i class="bi bi-bag text-2xl"></i>
+                    <span id="cartBadge"
+                          class="absolute top-1 right-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-blazing_flame rounded-full border-2 border-white shadow-sm">0</span>
+                </a>
+
+                <!-- Guest Actions (Unauthenticated) -->
+                <div class="hidden sm:flex items-center space-x-2">
+                    <a href="/auth/login"
+                       class="inline-flex items-center px-4 py-2 text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 rounded-xl transition-colors">
+                        Đăng Nhập
+                    </a>
+                    <a href="/auth/register"
+                       class="inline-flex items-center px-4 py-2 text-sm font-bold text-white bg-blazing_flame hover:bg-blazing_flame-600 rounded-xl shadow-flame transition-all transform hover:-translate-y-0.5">
+                        Đăng Ký
+                    </a>
+                </div>
+
+                <!-- Authenticated User Menu Dropdown -->
+                
+
+                <!-- Mobile Hamburger Drawer Toggle Button -->
+                <button id="mobileMenuBtn"
+                        type="button"
+                        class="md:hidden inline-flex items-center justify-center p-2 rounded-xl text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 focus:outline-none focus:ring-2 focus:ring-blazing_flame transition-colors"
+                        aria-expanded="false">
+                    <span class="sr-only">Mở menu</span>
+                    <i id="menuIconClosed" class="bi bi-list text-2xl"></i>
+                    <i id="menuIconOpen" class="bi bi-x-lg text-2xl hidden"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Search Bar (Visible on mobile viewports) -->
+        <div class="md:hidden pb-3">
+            <form action="/products/search" method="get" class="relative" autocomplete="off">
+                <input type="search" aria-label="Tìm kiếm sản phẩm"
+                       id="mobileSearchInput"
+                       name="keyword"
+                       value=""
+                       placeholder="Tìm kiếm sách, tác giả..."
+                       class="w-full bg-parchment-100 text-carbon_black placeholder-carbon_black-400 text-sm rounded-lg pl-10 pr-20 py-2.5 border border-dust_grey focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                       required
+                       autocomplete="off">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-carbon_black-400">
+                    <i class="bi bi-search"></i>
+                </div>
+                <button type="submit"
+                        class="absolute right-1 top-1 bottom-1 px-3.5 bg-blazing_flame text-white font-bold text-xs rounded-md">
+                    Tìm
+                </button>
+                <!-- Mobile Autocomplete Suggestions Dropdown -->
+                <div id="mobileAutocompleteDropdown"
+                     class="hidden absolute left-0 right-0 top-full mt-2 bg-white rounded-xl border border-dust_grey shadow-xl overflow-hidden z-50">
+                    <div id="mobileAutocompleteList" class="divide-y divide-dust_grey/40">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+            </form>
+        </div>
+    </nav>
+
+    <!-- Secondary Category Navigation Bar with Fahasa-style Multi-level Mega Menu -->
+    <div class="hidden md:block bg-alabaster_grey-100 border-t border-dust_grey/50 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center space-x-6 py-1.5 text-xs font-bold tracking-wide text-carbon_black-700 whitespace-nowrap">
+
+                <!-- Mega Menu Trigger Button (Fahasa style: [ ⊞ DANH MỤC SẢN PHẨM ▼ ]) -->
+                <div class="relative group/megamenu">
+                    <button type="button" id="megaMenuBtn"
+                            class="flex items-center gap-2 py-2 px-3.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl font-bold transition-all shadow-sm focus:outline-none">
+                        <i class="bi bi-grid-fill text-sm"></i>
+                        <span class="uppercase tracking-wider">Danh Mục Sản Phẩm</span>
+                        <i class="bi bi-chevron-down text-[10px] ml-0.5 group-hover/megamenu:rotate-180 transition-transform duration-200"></i>
+                    </button>
+
+                    <!-- Fahasa-style 2-Column Mega Menu Container (Dropdown on hover or active) -->
+                    <div id="megaMenuDropdown"
+                         class="hidden group-hover/megamenu:flex absolute left-0 top-full mt-1.5 w-[860px] bg-white border border-dust_grey rounded-2xl shadow-hover z-50 overflow-hidden animate-fade-in-down divide-x divide-dust_grey/40 text-left">
+
+                        <!-- Left Column: Parent Categories (Vertical List) -->
+                        <div class="w-64 bg-alabaster_grey-50/80 p-2.5 flex-shrink-0 space-y-1">
+                            <div class="px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-widest text-carbon_black-400">
+                                Nhóm chính
+                            </div>
+
+                            <!-- Parent 1: Sách Trong Nước (Default Active) -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors bg-white text-blazing_flame shadow-sm"
+                                 data-target="mega-tab-books">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-book-half text-blazing_flame"></i>
+                                    <span>Sách Trong Nước</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <!-- Parent 2: Văn Phòng Phẩm -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
+                                 data-target="mega-tab-stationery">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-pencil-fill text-carbon_black-400"></i>
+                                    <span>Văn Phòng Phẩm</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <!-- Parent 3: Sách Ngoại Văn -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
+                                 data-target="mega-tab-foreign">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-globe2 text-carbon_black-400"></i>
+                                    <span>Sách Ngoại Văn</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <!-- Parent 4: Sách Giáo Khoa & Tham Khảo -->
+                            <div class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
+                                 data-target="mega-tab-textbook">
+                                <span class="flex items-center gap-2">
+                                    <i class="bi bi-backpack-fill text-carbon_black-400"></i>
+                                    <span>Sách Giáo Khoa 2026</span>
+                                </span>
+                                <i class="bi bi-chevron-right text-[11px]"></i>
+                            </div>
+
+                            <div class="pt-2 border-t border-dust_grey/40">
+                                <a href="/products"
+                                   class="flex items-center justify-center gap-1.5 py-2 text-xs font-extrabold text-blazing_flame hover:underline">
+                                    <span>Xem tất cả danh mục</span>
+                                    <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Multi-column subcategories panel per Fahasa design -->
+                        <div class="flex-1 p-5 bg-white">
+                            <!-- Tab Content 1: Sách Trong Nước -->
+                            <div id="mega-tab-books" class="mega-tab-content grid grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        VĂN HỌC
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?categoryId=2"
+                                               class="hover:text-blazing_flame transition-colors block">Tiểu Thuyết</a>
+                                        </li>
+                                        <li><a href="/products?categoryId=2"
+                                               class="hover:text-blazing_flame transition-colors block">Truyện Ngắn -
+                                            Tản Văn</a></li>
+                                        <li><a href="/products?categoryId=2"
+                                               class="hover:text-blazing_flame transition-colors block">Light Novel</a>
+                                        </li>
+                                        <li><a href="/products?categoryId=2"
+                                               class="hover:text-blazing_flame transition-colors block">Ngôn Tình</a>
+                                        </li>
+                                        <li><a href="/products?categoryId=2"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        KINH TẾ - KỸ NĂNG
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?categoryId=3"
+                                               class="hover:text-blazing_flame transition-colors block">Kinh Tế - Khởi
+                                            Nghiệp</a></li>
+                                        <li><a href="/products?categoryId=3"
+                                               class="hover:text-blazing_flame transition-colors block">Quản Trị - Lãnh
+                                            Đạo</a></li>
+                                        <li><a href="/products?categoryId=3"
+                                               class="hover:text-blazing_flame transition-colors block">Marketing - Bán
+                                            Hàng</a></li>
+                                        <li><a href="/products?categoryId=3"
+                                               class="hover:text-blazing_flame transition-colors block">Kỹ Năng Sống</a>
+                                        </li>
+                                        <li><a href="/products?categoryId=3"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        KHOA HỌC & GIÁO DỤC
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?categoryId=4"
+                                               class="hover:text-blazing_flame transition-colors block">Khoa Học - Công
+                                            Nghệ</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Giáo
+                                            Khoa</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Thiếu
+                                            Nhi</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Nuôi Dạy Con</a>
+                                        </li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content 2: Văn Phòng Phẩm -->
+                            <div id="mega-tab-stationery" class="mega-tab-content hidden grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        BÚT VIẾT CAO CẤP
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?categoryId=6"
+                                               class="hover:text-blazing_flame transition-colors block">Bút Ký Cao
+                                            Cấp</a></li>
+                                        <li><a href="/products?categoryId=6"
+                                               class="hover:text-blazing_flame transition-colors block">Bút Máy &
+                                            Mực</a></li>
+                                        <li><a href="/products?categoryId=6"
+                                               class="hover:text-blazing_flame transition-colors block">Bút Bi & Bút
+                                            Gel</a></li>
+                                        <li><a href="/products?categoryId=6"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        SỔ TAY & GIẤY
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?categoryId=7"
+                                               class="hover:text-blazing_flame transition-colors block">Sổ Tay &
+                                            Planner</a></li>
+                                        <li><a href="/products?categoryId=7"
+                                               class="hover:text-blazing_flame transition-colors block">Vở Học Sinh</a>
+                                        </li>
+                                        <li><a href="/products?categoryId=7"
+                                               class="hover:text-blazing_flame transition-colors block">Giấy Ghi Chú -
+                                            Note</a></li>
+                                        <li><a href="/products?categoryId=7"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        DỤNG CỤ HỌC TẬP
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?productType=STATIONERY"
+                                               class="hover:text-blazing_flame transition-colors block">Bìa Hồ Sơ & Cặp
+                                            File</a></li>
+                                        <li><a href="/products?productType=STATIONERY"
+                                               class="hover:text-blazing_flame transition-colors block">Băng Keo & Hồ
+                                            Dán</a></li>
+                                        <li><a href="/products?productType=STATIONERY"
+                                               class="hover:text-blazing_flame transition-colors block">Thước, Gôm & Bấm
+                                            Kim</a></li>
+                                        <li><a href="/products?productType=STATIONERY"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content 3: Sách Ngoại Văn -->
+                            <div id="mega-tab-foreign" class="mega-tab-content hidden grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        ENGLISH FICTION
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Contemporary
+                                            Fiction</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Classics
+                                            Literature</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Thrillers &
+                                            Mystery</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        NON-FICTION & ELT
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">IELTS / TOEFL
+                                            Prep</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Business &
+                                            Leadership</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Science &
+                                            Technology</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        MANGA & COMICS
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">English
+                                            Manga</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Marvel / DC
+                                            Comics</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="hover:text-blazing_flame transition-colors block">Light Novels in
+                                            English</a></li>
+                                        <li><a href="/products?productType=BOOK"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content 4: Sách Giáo Khoa 2026 -->
+                            <div id="mega-tab-textbook" class="mega-tab-content hidden grid-cols-3 gap-6">
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        TIỂU HỌC (LỚP 1 - 5)
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Bộ Cánh Diều</a>
+                                        </li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Kết Nối Tri
+                                            Thức</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Chân Trời Sáng
+                                            Tạo</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        THCS (LỚP 6 - 9)
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa
+                                            THCS</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Bài Tập &
+                                            Thực Hành</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Luyện Thi Vào
+                                            Lớp 10</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-carbon_black pb-2 mb-2 border-b border-dust_grey/50">
+                                        THPT (LỚP 10 - 12)
+                                    </h4>
+                                    <ul class="space-y-2 text-xs text-carbon_black-600">
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa
+                                            THPT</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Luyện Thi Tốt
+                                            Nghiệp THPT</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="hover:text-blazing_flame transition-colors block">Đề Thi Thử & Lời
+                                            Giải</a></li>
+                                        <li><a href="/products?isTextbook=true"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Horizontal Shortcuts (Fahasa style) -->
+                <ul class="flex items-center space-x-6 overflow-x-auto py-1">
+                    <li>
+                        <a href="/products"
+                           class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-compass-fill text-blazing_flame"></i>Tất Cả Sản Phẩm
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?productType=BOOK"
+                           class="hover:text-blazing_flame transition-colors">
+                            Sách Tiếng Việt
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?productType=STATIONERY"
+                           class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-pencil-fill text-blazing_flame"></i>Văn Phòng Phẩm
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?isTextbook=true" class="hover:text-blazing_flame transition-colors">
+                            Sách Giáo Khoa
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?sort=price_asc"
+                           class="hover:text-blazing_flame transition-colors text-carbon_black-600">
+                            Giá Tốt Hôm Nay
+                        </a>
+                    </li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Collapsible Menu Drawer -->
+    <div id="mobileMenu"
+         class="hidden md:hidden bg-white border-t border-dust_grey px-4 pt-3 pb-6 space-y-2.5 shadow-lg">
+        <a href="/"
+           class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-house-door me-2 text-blazing_flame"></i>Trang Chủ
+        </a>
+        <a href="/products"
+           class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-grid me-2 text-blazing_flame"></i>Tất Cả Danh Mục
+        </a>
+        <a href="/products?productType=BOOK"
+           class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-book me-2 text-blazing_flame"></i>Sách Tiếng Việt
+        </a>
+        <a href="/products?productType=STATIONERY"
+           class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <i class="bi bi-pencil me-2 text-blazing_flame"></i>Văn Phòng Phẩm
+        </a>
+        <a href="/cart"
+           class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+            <span><i class="bi bi-bag me-2 text-blazing_flame"></i>Giỏ Hàng</span>
+            <span class="bg-blazing_flame text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+        </a>
+
+        <!-- Guest Mobile Actions -->
+        <div class="pt-3 border-t border-dust_grey/50 flex flex-col gap-2">
+            <a href="/auth/login"
+               class="w-full text-center px-4 py-2.5 rounded-xl border border-dust_grey text-carbon_black font-bold text-sm hover:bg-parchment-200 transition-colors">
+                Đăng Nhập
+            </a>
+            <a href="/auth/register"
+               class="w-full text-center px-4 py-2.5 rounded-xl bg-blazing_flame text-white font-bold text-sm hover:bg-blazing_flame-600 shadow-flame transition-colors">
+                Đăng Ký Thành Viên
+            </a>
+        </div>
+    </div>
+    <!-- Interactive Vanilla JS for Navigation & Dropdowns -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // User profile dropdown toggle
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            const userDropdown = document.getElementById('userDropdown');
+
+            if (userMenuBtn && userDropdown) {
+                userMenuBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('hidden');
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
+                        userDropdown.classList.add('hidden');
+                    }
+                });
+
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        userDropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Mobile drawer toggle
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileMenu = document.getElementById('mobileMenu');
+            const menuIconClosed = document.getElementById('menuIconClosed');
+            const menuIconOpen = document.getElementById('menuIconOpen');
+
+            if (mobileMenuBtn && mobileMenu) {
+                mobileMenuBtn.addEventListener('click', function () {
+                    const isExpanded = mobileMenu.classList.toggle('hidden');
+                    menuIconClosed.classList.toggle('hidden');
+                    menuIconOpen.classList.toggle('hidden');
+                    mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
+                });
+            }
+
+            // Setup Search Autocomplete (UC02 - Max 5 suggestions when query >= 2 characters)
+            function setupAutocomplete(inputId, dropdownId, listId) {
+                const input = document.getElementById(inputId);
+                const dropdown = document.getElementById(dropdownId);
+                const list = document.getElementById(listId);
+                if (!input || !dropdown || !list) return;
+
+                let timer = null;
+                let activeAbortController = null;
+
+                function clearAndHide() {
+                    dropdown.classList.add('hidden');
+                    while (list.firstChild) {
+                        list.removeChild(list.firstChild);
+                    }
+                }
+
+                function abortInFlight() {
+                    if (activeAbortController) {
+                        activeAbortController.abort();
+                        activeAbortController = null;
+                    }
+                }
+
+                input.addEventListener('input', function () {
+                    clearTimeout(timer);
+                    abortInFlight();
+
+                    const query = this.value.trim();
+
+                    if (query.length < 2) {
+                        clearAndHide();
+                        return;
+                    }
+
+                    timer = setTimeout(async () => {
+                        activeAbortController = new AbortController();
+                        const currentController = activeAbortController;
+
+                        try {
+                            const response = await fetch('/products/autocomplete?keyword=' + encodeURIComponent(query), {
+                                signal: currentController.signal
+                            });
+
+                            if (!response.ok) {
+                                clearAndHide();
+                                return;
+                            }
+
+                            const items = await response.json();
+
+                            // Discard stale responses if input value changed while request was in-flight
+                            if (input.value.trim() !== query) {
+                                return;
+                            }
+
+                            if (!items || items.length === 0) {
+                                clearAndHide();
+                                return;
+                            }
+
+                            // Render using safe DOM APIs (P1: DOM XSS mitigation)
+                            while (list.firstChild) {
+                                list.removeChild(list.firstChild);
+                            }
+
+                            items.forEach(item => {
+                                const a = document.createElement('a');
+                                a.href = '/products/' + encodeURIComponent(item.id);
+                                a.className = 'flex items-center gap-3 p-3 hover:bg-parchment-100 transition-colors';
+
+                                const imgWrapper = document.createElement('div');
+                                imgWrapper.className = 'w-10 h-12 bg-parchment-200 rounded-lg overflow-hidden flex-shrink-0 border border-dust_grey/60 flex items-center justify-center';
+
+                                if (item.imageUrl) {
+                                    const img = document.createElement('img');
+                                    img.src = item.imageUrl;
+                                    img.alt = item.title || '';
+                                    img.className = 'w-full h-full object-cover';
+                                    img.onerror = function () {
+                                        while (imgWrapper.firstChild) {
+                                            imgWrapper.removeChild(imgWrapper.firstChild);
+                                        }
+                                        const fallbackIcon = document.createElement('i');
+                                        fallbackIcon.className = 'bi bi-book text-carbon_black-400';
+                                        imgWrapper.appendChild(fallbackIcon);
+                                    };
+                                    imgWrapper.appendChild(img);
+                                } else {
+                                    const fallbackIcon = document.createElement('i');
+                                    fallbackIcon.className = 'bi bi-book text-carbon_black-400';
+                                    imgWrapper.appendChild(fallbackIcon);
+                                }
+
+                                const infoDiv = document.createElement('div');
+                                infoDiv.className = 'flex-1 min-w-0';
+
+                                const titleP = document.createElement('p');
+                                titleP.className = 'text-xs font-bold text-carbon_black truncate';
+                                titleP.textContent = item.title || '';
+
+                                const priceP = document.createElement('p');
+                                priceP.className = 'text-xs font-extrabold text-blazing_flame mt-0.5';
+                                const formattedPrice = item.price != null ? new Intl.NumberFormat('vi-VN').format(item.price) : '0';
+                                priceP.textContent = formattedPrice + ' đ';
+
+                                infoDiv.appendChild(titleP);
+                                infoDiv.appendChild(priceP);
+
+                                const arrowIcon = document.createElement('i');
+                                arrowIcon.className = 'bi bi-chevron-right text-xs text-dust_grey-600';
+
+                                a.appendChild(imgWrapper);
+                                a.appendChild(infoDiv);
+                                a.appendChild(arrowIcon);
+
+                                list.appendChild(a);
+                            });
+
+                            dropdown.classList.remove('hidden');
+                        } catch (err) {
+                            if (err.name === 'AbortError') {
+                                return;
+                            }
+                            clearAndHide();
+                        } finally {
+                            if (activeAbortController === currentController) {
+                                activeAbortController = null;
+                            }
+                        }
+                    }, 200);
+                });
+
+                // Hide when click outside
+                document.addEventListener('click', function (e) {
+                    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+
+                // Hide on escape
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        dropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            setupAutocomplete('globalSearchInput', 'autocompleteDropdown', 'autocompleteList');
+            setupAutocomplete('mobileSearchInput', 'mobileAutocompleteDropdown', 'mobileAutocompleteList');
+
+            // Fahasa-style Mega Menu tab switching logic
+            const megaTabBtns = document.querySelectorAll('.mega-tab-btn');
+            megaTabBtns.forEach(btn => {
+                btn.addEventListener('mouseenter', function () {
+                    megaTabBtns.forEach(b => {
+                        b.classList.remove('bg-white', 'text-blazing_flame', 'shadow-sm');
+                        b.classList.add('text-carbon_black');
+                        const icon = b.querySelector('i');
+                        if (icon) {
+                            icon.classList.remove('text-blazing_flame');
+                            icon.classList.add('text-carbon_black-400');
+                        }
+                    });
+
+                    btn.classList.add('bg-white', 'text-blazing_flame', 'shadow-sm');
+                    btn.classList.remove('text-carbon_black');
+                    const activeIcon = btn.querySelector('i');
+                    if (activeIcon) {
+                        activeIcon.classList.remove('text-carbon_black-400');
+                        activeIcon.classList.add('text-blazing_flame');
+                    }
+
+                    const targetId = btn.getAttribute('data-target');
+                    document.querySelectorAll('.mega-tab-content').forEach(content => {
+                        content.classList.add('hidden');
+                        content.classList.remove('grid');
+                    });
+                    const activePanel = document.getElementById(targetId);
+                    if (activePanel) {
+                        activePanel.classList.remove('hidden');
+                        activePanel.classList.add('grid');
+                    }
+                });
+            });
+
+            // Click toggle for Mega Menu button
+            const megaMenuBtn = document.getElementById('megaMenuBtn');
+            const megaMenuDropdown = document.getElementById('megaMenuDropdown');
+            if (megaMenuBtn && megaMenuDropdown) {
+                megaMenuBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    megaMenuDropdown.classList.toggle('hidden');
+                    megaMenuDropdown.classList.toggle('flex');
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (!megaMenuDropdown.contains(e.target) && !megaMenuBtn.contains(e.target)) {
+                        megaMenuDropdown.classList.add('hidden');
+                        megaMenuDropdown.classList.remove('flex');
+                    }
+                });
+            }
+        });
+    </script>
+</header>
+
+<!-- Global Floating Toast Alerts Container -->
+<div id="toastContainer" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none px-4 sm:px-0" style="z-index: 9999;">
+    <!-- Success Toast Alert -->
+    
+
+    <!-- Error Toast Alert with Terracotta Accent -->
+    
+
+    <!-- Warning Toast Alert -->
+    
+
+    <!-- Info Toast Alert -->
+    
+
+    <!-- Toast Auto-Dismiss Client Script -->
+    <script>
+        function closeToast(element) {
+            if (!element) return;
+            element.classList.remove('animate-fade-in-down');
+            element.classList.add('animate-fade-out-right');
+            setTimeout(() => {
+                element.remove();
+            }, 300);
+        }
+
+        // Auto-dismiss each toast after 5 seconds
+        document.addEventListener('DOMContentLoaded', function () {
+            const toasts = document.querySelectorAll('.toast-alert');
+            toasts.forEach(toast => {
+                setTimeout(() => {
+                    closeToast(toast);
+                }, 5000);
+            });
+        });
+    </script>
+</div>
+
+<!-- Dynamic Main Content Slot -->
+<main class="flex-1 w-full">
+    <section id="main-content" class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+    <div class="bg-white rounded-2xl border border-dust_grey shadow-soft p-6 sm:p-10">
+        <div class="text-center mb-7">
+            <span class="text-blazing_flame text-3xl" aria-hidden="true"><i class="bi bi-book"></i></span>
+            <h1 class="font-serif text-3xl text-carbon_black font-bold mt-3">Tạo tài khoản</h1>
+            <p class="text-carbon_black-500 mt-2">Chào mừng bạn đến với AureliaBook</p>
+        </div>
+        
+        <button type="button" disabled
+                class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
+        <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng số điện thoại<hr class="flex-1 border-dust_grey"></div>
+        <form action="/auth/register" method="post" class="space-y-5"><input type="hidden" name="_csrf" value="Py9BB4ZsuIlikhyINqrvis58ujJjuvsWSBKXbURNlUqJ5F2aDEl0Pr4KibFP9C68V4fbuapPlwpRj807LCH0WSAv8X_q026v"/>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="fullName" class="block font-semibold text-sm mb-2">Họ và tên <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <input id="fullName" type="text" autocomplete="name" required minlength="2" maxlength="100"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="fullName" value="">
+                </div>
+                <div>
+                    <label for="phone" class="block font-semibold text-sm mb-2">Số điện thoại <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <input id="phone" type="tel" autocomplete="tel" required inputmode="numeric" pattern="0[0-9]{9}" maxlength="10"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="phone" value="">
+                </div>
+                <div>
+                    <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
+                    <input id="dob" type="date" autocomplete="bday" max="2026-10-16"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false" name="dob" value="">
+                </div>
+                <div>
+                    <label for="password" class="block font-semibold text-sm mb-2">Mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <div class="relative" data-password-field>
+<input name="password" id="password" type="password" autocomplete="new-password" required minlength="8" aria-describedby="password-help"
+                           class="w-full min-w-0 border border-dust_grey rounded-xl pl-3 pr-14 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+<button type="button" data-password-toggle data-password-label="mật khẩu"
+ aria-controls="password" aria-label="Hiện mật khẩu" aria-pressed="false" title="Hiện mật khẩu"
+ class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+ <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+</button></div>
+                </div>
+                <div>
+                    <label for="confirmPassword" class="block font-semibold text-sm mb-2">Xác nhận mật khẩu <span class="text-blazing_flame" aria-hidden="true">*</span></label>
+                    <div class="relative" data-password-field>
+<input name="confirmPassword" id="confirmPassword" type="password" autocomplete="new-password" required
+                           class="w-full min-w-0 border border-dust_grey rounded-xl pl-3 pr-14 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame" aria-invalid="false">
+<button type="button" data-password-toggle data-password-label="mật khẩu xác nhận"
+ aria-controls="confirmPassword" aria-label="Hiện mật khẩu xác nhận" aria-pressed="false" title="Hiện mật khẩu xác nhận"
+ class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+ <i class="bi bi-eye text-lg" aria-hidden="true"></i>
+</button></div>
+                </div>
+            </div>
+            <p id="password-help" class="text-sm text-carbon_black-500">Mật khẩu từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Ngày sinh không dùng để xét tuổi.</p>
+            <fieldset>
+                <legend class="font-semibold text-sm mb-2">Giới tính (không bắt buộc)</legend>
+                <div class="flex flex-wrap gap-5 text-sm">
+                    <label><input type="radio" value="MALE" class="accent-blazing_flame" id="gender1" name="gender"> Nam</label>
+                    <label><input type="radio" value="FEMALE" class="accent-blazing_flame" id="gender2" name="gender"> Nữ</label>
+                    <label><input type="radio" value="OTHER" class="accent-blazing_flame" id="gender3" name="gender" checked="checked"> Khác / Không cung cấp</label>
+                </div>
+            </fieldset>
+            <label class="flex items-start gap-3 text-sm leading-relaxed">
+                <input type="checkbox" required class="mt-1 accent-blazing_flame" id="agreeTerms1" name="agreeTerms" value="true"><input type="hidden" name="_agreeTerms" value="on"/>
+                <span>Tôi đồng ý với điều khoản sử dụng của AureliaBook.</span>
+            </label>
+            <button type="submit" class="w-full bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold py-3 rounded-xl transition-colors">Đăng ký</button>
+        </form>
+        <p class="text-center text-sm mt-6 text-carbon_black-500">Đã có tài khoản? <a href="/auth/login" class="text-blazing_flame font-bold hover:underline">Đăng nhập</a></p>
+    </div>
+</section>
+</main>
+
+<!-- Global Footer -->
+<footer class="bg-[#1a1715] text-[#d6d0c7] pt-16 pb-8 border-t border-[#2e2925] mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+            
+            <!-- Column 1: Brand & Identity -->
+            <div class="space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 flex items-center justify-center text-white shadow-flame">
+                        <i class="bi bi-book-half text-xl"></i>
+                    </div>
+                    <span class="font-serif font-extrabold text-2xl tracking-tight text-white">
+                        Aurelia<span class="text-blazing_flame font-sans">Book</span>
+                    </span>
+                </div>
+                <p class="text-[#aba398] text-sm leading-relaxed">
+                    Hệ thống bán lẻ Sách và Văn phòng phẩm cao cấp trực tuyến. 
+                    Nền tảng thương mại điện tử hiện đại, tích hợp tra cứu thông minh và thanh toán VNPay bảo mật.
+                </p>
+                <div class="flex items-center space-x-3 pt-2">
+                    <a href="https://facebook.com" target="_blank" rel="noopener noreferrer"
+                       class="w-9 h-9 rounded-lg bg-[#26221f] border border-[#38322c] flex items-center justify-center text-[#d6d0c7] hover:text-[#ff8a5c] hover:border-blazing_flame transition-colors"
+                       aria-label="Facebook">
+                        <i class="bi bi-facebook"></i>
+                    </a>
+                    <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"
+                       class="w-9 h-9 rounded-lg bg-[#26221f] border border-[#38322c] flex items-center justify-center text-[#d6d0c7] hover:text-[#ff8a5c] hover:border-blazing_flame transition-colors"
+                       aria-label="Instagram">
+                        <i class="bi bi-instagram"></i>
+                    </a>
+                    <a href="https://github.com" target="_blank" rel="noopener noreferrer"
+                       class="w-9 h-9 rounded-lg bg-[#26221f] border border-[#38322c] flex items-center justify-center text-[#d6d0c7] hover:text-[#ff8a5c] hover:border-blazing_flame transition-colors"
+                       aria-label="GitHub">
+                        <i class="bi bi-github"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Column 2: Selected Categories -->
+            <div>
+                <h3 class="text-white text-sm font-bold uppercase tracking-wider mb-4 border-l-2 border-blazing_flame pl-2.5">
+                    Danh Mục Chọn Lọc
+                </h3>
+                <ul class="space-y-2.5 text-sm text-[#aba398]">
+                    <li>
+                        <a href="/products?productType=BOOK" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Sách Tiếng Việt
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?categoryId=2" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Văn Học & Tiểu Thuyết
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?categoryId=3" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Kinh Tế - Kinh Doanh
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?categoryId=4" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Khoa Học - Công Nghệ
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/products?productType=STATIONERY" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Văn Phòng Phẩm Cao Cấp
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Column 3: Customer Care & Policies -->
+            <div>
+                <h3 class="text-white text-sm font-bold uppercase tracking-wider mb-4 border-l-2 border-blazing_flame pl-2.5">
+                    Hỗ Trợ Khách Hàng
+                </h3>
+                <ul class="space-y-2.5 text-sm text-[#aba398]">
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-shield-check text-xs text-blazing_flame"></i>Chính sách đổi trả 7 ngày
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-truck text-xs text-blazing_flame"></i>Phương thức vận chuyển toàn quốc
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-credit-card text-xs text-blazing_flame"></i>Hướng dẫn thanh toán VNPay
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-patch-question text-xs text-blazing_flame"></i>Câu hỏi thường gặp (FAQ)
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Column 4: Contact & Showroom -->
+            <div>
+                <h3 class="text-white text-sm font-bold uppercase tracking-wider mb-4 border-l-2 border-blazing_flame pl-2.5">
+                    Liên Hệ & Showroom
+                </h3>
+                <div class="space-y-3 text-sm text-[#aba398]">
+                    <p class="flex items-start gap-2.5">
+                        <i class="bi bi-geo-alt-fill text-blazing_flame mt-1"></i>
+                        <span>Khu Công nghệ cao Hòa Lạc, Km29 Đại lộ Thăng Long, Hà Nội</span>
+                    </p>
+                    <p class="flex items-center gap-2.5">
+                        <i class="bi bi-telephone-fill text-blazing_flame"></i>
+                        <span class="text-white font-medium">(024) 7300 1866</span>
+                    </p>
+                    <p class="flex items-center gap-2.5">
+                        <i class="bi bi-envelope-fill text-blazing_flame"></i>
+                        <span>support@aureliabook.vn</span>
+                    </p>
+                    <p class="flex items-center gap-2.5 text-xs text-[#8c8479]">
+                        <i class="bi bi-clock-fill text-blazing_flame"></i>
+                        <span>Mở cửa: 08:00 - 22:00 (Tất cả các ngày)</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Divider & Bottom Bar -->
+        <div class="border-t border-[#2e2925] pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#8c8479]">
+            <div class="text-center md:text-left space-y-1">
+                <p>&copy; 2026 AureliaBook Inc. Dự án SWP391 - Fall 2026 | Đại học FPT.</p>
+                <p class="text-[#aba398] font-medium">Được xây dựng bởi Nhóm 5 DDAGTech (Dũng, Duy, Đức Anh, Trọng, Giác).</p>
+            </div>
+            <!-- Trust & Payment Security Badges -->
+            <div class="flex items-center gap-3">
+                <span class="px-2.5 py-1 rounded bg-[#26221f] border border-[#38322c] text-[11px] font-semibold text-[#d6d0c7]">
+                    <i class="bi bi-shield-lock-fill text-emerald-400 me-1"></i>SSL 256-Bit
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#26221f] border border-[#38322c] text-[11px] font-semibold text-[#d6d0c7]">
+                    <i class="bi bi-qr-code text-[#ff7c4d] me-1"></i>VNPay QR
+                </span>
+                <span class="px-2.5 py-1 rounded bg-[#26221f] border border-[#38322c] text-[11px] font-semibold text-[#d6d0c7]">
+                    <i class="bi bi-cash-coin text-amber-400 me-1"></i>COD
+                </span>
+            </div>
+        </div>
+    </div>
+</footer>
+<script src="/js/password-visibility.js" defer></script>
+<script src="/js/cart.js" defer></script>
+</body>
+</html>

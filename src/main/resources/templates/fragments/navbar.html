@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
-<header th:fragment="navbar" class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300">
+<header th:fragment="navbar"
+        class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300">
     <!-- Top Utility Announcement Bar (Grounding Warm Espresso Anchor) -->
     <div class="hidden sm:block bg-[#1f1c19] text-[#ded7cc] text-xs py-2 px-4 border-b border-[#2d2824]">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
@@ -27,7 +28,7 @@
     <!-- Main Navigation Bar -->
     <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-18 lg:h-20 gap-4">
-            
+
             <!-- Brand Logo with Warm Terracotta Identity -->
             <a th:href="@{/}" class="flex items-center gap-3 group flex-shrink-0">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blazing_flame to-blazing_flame-400 flex items-center justify-center text-white shadow-flame group-hover:scale-105 transition-transform duration-200">
@@ -44,7 +45,8 @@
             </a>
 
             <!-- Global Search Bar (UC02 - Search by Keyword, Author, ISBN) -->
-            <form class="hidden md:flex flex-1 max-w-xl mx-6 relative" th:action="@{/products/search}" method="get" autocomplete="off">
+            <form class="hidden md:flex flex-1 max-w-xl mx-6 relative" th:action="@{/products/search}" method="get"
+                  autocomplete="off">
                 <div class="relative w-full">
                     <input type="search" aria-label="Tìm kiếm sản phẩm"
                            id="globalSearchInput"
@@ -110,13 +112,17 @@
                             type="button"
                             aria-label="Mở menu tài khoản"
                             class="flex items-center gap-2 p-1.5 rounded-xl hover:bg-parchment-200 focus:outline-none focus:ring-2 focus:ring-blazing_flame transition-colors">
-                        <span th:with="photo=${navAccount != null ? navAccount.avatarUrl : null}" class="w-9 h-9 shrink-0 rounded-full overflow-hidden ring-2 ring-white shadow-sm">
+                        <span th:with="photo=${navAccount != null ? navAccount.avatarUrl : null}"
+                              class="w-9 h-9 shrink-0 rounded-full overflow-hidden ring-2 ring-white shadow-sm">
                             <img th:if="${photo != null and !#strings.isEmpty(photo)}" th:src="${photo}"
                                  alt="Ảnh đại diện" width="36" height="36" referrerpolicy="no-referrer"
-                                 class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                 class="w-full h-full object-cover"
+                                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                             <span th:style="${photo != null and !#strings.isEmpty(photo) ? 'display:none' : null}"
                                   class="w-full h-full bg-blazing_flame text-white flex items-center justify-center">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-5 h-5" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                                     class="w-5 h-5" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path
+                                        d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
                             </span>
                         </span>
                         <span class="hidden lg:inline-block text-sm font-bold text-carbon_black truncate max-w-[120px]"
@@ -131,42 +137,51 @@
                          class="hidden absolute right-0 mt-2 w-56 bg-white border border-dust_grey rounded-2xl shadow-hover py-2 z-50 animate-fade-in-down divide-y divide-dust_grey/40">
                         <!-- Profile Links -->
                         <div class="py-1">
-                            <a th:href="@{/profile}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
+                            <a th:href="@{/profile}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
                                 <i class="bi bi-person text-blazing_flame"></i> Hồ sơ cá nhân
                             </a>
-                            <a th:href="@{/profile/addresses}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
+                            <a th:href="@{/profile/addresses}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
                                 <i class="bi bi-geo-alt text-blazing_flame"></i> Sổ địa chỉ
                             </a>
-                            <a th:href="@{/orders/my-orders}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
+                            <a th:href="@{/orders/my-orders}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
                                 <i class="bi bi-bag-check text-blazing_flame"></i> Đơn mua của tôi
                             </a>
                         </div>
 
                         <!-- Role-based Administrative Navigation Links -->
                         <div sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" class="py-1">
-                            <div class="px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-carbon_black-400">Khu vực nghiệp vụ</div>
-                            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-rose-700 hover:bg-rose-50 transition-colors font-semibold">
+                            <div class="px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-carbon_black-400">
+                                Khu vực nghiệp vụ
+                            </div>
+                            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-rose-700 hover:bg-rose-50 transition-colors font-semibold">
                                 <i class="bi bi-shield-lock"></i> Quản trị hệ thống
                             </a>
-                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/products}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/products}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
                                 <i class="bi bi-box-seam"></i> Quản lý kho & SP
                             </a>
-                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/publishers}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/publishers}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
                                 <i class="bi bi-building"></i> Quản lý Nhà xuất bản
                             </a>
-                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/brands}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/brands}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
                                 <i class="bi bi-tag"></i> Quản lý Thương hiệu VPP
                             </a>
-                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/categories}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/categories}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold">
                                 <i class="bi bi-diagram-3"></i> Quản trị Cây danh mục
                             </a>
-                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/stock/ledger}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors font-semibold">
-                                <i class="bi bi-journal-text"></i> Sổ cái thẻ kho
-                            </a>
-                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/suppliers}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors font-semibold">
+                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/suppliers}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors font-semibold">
                                 <i class="bi bi-truck"></i> Quản lý Nhà cung cấp
                             </a>
-                            <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/orders}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold">
+                            <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/orders}"
+                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold">
                                 <i class="bi bi-card-checklist"></i> Xử lý đơn hàng
                             </a>
                         </div>
@@ -174,7 +189,8 @@
                         <!-- Logout Form with CSRF Protection -->
                         <div class="py-1">
                             <form th:action="@{/auth/logout}" method="post" class="w-full">
-                                <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-100 transition-colors text-left font-medium">
+                                <button type="submit"
+                                        class="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-100 transition-colors text-left font-medium">
                                     <i class="bi bi-box-arrow-right"></i> Đăng xuất
                                 </button>
                             </form>
@@ -227,7 +243,7 @@
     <div class="hidden md:block bg-alabaster_grey-100 border-t border-dust_grey/50 relative">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center space-x-6 py-1.5 text-xs font-bold tracking-wide text-carbon_black-700 whitespace-nowrap">
-                
+
                 <!-- Mega Menu Trigger Button (Fahasa style: [ ⊞ DANH MỤC SẢN PHẨM ▼ ]) -->
                 <div class="relative group/megamenu">
                     <button type="button" id="megaMenuBtn"
@@ -240,7 +256,7 @@
                     <!-- Fahasa-style 2-Column Mega Menu Container (Dropdown on hover or active) -->
                     <div id="megaMenuDropdown"
                          class="hidden group-hover/megamenu:flex absolute left-0 top-full mt-1.5 w-[860px] bg-white border border-dust_grey rounded-2xl shadow-hover z-50 overflow-hidden animate-fade-in-down divide-x divide-dust_grey/40 text-left">
-                        
+
                         <!-- Left Column: Parent Categories (Vertical List) -->
                         <div class="w-64 bg-alabaster_grey-50/80 p-2.5 flex-shrink-0 space-y-1">
                             <div class="px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-widest text-carbon_black-400">
@@ -305,11 +321,21 @@
                                         VĂN HỌC
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Tiểu Thuyết</a></li>
-                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Truyện Ngắn - Tản Văn</a></li>
-                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Light Novel</a></li>
-                                        <li><a th:href="@{/products(categoryId=2)}" class="hover:text-blazing_flame transition-colors block">Ngôn Tình</a></li>
-                                        <li><a th:href="@{/products(categoryId=2)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(categoryId=2)}"
+                                               class="hover:text-blazing_flame transition-colors block">Tiểu Thuyết</a>
+                                        </li>
+                                        <li><a th:href="@{/products(categoryId=2)}"
+                                               class="hover:text-blazing_flame transition-colors block">Truyện Ngắn -
+                                            Tản Văn</a></li>
+                                        <li><a th:href="@{/products(categoryId=2)}"
+                                               class="hover:text-blazing_flame transition-colors block">Light Novel</a>
+                                        </li>
+                                        <li><a th:href="@{/products(categoryId=2)}"
+                                               class="hover:text-blazing_flame transition-colors block">Ngôn Tình</a>
+                                        </li>
+                                        <li><a th:href="@{/products(categoryId=2)}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -317,11 +343,21 @@
                                         KINH TẾ - KỸ NĂNG
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Kinh Tế - Khởi Nghiệp</a></li>
-                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Quản Trị - Lãnh Đạo</a></li>
-                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Marketing - Bán Hàng</a></li>
-                                        <li><a th:href="@{/products(categoryId=3)}" class="hover:text-blazing_flame transition-colors block">Kỹ Năng Sống</a></li>
-                                        <li><a th:href="@{/products(categoryId=3)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}"
+                                               class="hover:text-blazing_flame transition-colors block">Kinh Tế - Khởi
+                                            Nghiệp</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}"
+                                               class="hover:text-blazing_flame transition-colors block">Quản Trị - Lãnh
+                                            Đạo</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}"
+                                               class="hover:text-blazing_flame transition-colors block">Marketing - Bán
+                                            Hàng</a></li>
+                                        <li><a th:href="@{/products(categoryId=3)}"
+                                               class="hover:text-blazing_flame transition-colors block">Kỹ Năng Sống</a>
+                                        </li>
+                                        <li><a th:href="@{/products(categoryId=3)}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -329,11 +365,21 @@
                                         KHOA HỌC & GIÁO DỤC
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(categoryId=4)}" class="hover:text-blazing_flame transition-colors block">Khoa Học - Công Nghệ</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Sách Thiếu Nhi</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Nuôi Dạy Con</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(categoryId=4)}"
+                                               class="hover:text-blazing_flame transition-colors block">Khoa Học - Công
+                                            Nghệ</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Giáo
+                                            Khoa</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Thiếu
+                                            Nhi</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Nuôi Dạy Con</a>
+                                        </li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -345,10 +391,18 @@
                                         BÚT VIẾT CAO CẤP
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors block">Bút Ký Cao Cấp</a></li>
-                                        <li><a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors block">Bút Máy & Mực</a></li>
-                                        <li><a th:href="@{/products(categoryId=6)}" class="hover:text-blazing_flame transition-colors block">Bút Bi & Bút Gel</a></li>
-                                        <li><a th:href="@{/products(categoryId=6)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(categoryId=6)}"
+                                               class="hover:text-blazing_flame transition-colors block">Bút Ký Cao
+                                            Cấp</a></li>
+                                        <li><a th:href="@{/products(categoryId=6)}"
+                                               class="hover:text-blazing_flame transition-colors block">Bút Máy &
+                                            Mực</a></li>
+                                        <li><a th:href="@{/products(categoryId=6)}"
+                                               class="hover:text-blazing_flame transition-colors block">Bút Bi & Bút
+                                            Gel</a></li>
+                                        <li><a th:href="@{/products(categoryId=6)}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -356,10 +410,18 @@
                                         SỔ TAY & GIẤY
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors block">Sổ Tay & Planner</a></li>
-                                        <li><a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors block">Vở Học Sinh</a></li>
-                                        <li><a th:href="@{/products(categoryId=7)}" class="hover:text-blazing_flame transition-colors block">Giấy Ghi Chú - Note</a></li>
-                                        <li><a th:href="@{/products(categoryId=7)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(categoryId=7)}"
+                                               class="hover:text-blazing_flame transition-colors block">Sổ Tay &
+                                            Planner</a></li>
+                                        <li><a th:href="@{/products(categoryId=7)}"
+                                               class="hover:text-blazing_flame transition-colors block">Vở Học Sinh</a>
+                                        </li>
+                                        <li><a th:href="@{/products(categoryId=7)}"
+                                               class="hover:text-blazing_flame transition-colors block">Giấy Ghi Chú -
+                                            Note</a></li>
+                                        <li><a th:href="@{/products(categoryId=7)}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -367,10 +429,18 @@
                                         DỤNG CỤ HỌC TẬP
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors block">Bìa Hồ Sơ & Cặp File</a></li>
-                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors block">Băng Keo & Hồ Dán</a></li>
-                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors block">Thước, Gôm & Bấm Kim</a></li>
-                                        <li><a th:href="@{/products(productType='STATIONERY')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(productType='STATIONERY')}"
+                                               class="hover:text-blazing_flame transition-colors block">Bìa Hồ Sơ & Cặp
+                                            File</a></li>
+                                        <li><a th:href="@{/products(productType='STATIONERY')}"
+                                               class="hover:text-blazing_flame transition-colors block">Băng Keo & Hồ
+                                            Dán</a></li>
+                                        <li><a th:href="@{/products(productType='STATIONERY')}"
+                                               class="hover:text-blazing_flame transition-colors block">Thước, Gôm & Bấm
+                                            Kim</a></li>
+                                        <li><a th:href="@{/products(productType='STATIONERY')}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -382,10 +452,18 @@
                                         ENGLISH FICTION
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Contemporary Fiction</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Classics Literature</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Thrillers & Mystery</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Contemporary
+                                            Fiction</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Classics
+                                            Literature</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Thrillers &
+                                            Mystery</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -393,10 +471,18 @@
                                         NON-FICTION & ELT
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">IELTS / TOEFL Prep</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Business & Leadership</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Science & Technology</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">IELTS / TOEFL
+                                            Prep</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Business &
+                                            Leadership</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Science &
+                                            Technology</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -404,10 +490,18 @@
                                         MANGA & COMICS
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">English Manga</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Marvel / DC Comics</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors block">Light Novels in English</a></li>
-                                        <li><a th:href="@{/products(productType='BOOK')}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">English
+                                            Manga</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Marvel / DC
+                                            Comics</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="hover:text-blazing_flame transition-colors block">Light Novels in
+                                            English</a></li>
+                                        <li><a th:href="@{/products(productType='BOOK')}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -419,10 +513,18 @@
                                         TIỂU HỌC (LỚP 1 - 5)
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Bộ Cánh Diều</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Kết Nối Tri Thức</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Chân Trời Sáng Tạo</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Bộ Cánh Diều</a>
+                                        </li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Kết Nối Tri
+                                            Thức</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Chân Trời Sáng
+                                            Tạo</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -430,10 +532,18 @@
                                         THCS (LỚP 6 - 9)
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa THCS</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Bài Tập & Thực Hành</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Luyện Thi Vào Lớp 10</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa
+                                            THCS</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Bài Tập &
+                                            Thực Hành</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Luyện Thi Vào
+                                            Lớp 10</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                                 <div>
@@ -441,10 +551,18 @@
                                         THPT (LỚP 10 - 12)
                                     </h4>
                                     <ul class="space-y-2 text-xs text-carbon_black-600">
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa THPT</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Luyện Thi Tốt Nghiệp THPT</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="hover:text-blazing_flame transition-colors block">Đề Thi Thử & Lời Giải</a></li>
-                                        <li><a th:href="@{/products(isTextbook=true)}" class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất cả ›</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Sách Giáo Khoa
+                                            THPT</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Luyện Thi Tốt
+                                            Nghiệp THPT</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="hover:text-blazing_flame transition-colors block">Đề Thi Thử & Lời
+                                            Giải</a></li>
+                                        <li><a th:href="@{/products(isTextbook=true)}"
+                                               class="text-blazing_flame font-bold hover:underline block pt-1">Xem tất
+                                            cả ›</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -455,17 +573,20 @@
                 <!-- Quick Horizontal Shortcuts (Fahasa style) -->
                 <ul class="flex items-center space-x-6 overflow-x-auto py-1">
                     <li>
-                        <a th:href="@{/products}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
+                        <a th:href="@{/products}"
+                           class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
                             <i class="bi bi-compass-fill text-blazing_flame"></i>Tất Cả Sản Phẩm
                         </a>
                     </li>
                     <li>
-                        <a th:href="@{/products(productType='BOOK')}" class="hover:text-blazing_flame transition-colors">
+                        <a th:href="@{/products(productType='BOOK')}"
+                           class="hover:text-blazing_flame transition-colors">
                             Sách Tiếng Việt
                         </a>
                     </li>
                     <li>
-                        <a th:href="@{/products(productType='STATIONERY')}" class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
+                        <a th:href="@{/products(productType='STATIONERY')}"
+                           class="hover:text-blazing_flame transition-colors flex items-center gap-1.5">
                             <i class="bi bi-pencil-fill text-blazing_flame"></i>Văn Phòng Phẩm
                         </a>
                     </li>
@@ -475,7 +596,8 @@
                         </a>
                     </li>
                     <li>
-                        <a th:href="@{/products(sort='price_asc')}" class="hover:text-blazing_flame transition-colors text-carbon_black-600">
+                        <a th:href="@{/products(sort='price_asc')}"
+                           class="hover:text-blazing_flame transition-colors text-carbon_black-600">
                             Giá Tốt Hôm Nay
                         </a>
                     </li>
@@ -486,280 +608,289 @@
     </div>
 
     <!-- Mobile Collapsible Menu Drawer -->
-    <div id="mobileMenu" class="hidden md:hidden bg-white border-t border-dust_grey px-4 pt-3 pb-6 space-y-2.5 shadow-lg">
-        <a th:href="@{/}" class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+    <div id="mobileMenu"
+         class="hidden md:hidden bg-white border-t border-dust_grey px-4 pt-3 pb-6 space-y-2.5 shadow-lg">
+        <a th:href="@{/}"
+           class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-house-door me-2 text-blazing_flame"></i>Trang Chủ
         </a>
-        <a th:href="@{/products}" class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a th:href="@{/products}"
+           class="block px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-grid me-2 text-blazing_flame"></i>Tất Cả Danh Mục
         </a>
-        <a th:href="@{/products(productType='BOOK')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a th:href="@{/products(productType='BOOK')}"
+           class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-book me-2 text-blazing_flame"></i>Sách Tiếng Việt
         </a>
-        <a th:href="@{/products(productType='STATIONERY')}" class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a th:href="@{/products(productType='STATIONERY')}"
+           class="block px-3 py-2 rounded-lg text-sm font-semibold text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <i class="bi bi-pencil me-2 text-blazing_flame"></i>Văn Phòng Phẩm
         </a>
-        <a th:href="@{/cart}" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
+        <a th:href="@{/cart}"
+           class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <span><i class="bi bi-bag me-2 text-blazing_flame"></i>Giỏ Hàng</span>
-            <span class="bg-blazing_flame text-white text-xs font-bold px-2 py-0.5 rounded-full" th:text="${cartItemCount != null ? cartItemCount : '–'}">0</span>
+            <span class="bg-blazing_flame text-white text-xs font-bold px-2 py-0.5 rounded-full"
+                  th:text="${cartItemCount != null ? cartItemCount : '–'}">0</span>
         </a>
 
         <!-- Guest Mobile Actions -->
         <div sec:authorize="!isAuthenticated()" class="pt-3 border-t border-dust_grey/50 flex flex-col gap-2">
-            <a th:href="@{/auth/login}" class="w-full text-center px-4 py-2.5 rounded-xl border border-dust_grey text-carbon_black font-bold text-sm hover:bg-parchment-200 transition-colors">
+            <a th:href="@{/auth/login}"
+               class="w-full text-center px-4 py-2.5 rounded-xl border border-dust_grey text-carbon_black font-bold text-sm hover:bg-parchment-200 transition-colors">
                 Đăng Nhập
             </a>
-            <a th:href="@{/auth/register}" class="w-full text-center px-4 py-2.5 rounded-xl bg-blazing_flame text-white font-bold text-sm hover:bg-blazing_flame-600 shadow-flame transition-colors">
+            <a th:href="@{/auth/register}"
+               class="w-full text-center px-4 py-2.5 rounded-xl bg-blazing_flame text-white font-bold text-sm hover:bg-blazing_flame-600 shadow-flame transition-colors">
                 Đăng Ký Thành Viên
             </a>
         </div>
     </div>
-<!-- Interactive Vanilla JS for Navigation & Dropdowns -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // User profile dropdown toggle
-        const userMenuBtn = document.getElementById('userMenuBtn');
-        const userDropdown = document.getElementById('userDropdown');
+    <!-- Interactive Vanilla JS for Navigation & Dropdowns -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // User profile dropdown toggle
+            const userMenuBtn = document.getElementById('userMenuBtn');
+            const userDropdown = document.getElementById('userDropdown');
 
-        if (userMenuBtn && userDropdown) {
-            userMenuBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                userDropdown.classList.toggle('hidden');
-            });
+            if (userMenuBtn && userDropdown) {
+                userMenuBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    userDropdown.classList.toggle('hidden');
+                });
 
-            document.addEventListener('click', function (e) {
-                if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
-                    userDropdown.classList.add('hidden');
-                }
-            });
+                document.addEventListener('click', function (e) {
+                    if (!userDropdown.contains(e.target) && !userMenuBtn.contains(e.target)) {
+                        userDropdown.classList.add('hidden');
+                    }
+                });
 
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') {
-                    userDropdown.classList.add('hidden');
-                }
-            });
-        }
-
-        // Mobile drawer toggle
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const mobileMenu = document.getElementById('mobileMenu');
-        const menuIconClosed = document.getElementById('menuIconClosed');
-        const menuIconOpen = document.getElementById('menuIconOpen');
-
-        if (mobileMenuBtn && mobileMenu) {
-            mobileMenuBtn.addEventListener('click', function () {
-                const isExpanded = mobileMenu.classList.toggle('hidden');
-                menuIconClosed.classList.toggle('hidden');
-                menuIconOpen.classList.toggle('hidden');
-                mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
-            });
-        }
-
-        // Setup Search Autocomplete (UC02 - Max 5 suggestions when query >= 2 characters)
-        function setupAutocomplete(inputId, dropdownId, listId) {
-            const input = document.getElementById(inputId);
-            const dropdown = document.getElementById(dropdownId);
-            const list = document.getElementById(listId);
-            if (!input || !dropdown || !list) return;
-
-            let timer = null;
-            let activeAbortController = null;
-
-            function clearAndHide() {
-                dropdown.classList.add('hidden');
-                while (list.firstChild) {
-                    list.removeChild(list.firstChild);
-                }
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        userDropdown.classList.add('hidden');
+                    }
+                });
             }
 
-            function abortInFlight() {
-                if (activeAbortController) {
-                    activeAbortController.abort();
-                    activeAbortController = null;
-                }
+            // Mobile drawer toggle
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileMenu = document.getElementById('mobileMenu');
+            const menuIconClosed = document.getElementById('menuIconClosed');
+            const menuIconOpen = document.getElementById('menuIconOpen');
+
+            if (mobileMenuBtn && mobileMenu) {
+                mobileMenuBtn.addEventListener('click', function () {
+                    const isExpanded = mobileMenu.classList.toggle('hidden');
+                    menuIconClosed.classList.toggle('hidden');
+                    menuIconOpen.classList.toggle('hidden');
+                    mobileMenuBtn.setAttribute('aria-expanded', !isExpanded);
+                });
             }
 
-            input.addEventListener('input', function () {
-                clearTimeout(timer);
-                abortInFlight();
+            // Setup Search Autocomplete (UC02 - Max 5 suggestions when query >= 2 characters)
+            function setupAutocomplete(inputId, dropdownId, listId) {
+                const input = document.getElementById(inputId);
+                const dropdown = document.getElementById(dropdownId);
+                const list = document.getElementById(listId);
+                if (!input || !dropdown || !list) return;
 
-                const query = this.value.trim();
+                let timer = null;
+                let activeAbortController = null;
 
-                if (query.length < 2) {
-                    clearAndHide();
-                    return;
+                function clearAndHide() {
+                    dropdown.classList.add('hidden');
+                    while (list.firstChild) {
+                        list.removeChild(list.firstChild);
+                    }
                 }
 
-                timer = setTimeout(async () => {
-                    activeAbortController = new AbortController();
-                    const currentController = activeAbortController;
+                function abortInFlight() {
+                    if (activeAbortController) {
+                        activeAbortController.abort();
+                        activeAbortController = null;
+                    }
+                }
 
-                    try {
-                        const response = await fetch('/products/autocomplete?keyword=' + encodeURIComponent(query), {
-                            signal: currentController.signal
-                        });
+                input.addEventListener('input', function () {
+                    clearTimeout(timer);
+                    abortInFlight();
 
-                        if (!response.ok) {
-                            clearAndHide();
-                            return;
-                        }
+                    const query = this.value.trim();
 
-                        const items = await response.json();
+                    if (query.length < 2) {
+                        clearAndHide();
+                        return;
+                    }
 
-                        // Discard stale responses if input value changed while request was in-flight
-                        if (input.value.trim() !== query) {
-                            return;
-                        }
+                    timer = setTimeout(async () => {
+                        activeAbortController = new AbortController();
+                        const currentController = activeAbortController;
 
-                        if (!items || items.length === 0) {
-                            clearAndHide();
-                            return;
-                        }
+                        try {
+                            const response = await fetch('/products/autocomplete?keyword=' + encodeURIComponent(query), {
+                                signal: currentController.signal
+                            });
 
-                        // Render using safe DOM APIs (P1: DOM XSS mitigation)
-                        while (list.firstChild) {
-                            list.removeChild(list.firstChild);
-                        }
+                            if (!response.ok) {
+                                clearAndHide();
+                                return;
+                            }
 
-                        items.forEach(item => {
-                            const a = document.createElement('a');
-                            a.href = '/products/' + encodeURIComponent(item.id);
-                            a.className = 'flex items-center gap-3 p-3 hover:bg-parchment-100 transition-colors';
+                            const items = await response.json();
 
-                            const imgWrapper = document.createElement('div');
-                            imgWrapper.className = 'w-10 h-12 bg-parchment-200 rounded-lg overflow-hidden flex-shrink-0 border border-dust_grey/60 flex items-center justify-center';
+                            // Discard stale responses if input value changed while request was in-flight
+                            if (input.value.trim() !== query) {
+                                return;
+                            }
 
-                            if (item.imageUrl) {
-                                const img = document.createElement('img');
-                                img.src = item.imageUrl;
-                                img.alt = item.title || '';
-                                img.className = 'w-full h-full object-cover';
-                                img.onerror = function () {
-                                    while (imgWrapper.firstChild) {
-                                        imgWrapper.removeChild(imgWrapper.firstChild);
-                                    }
+                            if (!items || items.length === 0) {
+                                clearAndHide();
+                                return;
+                            }
+
+                            // Render using safe DOM APIs (P1: DOM XSS mitigation)
+                            while (list.firstChild) {
+                                list.removeChild(list.firstChild);
+                            }
+
+                            items.forEach(item => {
+                                const a = document.createElement('a');
+                                a.href = '/products/' + encodeURIComponent(item.id);
+                                a.className = 'flex items-center gap-3 p-3 hover:bg-parchment-100 transition-colors';
+
+                                const imgWrapper = document.createElement('div');
+                                imgWrapper.className = 'w-10 h-12 bg-parchment-200 rounded-lg overflow-hidden flex-shrink-0 border border-dust_grey/60 flex items-center justify-center';
+
+                                if (item.imageUrl) {
+                                    const img = document.createElement('img');
+                                    img.src = item.imageUrl;
+                                    img.alt = item.title || '';
+                                    img.className = 'w-full h-full object-cover';
+                                    img.onerror = function () {
+                                        while (imgWrapper.firstChild) {
+                                            imgWrapper.removeChild(imgWrapper.firstChild);
+                                        }
+                                        const fallbackIcon = document.createElement('i');
+                                        fallbackIcon.className = 'bi bi-book text-carbon_black-400';
+                                        imgWrapper.appendChild(fallbackIcon);
+                                    };
+                                    imgWrapper.appendChild(img);
+                                } else {
                                     const fallbackIcon = document.createElement('i');
                                     fallbackIcon.className = 'bi bi-book text-carbon_black-400';
                                     imgWrapper.appendChild(fallbackIcon);
-                                };
-                                imgWrapper.appendChild(img);
-                            } else {
-                                const fallbackIcon = document.createElement('i');
-                                fallbackIcon.className = 'bi bi-book text-carbon_black-400';
-                                imgWrapper.appendChild(fallbackIcon);
+                                }
+
+                                const infoDiv = document.createElement('div');
+                                infoDiv.className = 'flex-1 min-w-0';
+
+                                const titleP = document.createElement('p');
+                                titleP.className = 'text-xs font-bold text-carbon_black truncate';
+                                titleP.textContent = item.title || '';
+
+                                const priceP = document.createElement('p');
+                                priceP.className = 'text-xs font-extrabold text-blazing_flame mt-0.5';
+                                const formattedPrice = item.price != null ? new Intl.NumberFormat('vi-VN').format(item.price) : '0';
+                                priceP.textContent = formattedPrice + ' đ';
+
+                                infoDiv.appendChild(titleP);
+                                infoDiv.appendChild(priceP);
+
+                                const arrowIcon = document.createElement('i');
+                                arrowIcon.className = 'bi bi-chevron-right text-xs text-dust_grey-600';
+
+                                a.appendChild(imgWrapper);
+                                a.appendChild(infoDiv);
+                                a.appendChild(arrowIcon);
+
+                                list.appendChild(a);
+                            });
+
+                            dropdown.classList.remove('hidden');
+                        } catch (err) {
+                            if (err.name === 'AbortError') {
+                                return;
                             }
-
-                            const infoDiv = document.createElement('div');
-                            infoDiv.className = 'flex-1 min-w-0';
-
-                            const titleP = document.createElement('p');
-                            titleP.className = 'text-xs font-bold text-carbon_black truncate';
-                            titleP.textContent = item.title || '';
-
-                            const priceP = document.createElement('p');
-                            priceP.className = 'text-xs font-extrabold text-blazing_flame mt-0.5';
-                            const formattedPrice = item.price != null ? new Intl.NumberFormat('vi-VN').format(item.price) : '0';
-                            priceP.textContent = formattedPrice + ' đ';
-
-                            infoDiv.appendChild(titleP);
-                            infoDiv.appendChild(priceP);
-
-                            const arrowIcon = document.createElement('i');
-                            arrowIcon.className = 'bi bi-chevron-right text-xs text-dust_grey-600';
-
-                            a.appendChild(imgWrapper);
-                            a.appendChild(infoDiv);
-                            a.appendChild(arrowIcon);
-
-                            list.appendChild(a);
-                        });
-
-                        dropdown.classList.remove('hidden');
-                    } catch (err) {
-                        if (err.name === 'AbortError') {
-                            return;
+                            clearAndHide();
+                        } finally {
+                            if (activeAbortController === currentController) {
+                                activeAbortController = null;
+                            }
                         }
-                        clearAndHide();
-                    } finally {
-                        if (activeAbortController === currentController) {
-                            activeAbortController = null;
-                        }
-                    }
-                }, 200);
-            });
+                    }, 200);
+                });
 
-            // Hide when click outside
-            document.addEventListener('click', function (e) {
-                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
-                    dropdown.classList.add('hidden');
-                }
-            });
-
-            // Hide on escape
-            input.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') {
-                    dropdown.classList.add('hidden');
-                }
-            });
-        }
-
-        setupAutocomplete('globalSearchInput', 'autocompleteDropdown', 'autocompleteList');
-        setupAutocomplete('mobileSearchInput', 'mobileAutocompleteDropdown', 'mobileAutocompleteList');
-
-        // Fahasa-style Mega Menu tab switching logic
-        const megaTabBtns = document.querySelectorAll('.mega-tab-btn');
-        megaTabBtns.forEach(btn => {
-            btn.addEventListener('mouseenter', function () {
-                megaTabBtns.forEach(b => {
-                    b.classList.remove('bg-white', 'text-blazing_flame', 'shadow-sm');
-                    b.classList.add('text-carbon_black');
-                    const icon = b.querySelector('i');
-                    if (icon) {
-                        icon.classList.remove('text-blazing_flame');
-                        icon.classList.add('text-carbon_black-400');
+                // Hide when click outside
+                document.addEventListener('click', function (e) {
+                    if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.add('hidden');
                     }
                 });
 
-                btn.classList.add('bg-white', 'text-blazing_flame', 'shadow-sm');
-                btn.classList.remove('text-carbon_black');
-                const activeIcon = btn.querySelector('i');
-                if (activeIcon) {
-                    activeIcon.classList.remove('text-carbon_black-400');
-                    activeIcon.classList.add('text-blazing_flame');
-                }
-
-                const targetId = btn.getAttribute('data-target');
-                document.querySelectorAll('.mega-tab-content').forEach(content => {
-                    content.classList.add('hidden');
-                    content.classList.remove('grid');
+                // Hide on escape
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        dropdown.classList.add('hidden');
+                    }
                 });
-                const activePanel = document.getElementById(targetId);
-                if (activePanel) {
-                    activePanel.classList.remove('hidden');
-                    activePanel.classList.add('grid');
-                }
+            }
+
+            setupAutocomplete('globalSearchInput', 'autocompleteDropdown', 'autocompleteList');
+            setupAutocomplete('mobileSearchInput', 'mobileAutocompleteDropdown', 'mobileAutocompleteList');
+
+            // Fahasa-style Mega Menu tab switching logic
+            const megaTabBtns = document.querySelectorAll('.mega-tab-btn');
+            megaTabBtns.forEach(btn => {
+                btn.addEventListener('mouseenter', function () {
+                    megaTabBtns.forEach(b => {
+                        b.classList.remove('bg-white', 'text-blazing_flame', 'shadow-sm');
+                        b.classList.add('text-carbon_black');
+                        const icon = b.querySelector('i');
+                        if (icon) {
+                            icon.classList.remove('text-blazing_flame');
+                            icon.classList.add('text-carbon_black-400');
+                        }
+                    });
+
+                    btn.classList.add('bg-white', 'text-blazing_flame', 'shadow-sm');
+                    btn.classList.remove('text-carbon_black');
+                    const activeIcon = btn.querySelector('i');
+                    if (activeIcon) {
+                        activeIcon.classList.remove('text-carbon_black-400');
+                        activeIcon.classList.add('text-blazing_flame');
+                    }
+
+                    const targetId = btn.getAttribute('data-target');
+                    document.querySelectorAll('.mega-tab-content').forEach(content => {
+                        content.classList.add('hidden');
+                        content.classList.remove('grid');
+                    });
+                    const activePanel = document.getElementById(targetId);
+                    if (activePanel) {
+                        activePanel.classList.remove('hidden');
+                        activePanel.classList.add('grid');
+                    }
+                });
             });
+
+            // Click toggle for Mega Menu button
+            const megaMenuBtn = document.getElementById('megaMenuBtn');
+            const megaMenuDropdown = document.getElementById('megaMenuDropdown');
+            if (megaMenuBtn && megaMenuDropdown) {
+                megaMenuBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    megaMenuDropdown.classList.toggle('hidden');
+                    megaMenuDropdown.classList.toggle('flex');
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (!megaMenuDropdown.contains(e.target) && !megaMenuBtn.contains(e.target)) {
+                        megaMenuDropdown.classList.add('hidden');
+                        megaMenuDropdown.classList.remove('flex');
+                    }
+                });
+            }
         });
-
-        // Click toggle for Mega Menu button
-        const megaMenuBtn = document.getElementById('megaMenuBtn');
-        const megaMenuDropdown = document.getElementById('megaMenuDropdown');
-        if (megaMenuBtn && megaMenuDropdown) {
-            megaMenuBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                megaMenuDropdown.classList.toggle('hidden');
-                megaMenuDropdown.classList.toggle('flex');
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!megaMenuDropdown.contains(e.target) && !megaMenuBtn.contains(e.target)) {
-                    megaMenuDropdown.classList.add('hidden');
-                    megaMenuDropdown.classList.remove('flex');
-                }
-            });
-        }
-    });
-</script>
+    </script>
 </header>
 </body>
 </html>

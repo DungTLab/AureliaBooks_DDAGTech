@@ -1,8 +1,6 @@
 /**
- * Compile-Time Object Mapping: Type-safe object mapping interfaces powered by MapStruct between Entities, Request DTOs, and Response DTOs.
- * <p>
- * Architectural Layer defined in RDS Section 3.2 (Table 7).
- * Root namespace: <code>com.ddagtech.aureliabooks.mapper</code>
- * </p>
+ * Handwritten, stateless entity-to-view conversion helpers.
+ * Loading, authorization and transactional mutations remain in services.
+ * No MapStruct dependency or generated mapping implementation is required.
  */
 package com.ddagtech.aureliabooks.mapper;

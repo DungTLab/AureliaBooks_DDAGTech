@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ProfileController.class)
 @Import({SecurityConfig.class, com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler.class,
-        AccountPresentationService.class})
+        com.ddagtech.aureliabooks.service.impl.AccountPresentationServiceImpl.class})
 class ProfileControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean UserService users;
@@ -100,7 +100,7 @@ class ProfileControllerTest {
         mvc.perform(post("/profile/password").with(user("customer").roles("CUSTOMER")).with(csrf())
             .param("currentPassword","secret").param("newPassword","weak").param("confirmPassword","weak"))
             .andExpect(redirectedUrl("/profile")).andExpect(flash().attributeExists("errorMessage"))
-            .andExpect(flash().attributeCount(1));verify(users,never()).changePassword(any(),any());
+            .andExpect(flash().attributeCount(1));verify(users,never()).changePassword(any(),any(), anyString());
     }
     @Test void foreignAvatarNotReturned() throws Exception {
         mvc.perform(get("/profile/avatar/00000000-0000-0000-0000-000000000000.png")
@@ -115,7 +115,7 @@ class ProfileControllerTest {
         mvc.perform(post("/profile/password").session(session).with(user("customer").roles("CUSTOMER")).with(csrf())
             .param("currentPassword","OldPass1!").param("newPassword","NewPass1!").param("confirmPassword","NewPass1!"))
             .andExpect(redirectedUrl("/auth/login?passwordChanged")).andExpect(cookie().maxAge("JSESSIONID",0));
-        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());verify(users).changePassword(eq(7L),any());
+        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());verify(users).changePassword(eq(7L),any(), anyString());
     }
     @Test void inactivePrincipalIsLoggedOutInsteadOfRedirectLoop() throws Exception {
         when(identity.resolve(any())).thenThrow(new com.ddagtech.aureliabooks.exception.AppException(

@@ -64,7 +64,7 @@ public class ProfileController {
             feedback(errors, flash);
             return "redirect:/profile";
         }
-        users.changePassword(owner, form);
+        users.changePassword(owner, form, com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request));
         new SecurityContextLogoutHandler().logout(request, response, auth);
         Cookie cookie = new Cookie("JSESSIONID", "");
         cookie.setPath("/");

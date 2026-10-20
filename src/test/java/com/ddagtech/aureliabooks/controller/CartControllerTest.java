@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CartController.class)
-@Import({SecurityConfig.class, CustomAccessDeniedHandler.class, AccountPresentationService.class})
+@Import({SecurityConfig.class, CustomAccessDeniedHandler.class, com.ddagtech.aureliabooks.service.impl.AccountPresentationServiceImpl.class})
 class CartControllerTest {
     @Autowired MockMvc mvc;
     @MockitoBean CartService carts;
