@@ -38,6 +38,18 @@ class SprintOneShellTest {
     @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.AuditLogService auditLogService;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.GoodsReceiptService goodsReceiptService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.repository.SupplierRepository supplierRepository;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.repository.ProductRepository productRepository;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.repository.CategoryRepository categoryRepository;
+
     @Test
     void publicShellsRenderWithoutAuthentication() throws Exception {
         org.mockito.Mockito.when(productService.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
@@ -64,13 +76,23 @@ class SprintOneShellTest {
     void protectedShellsRenderForAssignedRole() throws Exception {
         org.mockito.Mockito.when(supplierService.list(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(goodsReceiptService.getReceipts(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(goodsReceiptService.getStockMetrics())
+                .thenReturn(new com.ddagtech.aureliabooks.dto.response.StockMetricSummary(0, 0, 0, 0));
+        org.mockito.Mockito.when(goodsReceiptService.getStockAlerts(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(supplierRepository.findByIsActiveTrueOrderByNameAsc())
+                .thenReturn(java.util.List.of());
+        org.mockito.Mockito.when(productRepository.findByIsActiveTrueOrderByTitleAsc())
+                .thenReturn(java.util.List.of());
+        org.mockito.Mockito.when(categoryRepository.findByIsActiveTrueOrderByNameAsc())
+                .thenReturn(java.util.List.of());
 
         String[][] cases = {
                 {"/manager/products", "MANAGER"}, {"/manager/products/new", "MANAGER"},
                 {"/manager/authors", "MANAGER"}, {"/manager/publishers", "MANAGER"},
-                {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"},
-                {"/staff/receipts/new", "SALE_STAFF"},
-                {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"}
+                {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"}
         };
         for (String[] item : cases) {
             mvc.perform(get(item[0]).with(user("shell-review").roles(item[1])))
@@ -79,6 +101,12 @@ class SprintOneShellTest {
         }
 
         mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/staff/receipts/new").with(user("shell-review").roles("SALE_STAFF")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/manager/receipts").with(user("shell-review").roles("MANAGER")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/manager/stock/alerts").with(user("shell-review").roles("MANAGER")))
                 .andExpect(status().isOk());
     }
 
