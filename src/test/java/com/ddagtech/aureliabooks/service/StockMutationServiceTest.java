@@ -236,7 +236,7 @@ class StockMutationServiceTest {
     @DisplayName("deductOrder - Document-based Order Stock Deduction")
     class DeductOrderTests {
 
-        /** Lỗi cập nhật có điều kiện không được ghi marker hoặc audit thành công. Rollback SQL được test trên MySQL. */
+        /** A failed conditional update must not stamp the marker or record success; MySQL tests verify SQL rollback. */
         @Test
         void failedConditionalUpdateDoesNotStampOrder() {
             Order order = pendingOrderWithLines(3, 2);
@@ -322,7 +322,7 @@ class StockMutationServiceTest {
             stockMutationService.deductOrder(orderId);
 
             // Assert
-            // Bulk UPDATE thuộc repository; unit test kiểm tra contract, MySQL test kiểm tra tồn thực tế.
+            // Bulk updates belong to the repository; unit tests verify calls while MySQL tests verify actual balances.
             verify(productRepository).deductStockIfAvailable(product1.getId(), 3);
             verify(productRepository).deductStockIfAvailable(product2.getId(), 2);
             verify(productRepository, never()).save(any());

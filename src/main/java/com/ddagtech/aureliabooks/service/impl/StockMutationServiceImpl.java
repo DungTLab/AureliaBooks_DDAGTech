@@ -149,8 +149,8 @@ public class StockMutationServiceImpl implements StockMutationService {
         Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
-        // Caller có thể đã tải order trước khi transaction khác trừ kho.
-        // Đọc lại marker bằng locking read để không dùng bản cũ trong persistence context.
+        // The caller may have loaded this order before another transaction deducted its stock.
+        // Reload the marker with a locking read rather than trusting stale persistence-context state.
         entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
 
         // Idempotency / Replay protection: if already deducted, do not deduct again
@@ -185,8 +185,8 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
 
-        // Truy vấn có khóa không tự thay dữ liệu entity đã nằm trong persistence context.
-        // Đọc lại tồn mới nhất sau khi lấy khóa, kể cả khi caller đã tải sản phẩm trước đó.
+        // A locking query does not automatically replace values already held in the persistence context.
+        // Reload current stock after acquiring the lock, even if the caller loaded the product earlier.
         for (Product product : products) {
             entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
         }
@@ -209,15 +209,15 @@ public class StockMutationServiceImpl implements StockMutationService {
             }
         }
 
-        // Pass 2: Cập nhật có điều kiện tại database, theo thứ tự khóa ổn định.
-        // Không dùng setter/save cho trừ kho: WHERE stock >= quantity là hàng rào cuối chống âm tồn.
+        // Pass 2: Perform conditional database updates in a stable lock order.
+        // Use a conditional UPDATE instead of setter/save; WHERE stock >= quantity provides the final guard against negative stock.
         for (Long productId : productIds) {
             Product product = productMap.get(productId);
             if (productRepository.deductStockIfAvailable(productId, requiredQtyPerProduct.get(productId)) != 1) {
                 throw new AppException(ErrorCode.INSUFFICIENT_STOCK,
                         "Không thể trừ tồn cho sản phẩm: " + product.getTitle());
             }
-            // Bulk JPQL bỏ qua entity; đồng bộ lại trước các lần flush tiếp theo trong cùng transaction.
+            // Bulk JPQL bypasses managed entities; refresh before subsequent flushes in the same transaction.
             entityManager.refresh(product);
         }
 

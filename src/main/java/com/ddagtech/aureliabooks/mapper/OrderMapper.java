@@ -13,11 +13,11 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.math.BigDecimal;
 
-/** Chỉ sao chép dữ liệu tại thời điểm đặt hàng; service quyết định tính hợp lệ, trạng thái và transaction. */
+/** Copy point-in-time values only; validation, status decisions, and transaction handling belong to the service. */
 @Component
 public class OrderMapper {
 
-    /** Dựng phiếu xác nhận bằng tên/giá/địa chỉ snapshot; không tính lại theo giá bán hiện tại. */
+    /** Build the confirmation from stored name, price, and delivery snapshots rather than current catalog prices. */
     public OrderConfirmationView toConfirmation(Order order) {
         List<OrderConfirmationView.Item> items = order.getItems().stream()
                 .map(item -> new OrderConfirmationView.Item(item.getProduct().getId(),
@@ -33,7 +33,7 @@ public class OrderMapper {
                         .max(BigDecimal.ZERO), order.getShippingFee(), order.getFinalTotalAmount());
     }
 
-    /** Tạo order/items trong bộ nhớ từ dữ liệu service đã kiểm tra; mapper không tự lưu hoặc trừ kho. */
+    /** Build order and item entities from validated service data without persisting them or changing stock. */
     public Order toNewOrder(User owner, ShippingAddress address, List<CartItem> items,
                             CheckoutRequest request, CheckoutView checkout,
                             Order.OrderStatus initialStatus) {
@@ -42,7 +42,7 @@ public class OrderMapper {
                 .user(owner)
                 .shippingAddress(address)
                 .shippingRecipientName(address.getRecipientName())
-                // SĐT liên hệ giao hàng lấy từ địa chỉ, không yêu cầu SĐT tài khoản đã xác minh.
+                // Use the delivery address phone; a verified account phone is not required.
                 .shippingPhone(address.getPhone())
                 .shippingFullAddress(fullAddress(address))
                 .shippingFee(checkout.shippingFee())
@@ -62,7 +62,7 @@ public class OrderMapper {
         return order;
     }
 
-    /** Ghép cấu trúc địa chỉ hiện tại thành một chuỗi snapshot để đơn giữ nguyên nội dung giao hàng. */
+    /** Flatten the existing address fields into a snapshot that preserves the order's delivery details. */
     public String fullAddress(ShippingAddress address) {
         return String.join(", ", address.getDetailedAddress(), address.getWard(),
                 address.getDistrict(), address.getProvince());

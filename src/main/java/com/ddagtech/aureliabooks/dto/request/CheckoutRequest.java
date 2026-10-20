@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Form đặt hàng cuối chỉ gửi lựa chọn và token; giá, số điện thoại nhận hàng và tổng tiền được đọc lại phía server. */
+/** The final form submits selections and a token; prices, delivery phone, and totals are loaded again on the server. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,11 +22,11 @@ public class CheckoutRequest {
     @NotNull(message = "Vui lòng chọn phương thức thanh toán")
     private Order.PaymentMethod paymentMethod;
 
-    // Giữ điểm tích hợp UC11.2; service hiện từ chối mã khác rỗng khi chưa có nghiệp vụ voucher.
+    // Retain the UC11.2 integration field; nonblank codes are rejected until voucher handling is available.
     @Size(max = 30, message = "Mã giảm giá tối đa 30 ký tự")
     private String voucherCode;
 
-    // Token UUID bỏ dấu gạch nối, đồng thời làm order_code để nhận diện request gửi lại.
+    // Use a UUID without hyphens as both the confirmation token and order_code for duplicate detection.
     @NotBlank(message = "Phiên xác nhận đặt hàng không hợp lệ")
     @Pattern(
             regexp = "[a-f0-9]{32}",

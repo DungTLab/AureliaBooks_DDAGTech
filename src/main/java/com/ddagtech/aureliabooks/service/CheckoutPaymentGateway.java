@@ -1,14 +1,14 @@
 package com.ddagtech.aureliabooks.service;
 
 /**
- * Điểm tích hợp UC11.1: chỉ đăng ký implementation khi VNPay đã được cấu hình.
- * Adapter đọc đơn đã commit thuộc khách, kiểm tra trạng thái và ký URL bằng số tiền đã lưu.
- * Mở cổng thanh toán không được trừ kho hoặc tự đánh dấu thanh toán thành công.
+ * UC11.1 integration point: register an implementation only when VNPay is configured. The adapter
+ * loads the owner's committed order, checks eligibility, and signs a URL using the stored amount.
+ * Starting payment must never deduct stock or mark payment successful.
  */
 public interface CheckoutPaymentGateway {
-    /** Cho controller biết có thể mở cổng ngay lúc này hay không. */
+    /** Report whether the controller can start payment at this time. */
     boolean isAvailable();
 
-    /** Trả URL HTTPS đã ký cho đơn có sẵn; controller gọi sau transaction tạo đơn. */
+    /** Return a signed HTTPS URL for an existing order; the controller calls this after order creation commits. */
     String startPayment(Long authenticatedUserId, String orderCode);
 }

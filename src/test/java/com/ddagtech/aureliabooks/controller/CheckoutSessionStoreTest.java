@@ -10,7 +10,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
-/** Kiểm tra token theo session/owner, nhiều tab và giới hạn số review đang chờ. */
+/** Verify session/owner token isolation, multiple tabs, and the pending-review limit. */
 class CheckoutSessionStoreTest {
     private final CheckoutSessionStore store = new CheckoutSessionStore();
     private CheckoutView view(long address) {
@@ -18,7 +18,7 @@ class CheckoutSessionStoreTest {
                 BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.valueOf(2));
     }
 
-    /** Cùng nội dung giữ token, đổi địa chỉ tạo review riêng; cả hai tab vẫn truy xuất được. */
+    /** Reuse tokens for identical details and keep separate reviews accessible when different addresses are selected. */
     @Test void repeatedReviewReusesTokenAndAnotherTabDoesNotOverwriteIt() {
         var session = new MockHttpSession();
         var first = store.save(session, 1L, view(10L), Order.PaymentMethod.COD, null);

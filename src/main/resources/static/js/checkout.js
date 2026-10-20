@@ -1,6 +1,6 @@
-// Hỗ trợ thao tác giao diện; backend vẫn kiểm tra dữ liệu và chống đặt trùng khi JavaScript bị tắt.
+// Enhance UI interactions; backend validation and duplicate protection also apply when JavaScript is disabled.
 (() => {
-    // Chặn bấm gửi liên tiếp trong cùng trang trong khi chờ phản hồi.
+    // Prevent repeated submissions from the current page while awaiting a response.
     const forms = document.querySelectorAll('[data-checkout-submit]');
     forms.forEach(form => {
         form.addEventListener('submit', event => {
@@ -10,7 +10,7 @@
             }
             form.dataset.submitting = 'true';
             form.setAttribute('aria-busy', 'true');
-            // Chỉ vô hiệu hóa nút; input địa chỉ/phương thức/token vẫn phải được gửi về server.
+            // Disable only buttons so address, payment, and token inputs are still submitted.
             Array.from(form.elements).filter(element => element.type === 'submit').forEach(button => {
                 button.dataset.originalText = button.innerHTML;
                 button.dataset.checkoutDisabled = 'true';
@@ -19,7 +19,7 @@
             });
         });
     });
-    // Đổi địa chỉ bằng GET để server tính lại cước; chỉ đưa lựa chọn cần thiết vào URL.
+    // Reload via GET when the address changes so the server recalculates shipping; include only relevant selections in the URL.
     document.querySelectorAll('[data-checkout-address]').forEach(input => {
         input.addEventListener('change', () => {
             const payment = document.querySelector('input[name="paymentMethod"]:checked');
@@ -30,11 +30,11 @@
             window.location.assign(destination.href);
         });
     });
-    // Bản in dùng snapshot đang hiển thị cùng stylesheet @media print.
+    // Print the displayed snapshots using the @media print stylesheet.
     document.querySelectorAll('[data-print-order]').forEach(button => {
         button.addEventListener('click', () => window.print());
     });
-    // Trình duyệt có thể khôi phục trang bằng Back/Forward cache; mở lại các nút do script đã khóa.
+    // Back/Forward cache may restore a submitted page; re-enable buttons disabled by this script.
     window.addEventListener('pageshow', () => {
         forms.forEach(form => {
             delete form.dataset.submitting;

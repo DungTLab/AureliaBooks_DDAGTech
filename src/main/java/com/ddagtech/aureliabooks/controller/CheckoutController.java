@@ -32,7 +32,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.net.URI;
 
-/** Điều phối UC11: chọn thông tin giao hàng → xác nhận phía server → tạo đơn → xem kết quả. */
+/** Coordinate UC11: select delivery details, review server-side data, place the order, and display the result. */
 @Slf4j
 @Controller
 @RequiredArgsConstructor
@@ -43,7 +43,7 @@ public class CheckoutController {
     private final CheckoutSessionStore reviews;
     private final ObjectProvider<CheckoutPaymentGateway> payments;
 
-    /** Đọc giỏ và địa chỉ để hiển thị; truy cập trang này chưa tạo đơn hoặc giữ tồn kho. */
+    /** Load the cart and addresses for display; opening this page does not create an order or reserve stock. */
     @GetMapping("/checkout")
     public String checkout(Authentication auth, @RequestParam(required = false) Long shippingAddressId,
                            @RequestParam(defaultValue = "COD") Order.PaymentMethod paymentMethod, Model model) {
@@ -57,7 +57,7 @@ public class CheckoutController {
         return "checkout/view";
     }
 
-    /** Kiểm tra lựa chọn rồi lưu bản thông tin khách sắp xác nhận trong session, không lấy tổng tiền từ form. */
+    /** Validate selections and save the review in the session; never accept totals from the form. */
     @PostMapping("/checkout/review")
     public String prepare(Authentication auth,
                           @Valid @ModelAttribute("selection") CheckoutSelectionRequest selection,
@@ -82,7 +82,7 @@ public class CheckoutController {
         return "redirect:/checkout/review/" + review.checkoutToken();
     }
 
-    /** Hiển thị đúng bản đã lưu theo token và chủ sở hữu; không tự thay bằng giá mới. */
+    /** Display the saved review for its token and owner without silently replacing it with current prices. */
     @GetMapping("/checkout/review/{token}")
     public String review(Authentication auth, @PathVariable String token,
                          HttpServletRequest request, Model model) {
@@ -99,15 +99,15 @@ public class CheckoutController {
         return "checkout/review";
     }
 
-    /** Chỉ chuyển request và bản xác nhận từ session vào service; service chịu trách nhiệm transaction và chống trùng. */
+    /** Pass the request and session review to the service, which owns the transaction and duplicate protection. */
     @PostMapping("/checkout/place")
     public String place(Authentication auth, @Valid @ModelAttribute("checkoutForm") CheckoutRequest form,
                         BindingResult errors, HttpServletRequest request, RedirectAttributes flash) {
-        // Lấy chủ sở hữu từ tài khoản đăng nhập, không nhận userId do trình duyệt gửi.
+        // Resolve the owner from the authenticated account rather than a browser-supplied userId.
         Long owner = identity.resolve(auth);
         if (errors.hasErrors()) return invalidForm(errors, flash);
         CheckoutConfirmation review = reviews.find(request.getSession(false), form.getCheckoutToken(), owner);
-        // Chặn VNPay trước khi tạo đơn nếu chưa thể chuyển khách sang cổng thanh toán.
+        // Reject VNPay before creating an order when payment handoff is unavailable.
         if (form.getPaymentMethod() == Order.PaymentMethod.VNPAY && !paymentAvailable()) {
             flash.addFlashAttribute("errorMessage", "Thanh toán trực tuyến tạm thời chưa khả dụng. Vui lòng chọn COD.");
             return "redirect:/checkout";
@@ -119,7 +119,7 @@ public class CheckoutController {
         return "redirect:/orders/" + code;
     }
 
-    /** Trang kết quả chỉ đọc đơn thuộc khách hiện tại, sử dụng snapshot và trạng thái đã lưu. */
+    /** Display only the current customer's order using persisted snapshots and statuses. */
     @GetMapping("/orders/{orderCode}")
     public String confirmation(Authentication auth, @PathVariable String orderCode, Model model) {
         OrderConfirmationView order = orders.getOrderConfirmation(identity.resolve(auth), orderCode);
@@ -128,7 +128,7 @@ public class CheckoutController {
         return "checkout/order-confirm";
     }
 
-    /** Thử mở lại cổng cho đơn VNPay còn chờ thanh toán; không tạo đơn hoặc trừ tồn lần nữa. */
+    /** Retry payment for an existing pending VNPay order without creating another order or deducting stock again. */
     @PostMapping("/orders/{orderCode}/pay")
     public String pay(Authentication auth, @PathVariable String orderCode, RedirectAttributes flash) {
         Long owner = identity.resolve(auth);
@@ -140,7 +140,7 @@ public class CheckoutController {
         return startPayment(owner, orderCode, flash);
     }
 
-    /** Gọi nghiệp vụ sổ địa chỉ UC09; địa chỉ mới được lưu vào tài khoản và chọn lại trên checkout. */
+    /** Delegate address creation to UC09, save it in the account, and select it on checkout. */
     @PostMapping("/checkout/addresses")
     public String addAddress(Authentication auth, @Valid @ModelAttribute("addressForm") AddressRequest form,
                              BindingResult errors, Model model, RedirectAttributes flash) {
@@ -155,7 +155,7 @@ public class CheckoutController {
         return "redirect:/checkout?shippingAddressId=" + addressId;
     }
 
-    /** Dùng chung dữ liệu hiển thị khi mở checkout hoặc trả lại form địa chỉ có lỗi. */
+    /** Share display attributes between the checkout page and address forms returned with validation errors. */
     private void addCheckout(Model model, CheckoutView view, Order.PaymentMethod method) {
         model.addAttribute("checkout", view);
         model.addAttribute("selectedPaymentMethod", method);
@@ -163,24 +163,24 @@ public class CheckoutController {
         model.addAttribute("itemsReady", !hasInvalidItems(view));
     }
 
-    /** Buộc khách sửa giỏ nếu có hàng ngừng bán, cảnh báo hoặc số lượng vượt tồn khả dụng. */
+    /** Require cart updates for warnings, unavailable products, or quantities exceeding available stock. */
     private boolean hasInvalidItems(CheckoutView view) {
         return view.items().stream().anyMatch(item -> item.warningMessage() != null
                 || !item.availableForSale() || item.quantity() > item.availableStock());
     }
 
-    /** UC11.1 chưa có adapter hoặc chưa cấu hình thì khóa lựa chọn VNPay cả ở giao diện lẫn POST. */
+    /** Disable VNPay in both the UI and POST handlers when the UC11.1 adapter is missing or unconfigured. */
     private boolean paymentAvailable() {
         CheckoutPaymentGateway gateway = payments.getIfAvailable();
         return gateway != null && gateway.isAvailable();
     }
 
-    /** Bàn giao cho cổng sau khi transaction tạo đơn đã commit; lỗi mở cổng vẫn giữ đơn để thử lại. */
+    /** Start payment after the order transaction commits; keep the order available for retry if handoff fails. */
     private String startPayment(Long owner, String code, RedirectAttributes flash) {
         try {
             CheckoutPaymentGateway gateway = payments.getIfAvailable();
             if (gateway == null || !gateway.isAvailable()) throw new IllegalStateException("Payment unavailable");
-            // Adapter phải trả URL HTTPS hợp lệ trước khi controller chuyển hướng khách.
+            // The adapter must return a valid HTTPS destination before the controller redirects the customer.
             URI destination = URI.create(gateway.startPayment(owner, code));
             if (!"https".equalsIgnoreCase(destination.getScheme()) || destination.getHost() == null
                     || destination.getUserInfo() != null) throw new IllegalStateException("Invalid payment destination");
@@ -192,7 +192,7 @@ public class CheckoutController {
         }
     }
 
-    /** Trả lỗi nhập liệu dễ đọc và quay lại checkout, không gọi nghiệp vụ tạo đơn. */
+    /** Return readable validation errors to checkout without invoking order placement. */
     private String invalidForm(BindingResult errors, RedirectAttributes flash) {
         var error = errors.getAllErrors().getFirst();
         flash.addFlashAttribute("errorMessage", error.getCode() != null && error.getCode().startsWith("typeMismatch")
@@ -200,7 +200,7 @@ public class CheckoutController {
         return "redirect:/checkout";
     }
 
-    /** Phân luồng lỗi nghiệp vụ: bảo vệ quyền xem đơn, xử lý phiên hết hạn và yêu cầu xác nhận lại khi dữ liệu đổi. */
+    /** Route business errors while protecting order ownership, handling expired sessions, and requiring a new review after changes. */
     @ExceptionHandler(AppException.class)
     public Object businessError(AppException error, HttpServletRequest request, HttpServletResponse response,
                                 Authentication auth, RedirectAttributes flash) {
@@ -223,14 +223,14 @@ public class CheckoutController {
         return "redirect:/checkout";
     }
 
-    /** Xử lý tham số URL/form không chuyển được sang kiểu ID hoặc phương thức thanh toán. */
+    /** Handle URL or form parameters that cannot be converted to an ID or payment method. */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public String invalidParameters(RedirectAttributes flash) {
         flash.addFlashAttribute("errorMessage", "Địa chỉ hoặc phương thức thanh toán không hợp lệ.");
         return "redirect:/checkout";
     }
 
-    /** GET lỗi trả trang 503; POST lỗi hướng dẫn thử lại và để service nhận diện đơn đã tạo qua token. */
+    /** Return HTTP 503 for failed reads; failed submissions can be retried using the token to identify an existing order. */
     @ExceptionHandler(Exception.class)
     public Object unexpectedError(Exception error, HttpServletRequest request, RedirectAttributes flash) {
         log.error("Unable to process checkout", error);

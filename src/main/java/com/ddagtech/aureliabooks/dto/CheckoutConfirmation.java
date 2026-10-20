@@ -3,7 +3,7 @@ package com.ddagtech.aureliabooks.dto;
 import com.ddagtech.aureliabooks.dto.response.CheckoutView;
 import com.ddagtech.aureliabooks.entity.Order;
 
-/** Bản xác nhận do server lưu: gắn token, khách, nội dung đã xem và phương thức thanh toán; không bind từ form. */
+/** Server-owned confirmation linking the token, customer, reviewed details, and payment method; never bind it from a form. */
 public record CheckoutConfirmation(
         String checkoutToken,
         Long userId,

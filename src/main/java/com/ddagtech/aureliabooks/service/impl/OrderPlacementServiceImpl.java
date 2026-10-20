@@ -48,7 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Xử lý nghiệp vụ UC11; mọi thay đổi order/items/stock/cart/audit của đơn mới cùng một transaction. */
+/** Implement UC11 with order, item, stock, cart, and audit changes in one transaction. */
 @Service
 @RequiredArgsConstructor
 public class OrderPlacementServiceImpl implements OrderPlacementService {
@@ -67,7 +67,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
 
-    /** Kiểm tra khách đang hoạt động và tra đơn kèm owner để không lộ đơn của người khác. */
+    /** Validate the active customer and query by owner to prevent disclosure of another customer's order. */
     @Override
     @Transactional(readOnly = true)
     public OrderConfirmationView getOrderConfirmation(Long userId, String orderCode) {
@@ -80,7 +80,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return orderMapper.toConfirmation(order);
     }
 
-    /** Tập trung kiểm tra danh tính, sự tồn tại và quyền CUSTOMER cho các truy vấn của UC11. */
+    /** Centralize identity, account existence, and CUSTOMER authorization checks for UC11 reads. */
     private User checkoutCustomer(Long userId) {
         if (userId == null) throw new AppException(ErrorCode.UNAUTHENTICATED);
         User owner = userRepository.findById(userId)
@@ -89,7 +89,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return owner;
     }
 
-    /** Lấy DTO giỏ và địa chỉ từ các service dùng chung; bước xem trước chưa trừ kho. */
+    /** Load cart and address DTOs through shared services without deducting stock during preview. */
     @Override
     @Transactional(readOnly = true)
     public CheckoutView getCheckoutView(Long userId, Long shippingAddressId) {
@@ -108,7 +108,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return checkoutView(cartView, addressViews, selectedAddress);
     }
 
-    /** Tính cước theo vùng; chưa tích hợp voucher và chưa chốt ngưỡng miễn ship nên các khoản giảm bằng 0. */
+    /** Calculate regional shipping; discounts remain zero until voucher integration and free-shipping policy are confirmed. */
     private CheckoutView checkoutView(CartView cartView, List<AddressView> addressViews,
                                       AddressView selectedAddress) {
         BigDecimal subTotal = cartView.merchandiseSubtotal();
@@ -140,7 +140,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         );
     }
 
-    /** Tạo đơn nguyên tử với READ_COMMITTED; bất kỳ lỗi nào cũng rollback cả đơn, tồn kho, giỏ và audit. */
+    /** Place the order atomically with READ_COMMITTED isolation; any failure rolls back the order, stock, cart, and audit. */
     @Override
     @Transactional(rollbackFor = Exception.class, isolation = Isolation.READ_COMMITTED)
     public String placeOrder(Long userId, CheckoutRequest request, CheckoutConfirmation confirmation) {
@@ -155,13 +155,13 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         if (!violations.isEmpty()) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, violations.iterator().next().getMessage());
         }
-        // UC11.2 phụ trách voucher; chưa tích hợp thì báo rõ, không âm thầm bỏ mã và đặt nguyên giá.
+        // UC11.2 owns voucher handling; reject unsupported codes explicitly rather than silently placing a full-price order.
         if (!normalizeVoucher(request.getVoucherCode()).isEmpty()) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA,
                     "Chức năng áp dụng voucher chưa được tích hợp.");
         }
 
-        // Khóa cùng dòng user mà service giỏ/địa chỉ đang dùng để tuần tự hóa thay đổi của một khách.
+        // Lock the same owner row used by cart and address services to serialize changes for one customer.
         User owner = userRepository.findOwnerForUpdate(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         entityManager.refresh(owner);
@@ -169,7 +169,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         Order existingOrder = orderRepository.findByOrderCode(request.getCheckoutToken()).orElse(null);
 
-        // Nhận diện gửi lại trước khi đọc giỏ: đơn cũ vẫn trả được dù review đã xóa hoặc giỏ có hàng mới.
+        // Detect replays before reading the cart so completed orders remain accessible after review removal or new cart additions.
         if (existingOrder != null) {
             if (!Objects.equals(existingOrder.getUser().getId(), userId)) {
                 throw new AppException(ErrorCode.ORDER_NOT_FOUND);
@@ -194,8 +194,8 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             throw new AppException(ErrorCode.CART_EMPTY);
         }
 
-        // Khóa product theo ID tăng dần trước khi FK của order_items tạo shared lock, giảm nguy cơ deadlock.
-        // Refresh đọc lại giá/tồn mới nhất, thay dữ liệu có thể đã được OSIV nạp khi xem giỏ.
+        // Lock products in ascending ID order before order-item foreign keys acquire shared locks, reducing deadlock risk.
+        // Refresh current prices and stock to replace product values previously loaded by OSIV while displaying the cart.
         items.sort(Comparator.comparing(item -> item.getProduct().getId()));
         for (CartItem item : items) {
             entityManager.refresh(item.getProduct(), LockModeType.PESSIMISTIC_WRITE);
@@ -212,7 +212,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
         validateShippingAddress(address);
 
-        // Tính lại bằng dữ liệu vừa khóa/đọc; bản review chỉ là mốc đối chiếu, không là nguồn giá để ghi đơn.
+        // Recalculate using current locked data; the saved review is a comparison baseline, not the source of persisted prices.
         AddressView selectedAddress = addressMapper.toView(address);
         CheckoutView current = checkoutView(cartMapper.toCartView(items),
                 List.of(selectedAddress), selectedAddress);
@@ -220,17 +220,17 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             throw new AppException(ErrorCode.CHECKOUT_CHANGED);
         }
 
-        // Cả hai phương thức đều trừ tồn lúc tạo; chỉ khác trạng thái khởi tạo của đơn.
+        // Both payment methods deduct stock at creation; only the initial order status differs.
         Order.OrderStatus status = request.getPaymentMethod() == Order.PaymentMethod.COD
                 ? Order.OrderStatus.PENDING_CONFIRMATION : Order.OrderStatus.PENDING_PAYMENT;
         Order order = orderMapper.toNewOrder(owner, address, items, request, current, status);
         orderRepository.saveAndFlush(order);
 
-        // Engine kho sở hữu cập nhật tồn/marker/audit; REQUIRED tham gia transaction tạo đơn hiện tại.
-        // Lỗi bất kỳ dòng nào phải rollback cả order/items và các dòng tồn đã cập nhật trước đó.
+        // The stock engine owns balances, markers, and stock audit; REQUIRED joins the current placement transaction.
+        // Any line failure must roll back the order, items, and all preceding stock updates.
         stockMutationService.deductOrder(order.getId());
 
-        cart.getItems().clear(); // orphanRemoval xóa các dòng giỏ trong cùng transaction.
+        cart.getItems().clear(); // orphanRemoval deletes cart lines within this transaction.
         cart.setUpdatedAt(LocalDateTime.now());
         entityManager.flush();
         recordPlacement(order);
@@ -238,7 +238,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return order.getOrderCode();
     }
 
-    /** Dùng lại ràng buộc địa chỉ UC09, gồm SĐT nhận hàng; không kiểm tra xác minh SĐT tài khoản. */
+    /** Reuse UC09 address constraints, including the delivery phone; account phone verification is not required. */
     private void validateShippingAddress(ShippingAddress address) {
         AddressRequest delivery = new AddressRequest(address.getRecipientName(), address.getPhone(),
                 address.getEconomicRegion(), address.getProvince(), address.getDistrict(),
@@ -250,7 +250,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
     }
 
-    /** Audit tham gia transaction tạo đơn; lỗi chuyển JSON hoặc ghi log phải lan ra để rollback. */
+    /** Record audit within the placement transaction; serialization or persistence failures must propagate for rollback. */
     private void recordPlacement(Order order) {
         try {
             String details = objectMapper.writeValueAsString(Map.of(
@@ -265,7 +265,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
     }
 
-    /** So sánh dữ liệu ảnh hưởng quyết định mua; thay đổi phải quay về bước review, không tự đặt theo giá mới. */
+    /** Compare purchase-relevant data and require a new review after changes instead of silently placing at updated prices. */
     private boolean sameReviewedCheckout(CheckoutView reviewed, CheckoutView current) {
         List<ReviewedLine> oldLines = reviewed.items().stream().map(ReviewedLine::from)
                 .sorted(Comparator.comparing(ReviewedLine::productId)).toList();
@@ -281,16 +281,16 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                 && sameMoney(reviewed.finalTotalAmount(), current.finalTotalAmount());
     }
 
-    /** Lấy đúng địa chỉ đã chọn trong DTO review để đối chiếu nội dung giao hàng. */
+    /** Find the selected address in the saved review for delivery-detail comparison. */
     private AddressView selectedAddressOf(CheckoutView view) {
         return view.addressViews().stream()
                 .filter(address -> Objects.equals(address.id(), view.selectedAddressId()))
                 .findFirst().orElse(null);
     }
 
-    /** So sánh nội dung nhận hàng, bỏ qua cờ mặc định vì cờ này không đổi địa điểm giao. */
+    /** Compare delivery details while ignoring the default-address flag, which does not change the destination. */
     private boolean sameDelivery(AddressView first, AddressView second) {
-        // Đổi cờ mặc định hoặc địa chỉ khác trong sổ không làm thay đổi thông tin nhận hàng của đơn này.
+        // Changing the default flag or another saved address does not change this order's delivery details.
         return first != null && second != null
                 && Objects.equals(first.id(), second.id())
                 && Objects.equals(first.recipientName(), second.recipientName())
@@ -302,12 +302,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                 && Objects.equals(first.detailedAddress(), second.detailedAddress());
     }
 
-    /** So tiền theo giá trị số; 100000 và 100000.00 được coi là cùng một mức tiền. */
+    /** Compare monetary values numerically so 100000 and 100000.00 are treated as equal. */
     private boolean sameMoney(BigDecimal first, BigDecimal second) {
         return first != null && second != null && first.compareTo(second) == 0;
     }
 
-    /** Chuẩn hóa giá từng dòng trước khi dùng equals, tránh báo thay đổi chỉ vì khác scale BigDecimal. */
+    /** Normalize line prices before equality checks to avoid reporting changes caused only by BigDecimal scale. */
     private record ReviewedLine(Long productId, String title, Integer quantity, BigDecimal price) {
         static ReviewedLine from(CartItemView item) {
             return new ReviewedLine(item.productId(), item.title(), item.quantity(),
@@ -315,7 +315,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
     }
 
-    /** ID được chỉ định phải thuộc danh sách của khách; nếu không chỉ định thì dùng địa chỉ mặc định. */
+    /** An explicit address ID must belong to the customer's list; otherwise use the default address when available. */
     private AddressView selectAddress(List<AddressView> addressViews, Long shippingAddressId) {
         if (shippingAddressId != null) {
             return addressViews.stream()
@@ -327,7 +327,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return addressViews.stream().filter(AddressView::isDefault).findFirst().orElse(null);
     }
 
-    /** Áp dụng đúng ba mức cước nghiệp vụ; chưa có vùng hợp lệ thì không tự đoán cước. */
+    /** Apply the three regional tariffs; reject a missing region rather than guessing a shipping fee. */
     private BigDecimal calculateBaseShippingFee(AddressView address) {
         if (address.economicRegion() == null) {
             throw new AppException(
@@ -343,7 +343,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         };
     }
 
-    /** Ràng buộc bản xác nhận server với owner, token, địa chỉ, phương thức và voucher của request. */
+    /** Bind the server review to the request's owner, token, address, payment method, and voucher. */
     private void validateConfirmation(Long userId, CheckoutRequest request, CheckoutConfirmation confirmation) {
         if (confirmation == null
                 || confirmation.reviewedCheckout() == null
@@ -364,7 +364,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
     }
 
-    /** Kiểm tra từng dòng trước khi lưu: số lượng hợp lệ, hàng đang bán, giá hợp lệ và đủ tồn. */
+    /** Validate each line before saving: quantity range, sale availability, valid price, and sufficient stock. */
     private void validateOrderItem(CartItem item) {
         Integer quantity = item.getQuantity();
         Product product = item.getProduct();
@@ -402,7 +402,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
     }
 
-    /** Chuẩn hóa khoảng trắng/null để đối chiếu request và review nhất quán. */
+    /** Normalize whitespace and null voucher values for consistent request and review comparisons. */
     private String normalizeVoucher(String value) {
         return value == null ? "" : value.strip();
     }

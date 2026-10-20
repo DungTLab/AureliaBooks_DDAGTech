@@ -66,7 +66,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Kiểm chứng transaction và tranh chấp trên InnoDB thật; chỉ tạo/xóa database QA có tên ngẫu nhiên riêng. */
+/** Verify transactions and contention on real InnoDB using only a dedicated database with a random QA name. */
 @DataJpaTest(properties = {
         "spring.jpa.hibernate.ddl-auto=validate",
         "spring.datasource.hikari.maximum-pool-size=6",
@@ -76,7 +76,7 @@ import static org.mockito.Mockito.*;
 @Import({OrderPlacementServiceImpl.class, CartServiceImpl.class, AddressServiceImpl.class,
         CartMapper.class, ShippingAddressMapper.class, OrderMapper.class, AuditLogServiceImpl.class,
         AddressOrderGuard.class, StockMutationServiceImpl.class, OrderPlacementMySqlTest.Support.class})
-// Không bọc test trong transaction của Spring Test để kiểm chứng commit/rollback do chính service thực hiện.
+// Avoid a surrounding Spring Test transaction so commit and rollback behavior belongs to the service itself.
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @EnabledIfSystemProperty(named = "checkout.mysql", matches = "true")
 class OrderPlacementMySqlTest {
@@ -106,7 +106,7 @@ class OrderPlacementMySqlTest {
         @Bean Validator validator(ValidatorFactory factory) { return factory.getValidator(); }
     }
 
-    /** Tách database QA khỏi database ứng dụng; chỉ cho phép MySQL cục bộ và tên QA đúng định dạng. */
+    /** Isolate QA from the application database; allow only local MySQL and validated QA database names. */
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) throws Exception {
         StandardEnvironment environment = new StandardEnvironment();
@@ -133,7 +133,7 @@ class OrderPlacementMySqlTest {
         String testUrl = configured.substring(0, pathStart + 1) + database + options;
         try (Connection connection = DriverManager.getConnection(testUrl, username, password)) {
             String schema = Files.readString(Path.of("docker/initdb/01_schema.sql"));
-            // Bỏ DROP/CREATE DATABASE/USE trong schema gốc; connection đã chọn đúng database QA.
+            // Exclude DROP/CREATE DATABASE/USE from the canonical schema; the connection already selects the QA database.
             schema = schema.substring(schema.indexOf("CREATE TABLE roles"));
             new ResourceDatabasePopulator(new ByteArrayResource(
                     schema.getBytes(StandardCharsets.UTF_8))).populate(connection);
@@ -143,7 +143,7 @@ class OrderPlacementMySqlTest {
         registry.add("spring.datasource.password", () -> password);
     }
 
-    /** Chỉ dọn database do lần test này tạo; kiểm tra lại tên trước thao tác DROP. */
+    /** Drop only the database created by this test run after validating its name again. */
     @AfterAll static void dropOnlyCreatedQaDatabase() throws Exception {
         if (!created) return;
         verifyDatabaseName();
@@ -195,7 +195,7 @@ class OrderPlacementMySqlTest {
                 java.math.BigDecimal.class, orderId, productIds.getFirst())).isEqualByComparingTo("100000");
         assertThat(jdbc.queryForObject("SELECT shipping_full_address FROM orders WHERE id=?", String.class, orderId))
                 .startsWith("12 Đội Cấn");
-        // Gọi lại stock engine như luồng xác nhận/thanh toán: marker phải ngăn trừ tồn lần hai.
+        // Call the stock engine again as confirmation/payment handlers might; the marker must prevent a second deduction.
         stockMutations.deductOrder(orderId);
         assertThat(stock(productIds.getFirst())).isEqualTo(8);
         assertThat(stock(productIds.getLast())).isEqualTo(7);
@@ -216,7 +216,7 @@ class OrderPlacementMySqlTest {
         assertThat(cartLines(buyer)).isEqualTo(2);
     }
 
-    /** Ép dòng trừ kho thứ hai thất bại sau khi dòng đầu đã chạy để kiểm chứng rollback SQL thực sự. */
+    /** Force the second stock update to fail after the first succeeds to verify actual SQL rollback. */
     @Test void failingSecondAtomicUpdateRollsBackOrderItemsAndFirstDeduction() {
         List<Long> ids = List.of(product(10, "100000"), product(10, "50000"));
         Buyer buyer = buyer(ids, List.of(2, 2));
@@ -230,14 +230,14 @@ class OrderPlacementMySqlTest {
         verify(products).deductStockIfAvailable(ids.getFirst(), 2);
     }
 
-    /** Entity cũ trong transaction ngoài không được làm engine trừ lần hai sau transaction trong đã commit. */
+    /** A stale entity in the outer transaction must not cause a second deduction after the inner transaction commits. */
     @Test void stockEngineRefreshesPreviouslyLoadedOrderBeforeReplayCheck() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(2));
         Attempt attempt = attempt(buyer, Order.PaymentMethod.COD);
         service.placeOrder(buyer.id(), attempt.request(), attempt.confirmation());
         long orderId = orderId(attempt);
-        // Chuẩn bị đơn chưa trừ kho để tập trung kiểm tra marker giữa hai persistence context.
+        // Prepare an undeducted order to isolate marker handling across two persistence contexts.
         jdbc.update("UPDATE orders SET stock_deducted_at=NULL WHERE id=?", orderId);
         jdbc.update("UPDATE products SET stock_quantity=5 WHERE id=?", productId);
         jdbc.update("DELETE FROM audit_logs WHERE target_id=? AND action='ORDER_DEDUCT_STOCK'", orderId);
@@ -251,7 +251,7 @@ class OrderPlacementMySqlTest {
             separate.setPropagationBehavior(Propagation.REQUIRES_NEW.value());
             separate.executeWithoutResult(inner -> stockMutations.deductOrder(orderId));
 
-            // Bản trong bộ nhớ vẫn cũ; engine phải refresh marker dưới khóa trước khi quyết định.
+            // The cached entity is still stale; the engine must refresh its marker under a lock before proceeding.
             assertThat(cached.getStockDeductedAt()).isNull();
             stockMutations.deductOrder(orderId);
             assertThat(cached.getStockDeductedAt()).isNotNull();
@@ -261,7 +261,7 @@ class OrderPlacementMySqlTest {
                 Integer.class, orderId)).isEqualTo(1);
     }
 
-    /** Lỗi audit của engine phải rollback cả order/items được checkout lưu trước khi gọi engine. */
+    /** Stock audit failure must roll back order and item rows saved by checkout before calling the engine. */
     @Test void stockAuditFailureRollsBackNewOrderAndDeductions() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(2));
@@ -275,7 +275,7 @@ class OrderPlacementMySqlTest {
         assertThat(cartLines(buyer)).isEqualTo(1);
     }
 
-    /** Gây lỗi muộn sau flush để kiểm chứng tồn, order/items và dòng giỏ đều được khôi phục. */
+    /** Fail after flush to verify rollback of stock, order/items, and cart deletion. */
     @Test void lateAuditFailureRollsBackStockOrderAndCartDeletion() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(2));
@@ -302,7 +302,7 @@ class OrderPlacementMySqlTest {
         assertThat(stock(productId)).isEqualTo(5);
     }
 
-    /** Hai khách bắt đầu đồng thời bằng latch; chỉ một người mua được đơn vị tồn cuối. */
+    /** Start two buyers together using a latch; only one may purchase the last stock unit. */
     @Test void twoBuyersCompetingForLastUnitProduceOnlyOneOrder() throws Exception {
         long productId = product(1, "100000");
         Buyer first = buyer(List.of(productId), List.of(1));
@@ -320,7 +320,7 @@ class OrderPlacementMySqlTest {
                 Integer.class, first.id(), second.id())).isEqualTo(1);
     }
 
-    /** Hai request cùng token phải trả cùng đơn; gửi lại sau khi thêm giỏ mới cũng không xóa giỏ đó. */
+    /** Concurrent requests with one token must return one order; later replays must preserve newly added cart items. */
     @Test void concurrentDuplicateSubmissionReturnsSameOrderAndDoesNotClearRefilledCart() throws Exception {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(2));

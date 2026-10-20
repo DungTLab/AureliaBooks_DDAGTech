@@ -16,10 +16,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.id = :id")
     Optional<Order> findByIdWithLock(@Param("id") Long id);
 
-    /** Tra token trước khi đọc giỏ để nhận diện đơn đã commit khi khách gửi lại cùng request. */
+    /** Look up the token before reading the cart to identify an already committed order on repeated submission. */
     Optional<Order> findByOrderCode(String orderCode);
 
-    /** Ràng buộc chủ sở hữu ngay trong truy vấn; nạp items để mapper dựng trang kết quả trong transaction. */
+    /** Enforce ownership in the query and fetch items for confirmation mapping within the transaction. */
     @EntityGraph(attributePaths = "items")
     Optional<Order> findByOrderCodeAndUser_Id(
             String orderCode,

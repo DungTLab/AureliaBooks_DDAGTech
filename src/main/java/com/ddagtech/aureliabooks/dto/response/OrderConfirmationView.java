@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Trang kết quả/in đọc snapshot đã lưu; trạng thái đơn và trạng thái thanh toán được hiển thị độc lập. */
+/** Expose persisted snapshots for display and printing, with independent order and payment statuses. */
 public record OrderConfirmationView(
         String orderCode, LocalDateTime createdAt,
         String recipientName, String phone, String fullAddress,
@@ -36,7 +36,7 @@ public record OrderConfirmationView(
         };
     }
 
-    /** Chỉ mở lại thanh toán khi đúng đơn VNPay chưa trả tiền và vẫn ở trạng thái chờ thanh toán. */
+    /** Allow payment retry only for an unpaid VNPay order that is still pending payment. */
     public boolean awaitingOnlinePayment() {
         return paymentMethod == Order.PaymentMethod.VNPAY
                 && orderStatus == Order.OrderStatus.PENDING_PAYMENT

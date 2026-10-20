@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/** Unit test nghiệp vụ bằng repository mock; kiểm tra quyết định xử lý, không dùng làm bằng chứng rollback SQL. */
+/** Unit-test business decisions with repository mocks; these tests do not establish SQL rollback behavior. */
 @ExtendWith(MockitoExtension.class)
 class OrderPlacementServiceTest {
     private static final String TOKEN = "0123456789abcdef0123456789abcdef";
@@ -90,7 +90,7 @@ class OrderPlacementServiceTest {
             savedOrder.setId(100L);
             return savedOrder;
         });
-        // Mock chỉ đại diện contract engine: engine chịu trách nhiệm ghi marker sau trừ kho thành công.
+        // The mock represents the engine contract: stamp the marker only after stock deduction succeeds.
         lenient().doAnswer(call -> {
             savedOrder.setStockDeductedAt(LocalDateTime.now());
             return null;
@@ -106,7 +106,7 @@ class OrderPlacementServiceTest {
                 service.getCheckoutView(owner.getId(), address.getId()), request.getPaymentMethod(), null);
     }
 
-    /** Chạy cùng yêu cầu về snapshot/trừ tồn cho cả COD và VNPay. */
+    /** Apply the same snapshot and single-deduction expectations to both COD and VNPay. */
     @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
     void placesBothMethodsWithSnapshotsAndOneDeduction(Order.PaymentMethod method) {
         request.setPaymentMethod(method);
@@ -237,7 +237,7 @@ class OrderPlacementServiceTest {
                 reviewed.reviewedCheckout(), Order.PaymentMethod.COD, null));
     }
 
-    /** Mô phỏng review đã xóa sau thành công; gửi lại phải trả đơn cũ và giữ nguyên giỏ mới. */
+    /** Replay after review removal must return the committed order and preserve the new cart. */
     @Test void replaysCommittedOrderWithoutTouchingNewCartOrRequiringSession() {
         Order existing = Order.builder().orderCode(TOKEN).user(owner).shippingAddress(address)
                 .paymentMethod(Order.PaymentMethod.COD).build();

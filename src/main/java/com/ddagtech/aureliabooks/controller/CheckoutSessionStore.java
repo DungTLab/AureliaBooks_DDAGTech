@@ -11,16 +11,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Lưu tối đa 8 bản xác nhận theo session; mỗi tab dùng token riêng để không ghi đè nhau. */
+/** Keep up to eight reviews per session; separate tokens prevent browser tabs from overwriting each other. */
 @Component
 public class CheckoutSessionStore {
     private static final String KEY = CheckoutSessionStore.class.getName() + ".reviews";
     private static final int LIMIT = 8;
 
-    /** Tái sử dụng token khi nội dung không đổi; sinh token mới nếu khách chọn thông tin khác. */
+    /** Reuse the token for unchanged selections and issue a new token when review details change. */
     public CheckoutConfirmation save(HttpSession session, Long owner, CheckoutView view,
                                      Order.PaymentMethod method, String voucher) {
-        // Tuần tự hóa các request cùng session để việc tìm/tạo token không bị tranh chấp.
+        // Serialize requests within the same session to prevent competing token lookups and creation.
         synchronized (session) {
             Map<String, CheckoutConfirmation> reviews = reviews(session);
             for (CheckoutConfirmation review : reviews.values()) {
@@ -32,14 +32,14 @@ public class CheckoutSessionStore {
             String token = UUID.randomUUID().toString().replace("-", "");
             CheckoutConfirmation review = new CheckoutConfirmation(token, owner, view, method, voucher);
             reviews.put(token, review);
-            // LinkedHashMap giữ thứ tự thêm; loại bản cũ nhất khi vượt giới hạn.
+            // LinkedHashMap preserves insertion order, allowing the oldest review to be evicted at the limit.
             while (reviews.size() > LIMIT) reviews.remove(reviews.keySet().iterator().next());
             session.setAttribute(KEY, reviews);
             return review;
         }
     }
 
-    /** Token chỉ có hiệu lực trong session đang giữ nó và với đúng chủ sở hữu. */
+    /** A token is valid only within the session holding it and for its recorded owner. */
     public CheckoutConfirmation find(HttpSession session, String token, Long owner) {
         if (session == null || token == null) return null;
         synchronized (session) {
@@ -48,7 +48,7 @@ public class CheckoutSessionStore {
         }
     }
 
-    /** Xóa đúng bản đã dùng hoặc hết hiệu lực, giữ nguyên các bản xác nhận ở tab khác. */
+    /** Remove only the completed or invalid review, preserving reviews in other tabs. */
     public void remove(HttpSession session, String token) {
         if (session == null) return;
         synchronized (session) {
@@ -58,7 +58,7 @@ public class CheckoutSessionStore {
         }
     }
 
-    /** Sao chép map trước khi sửa rồi setAttribute lại; không sửa trực tiếp map đang gắn trong session. */
+    /** Copy the map before editing and set the session attribute again instead of mutating the stored map directly. */
     @SuppressWarnings("unchecked")
     private Map<String, CheckoutConfirmation> reviews(HttpSession session) {
         Object value = session.getAttribute(KEY);

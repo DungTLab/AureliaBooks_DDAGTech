@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-/** Lựa chọn ở bước checkout; server chỉ cấp token sau khi đã đọc lại giỏ, địa chỉ và bảng tiền. */
+/** Editable checkout selections; issue a token only after reloading the cart, address, and totals on the server. */
 public record CheckoutSelectionRequest(
         @NotNull(message = "Vui lòng chọn địa chỉ giao hàng")
         @Positive(message = "Địa chỉ giao hàng không hợp lệ") Long shippingAddressId,
