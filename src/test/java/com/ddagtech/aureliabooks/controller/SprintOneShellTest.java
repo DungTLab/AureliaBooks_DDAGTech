@@ -72,8 +72,6 @@ class SprintOneShellTest {
                 .thenReturn(org.springframework.data.domain.Page.empty());
 
         String[][] cases = {
-                {"/manager/publishers", "MANAGER"},
-                {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"},
                 {"/staff/receipts/new", "SALE_STAFF"},
                 {"/manager/receipts", "MANAGER"}, {"/manager/stock/alerts", "MANAGER"}
         };
@@ -108,6 +106,37 @@ class SprintOneShellTest {
         mvc.perform(get("/manager/authors").with(user("manager-tester").roles("MANAGER")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quản Lý Danh Bạ Tác Giả")));
+    }
+
+    @Test
+    void managerPublishersPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(masterDataService.listPublishers(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        mvc.perform(get("/manager/publishers").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Lý Danh Bạ Nhà Xuất Bản")));
+    }
+
+    @Test
+    void managerBrandsPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(masterDataService.listBrands(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        mvc.perform(get("/manager/brands").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Lý Danh Bạ Thương Hiệu VPP")));
+    }
+
+    @Test
+    void managerCategoriesPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(masterDataService.getAllCategoriesWithParent())
+                .thenReturn(java.util.List.of());
+        mvc.perform(get("/manager/categories").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Trị Cây Danh Mục Sản Phẩm")));
     }
 
     @Test
