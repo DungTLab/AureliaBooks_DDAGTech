@@ -42,6 +42,8 @@ public enum ErrorCode {
     // 3xxx: Generic & Resource Validation — Shared (2 codes)
     RESOURCE_NOT_FOUND(3001, "Không tìm thấy dữ liệu yêu cầu.", HttpStatus.NOT_FOUND),
     INVALID_INPUT_DATA(3002, "Thông tin nhập chưa hợp lệ. Vui lòng kiểm tra lại.", HttpStatus.BAD_REQUEST),
+    /** Require a new review when checkout data changes or the confirmation token is invalid. */
+    CHECKOUT_CHANGED(3003, "Thông tin đặt hàng đã thay đổi. Vui lòng kiểm tra và xác nhận lại.", HttpStatus.CONFLICT),
 
     // 4xxx: Catalog & Master Data Management — Huỳnh Nhật Duy (6 codes)
     PRODUCT_NOT_FOUND(4001, "Không tìm thấy sản phẩm hoặc sản phẩm đã ngừng kinh doanh.", HttpStatus.NOT_FOUND),
@@ -51,7 +53,7 @@ public enum ErrorCode {
     CATEGORY_CYCLE_DETECTED(4005, "Không thể chọn danh mục cha tạo thành vòng lặp phân cấp.", HttpStatus.BAD_REQUEST),
     MASTER_DATA_IN_USE(4006, "Không thể xóa dữ liệu đang được tham chiếu bởi sản phẩm hoặc danh mục con.", HttpStatus.CONFLICT),
 
-    // 5xxx: Warehouse, Goods Receipts & Inventory Posting — Nguyễn Trần Đức Anh (9 codes)
+    // 5xxx: Warehouse, Goods Receipts & Inventory Posting — Nguyễn Trần Đức Anh
     RECEIPT_NOT_FOUND(5001, "Không tìm thấy phiếu nhập kho.", HttpStatus.NOT_FOUND),
     RECEIPT_ALREADY_FINALIZED(5002, "Phiếu nhập kho đã chốt (RECEIVED) không thể chỉnh sửa hoặc xóa.", HttpStatus.CONFLICT),
     RECEIPT_EMPTY_ITEMS(5003, "Phiếu nhập kho phải có ít nhất một dòng sản phẩm hợp lệ.", HttpStatus.BAD_REQUEST),
@@ -61,6 +63,12 @@ public enum ErrorCode {
     SUPPLIER_HAS_RECEIPTS(5007, "Không thể xóa nhà cung cấp đã có chứng từ nhập hàng. Vui lòng chuyển sang trạng thái Ngừng hợp tác.", HttpStatus.CONFLICT),
     ORDER_STOCK_NOT_DEDUCTED(5008, "Đơn hàng chưa từng bị trừ tồn kho, không thể hoàn tồn.", HttpStatus.BAD_REQUEST),
     STAFF_REQUIRED_FOR_RETURN(5009, "Cần định danh nhân viên hợp lệ khi xác nhận trả hàng.", HttpStatus.BAD_REQUEST),
+    RECEIPT_ALREADY_RECEIVED(5010, "Phiếu nhập kho đã hoàn tất (RECEIVED), không thể chỉnh sửa hoặc xóa.", HttpStatus.CONFLICT),
+    RECEIPT_IMPORT_LIMIT_EXCEEDED(5011, "Số lượng nhập vượt quá giới hạn BR-01-01 (tối đa 100 cho hàng thường, 500 cho sách giáo khoa khi nhập đợt đầu).", HttpStatus.BAD_REQUEST),
+    RECEIPT_ITEM_QUANTITY_INVALID(5012, "Số lượng nhập của từng sản phẩm phải lớn hơn 0.", HttpStatus.BAD_REQUEST),
+    RECEIPT_ITEM_COST_INVALID(5013, "Đơn giá nhập không được âm.", HttpStatus.BAD_REQUEST),
+    SUPPLIER_INACTIVE(5014, "Nhà cung cấp đã ngừng hoạt động hoặc không tồn tại.", HttpStatus.BAD_REQUEST),
+    RECEIPT_DUPLICATE_PRODUCT(5015, "Mỗi sản phẩm chỉ được xuất hiện một lần trên phiếu nhập kho. Vui lòng kiểm tra và gộp số lượng của các mặt hàng bị trùng lặp.", HttpStatus.BAD_REQUEST),
 
     // 6xxx: Promotions & Voucher Engine — Lê Tiến Dũng (7 codes)
     VOUCHER_NOT_FOUND(6001, "Mã giảm giá không tồn tại.", HttpStatus.NOT_FOUND),

@@ -11,6 +11,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findByParentId(Long parentId);
 
+    /**
+     * Retrieve all active categories directly from database.
+     *
+     * @return list of active categories
+     */
     List<Category> findByIsActiveTrue();
 
     List<Category> findAllByIsActiveTrueOrderByNameAsc();
@@ -31,4 +36,11 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent ORDER BY c.id ASC")
     List<Category> findAllWithParent();
+
+    /**
+     * Retrieve all active categories ordered by name ascending.
+     *
+     * @return list of active categories sorted by name
+     */
+    List<Category> findByIsActiveTrueOrderByNameAsc();
 }
