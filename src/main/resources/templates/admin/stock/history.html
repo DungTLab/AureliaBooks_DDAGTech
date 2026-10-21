@@ -8,7 +8,7 @@
 <body>
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-    <!-- Header & Policy Badge (SCR-DB-08) -->
+    <!-- Header Card -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
@@ -16,18 +16,12 @@
                 <i class="bi bi-chevron-right text-[10px]"></i>
                 <span class="text-blazing_flame font-bold">Lịch sử kho</span>
             </div>
-            <div class="flex flex-wrap items-center gap-3">
-                <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
-                    <i class="bi bi-clock-history text-blazing_flame"></i>
-                    <span>Lịch sử Biến động Kho</span>
-                </h1>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <i class="bi bi-shield-lock-fill"></i>
-                    Chỉ đọc từ chứng từ gốc (BR-01-04)
-                </span>
-            </div>
+            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-clock-history text-blazing_flame"></i>
+                <span>Lịch sử Biến động Kho</span>
+            </h1>
             <p class="text-sm text-carbon_black-600 mt-1">
-                Thanh tra lịch sử nhập kho từ nhà cung cấp, trừ tồn khi bán hàng, và hoàn tồn khi hủy đơn hoặc trả hàng. Dữ liệu chỉ đọc tổng hợp trực tiếp từ chứng từ nguồn đã xác nhận (Posting).
+                Theo dõi chi tiết các đợt nhập hàng, xuất kho đơn bán và hoàn tồn theo thời gian thực.
             </p>
         </div>
 
@@ -47,12 +41,12 @@
 
     <!-- Multi-Criteria Filter Bar (SCR-DB-08) -->
     <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm space-y-4">
-        <!-- Validation Error Message Banner (RDS 1.0.E1) -->
+        <!-- Validation Error Message Banner -->
         <div th:if="${#fields != null and #fields.hasErrors('filter.*')}"
              class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start gap-3">
             <i class="bi bi-exclamation-triangle-fill text-lg flex-shrink-0 text-rose-500 mt-0.5"></i>
             <div>
-                <p class="font-bold">Lỗi xác thực bộ lọc thời gian (Ngoại lệ 1.0.E1):</p>
+                <p class="font-bold">Khoảng thời gian không hợp lệ:</p>
                 <ul class="list-disc list-inside mt-1 space-y-1">
                     <li th:each="err : ${#fields.errors('filter.*')}" th:text="${err}">Từ ngày không được lớn hơn Đến ngày.</li>
                 </ul>
@@ -151,7 +145,7 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                 <tr class="bg-carbon_black-50/50 border-b border-dust_grey text-[11px] font-semibold text-carbon_black-600 uppercase tracking-wider">
-                    <th scope="col" class="py-3.5 px-4 whitespace-nowrap">Thời điểm (Posting)</th>
+                    <th scope="col" class="py-3.5 px-4 whitespace-nowrap">Thời gian</th>
                     <th scope="col" class="py-3.5 px-4 min-w-[200px]">Sản phẩm &amp; Mã vạch</th>
                     <th scope="col" class="py-3.5 px-4 whitespace-nowrap">Loại biến động</th>
                     <th scope="col" class="py-3.5 px-4 text-right whitespace-nowrap">Biến động tồn</th>
@@ -231,14 +225,15 @@
 
                     <!-- Source Document Link -->
                     <td class="py-3.5 px-4 whitespace-nowrap">
-                        <!-- Receipt Document -->
-                        <a th:if="${item.sourceTable == 'goods_receipts'}"
-                           th:href="@{/manager/receipts}"
-                           class="font-mono text-xs font-semibold text-blazing_flame hover:underline"
-                           title="Xem phiếu nhập kho"
-                           th:text="${item.referenceCode}">
+                        <!-- Receipt Document (Opens Detail Modal) -->
+                        <button th:if="${item.sourceTable == 'goods_receipts'}"
+                                type="button"
+                                th:onclick="'viewReceiptDetail(' + ${item.sourceId} + ')'"
+                                class="font-mono text-xs font-semibold text-blazing_flame hover:underline cursor-pointer focus:outline-none"
+                                title="Bấm để xem chi tiết phiếu nhập"
+                                th:text="${item.referenceCode}">
                             GR-20261015-001
-                        </a>
+                        </button>
 
                         <!-- Order Document -->
                         <a th:if="${item.sourceTable == 'orders'}"
@@ -280,7 +275,7 @@
                             </div>
                             <div class="text-base font-semibold text-carbon_black">Không tìm thấy dữ liệu biến động kho</div>
                             <p class="text-xs text-carbon_black-500 max-w-sm">
-                                Không có giao dịch biến động nào phù hợp với bộ lọc hiện tại, hoặc chưa có chứng từ nào được xác nhận (Posting).
+                                Không có giao dịch biến động kho nào phù hợp với bộ lọc hiện tại.
                             </p>
                             <a th:href="@{/manager/stock/history}"
                                class="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-parchment text-carbon_black-600 border border-dust_grey text-xs font-semibold rounded-xl transition">
@@ -343,6 +338,203 @@
             </div>
         </div>
     </div>
+
+    <!-- ========================================================================= -->
+    <!-- Modal: Receipt Detail View Modal (Popup đối chiếu chứng từ gốc)           -->
+    <!-- ========================================================================= -->
+    <div id="receiptDetailModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white border border-dust_grey rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden animate-fade-in-down" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-5 bg-parchment-100 border-b border-dust_grey">
+                <h3 class="text-lg font-bold text-carbon_black flex items-center gap-2">
+                    <i class="bi bi-receipt text-blazing_flame"></i>
+                    <span>Chi tiết Phiếu Nhập Kho: <span id="modalReceiptCode" class="font-mono text-blazing_flame"></span></span>
+                </h3>
+                <button type="button" onclick="closeReceiptModal()" class="text-carbon_black-400 hover:text-carbon_black p-1 transition">
+                    <i class="bi bi-x-lg text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+                <!-- Header Meta Info Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-parchment-50 p-4 rounded-xl text-xs">
+                    <div>
+                        <span class="text-carbon_black-500 block">Nhà cung cấp:</span>
+                        <strong id="modalSupplierName" class="text-sm text-carbon_black block">-</strong>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Trạng thái:</span>
+                        <span id="modalStatusBadge" class="inline-block mt-0.5 font-bold">-</span>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Tổng tiền:</span>
+                        <strong id="modalTotalAmount" class="text-sm text-blazing_flame block">0 đ</strong>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Người lập:</span>
+                        <span id="modalCreatedBy" class="text-carbon_black font-medium">-</span>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Thời gian lập:</span>
+                        <span id="modalCreatedAt" class="text-carbon_black font-medium">-</span>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Người duyệt:</span>
+                        <span id="modalReceivedBy" class="text-carbon_black font-medium">-</span>
+                    </div>
+                    <div class="col-span-2 sm:col-span-3">
+                        <span class="text-carbon_black-500 block">Ghi chú:</span>
+                        <span id="modalNote" class="text-carbon_black italic">-</span>
+                    </div>
+                </div>
+
+                <!-- Items Table in Modal -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-2">Danh sách sản phẩm nhập:</h4>
+                    <div class="border border-dust_grey rounded-xl overflow-hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-parchment-100 text-carbon_black-700 font-semibold border-b border-dust_grey">
+                                <tr>
+                                    <th class="py-2.5 px-3">STT</th>
+                                    <th class="py-2.5 px-3">Tên sản phẩm</th>
+                                    <th class="py-2.5 px-3">Mã vạch</th>
+                                    <th class="py-2.5 px-3 text-center">Loại / SGK</th>
+                                    <th class="py-2.5 px-3 text-right">Đơn giá (đ)</th>
+                                    <th class="py-2.5 px-3 text-center">Số lượng</th>
+                                    <th class="py-2.5 px-3 text-right">Thành tiền (đ)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalItemsTableBody" class="divide-y divide-dust_grey/50">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-parchment-100 border-t border-dust_grey flex items-center justify-between">
+                <a th:href="@{/manager/receipts}" target="_blank"
+                   class="text-xs font-semibold text-blazing_flame hover:underline flex items-center gap-1">
+                    <span>Mở trang quản lý phiếu nhập</span>
+                    <i class="bi bi-box-arrow-up-right text-[10px]"></i>
+                </a>
+                <button type="button" onclick="closeReceiptModal()"
+                        class="px-5 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl text-sm transition shadow-sm">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script for Receipt Detail Modal Interactions -->
+    <script>
+        function openReceiptModal() {
+            const modal = document.getElementById('receiptDetailModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            }
+        }
+
+        function closeReceiptModal() {
+            const modal = document.getElementById('receiptDetailModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        }
+
+        // Close on backdrop click
+        window.addEventListener('click', function (e) {
+            const modal = document.getElementById('receiptDetailModal');
+            if (e.target === modal) {
+                closeReceiptModal();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeReceiptModal();
+            }
+        });
+
+        function viewReceiptDetail(id) {
+            document.getElementById('modalReceiptCode').textContent = '...';
+            document.getElementById('modalSupplierName').textContent = 'Đang tải...';
+            document.getElementById('modalTotalAmount').textContent = '...';
+            document.getElementById('modalCreatedBy').textContent = '...';
+            document.getElementById('modalCreatedAt').textContent = '...';
+            document.getElementById('modalReceivedBy').textContent = '...';
+            document.getElementById('modalNote').textContent = '...';
+            document.getElementById('modalItemsTableBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-carbon_black-500"><i class="bi bi-arrow-repeat animate-spin text-xl inline-block mr-2"></i>Đang tải dữ liệu chứng từ...</td></tr>';
+            openReceiptModal();
+
+            fetch('/api/receipts/' + id)
+                .then(res => {
+                    if (!res.ok) throw new Error('Không thể tải chi tiết phiếu (Mã lỗi HTTP ' + res.status + ').');
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById('modalReceiptCode').textContent = data.receiptCode || '-';
+                    document.getElementById('modalSupplierName').textContent = data.supplierName || '-';
+                    document.getElementById('modalTotalAmount').textContent =
+                        (data.totalAmount ? Number(data.totalAmount).toLocaleString('vi-VN') : '0') + ' đ';
+                    document.getElementById('modalCreatedBy').textContent = data.createdByName || '-';
+                    document.getElementById('modalCreatedAt').textContent =
+                        data.createdAt ? new Date(data.createdAt).toLocaleString('vi-VN') : '-';
+                    document.getElementById('modalReceivedBy').textContent =
+                        data.receivedByName ? (data.receivedByName + (data.receivedAt ? ' (' + new Date(data.receivedAt).toLocaleString('vi-VN') + ')' : '')) : 'Chưa duyệt';
+                    document.getElementById('modalNote').textContent = data.note || 'Không có';
+
+                    const badge = document.getElementById('modalStatusBadge');
+                    if (data.status === 'RECEIVED') {
+                        badge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+                        badge.textContent = 'Đã nhập kho';
+                    } else {
+                        badge.className = 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300';
+                        badge.textContent = 'Chờ duyệt';
+                    }
+
+                    const tbody = document.getElementById('modalItemsTableBody');
+                    tbody.innerHTML = '';
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach((item, index) => {
+                            const tr = document.createElement('tr');
+                            tr.className = 'hover:bg-parchment-50';
+                            const sgkBadge = item.isTextbook
+                                ? '<span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 font-bold rounded text-[10px]">SGK</span>'
+                                : '<span class="text-carbon_black-400 text-[10px]">Tiêu chuẩn</span>';
+
+                            tr.innerHTML = `
+                                <td class="py-2.5 px-3 text-center text-carbon_black-500">${index + 1}</td>
+                                <td class="py-2.5 px-3 font-medium text-carbon_black">${escapeReceiptHtml(item.productTitle || '')}</td>
+                                <td class="py-2.5 px-3 font-mono text-carbon_black-600">${escapeReceiptHtml(item.productBarcode || '-')}</td>
+                                <td class="py-2.5 px-3 text-center">${sgkBadge}</td>
+                                <td class="py-2.5 px-3 text-right">${Number(item.unitCost || 0).toLocaleString('vi-VN')} đ</td>
+                                <td class="py-2.5 px-3 text-center font-bold text-carbon_black">${item.receivedQuantity || 0}</td>
+                                <td class="py-2.5 px-3 text-right font-bold text-blazing_flame">${Number(item.subtotal || 0).toLocaleString('vi-VN')} đ</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-carbon_black-400">Không có dữ liệu sản phẩm.</td></tr>';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('modalItemsTableBody').innerHTML = '<tr><td colspan="7" class="py-4 text-center text-rose-600 font-medium">' + escapeReceiptHtml(err.message) + '</td></tr>';
+                });
+        }
+
+        function escapeReceiptHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
 </div>
 </body>
 </html>
