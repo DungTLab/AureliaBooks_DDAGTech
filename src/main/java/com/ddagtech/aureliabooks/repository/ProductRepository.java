@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -102,6 +103,24 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             @Param("title") String title,
             @Param("barcode") String barcode,
             Pageable pageable);
+
+    /**
+     * Deduct stock conditionally in the database; accept exactly one updated row, otherwise roll back the entire order.
+     *
+     * @param productId product ID
+     * @param quantity  quantity to deduct
+     * @return number of updated rows
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        UPDATE Product p
+        SET p.stockQuantity = p.stockQuantity - :quantity
+        WHERE p.id = :productId
+          AND p.isActive = true
+          AND :quantity > 0
+          AND p.stockQuantity >= :quantity
+    """)
+    int deductStockIfAvailable(@Param("productId") Long productId, @Param("quantity") int quantity);
 
     /**
      * Retrieves a product with a pessimistic write lock for inventory mutation.
