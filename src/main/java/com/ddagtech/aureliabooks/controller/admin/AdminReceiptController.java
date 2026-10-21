@@ -30,6 +30,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -140,6 +141,9 @@ public class AdminReceiptController {
             Model model,
             RedirectAttributes redirectAttributes
     ) {
+        if (user == null || user.getId() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
         String baseUri = isManagerOrAdmin(user) ? "/manager/receipts" : "/staff/receipts";
         model.addAttribute("baseUri", baseUri);
 
@@ -370,7 +374,17 @@ public class AdminReceiptController {
 
     private void populateFormReferenceData(Model model) {
         model.addAttribute("suppliers", supplierRepository.findByIsActiveTrueOrderByNameAsc());
-        model.addAttribute("products", productRepository.findByIsActiveTrueOrderByTitleAsc());
+        List<Product> products = new ArrayList<>(productRepository.findByIsActiveTrueOrderByTitleAsc());
+        products.sort(Comparator
+                .comparingInt((Product p) -> {
+                    int stock = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
+                    if (stock == 0) return 0;      // Ưu tiên 1: Đã hết hàng
+                    if (stock <= 10) return 1;     // Ưu tiên 2: Sắp hết hàng (tồn thấp 1-10)
+                    return 2;                      // Ưu tiên 3: Tồn kho an toàn (> 10)
+                })
+                .thenComparing(p -> p.getTitle() != null ? p.getTitle().toLowerCase() : "")
+        );
+        model.addAttribute("products", products);
         model.addAttribute("categories", categoryRepository.findByIsActiveTrueOrderByNameAsc());
         java.util.Set<Long> textbookIds = goodsReceiptService.getTextbookProductIds();
         model.addAttribute("textbookIds", textbookIds != null ? textbookIds : java.util.Collections.emptySet());

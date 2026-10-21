@@ -10,42 +10,31 @@
     <style>
         /* Hide number input spinners for clean layout with inline warning icons */
         .quantity-input::-webkit-outer-spin-button,
-        .quantity-input::-webkit-inner-spin-button,
-        #quickQuantity::-webkit-outer-spin-button,
-        #quickQuantity::-webkit-inner-spin-button {
+        .quantity-input::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
-        .quantity-input,
-        #quickQuantity {
+        .quantity-input {
             -moz-appearance: textfield;
         }
     </style>
 
-    <!-- Breadcrumb & Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
-        <div>
-            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
-                <a th:href="@{${baseUri ?: '/staff/receipts'}}" class="hover:text-blazing_flame transition">Quản trị kho</a>
-                <i class="bi bi-chevron-right text-[10px]"></i>
-                <a th:href="@{${baseUri ?: '/staff/receipts'}}" class="hover:text-blazing_flame transition">Phiếu nhập kho</a>
-                <i class="bi bi-chevron-right text-[10px]"></i>
-                <span class="text-blazing_flame font-bold" th:text="${isEdit ? 'Chỉnh sửa phiếu' : 'Lập phiếu mới'}">Lập phiếu mới</span>
-            </div>
-            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2.5">
-                <i class="bi bi-file-earmark-plus text-blazing_flame"></i>
-                <span th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}">Lập Phiếu Nhập Kho</span>
-            </h1>
-            <p class="text-sm text-carbon_black-600 mt-1">
-                Tạo lập chứng từ nhập hàng từ Nhà cung cấp. Tồn kho sản phẩm <strong>chưa bị thay đổi</strong> cho đến khi quản lý duyệt hoàn tất phiếu nhập.
-            </p>
+    <!-- Breadcrumb & Header (Đã loại bỏ nút Quay lại danh sách theo yêu cầu) -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+            <a th:href="@{${baseUri ?: '/staff/receipts'}}" class="hover:text-blazing_flame transition">Quản trị kho</a>
+            <i class="bi bi-chevron-right text-[10px]"></i>
+            <a th:href="@{${baseUri ?: '/staff/receipts'}}" class="hover:text-blazing_flame transition">Phiếu nhập kho</a>
+            <i class="bi bi-chevron-right text-[10px]"></i>
+            <span class="text-blazing_flame font-bold" th:text="${isEdit ? 'Chỉnh sửa phiếu' : 'Lập phiếu mới'}">Lập phiếu mới</span>
         </div>
-
-        <a th:href="@{${baseUri ?: '/staff/receipts'}}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-parchment-200 hover:bg-parchment-300 text-carbon_black font-semibold rounded-xl transition">
-            <i class="bi bi-arrow-left"></i>
-            <span>Quay lại danh sách</span>
-        </a>
+        <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2.5">
+            <i class="bi bi-file-earmark-plus text-blazing_flame"></i>
+            <span th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}">Lập Phiếu Nhập Kho</span>
+        </h1>
+        <p class="text-sm text-carbon_black-600 mt-1">
+            Tạo lập chứng từ nhập hàng từ Nhà cung cấp vào kho.
+        </p>
     </div>
 
     <!-- Form Validation Alert Box (Hiển thị cảnh báo trực tiếp khi nhập sai hạn mức hoặc trùng sản phẩm) -->
@@ -53,7 +42,7 @@
         <div class="flex items-start gap-3">
             <i class="bi bi-exclamation-circle-fill text-rose-500 text-xl flex-shrink-0 mt-0.5"></i>
             <div class="text-sm space-y-0.5">
-                <p class="font-bold text-rose-600" id="formValidationTitle">Cảnh báo quy định nhập kho:</p>
+                <p class="font-bold text-rose-600" id="formValidationTitle">Thông báo:</p>
                 <p id="formValidationMessage" class="text-xs font-medium text-carbon_black-700 leading-relaxed"></p>
             </div>
         </div>
@@ -69,8 +58,6 @@
           method="post"
           onsubmit="return validateAndSubmitReceipt(event)"
           class="space-y-6">
-
-        <!-- CSRF Token (handled by Spring Security) -->
 
         <!-- Section 1: Header Information -->
         <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
@@ -115,7 +102,7 @@
             </div>
         </div>
 
-        <!-- Section 2: Line Items -->
+        <!-- Section 2: Line Items (Chỉ 1 nút thêm sản phẩm có sẵn trong DB, hỗ trợ vừa gõ vừa chọn) -->
         <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
             <div class="flex flex-wrap items-center justify-between border-b border-dust_grey/60 pb-3 gap-3">
                 <div>
@@ -123,44 +110,24 @@
                         <i class="bi bi-box-seam text-blazing_flame"></i>
                         <span>2. Danh mục sản phẩm nhập kho</span>
                     </h2>
-                    <p class="text-xs text-carbon_black-500 mt-0.5">Chọn sản phẩm có sẵn hoặc bấm <strong>"Thêm sản phẩm mới"</strong> nếu sách/hàng chưa có trên hệ thống.</p>
+                    <p class="text-xs text-carbon_black-500 mt-0.5">Danh sách các mặt hàng nhập kho và số lượng tương ứng.</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button type="button"
-                            onclick="openQuickAddProductModal()"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
-                        <i class="bi bi-plus-circle-fill"></i>
-                        <span>Thêm sản phẩm mới</span>
-                    </button>
-                    <button type="button"
-                            id="addRowBtn"
-                            onclick="addNewItemRow()"
-                            class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition">
-                        <i class="bi bi-plus-lg"></i>
-                        <span>Thêm dòng có sẵn</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Banner if product catalog is empty -->
-            <div th:if="${products == null or products.isEmpty()}" class="bg-sky-50 border border-sky-200 text-sky-900 rounded-xl p-4 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                    <i class="bi bi-info-circle-fill text-sky-600 text-lg flex-shrink-0"></i>
-                    <span>Hệ thống chưa có sản phẩm nào. Hãy bấm nút <strong>"Thêm sản phẩm mới"</strong> để tạo sản phẩm đầu tiên và đưa vào phiếu nhập ngay!</span>
-                </div>
-                <button type="button" onclick="openQuickAddProductModal()"
-                        class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg transition shrink-0">
-                    + Thêm sản phẩm mới
+                <button type="button"
+                        id="addRowBtn"
+                        onclick="addNewItemRow()"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition">
+                    <i class="bi bi-plus-circle-fill text-sm"></i>
+                    <span>Thêm sản phẩm</span>
                 </button>
             </div>
 
-            <!-- Items Table -->
-            <div class="overflow-x-auto">
+            <!-- Items Table (Overflow visible để danh sách chọn sản phẩm nổi bên trên không bị chìm/ẩn) -->
+            <div class="overflow-visible min-h-[320px]">
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
                         <tr class="bg-parchment-100 text-carbon_black-700 border-b border-dust_grey text-xs uppercase tracking-wider font-semibold">
                             <th class="py-3 px-4 w-12 text-center">STT</th>
-                            <th class="py-3 px-4 min-w-[280px]">Sản phẩm <span class="text-rose-500">*</span></th>
+                            <th class="py-3 px-4 min-w-[340px]">Sản phẩm <span class="text-rose-500">*</span></th>
                             <th class="py-3 px-4 w-44">Đơn giá nhập (đ) <span class="text-rose-500">*</span></th>
                             <th class="py-3 px-4 w-36">Số lượng <span class="text-rose-500">*</span></th>
                             <th class="py-3 px-4 w-44 text-right">Thành tiền (đ)</th>
@@ -174,29 +141,35 @@
                             class="item-row hover:bg-parchment-50 transition">
                             <td class="py-3 px-4 text-center font-semibold text-carbon_black-500 row-index" th:text="${itemStat.count}">1</td>
                             <td class="py-3 px-4">
-                                <select th:name="|items[${itemStat.index}].productId|"
-                                        required
-                                        onchange="onProductSelected(this)"
-                                        class="product-select w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame">
-                                    <option value="">-- Chọn sản phẩm --</option>
-                                    <option th:each="p : ${products}"
-                                            th:value="${p.id}"
-                                            th:data-price="${p.originalCost}"
-                                            th:data-barcode="${p.barcode}"
-                                            th:data-stock="${p.stockQuantity}"
-                                            th:data-is-textbook="${textbookIds != null and textbookIds.contains(p.id)}"
-                                            th:selected="${p.id == item.productId}"
-                                            th:text="${p.title + ' (Tồn kho: ' + p.stockQuantity + ')'}">
-                                        Đắc nhân tâm (Tồn kho: 10)
-                                    </option>
-                                </select>
+                                <div class="product-combobox relative w-full">
+                                    <input type="hidden"
+                                           th:name="|items[${itemStat.index}].productId|"
+                                           th:value="${item.productId}"
+                                           class="product-id-input product-select"
+                                           required />
+                                    <div class="relative flex items-center">
+                                        <input type="text"
+                                               class="product-search-input w-full pl-3.5 pr-8 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame transition"
+                                               placeholder="🔍 Nhập tìm tên sách, mã vạch..."
+                                               autocomplete="off" />
+                                        <button type="button"
+                                                class="combobox-toggle-btn absolute right-2 top-1/2 -translate-y-1/2 text-carbon_black-400 hover:text-carbon_black p-1 transition"
+                                                tabindex="-1"
+                                                title="Mở danh sách">
+                                            <i class="bi bi-chevron-down text-xs transition-transform duration-200"></i>
+                                        </button>
+                                    </div>
+                                    <div class="product-dropdown-menu absolute left-0 right-0 top-full mt-1.5 max-h-64 overflow-y-auto bg-white border border-dust_grey rounded-xl shadow-2xl z-[70] hidden divide-y divide-dust_grey/40"></div>
+                                </div>
                             </td>
                             <td class="py-3 px-4">
                                 <input type="number"
                                        th:name="|items[${itemStat.index}].unitCost|"
-                                       th:value="${item.unitCost}"
+                                       th:value="${item.unitCost != null && item.unitCost >= 0 ? item.unitCost : 0}"
                                        step="1000" min="0" required
                                        oninput="onPriceOrQuantityChange(this)"
+                                       onchange="onPriceOrQuantityBlur(this)"
+                                       onblur="onPriceOrQuantityBlur(this)"
                                        placeholder="0"
                                        class="unit-cost-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
                                 <div class="cost-warning-msg text-[11px] text-rose-600 font-semibold mt-1 hidden flex items-center gap-1">
@@ -208,9 +181,11 @@
                                 <div class="relative flex items-center">
                                     <input type="number"
                                            th:name="|items[${itemStat.index}].receivedQuantity|"
-                                           th:value="${item.receivedQuantity}"
+                                           th:value="${item.receivedQuantity != null && item.receivedQuantity > 0 ? item.receivedQuantity : 1}"
                                            min="1" required
                                            oninput="onPriceOrQuantityChange(this)"
+                                           onchange="onPriceOrQuantityBlur(this)"
+                                           onblur="onPriceOrQuantityBlur(this)"
                                            placeholder="1"
                                            class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame transition-all" />
                                     <button type="button"
@@ -240,7 +215,13 @@
             <!-- Empty Items Prompt -->
             <div id="noItemsAlert" class="hidden text-center py-8 text-carbon_black-400">
                 <i class="bi bi-inbox text-3xl mb-2 block"></i>
-                <p>Chưa có sản phẩm nào trong phiếu nhập. Bấm <strong>"Thêm sản phẩm"</strong> để bắt đầu.</p>
+                <p class="text-sm font-medium">Chưa có sản phẩm nào trong phiếu nhập. Bấm <strong class="text-carbon_black">"+ Thêm sản phẩm"</strong> để bắt đầu.</p>
+                <div class="mt-3">
+                    <button type="button" onclick="addNewItemRow()" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl shadow-sm transition">
+                        <i class="bi bi-plus-circle-fill text-sm"></i>
+                        <span>Thêm sản phẩm</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Total Amount Summary Card -->
@@ -270,564 +251,26 @@
         </div>
     </form>
 
-    <!-- Quick Add Product Modal (2 Cột: Form tạo mới & Side Panel kiểm tra trùng tên) -->
-    <div id="quickAddProductModal" class="fixed inset-0 z-50 hidden bg-carbon_black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-4 border border-dust_grey my-6 animate-fade-in-down">
-            <div class="flex items-center justify-between border-b border-dust_grey/60 pb-3">
-                <h3 class="text-lg font-bold text-carbon_black flex items-center gap-2">
-                    <i class="bi bi-box-seam-fill text-blazing_flame"></i>
-                    <span>Thêm sản phẩm mới vào hệ thống</span>
-                </h3>
-                <button type="button" onclick="closeQuickAddProductModal()" class="text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg">
-                    <i class="bi bi-x-lg text-lg"></i>
-                </button>
-            </div>
-
-            <!-- Grid 2 Cột: Cột Trái là Form (7/12), Cột Phải là Panel Kiểm Tra Trùng Tên (5/12) -->
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                <!-- Cột Trái: Form Nhập -->
-                <form id="quickAddProductForm" onsubmit="handleQuickAddProduct(event)" class="md:col-span-7 space-y-3.5">
-                    <!-- Product Title với Kính lúp Tra cứu -->
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                            Tên sản phẩm / Sách <span class="text-rose-500">*</span>
-                        </label>
-                        <div class="relative flex items-center">
-                            <input type="text" id="quickTitle" required placeholder="Ví dụ: Đắc Nhân Tâm, SGK Toán 12, Bút bi TL-027..."
-                                   onkeydown="if(event.key === 'Enter') { event.preventDefault(); executeSearchProductMatch(); }"
-                                   class="w-full pl-3.5 pr-11 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
-                            <button type="button" onclick="executeSearchProductMatch()"
-                                    title="Tra cứu sản phẩm trong kho"
-                                    class="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 rounded-lg transition"
-                                    aria-label="Tra cứu">
-                                <i class="bi bi-search text-sm"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Product Type & Textbook Checkbox -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                                Loại sản phẩm <span class="text-rose-500">*</span>
-                            </label>
-                            <select id="quickProductType" onchange="toggleTextbookOption()" class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
-                                <option value="BOOK">Sách</option>
-                                <option value="STATIONERY">Văn phòng phẩm</option>
-                            </select>
-                        </div>
-                        <div id="textbookWrapper" class="flex items-center pt-5">
-                            <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-carbon_black">
-                                <input type="checkbox" id="quickIsTextbook" class="rounded text-blazing_flame focus:ring-blazing_flame h-4 w-4">
-                                <span>Là Sách giáo khoa (SGK)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Category -->
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                            Danh mục sản phẩm
-                        </label>
-                        <select id="quickCategoryId" class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
-                            <option value="">-- Mặc định theo loại sản phẩm --</option>
-                            <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}">Văn học</option>
-                        </select>
-                    </div>
-
-
-                    <!-- Pricing & Quantity in Receipt -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                                Giá niêm yết (đ) <span class="text-rose-500">*</span>
-                            </label>
-                            <input type="number" id="quickPrice" min="0" step="1000" required placeholder="80000"
-                                   oninput="validateQuickPrices()"
-                                   class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                                Giá vốn nhập (đ) <span class="text-rose-500">*</span>
-                            </label>
-                            <input type="number" id="quickOriginalCost" min="0" step="1000" required placeholder="50000"
-                                   oninput="validateQuickPrices()"
-                                   class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                                Số lượng nhập <span class="text-rose-500">*</span>
-                            </label>
-                            <div class="relative flex items-center">
-                                <input type="number" id="quickQuantity" min="1" required value="10"
-                                       oninput="validateQuickQuantity()"
-                                       class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-right font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition-all">
-                                <button type="button" id="quickQtyWarningBtn"
-                                        class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-rose-500 hover:text-rose-600 focus:outline-none transition cursor-help"
-                                        tabindex="-1"
-                                        aria-label="Cảnh báo hạn mức">
-                                    <i class="bi bi-exclamation-circle-fill text-base"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="quickPriceWarning" class="text-[11px] text-rose-600 font-semibold hidden flex items-center gap-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg">
-                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-                        <span>Giá niêm yết không được thấp hơn giá vốn nhập.</span>
-                    </div>
-
-                    <!-- Modal Error Alert -->
-                    <div id="quickModalError" class="hidden p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium"></div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex items-center justify-end gap-3 pt-2 border-t border-dust_grey/60">
-                        <button type="button" onclick="closeQuickAddProductModal()"
-                                class="px-4 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black text-sm font-semibold rounded-xl transition">
-                            Hủy bỏ
-                        </button>
-                        <button type="submit" id="quickSubmitBtn"
-                                class="inline-flex items-center gap-1.5 px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-bold rounded-xl shadow-md transition">
-                            <i class="bi bi-check-lg"></i>
-                            <span>Lưu &amp; Thêm vào phiếu</span>
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Cột Phải: Tra Cứu Sản Phẩm Trong Kho -->
-                <div class="md:col-span-5 bg-parchment-50 border border-dust_grey/70 rounded-2xl p-4 flex flex-col justify-between self-stretch min-h-[360px]">
-                    <div class="space-y-2.5">
-                        <div class="flex items-center justify-between pb-2 border-b border-dust_grey">
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-carbon_black flex items-center gap-1.5">
-                                <i class="bi bi-box-seam text-blazing_flame"></i>
-                                <span>Sản phẩm trong kho</span>
-                            </h4>
-                            <span id="quickMatchBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">Chờ tra cứu</span>
-                        </div>
-
-                        <!-- Danh sách kết quả tra cứu -->
-                        <div id="quickMatchResults" class="space-y-2 max-h-[330px] overflow-y-auto pr-1">
-                            <div class="text-center py-12 px-4 text-carbon_black-400">
-                                <i class="bi bi-search text-2xl mb-1.5 text-carbon_black-300 block"></i>
-                                <p class="text-xs font-medium text-carbon_black-600">Nhập tên và nhấn biểu tượng kính lúp</p>
-                                <p class="text-[11px] text-carbon_black-400 mt-0.5">để tra cứu sản phẩm trong hệ thống.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-<!-- Hidden Source Product Options (Thẻ select chứa options đảm bảo không bị browser strip) -->
-<select id="productOptionsSource" class="hidden" style="display: none;">
-    <option value="">-- Chọn sản phẩm --</option>
-    <option th:each="p : ${products}"
-            th:value="${p.id}"
-            th:data-title="${p.title}"
-            th:data-price="${p.originalCost}"
-            th:data-selling-price="${p.price}"
-            th:data-barcode="${p.barcode}"
-            th:data-stock="${p.stockQuantity}"
-            th:data-type="${p.productType != null ? p.productType.name() : 'BOOK'}"
-            th:data-category="${p.category != null ? p.category.name : 'Chung'}"
-            th:data-is-textbook="${textbookIds != null and textbookIds.contains(p.id)}"
-            th:text="${p.title + ' (Tồn kho: ' + p.stockQuantity + ')'}">
-        Sản phẩm mẫu
-    </option>
-</select>
+    <!-- Hidden Source Product Options (Nguồn dữ liệu sản phẩm sắp xếp ưu tiên hết hàng/tồn thấp) -->
+    <select id="productOptionsSource" class="hidden" style="display: none;">
+        <option value="">-- Chọn sản phẩm --</option>
+        <option th:each="p : ${products}"
+                th:value="${p.id}"
+                th:data-title="${p.title}"
+                th:data-price="${p.originalCost}"
+                th:data-selling-price="${p.price}"
+                th:data-barcode="${p.barcode}"
+                th:data-stock="${p.stockQuantity}"
+                th:data-type="${p.productType != null ? p.productType.name() : 'BOOK'}"
+                th:data-category="${p.category != null ? p.category.name : 'Chung'}"
+                th:data-is-textbook="${textbookIds != null and textbookIds.contains(p.id)}"
+                th:text="${p.title + ' (Tồn kho: ' + p.stockQuantity + ')'}">
+            Sản phẩm mẫu
+        </option>
+    </select>
 
 <script>
     let rowIndex = document.querySelectorAll('.item-row').length;
-
-    function openQuickAddProductModal() {
-        document.getElementById('quickAddProductModal').classList.remove('hidden');
-        document.getElementById('quickModalError').classList.add('hidden');
-        document.getElementById('quickQtyWarning').classList.add('hidden');
-        document.getElementById('quickPriceWarning').classList.add('hidden');
-        resetSearchProductMatch();
-        validateQuickPrices();
-        setTimeout(() => document.getElementById('quickTitle').focus(), 100);
-    }
-
-    function closeQuickAddProductModal() {
-        document.getElementById('quickAddProductModal').classList.add('hidden');
-    }
-
-    function toggleTextbookOption() {
-        const type = document.getElementById('quickProductType').value;
-        const wrapper = document.getElementById('textbookWrapper');
-        if (type === 'BOOK') {
-            wrapper.classList.remove('hidden');
-        } else {
-            wrapper.classList.add('hidden');
-            document.getElementById('quickIsTextbook').checked = false;
-        }
-        validateQuickQuantity();
-        const titleInput = document.getElementById('quickTitle');
-        if (titleInput && titleInput.value.trim().length > 0) {
-            executeSearchProductMatch();
-        }
-    }
-
-    function resetSearchProductMatch() {
-        const badge = document.getElementById('quickMatchBadge');
-        const resultsContainer = document.getElementById('quickMatchResults');
-        if (badge) {
-            badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700';
-            badge.textContent = 'Chờ tra cứu';
-        }
-        if (resultsContainer) {
-            resultsContainer.innerHTML = `
-                <div class="text-center py-12 px-4 text-carbon_black-400">
-                    <i class="bi bi-search text-2xl mb-1.5 text-carbon_black-300 block"></i>
-                    <p class="text-xs font-medium text-carbon_black-600">Nhập tên và nhấn biểu tượng kính lúp</p>
-                    <p class="text-[11px] text-carbon_black-400 mt-0.5">để tra cứu sản phẩm trong hệ thống.</p>
-                </div>
-            `;
-        }
-    }
-
-    function executeSearchProductMatch() {
-        const titleInput = document.getElementById('quickTitle');
-        const typeSelect = document.getElementById('quickProductType');
-        const resultsContainer = document.getElementById('quickMatchResults');
-        const badge = document.getElementById('quickMatchBadge');
-
-        const keyword = titleInput.value.trim().toLowerCase();
-        const currentType = typeSelect.value;
-
-        if (!keyword) {
-            resetSearchProductMatch();
-            return;
-        }
-
-        const source = document.getElementById('productOptionsSource');
-        const matches = [];
-
-        if (source) {
-            for (let i = 1; i < source.options.length; i++) {
-                const opt = source.options[i];
-                const pType = opt.getAttribute('data-type') || 'BOOK';
-                const pTitle = opt.getAttribute('data-title') || opt.textContent.split('(')[0].trim();
-                const pBarcode = opt.getAttribute('data-barcode') || '';
-                const pStock = parseInt(opt.getAttribute('data-stock')) || 0;
-                const pCost = parseFloat(opt.getAttribute('data-price')) || 0;
-                const pPrice = parseFloat(opt.getAttribute('data-selling-price')) || 0;
-                const pCategory = opt.getAttribute('data-category') || 'Chung';
-                const pIsTextbook = opt.getAttribute('data-is-textbook') === 'true';
-
-                // Lọc theo loại sản phẩm và kiểm tra contains
-                if (pType === currentType && pTitle.toLowerCase().includes(keyword)) {
-                    const isExact = pTitle.trim().toLowerCase() === keyword;
-                    matches.push({
-                        id: opt.value,
-                        title: pTitle,
-                        barcode: pBarcode,
-                        category: pCategory,
-                        type: pType,
-                        isTextbook: pIsTextbook,
-                        stock: pStock,
-                        cost: pCost,
-                        price: pPrice,
-                        isExact: isExact
-                    });
-                }
-            }
-        }
-
-        // Ưu tiên đưa sản phẩm trùng tên chính xác lên đầu
-        matches.sort((a, b) => (b.isExact ? 1 : 0) - (a.isExact ? 1 : 0));
-
-        if (matches.length === 0) {
-            if (badge) {
-                badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600';
-                badge.textContent = '0 kết quả';
-            }
-            if (resultsContainer) {
-                resultsContainer.innerHTML = `
-                    <div class="text-center py-10 px-4 text-carbon_black-500">
-                        <i class="bi bi-inbox text-2xl mb-1 text-carbon_black-400 block"></i>
-                        <p class="text-xs font-semibold text-carbon_black-700">Không tìm thấy sản phẩm phù hợp</p>
-                    </div>
-                `;
-            }
-            return;
-        }
-
-        if (badge) {
-            badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-200 text-slate-800';
-            badge.textContent = `${matches.length} kết quả`;
-        }
-
-        let html = '';
-        matches.forEach(m => {
-            const costFormatted = m.cost.toLocaleString('vi-VN') + ' đ';
-            const priceFormatted = m.price.toLocaleString('vi-VN') + ' đ';
-
-            // Nếu trùng tên chính xác: highlight vàng nhạt nhẹ nhàng, chuyên nghiệp
-            const cardClass = m.isExact
-                ? 'p-3 rounded-xl border-2 border-amber-400 bg-amber-50/70 shadow-xs space-y-1.5'
-                : 'p-3 rounded-xl border border-dust_grey bg-white hover:border-slate-400 transition space-y-1.5 shadow-xs';
-
-            const headerBadge = m.isExact
-                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-900">
-                     <i class="bi bi-exclamation-circle-fill text-amber-700"></i> Trùng tên sản phẩm
-                   </span>`
-                : '';
-
-            html += `
-                <div class="${cardClass}">
-                    <div class="flex items-center justify-between">
-                        ${headerBadge}
-                        <span class="text-[11px] font-mono text-carbon_black-600 font-semibold ml-auto">${escapeHtml(m.barcode)}</span>
-                    </div>
-                    <div>
-                        <h5 class="text-xs font-bold text-carbon_black">${escapeHtml(m.title)}</h5>
-                        <div class="flex flex-wrap items-center gap-x-3 text-[11px] text-carbon_black-500 mt-0.5">
-                            <span>Tồn kho: <strong>${m.stock}</strong> đơn vị</span>
-                            <span>Giá vốn: <strong>${costFormatted}</strong></span>
-                        </div>
-                    </div>
-
-                    <!-- Nút hành động: Chi tiết & Chọn -->
-                    <div class="flex items-center gap-2 pt-1">
-                        <button type="button" onclick="toggleProductCardDetail('card-detail-${m.id}')"
-                                class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-carbon_black-700 text-xs font-medium rounded-lg transition inline-flex items-center gap-1">
-                            <i class="bi bi-info-circle text-[11px]"></i>
-                            <span>Chi tiết</span>
-                        </button>
-                        <button type="button" onclick="selectExistingProductIntoReceipt('${m.id}', ${m.cost})"
-                                class="flex-1 px-2.5 py-1 ${m.isExact ? 'bg-amber-500 hover:bg-amber-600 text-white font-bold' : 'bg-parchment-200 hover:bg-blazing_flame hover:text-white text-carbon_black font-semibold'} text-xs rounded-lg transition flex items-center justify-center gap-1 shadow-xs">
-                            <i class="bi bi-plus-lg"></i>
-                            <span>Chọn vào phiếu</span>
-                        </button>
-                    </div>
-
-                    <!-- Panel xem chi tiết đối chiếu -->
-                    <div id="card-detail-${m.id}" class="hidden pt-2 mt-1.5 border-t border-dust_grey/60 text-[11px] space-y-1 bg-white/80 p-2 rounded-lg">
-                        <div class="flex justify-between">
-                            <span class="text-carbon_black-500">Mã vạch (EAN-13):</span>
-                            <span class="font-mono font-semibold text-carbon_black">${escapeHtml(m.barcode)}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-carbon_black-500">Danh mục:</span>
-                            <span class="font-medium text-carbon_black">${escapeHtml(m.category)}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-carbon_black-500">Phân loại:</span>
-                            <span class="font-medium text-carbon_black">${m.type === 'BOOK' ? (m.isTextbook ? 'Sách giáo khoa' : 'Sách thông thường') : 'Văn phòng phẩm'}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-carbon_black-500">Giá niêm yết:</span>
-                            <span class="font-medium text-carbon_black">${priceFormatted}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-carbon_black-500">Giá vốn gần nhất:</span>
-                            <span class="font-medium text-carbon_black">${costFormatted}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-carbon_black-500">Tồn kho hiện tại:</span>
-                            <span class="font-bold text-carbon_black">${m.stock} đơn vị</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        if (resultsContainer) {
-            resultsContainer.innerHTML = html;
-        }
-    }
-
-    function toggleProductCardDetail(detailId) {
-        const el = document.getElementById(detailId);
-        if (el) {
-            el.classList.toggle('hidden');
-        }
-    }
-
-    function selectExistingProductIntoReceipt(productId, defaultCost) {
-        const rows = document.querySelectorAll('.item-row');
-        let duplicateRowIdx = -1;
-        let duplicateSelect = null;
-        rows.forEach((r, idx) => {
-            const s = r.querySelector('.product-select');
-            if (s && s.value && String(s.value) === String(productId)) {
-                duplicateRowIdx = idx + 1;
-                duplicateSelect = s;
-            }
-        });
-
-        if (duplicateRowIdx > 0 && duplicateSelect) {
-            const opt = duplicateSelect.options[duplicateSelect.selectedIndex];
-            const cleanTitle = opt ? getCleanProductTitle(opt.textContent) : 'Sản phẩm';
-            closeQuickAddProductModal();
-            showErrorBox(`Mặt hàng "${cleanTitle}" đã được chọn tại dòng #${duplicateRowIdx} của phiếu nhập kho.`, 'Cảnh báo trùng lặp mặt hàng:');
-            const targetRow = duplicateSelect.closest('.item-row');
-            if (targetRow) {
-                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                duplicateSelect.classList.add('border-rose-500', 'ring-2', 'ring-rose-400');
-                setTimeout(() => {
-                    duplicateSelect.classList.remove('border-rose-500', 'ring-2', 'ring-rose-400');
-                }, 3000);
-            }
-            return;
-        }
-
-        const qtyVal = parseInt(document.getElementById('quickQuantity').value) || 1;
-        addNewItemRowWithData(productId, defaultCost, qtyVal);
-        closeQuickAddProductModal();
-        document.getElementById('quickAddProductForm').reset();
-    }
-
-    function validateQuickPrices() {
-        const priceInput = document.getElementById('quickPrice');
-        const costInput = document.getElementById('quickOriginalCost');
-        const warning = document.getElementById('quickPriceWarning');
-        const submitBtn = document.getElementById('quickSubmitBtn');
-
-        const price = parseFloat(priceInput.value) || 0;
-        const cost = parseFloat(costInput.value) || 0;
-
-        if (priceInput.value !== '' && costInput.value !== '' && price < cost) {
-            warning.classList.remove('hidden');
-            priceInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
-            costInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
-            submitBtn.disabled = true;
-            return false;
-        } else {
-            warning.classList.add('hidden');
-            priceInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
-            costInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
-            submitBtn.disabled = false;
-            return true;
-        }
-    }
-
-    function validateQuickQuantity() {
-        const qtyInput = document.getElementById('quickQuantity');
-        const warningBtn = document.getElementById('quickQtyWarningBtn');
-        const isTextbook = document.getElementById('quickIsTextbook').checked;
-        const qty = parseInt(qtyInput.value) || 0;
-        const maxCap = isTextbook ? 500 : 100;
-        const label = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
-
-        if (qty > maxCap) {
-            const titleInput = document.getElementById('quickTitle');
-            const cleanTitle = titleInput && titleInput.value.trim() ? titleInput.value.trim() : 'Sản phẩm mới';
-            const excess = qty - maxCap;
-            const msg = `Sản phẩm "${cleanTitle}" hiện nhập ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${label}).`;
-            qtyInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-9');
-            if (warningBtn) {
-                warningBtn.setAttribute('data-tooltip-msg', msg);
-                warningBtn.classList.remove('hidden');
-            }
-            return false;
-        } else {
-            qtyInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500', 'bg-rose-50/20', 'pr-9');
-            if (warningBtn) {
-                warningBtn.classList.add('hidden');
-                warningBtn.removeAttribute('data-tooltip-msg');
-            }
-            hideFloatingTooltip();
-            return true;
-        }
-    }
-
-    async function handleQuickAddProduct(event) {
-        event.preventDefault();
-        const submitBtn = document.getElementById('quickSubmitBtn');
-        const errorDiv = document.getElementById('quickModalError');
-        errorDiv.classList.add('hidden');
-
-        if (!validateQuickPrices()) {
-            errorDiv.textContent = 'Giá niêm yết không được thấp hơn giá vốn nhập (tránh bán lỗ).';
-            errorDiv.classList.remove('hidden');
-            return;
-        }
-
-        if (!validateQuickQuantity()) {
-            errorDiv.textContent = 'Số lượng nhập vượt quá hạn mức cho phép của đợt nhập đầu.';
-            errorDiv.classList.remove('hidden');
-            return;
-        }
-
-        const title = document.getElementById('quickTitle').value.trim();
-        const productType = document.getElementById('quickProductType').value;
-        const isTextbook = document.getElementById('quickIsTextbook').checked;
-        const categoryId = document.getElementById('quickCategoryId').value || null;
-        const barcode = null; // Hệ thống tự động sinh mã vạch chuẩn unique
-        const price = parseFloat(document.getElementById('quickPrice').value) || 0;
-        const originalCost = parseFloat(document.getElementById('quickOriginalCost').value) || 0;
-        const initialQuantity = parseInt(document.getElementById('quickQuantity').value) || 1;
-
-        // Extract CSRF Token
-        const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
-        const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content')
-            || document.querySelector('input[name="_csrf"]')?.value || '';
-
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Đang tạo...';
-
-        try {
-            const headers = { 'Content-Type': 'application/json' };
-            if (csrfToken) {
-                headers[csrfHeader] = csrfToken;
-            }
-
-            const response = await fetch('/api/products/quick-create', {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify({
-                    title, productType, isTextbook, categoryId, barcode, price, originalCost, initialQuantity
-                })
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.message || 'Lỗi khi tạo sản phẩm');
-            }
-
-            const newProd = await response.json();
-
-            // 1. Add new option to hidden source select with full attributes
-            const sourceSelect = document.getElementById('productOptionsSource');
-            const newOpt = document.createElement('option');
-            newOpt.value = newProd.id;
-            newOpt.setAttribute('data-title', newProd.title);
-            newOpt.setAttribute('data-price', newProd.originalCost);
-            newOpt.setAttribute('data-selling-price', newProd.price);
-            newOpt.setAttribute('data-barcode', newProd.barcode);
-            newOpt.setAttribute('data-stock', '0');
-            newOpt.setAttribute('data-type', newProd.productType);
-            newOpt.setAttribute('data-category', 'Mới tạo');
-            newOpt.setAttribute('data-is-textbook', newProd.isTextbook ? 'true' : 'false');
-            newOpt.textContent = `${newProd.title} (Tồn kho: 0)`;
-            if (sourceSelect) {
-                sourceSelect.appendChild(newOpt);
-            }
-
-            // 2. Add new option to all existing product dropdowns
-            document.querySelectorAll('.product-select').forEach(sel => {
-                const opt = newOpt.cloneNode(true);
-                sel.appendChild(opt);
-            });
-
-            // 3. Add a new row with this product pre-selected
-            addNewItemRowWithData(newProd.id, newProd.originalCost, newProd.initialQuantity);
-
-            // 4. Close modal and reset form
-            closeQuickAddProductModal();
-            document.getElementById('quickAddProductForm').reset();
-        } catch (err) {
-            errorDiv.textContent = err.message;
-            errorDiv.classList.remove('hidden');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> <span>Lưu &amp; Thêm vào phiếu</span>';
-        }
-    }
 
     function escapeHtml(str) {
         if (!str) return '';
@@ -839,33 +282,272 @@
             .replace(/'/g, '&#039;');
     }
 
+    function getAvailableProducts() {
+        const opts = Array.from(document.querySelectorAll('#productOptionsSource option'));
+        return opts.filter(o => o.value !== '').map(o => ({
+            id: o.value,
+            title: o.getAttribute('data-title') || o.textContent.replace(/\s*\(Tồn.*?\)/, '').trim(),
+            cost: parseFloat(o.getAttribute('data-price')) || 0,
+            sellingPrice: parseFloat(o.getAttribute('data-selling-price')) || 0,
+            barcode: o.getAttribute('data-barcode') || '',
+            stock: parseInt(o.getAttribute('data-stock')) || 0,
+            type: o.getAttribute('data-type') || 'BOOK',
+            category: o.getAttribute('data-category') || 'Chung',
+            isTextbook: o.getAttribute('data-is-textbook') === 'true'
+        }));
+    }
+
+    function getSelectedProductIds(excludeWrapper) {
+        const selected = new Set();
+        const currentInput = excludeWrapper ? excludeWrapper.querySelector('.product-id-input') : null;
+        document.querySelectorAll('.product-id-input').forEach(input => {
+            if (input !== currentInput && input.value && input.value.trim() !== '') {
+                selected.add(String(input.value.trim()));
+            }
+        });
+        return selected;
+    }
+
+    // ==========================================
+    // SEARCHABLE COMBOBOX COMPONENT
+    // ==========================================
+
+    function renderProductDropdown(wrapper, filterText) {
+        const menu = wrapper.querySelector('.product-dropdown-menu');
+        const hiddenInput = wrapper.querySelector('.product-id-input');
+        const availableProducts = getAvailableProducts();
+
+        // Ẩn các sản phẩm đã được chọn ở các dòng khác trong phiếu nhập
+        const alreadySelectedIds = getSelectedProductIds(wrapper);
+        const candidateProducts = availableProducts.filter(p => !alreadySelectedIds.has(String(p.id)));
+
+        const q = (filterText || '').toLowerCase().trim();
+        const filtered = q === ''
+            ? candidateProducts
+            : candidateProducts.filter(p =>
+                p.title.toLowerCase().includes(q) ||
+                p.barcode.toLowerCase().includes(q) ||
+                p.category.toLowerCase().includes(q)
+            );
+
+        if (filtered.length === 0) {
+            if (candidateProducts.length === 0) {
+                menu.innerHTML = `<div class="p-3 text-center text-xs text-carbon_black-400 font-medium">Tất cả sản phẩm đã được chọn vào phiếu nhập</div>`;
+            } else {
+                menu.innerHTML = `<div class="p-3 text-center text-xs text-carbon_black-400 font-medium">Không tìm thấy sản phẩm "${escapeHtml(filterText)}"</div>`;
+            }
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(p => {
+            let stockBadge = '';
+            if (p.stock === 0) {
+                stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-300 shrink-0">Hết hàng (0)</span>`;
+            } else if (p.stock <= 10) {
+                stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 shrink-0">Tồn thấp: ${p.stock}</span>`;
+            } else {
+                stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">Tồn: ${p.stock}</span>`;
+            }
+
+            const isSelected = hiddenInput && hiddenInput.value && String(hiddenInput.value) === String(p.id);
+
+            html += `
+                <div class="product-option-item px-3 py-2.5 hover:bg-parchment-100 cursor-pointer flex items-center justify-between gap-2 transition ${isSelected ? 'bg-blazing_flame/5' : ''}"
+                     data-product-id="${p.id}">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="font-semibold text-xs text-carbon_black truncate">${escapeHtml(p.title)}</span>
+                            ${stockBadge}
+                        </div>
+                        <div class="text-[11px] text-carbon_black-500 flex items-center gap-2 mt-0.5 font-normal">
+                            <span>Mã: <code class="font-mono text-carbon_black-700 font-semibold">${escapeHtml(p.barcode)}</code></span>
+                            <span>•</span>
+                            <span>Giá vốn: <strong class="text-carbon_black-700">${p.cost.toLocaleString('vi-VN')} đ</strong></span>
+                            ${p.isTextbook ? '<span class="text-blue-600 font-bold">• SGK</span>' : ''}
+                        </div>
+                    </div>
+                    <i class="bi bi-check2 text-base text-blazing_flame font-bold ${isSelected ? 'opacity-100' : 'opacity-0'}"></i>
+                </div>
+            `;
+        });
+        menu.innerHTML = html;
+    }
+
+    function selectProductForCombobox(wrapper, productId) {
+        const hiddenInput = wrapper.querySelector('.product-id-input');
+        const searchInput = wrapper.querySelector('.product-search-input');
+        const menu = wrapper.querySelector('.product-dropdown-menu');
+        const row = wrapper.closest('tr');
+        const availableProducts = getAvailableProducts();
+        const p = availableProducts.find(x => String(x.id) === String(productId));
+        if (!p) return;
+
+        // Check duplicate across rows
+        const allHiddenInputs = Array.from(document.querySelectorAll('.product-id-input'));
+        let duplicateRowIdx = -1;
+        allHiddenInputs.forEach((otherInput) => {
+            if (otherInput !== hiddenInput && otherInput.value === String(p.id)) {
+                const otherRow = otherInput.closest('tr');
+                const allRows = Array.from(document.querySelectorAll('.item-row'));
+                duplicateRowIdx = allRows.indexOf(otherRow) + 1;
+            }
+        });
+
+        if (duplicateRowIdx > 0) {
+            showErrorBox(
+                `Mặt hàng "${p.title}" đã có tại dòng #${duplicateRowIdx}. Vui lòng cập nhật số lượng ở dòng đã có.`,
+                'Thông báo:'
+            );
+            hiddenInput.value = '';
+            searchInput.value = '';
+            closeAllDropdowns();
+            searchInput.focus();
+            return;
+        }
+
+        hideErrorBox();
+        hiddenInput.value = p.id;
+        searchInput.value = `${p.title} (Tồn kho: ${p.stock})`;
+        closeAllDropdowns();
+
+        // Populate unitCost if empty or 0
+        const costInput = row.querySelector('.unit-cost-input');
+        if (costInput && (!costInput.value || costInput.value === '0')) {
+            costInput.value = p.cost;
+        }
+        checkRowLimit(row);
+        calculateRowSubtotal(row.querySelector('.quantity-input'));
+    }
+
+    function openDropdown(wrapper) {
+        closeAllDropdowns();
+        const menu = wrapper.querySelector('.product-dropdown-menu');
+        const searchInput = wrapper.querySelector('.product-search-input');
+        const row = wrapper.closest('tr');
+        if (row) {
+            row.style.position = 'relative';
+            row.style.zIndex = '60';
+        }
+        wrapper.style.zIndex = '60';
+        renderProductDropdown(wrapper, searchInput.value && !searchInput.value.includes('(Tồn kho:') ? searchInput.value : '');
+        menu.classList.remove('hidden');
+    }
+
+    function closeAllDropdowns() {
+        document.querySelectorAll('.product-dropdown-menu').forEach(m => m.classList.add('hidden'));
+        document.querySelectorAll('.product-combobox').forEach(w => w.style.zIndex = '');
+        document.querySelectorAll('.item-row').forEach(r => {
+            r.style.zIndex = '';
+            r.style.position = '';
+        });
+    }
+
+    // Global listeners for combobox behavior
+    document.addEventListener('click', (e) => {
+        // 1. Click on option item
+        const optionItem = e.target.closest('.product-option-item');
+        if (optionItem) {
+            const wrapper = optionItem.closest('.product-combobox');
+            const pid = optionItem.getAttribute('data-product-id');
+            selectProductForCombobox(wrapper, pid);
+            return;
+        }
+
+        // 2. Click toggle button
+        const toggleBtn = e.target.closest('.combobox-toggle-btn');
+        if (toggleBtn) {
+            const wrapper = toggleBtn.closest('.product-combobox');
+            const menu = wrapper.querySelector('.product-dropdown-menu');
+            const searchInput = wrapper.querySelector('.product-search-input');
+            const isHidden = menu.classList.contains('hidden');
+            if (isHidden) {
+                openDropdown(wrapper);
+                searchInput.focus();
+            } else {
+                closeAllDropdowns();
+            }
+            return;
+        }
+
+        // 3. Click directly on search input
+        const searchInput = e.target.closest('.product-search-input');
+        if (searchInput) {
+            const wrapper = searchInput.closest('.product-combobox');
+            const menu = wrapper.querySelector('.product-dropdown-menu');
+            if (menu.classList.contains('hidden')) {
+                openDropdown(wrapper);
+            }
+            return;
+        }
+
+        // 4. Click outside closes all menus
+        if (!e.target.closest('.product-combobox')) {
+            closeAllDropdowns();
+        }
+    });
+
+    document.addEventListener('input', (e) => {
+        if (e.target.classList.contains('product-search-input')) {
+            const wrapper = e.target.closest('.product-combobox');
+            const hiddenInput = wrapper.querySelector('.product-id-input');
+            if (e.target.value.trim() === '') {
+                hiddenInput.value = '';
+                const row = wrapper.closest('tr');
+                checkRowLimit(row);
+                calculateRowSubtotal(row.querySelector('.quantity-input'));
+            }
+            openDropdown(wrapper);
+            renderProductDropdown(wrapper, e.target.value);
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAllDropdowns();
+        }
+    });
+
     function addNewItemRow() {
         addNewItemRowWithData('', '', 1);
     }
 
     function addNewItemRowWithData(selectedProductId, defaultCost, defaultQty) {
         const tbody = document.getElementById('itemsTableBody');
-        const sourceSelect = document.getElementById('productOptionsSource');
-        const optionsHtml = sourceSelect ? sourceSelect.innerHTML : '<option value="">-- Chọn sản phẩm --</option>';
-
         const tr = document.createElement('tr');
         tr.className = 'item-row hover:bg-parchment-50 transition';
         tr.id = 'item-row-' + rowIndex;
 
-        const costVal = defaultCost !== undefined && defaultCost !== null ? defaultCost : '';
-        const qtyVal = defaultQty || 1;
+        const costVal = (defaultCost !== undefined && defaultCost !== null && defaultCost >= 0) ? defaultCost : '';
+        const qtyVal = (defaultQty && defaultQty > 0) ? defaultQty : 1;
 
         tr.innerHTML = `
             <td class="py-3 px-4 text-center font-semibold text-carbon_black-500 row-index">1</td>
             <td class="py-3 px-4">
-                <select name="items[${rowIndex}].productId" required onchange="onProductSelected(this)"
-                        class="product-select w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame">
-                    ${optionsHtml}
-                </select>
+                <div class="product-combobox relative w-full">
+                    <input type="hidden"
+                           name="items[${rowIndex}].productId"
+                           value="${selectedProductId || ''}"
+                           class="product-id-input product-select"
+                           required />
+                    <div class="relative flex items-center">
+                        <input type="text"
+                               class="product-search-input w-full pl-3.5 pr-8 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame transition"
+                               placeholder="🔍 Nhập tìm tên sách, mã vạch..."
+                               autocomplete="off" />
+                        <button type="button"
+                                class="combobox-toggle-btn absolute right-2 top-1/2 -translate-y-1/2 text-carbon_black-400 hover:text-carbon_black p-1 transition"
+                                tabindex="-1"
+                                title="Mở danh sách">
+                            <i class="bi bi-chevron-down text-xs transition-transform duration-200"></i>
+                        </button>
+                    </div>
+                    <div class="product-dropdown-menu absolute left-0 right-0 top-full mt-1.5 max-h-64 overflow-y-auto bg-white border border-dust_grey rounded-xl shadow-2xl z-[70] hidden divide-y divide-dust_grey/40"></div>
+                </div>
             </td>
             <td class="py-3 px-4">
                 <input type="number" name="items[${rowIndex}].unitCost" value="${costVal}" step="1000" min="0" required
-                       oninput="onPriceOrQuantityChange(this)" placeholder="0"
+                       oninput="onPriceOrQuantityChange(this)" onchange="onPriceOrQuantityBlur(this)" onblur="onPriceOrQuantityBlur(this)" placeholder="0"
                        class="unit-cost-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
                 <div class="cost-warning-msg text-[11px] text-rose-600 font-semibold mt-1 hidden flex items-center gap-1">
                     <i class="bi bi-exclamation-circle-fill"></i>
@@ -875,7 +557,7 @@
             <td class="py-3 px-4">
                 <div class="relative flex items-center">
                     <input type="number" name="items[${rowIndex}].receivedQuantity" value="${qtyVal}" min="1" required
-                           oninput="onPriceOrQuantityChange(this)" placeholder="1"
+                           oninput="onPriceOrQuantityChange(this)" onchange="onPriceOrQuantityBlur(this)" onblur="onPriceOrQuantityBlur(this)" placeholder="1"
                            class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame transition-all" />
                     <button type="button"
                             class="qty-warning-btn hidden absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center text-rose-500 hover:text-rose-600 focus:outline-none transition cursor-help"
@@ -897,8 +579,8 @@
 
         // Pre-select product if provided
         if (selectedProductId) {
-            const select = tr.querySelector('.product-select');
-            select.value = selectedProductId;
+            const wrapper = tr.querySelector('.product-combobox');
+            selectProductForCombobox(wrapper, selectedProductId);
         }
 
         rowIndex++;
@@ -929,8 +611,8 @@
             const indexCell = row.querySelector('.row-index');
             if (indexCell) indexCell.textContent = idx + 1;
 
-            const select = row.querySelector('.product-select');
-            if (select) select.name = `items[${idx}].productId`;
+            const hiddenInput = row.querySelector('.product-id-input');
+            if (hiddenInput) hiddenInput.name = `items[${idx}].productId`;
 
             const costInput = row.querySelector('.unit-cost-input');
             if (costInput) costInput.name = `items[${idx}].unitCost`;
@@ -940,56 +622,141 @@
         });
     }
 
-    function onProductSelected(select) {
-        const row = select.closest('tr');
-        const selectedProductId = select.value;
+    function sanitizeQuantity(elem, isFinal) {
+        if (!elem) return 1;
+        // Trình duyệt báo lỗi cú pháp / phím âm trên input type="number"
+        if (elem.validity && elem.validity.badInput) {
+            elem.value = '1';
+            return 1;
+        }
 
-        if (selectedProductId) {
-            const allRows = Array.from(document.querySelectorAll('.item-row'));
-            let duplicateRowIdx = -1;
-            allRows.forEach((r, idx) => {
-                const s = r.querySelector('.product-select');
-                if (s && s !== select && s.value === selectedProductId) {
-                    duplicateRowIdx = idx + 1;
-                }
-            });
-
-            if (duplicateRowIdx > 0) {
-                const opt = select.options[select.selectedIndex];
-                const cleanTitle = getCleanProductTitle(opt ? opt.textContent : '');
-                select.value = '';
-                const costInput = row.querySelector('.unit-cost-input');
-                if (costInput) costInput.value = '0';
-                checkRowLimit(row);
-                calculateRowSubtotal(select);
-
-                showErrorBox(
-                    `Mặt hàng "${cleanTitle}" đã được chọn tại dòng #${duplicateRowIdx} của phiếu nhập kho.`,
-                    'Cảnh báo trùng lặp mặt hàng:'
-                );
-                select.focus();
-                return;
+        const raw = elem.value;
+        if (raw === '') {
+            if (isFinal) {
+                elem.value = '1';
+                return 1;
             }
+            return 0; // Cho phép tạm thời rỗng trong tích tắc khi người dùng xóa để gõ số mới
         }
 
-        hideErrorBox();
-        const selectedOption = select.options[select.selectedIndex];
-        const defaultCost = selectedOption ? selectedOption.getAttribute('data-price') : null;
-        const costInput = row.querySelector('.unit-cost-input');
-
-        if (defaultCost && (!costInput.value || costInput.value === '0')) {
-            costInput.value = defaultCost;
+        // Bất kỳ số âm nào (chứa dấu -), 0, hoặc giá trị không hợp lệ -> tự động điền 1 ngay lập tức
+        if (String(raw).includes('-')) {
+            elem.value = '1';
+            return 1;
         }
-        checkRowLimit(row);
-        calculateRowSubtotal(select);
+
+        const num = parseInt(raw, 10);
+        if (isNaN(num) || num <= 0) {
+            elem.value = '1';
+            return 1;
+        }
+
+        if (isFinal) {
+            elem.value = String(num);
+        }
+        return num;
+    }
+
+    function sanitizeUnitCost(elem, isFinal) {
+        if (!elem) return 0;
+        if (elem.validity && elem.validity.badInput) {
+            elem.value = '0';
+            return 0;
+        }
+
+        const raw = elem.value;
+        if (raw === '') {
+            if (isFinal) {
+                elem.value = '0';
+                return 0;
+            }
+            return 0;
+        }
+
+        if (String(raw).includes('-')) {
+            elem.value = '0';
+            return 0;
+        }
+
+        const num = parseFloat(raw);
+        if (isNaN(num) || num < 0) {
+            elem.value = '0';
+            return 0;
+        }
+
+        if (isFinal) {
+            elem.value = String(Math.floor(num));
+        }
+        return num;
     }
 
     function onPriceOrQuantityChange(elem) {
+        if (!elem) return;
+        if (elem.classList.contains('quantity-input')) {
+            sanitizeQuantity(elem, false);
+        } else if (elem.classList.contains('unit-cost-input')) {
+            sanitizeUnitCost(elem, false);
+        }
         const row = elem.closest('tr');
-        checkRowLimit(row);
-        calculateRowSubtotal(elem);
+        if (row) {
+            checkRowLimit(row);
+            calculateRowSubtotal(elem);
+        }
     }
 
+    function onPriceOrQuantityBlur(elem) {
+        if (!elem) return;
+        if (elem.classList.contains('quantity-input')) {
+            sanitizeQuantity(elem, true);
+        } else if (elem.classList.contains('unit-cost-input')) {
+            sanitizeUnitCost(elem, true);
+        }
+        const row = elem.closest('tr');
+        if (row) {
+            checkRowLimit(row);
+            calculateRowSubtotal(elem);
+        }
+    }
+
+    // Tự động chặn và chuyển đổi phím '-' ngay khi gõ trên ô Số lượng & Đơn giá
+    document.addEventListener('keydown', (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('quantity-input')) {
+            if (e.key === '-' || e.key === 'Minus') {
+                e.preventDefault();
+                e.target.value = '1';
+                onPriceOrQuantityChange(e.target);
+            }
+        } else if (e.target && e.target.classList && e.target.classList.contains('unit-cost-input')) {
+            if (e.key === '-' || e.key === 'Minus') {
+                e.preventDefault();
+                e.target.value = '0';
+                onPriceOrQuantityChange(e.target);
+            }
+        }
+    });
+
+    // Lắng nghe sự kiện toàn cục để đảm bảo tự động điền 1 khi không hợp lệ ở mọi dòng (kể cả dòng thêm mới)
+    document.addEventListener('input', (e) => {
+        if (e.target && e.target.classList && (e.target.classList.contains('quantity-input') || e.target.classList.contains('unit-cost-input'))) {
+            onPriceOrQuantityChange(e.target);
+        }
+    });
+
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.classList && (e.target.classList.contains('quantity-input') || e.target.classList.contains('unit-cost-input'))) {
+            onPriceOrQuantityBlur(e.target);
+        }
+    });
+
+    document.addEventListener('blur', (e) => {
+        if (e.target && e.target.classList && (e.target.classList.contains('quantity-input') || e.target.classList.contains('unit-cost-input'))) {
+            onPriceOrQuantityBlur(e.target);
+        }
+    }, true);
+
+    // ==========================================
+    // FLOATING TOOLTIP CHO CẢNH BÁO HẠN MỨC
+    // ==========================================
     let receiptFloatingTooltip = null;
 
     function ensureFloatingTooltip() {
@@ -1000,7 +767,7 @@
             receiptFloatingTooltip.innerHTML = `
                 <div class="font-bold text-rose-600 flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider">
                     <i class="bi bi-exclamation-circle-fill text-xs text-rose-500"></i>
-                    <span>Cảnh báo hạn mức</span>
+                    <span>Cảnh báo số lượng</span>
                 </div>
                 <div id="receiptFloatingTooltipText" class="text-carbon_black-700 text-xs leading-relaxed font-medium"></div>
             `;
@@ -1042,7 +809,7 @@
     }
 
     document.addEventListener('mouseover', (e) => {
-        const btn = e.target.closest('.qty-warning-btn, #quickQtyWarningBtn');
+        const btn = e.target.closest('.qty-warning-btn');
         if (btn && !btn.classList.contains('hidden')) {
             const msg = btn.getAttribute('data-tooltip-msg');
             if (msg) showFloatingTooltip(btn, msg);
@@ -1050,7 +817,7 @@
     });
 
     document.addEventListener('mouseout', (e) => {
-        const btn = e.target.closest('.qty-warning-btn, #quickQtyWarningBtn');
+        const btn = e.target.closest('.qty-warning-btn');
         if (btn) {
             hideFloatingTooltip();
         }
@@ -1086,55 +853,44 @@
         hideFloatingTooltip();
     }
 
-    function getCleanProductTitle(rawText) {
-        if (!rawText) return 'Sản phẩm';
-        return rawText.replace(/\s*[\(\[].*?[\)\]]/g, '').trim() || rawText.trim();
-    }
-
     function checkRowLimit(row) {
         if (!row) return true;
-        const select = row.querySelector('.product-select');
+        const hiddenInput = row.querySelector('.product-id-input');
         const qtyInput = row.querySelector('.quantity-input');
         const costInput = row.querySelector('.unit-cost-input');
         const costWarning = row.querySelector('.cost-warning-msg');
 
         let isValid = true;
 
-        // 1. Kiểm tra đơn giá
-        const cost = parseFloat(costInput.value);
-        if (costInput.value !== '' && cost < 0) {
-            costWarning.querySelector('span').textContent = 'Đơn giá không được âm.';
-            costWarning.classList.remove('hidden');
-            costInput.classList.add('border-rose-500', 'ring-1', 'ring-rose-500');
-            isValid = false;
-        } else {
-            costWarning.classList.add('hidden');
-            costInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
+        // 1. Kiểm tra đơn giá - nếu không hợp lệ hoặc âm thì tự động về 0
+        let cost = parseFloat(costInput.value);
+        if (costInput.value !== '' && (isNaN(cost) || cost < 0)) {
+            costInput.value = '0';
+            cost = 0;
         }
+        if (costWarning) {
+            costWarning.classList.add('hidden');
+        }
+        costInput.classList.remove('border-rose-500', 'ring-1', 'ring-rose-500');
 
-        // 2. Kiểm tra số lượng
-        const qty = parseInt(qtyInput.value) || 0;
-        if (qtyInput.value !== '' && qty <= 0) {
-            setRowQtyWarning(row, 'Số lượng nhập phải lớn hơn 0.');
-            return false;
+        // 2. Kiểm tra số lượng - nếu <= 0 hoặc âm thì tự động điền 1 ngay
+        let qty = parseInt(qtyInput.value, 10);
+        if (qtyInput.value !== '' && (isNaN(qty) || qty <= 0)) {
+            qtyInput.value = '1';
+            qty = 1;
         }
 
         // 3. Tự động kiểm tra hạn mức nhập kho lần đầu (tồn kho = 0)
-        if (select && select.selectedIndex > 0) {
-            const option = select.options[select.selectedIndex];
-            const stock = parseInt(option.getAttribute('data-stock') || '0');
-            const isTextbook = option.getAttribute('data-is-textbook') === 'true'
-                || option.textContent.toLowerCase().includes('sgk')
-                || option.textContent.toLowerCase().includes('giáo khoa');
-
-            if (stock === 0) {
-                const maxCap = isTextbook ? 500 : 100;
-                const typeLabel = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
+        if (hiddenInput && hiddenInput.value) {
+            const availableProducts = getAvailableProducts();
+            const p = availableProducts.find(x => String(x.id) === String(hiddenInput.value));
+            if (p && p.stock === 0) {
+                const maxCap = p.isTextbook ? 500 : 100;
+                const typeLabel = p.isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
 
                 if (qty > maxCap) {
-                    const cleanTitle = getCleanProductTitle(option.textContent);
                     const excess = qty - maxCap;
-                    const msg = `Sản phẩm "${cleanTitle}" hiện nhập ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}).`;
+                    const msg = `Sản phẩm "${p.title}" vượt quá số lượng tối đa cho phép (${maxCap} đơn vị).`;
                     setRowQtyWarning(row, msg);
                     isValid = false;
                 } else {
@@ -1151,15 +907,25 @@
     }
 
     function calculateRowSubtotal(elem) {
+        if (!elem) return;
         const row = elem.closest('tr');
+        if (!row) return;
         const costInput = row.querySelector('.unit-cost-input');
         const qtyInput = row.querySelector('.quantity-input');
         const subtotalCell = row.querySelector('.row-subtotal');
 
-        const cost = parseFloat(costInput.value) || 0;
-        const qty = parseInt(qtyInput.value) || 0;
-        const subtotal = cost * qty;
+        let cost = parseFloat(costInput.value) || 0;
+        if (cost < 0) {
+            cost = 0;
+            costInput.value = '0';
+        }
 
+        let qty = parseInt(qtyInput.value, 10);
+        if (isNaN(qty) || qty <= 0) {
+            qty = (qtyInput.value === '') ? 0 : 1;
+        }
+
+        const subtotal = cost * qty;
         subtotalCell.textContent = subtotal.toLocaleString('vi-VN') + ' đ';
         recalculateTotal();
     }
@@ -1191,22 +957,34 @@
             return false;
         }
 
+        // Tự động chuẩn hóa toàn bộ các ô nhập (số lượng không hợp lệ hoặc <= 0 thành 1, đơn giá < 0 thành 0) trước khi submit
+        rows.forEach(r => {
+            const qIn = r.querySelector('.quantity-input');
+            const cIn = r.querySelector('.unit-cost-input');
+            if (qIn) sanitizeQuantity(qIn, true);
+            if (cIn) sanitizeUnitCost(cIn, true);
+            if (qIn) calculateRowSubtotal(qIn);
+        });
+
         let firstErrorInput = null;
         let errorMessage = '';
+
+        const availableProducts = getAvailableProducts();
 
         // 1. Kiểm tra trùng lặp sản phẩm giữa các dòng
         const seenProductIds = new Map();
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            const select = row.querySelector('.product-select');
-            const pid = select.value;
+            const hiddenInput = row.querySelector('.product-id-input');
+            const searchInput = row.querySelector('.product-search-input');
+            const pid = hiddenInput ? hiddenInput.value : '';
             if (pid) {
                 if (seenProductIds.has(pid)) {
                     const firstRowIdx = seenProductIds.get(pid);
-                    const opt = select.options[select.selectedIndex];
-                    const cleanTitle = getCleanProductTitle(opt ? opt.textContent : '');
-                    errorMessage = `Mặt hàng "${cleanTitle}" bị chọn trùng lặp tại dòng #${firstRowIdx + 1} và dòng #${i + 1}. Bạn đã chọn mặt hàng này 2 lần. Mỗi mặt hàng chỉ được xuất hiện một lần trên phiếu nhập kho, vui lòng gộp số lượng vào cùng một dòng.`;
-                    firstErrorInput = select;
+                    const p = availableProducts.find(x => String(x.id) === String(pid));
+                    const cleanTitle = p ? p.title : 'Sản phẩm';
+                    errorMessage = `Mặt hàng "${cleanTitle}" bị trùng lặp tại dòng #${firstRowIdx + 1} và dòng #${i + 1}. Vui lòng gộp số lượng vào cùng một dòng.`;
+                    firstErrorInput = searchInput || hiddenInput;
                     break;
                 } else {
                     seenProductIds.set(pid, i);
@@ -1218,13 +996,14 @@
         if (!firstErrorInput) {
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
-                const select = row.querySelector('.product-select');
+                const hiddenInput = row.querySelector('.product-id-input');
+                const searchInput = row.querySelector('.product-search-input');
                 const qtyInput = row.querySelector('.quantity-input');
                 const costInput = row.querySelector('.unit-cost-input');
 
-                if (!select.value) {
+                if (!hiddenInput || !hiddenInput.value) {
                     errorMessage = `Dòng #${i + 1}: Vui lòng chọn sản phẩm.`;
-                    firstErrorInput = select;
+                    firstErrorInput = searchInput || hiddenInput;
                     break;
                 }
 
@@ -1242,19 +1021,13 @@
                     break;
                 }
 
-                const option = select.options[select.selectedIndex];
-                const stock = parseInt(option.getAttribute('data-stock') || '0');
-                const isTextbook = option.getAttribute('data-is-textbook') === 'true'
-                    || option.textContent.toLowerCase().includes('sgk')
-                    || option.textContent.toLowerCase().includes('giáo khoa');
-
-                if (stock === 0) {
-                    const maxCap = isTextbook ? 500 : 100;
+                const p = availableProducts.find(x => String(x.id) === String(hiddenInput.value));
+                if (p && p.stock === 0) {
+                    const maxCap = p.isTextbook ? 500 : 100;
                     if (qty > maxCap) {
-                        const cleanTitle = getCleanProductTitle(option.textContent);
-                        const typeLabel = isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
+                        const typeLabel = p.isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
                         const excess = qty - maxCap;
-                        errorMessage = `Dòng ${i + 1} - Sản phẩm "${cleanTitle}": Số lượng nhập hiện tại là ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức nhập đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}). Vui lòng điều chỉnh lại số lượng phù hợp.`;
+                        errorMessage = `Dòng ${i + 1} - Sản phẩm "${p.title}": Số lượng nhập vượt quá số lượng tối đa cho phép (${maxCap} đơn vị).`;
                         firstErrorInput = qtyInput;
                         break;
                     }
@@ -1264,7 +1037,7 @@
 
         if (firstErrorInput) {
             event.preventDefault();
-            showErrorBox(errorMessage, 'Cảnh báo lỗi thông tin phiếu nhập:');
+            showErrorBox(errorMessage, 'Thông báo:');
             firstErrorInput.focus();
             firstErrorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return false;
@@ -1293,13 +1066,23 @@
         if (errorBox) errorBox.classList.add('hidden');
     }
 
-    // Initialize initial calculation upon page load
+    // Initialize initial calculation and comboboxes upon page load
     document.addEventListener('DOMContentLoaded', () => {
         const rows = document.querySelectorAll('.item-row');
+        const availableProducts = getAvailableProducts();
+
         if (rows.length === 0) {
             addNewItemRow();
         } else {
             rows.forEach(r => {
+                const hiddenInput = r.querySelector('.product-id-input');
+                const searchInput = r.querySelector('.product-search-input');
+                if (hiddenInput && hiddenInput.value && searchInput) {
+                    const p = availableProducts.find(x => String(x.id) === String(hiddenInput.value));
+                    if (p) {
+                        searchInput.value = `${p.title} (Tồn kho: ${p.stock})`;
+                    }
+                }
                 checkRowLimit(r);
                 const costInput = r.querySelector('.unit-cost-input');
                 if (costInput) calculateRowSubtotal(costInput);
