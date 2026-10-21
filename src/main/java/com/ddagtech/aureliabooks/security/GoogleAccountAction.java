@@ -2,7 +2,6 @@ package com.ddagtech.aureliabooks.security;
 
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.service.AccountSecurityService;
-import com.ddagtech.aureliabooks.util.HttpRequestUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.*;
@@ -22,16 +21,12 @@ public class GoogleAccountAction {
         Object action=session.getAttribute("GOOGLE_ACCOUNT_ACTION");if(!(action instanceof Intent intent))return null;
         session.removeAttribute("GOOGLE_ACCOUNT_ACTION");
         if(!Instant.now().isBefore(intent.expires()))throw new IllegalArgumentException("Yêu cầu Google đã hết hạn.");
+        if(!"REAUTH".equals(intent.purpose()))throw new IllegalArgumentException("Thao tác Google không còn được hỗ trợ.");
         if(!Boolean.TRUE.equals(claims.getAttribute("email_verified")))throw new IllegalArgumentException("Email Google chưa xác minh.");
         String sub=claims.getAttribute("sub");var owner=security.customer(intent.owner());
-        if("LINK".equals(intent.purpose())){
-            owner=security.linkGoogle(owner.getId(),sub,claims.getAttribute("email"),true,HttpRequestUtil.getClientIp(request));
-            session.setAttribute("GOOGLE_PROFILE_ACTION_DONE","LINK");
-        }else{
-            if(sub==null||!sub.equals(owner.getProviderId()))throw new IllegalArgumentException("Hãy chọn đúng Google đã liên kết với tài khoản này.");
-            session.setAttribute("GOOGLE_REAUTH_OWNER",owner.getId());session.setAttribute("GOOGLE_REAUTH_UNTIL",Instant.now().plusSeconds(300));
-            session.setAttribute("GOOGLE_PROFILE_ACTION_DONE","REAUTH");
-        }
+        if(sub==null||!sub.equals(owner.getProviderId()))throw new IllegalArgumentException("Hãy chọn đúng Google đã liên kết với tài khoản này.");
+        session.setAttribute("GOOGLE_REAUTH_OWNER",owner.getId());session.setAttribute("GOOGLE_REAUTH_UNTIL",Instant.now().plusSeconds(300));
+        session.setAttribute("GOOGLE_PROFILE_ACTION_DONE","REAUTH");
         return owner;
     }
 }

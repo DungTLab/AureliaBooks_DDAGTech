@@ -22,6 +22,8 @@ public class ContactChangeWriterImpl implements ContactChangeWriter {
         CustomerIdentity.requireCustomer(u);
         if(!Objects.equals(oldEmail,u.getEmail())||!Objects.equals(oldPhone,u.getPhone()))
             throw new AppException(ErrorCode.INVALID_INPUT_DATA,"Thông tin tài khoản đã thay đổi. Vui lòng xác thực lại.");
+        String previous = "EMAIL".equals(type) ? u.getEmail() : u.getPhone();
+        boolean replacingContact = previous != null && !previous.isBlank();
         if("EMAIL".equals(type)) {
             if(!Objects.equals(u.getEmail(),value)&&users.existsByEmail(value))throw new AppException(ErrorCode.USER_EXISTED,"Email đã được tài khoản khác sử dụng.");
             u.setEmail(value);
@@ -34,6 +36,10 @@ public class ContactChangeWriterImpl implements ContactChangeWriter {
         users.saveAndFlush(u); // Existing UNIQUE indexes arbitrate races between different owners.
         audit.record(owner,"PROFILE_"+type+"_CHANGED","users",owner,
                 "{\"field\":\""+type+"\",\"verified\":true}",ip);
+        // Adding a missing login contact preserves the authenticated account's sessions.
+        if (!replacingContact) {
+            return;
+        }
         org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
             new org.springframework.transaction.support.TransactionSynchronization(){
                 @Override public void afterCommit(){

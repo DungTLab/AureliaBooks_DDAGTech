@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.service;
 
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
+import com.ddagtech.aureliabooks.entity.User;
 import java.util.List;
 
 /** Application contract for AccountOtpService; implementation lives in service.impl. */
@@ -11,6 +12,17 @@ public interface AccountOtpService {
 
     record Result(boolean complete, String message) {
     }
+
+    record GoogleLinkView(List<String> channels, String recipient, boolean sent, long resendIn) {
+    }
+
+    String prepareGoogleLink(Long owner, String subject, String email, String session);
+
+    GoogleLinkView googleLinkView(String id, String session);
+
+    void sendGoogleLink(String id, String session, String channel, String ip);
+
+    User verifyGoogleLink(String id, String session, String code, String ip);
 
     String registration(RegisterRequest request, String session, String ip);
 

@@ -38,6 +38,17 @@ class ContactChangeServiceTest {
         assertTrue(service.verify(1L,"session",code,"203.0.113.1").completed());
         verify(writer).apply(1L,"old@example.com","0912345678","PHONE","0987654321","203.0.113.1");
     }
+    @Test
+    void addingFirstEmailKeepsLoginAndStillRequiresDestinationOtp() {
+        user.setEmail(null);
+        startEmail();
+        verifyNoInteractions(writer);
+        var result = service.verify(1L, "session", code, "203.0.113.1");
+        assertTrue(result.completed());
+        assertFalse(result.loginRequired());
+        assertFalse(result.message().contains("đăng nhập lại"));
+        verify(writer).apply(1L, null, "0912345678", "EMAIL", "new@example.com", "203.0.113.1");
+    }
     @Test void googleMissingPhoneUsesOtpToNewPhone(){
         user.setAuthProvider(User.AuthProvider.GOOGLE);user.setPhone(null);
         service.startDestination(1L,"session","PHONE","0987654321","203.0.113.1");

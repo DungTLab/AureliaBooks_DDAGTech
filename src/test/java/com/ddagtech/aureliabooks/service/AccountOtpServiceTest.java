@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.*;
 
 class AccountOtpServiceTest {
  jakarta.validation.ValidatorFactory vf;UserRepository users;AccountSecurityService writer;ContactOtpDelivery delivery;AccountOtpService service;String code;
- @BeforeEach void setup(){vf=Validation.buildDefaultValidatorFactory();users=mock(UserRepository.class);writer=mock(AccountSecurityService.class);delivery=mock(ContactOtpDelivery.class);var encoder=new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(4);service=new AccountOtpServiceImpl(users,vf.getValidator(),encoder,delivery,writer);doAnswer(a->{code=a.getArgument(2);return null;}).when(delivery).send(anyString(),anyString(),anyString());}
+ @BeforeEach void setup(){vf=Validation.buildDefaultValidatorFactory();users=mock(UserRepository.class);writer=mock(AccountSecurityService.class);delivery=mock(ContactOtpDelivery.class);var encoder=new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(4);service=new AccountOtpServiceImpl(users,vf.getValidator(),encoder,delivery,writer,new com.ddagtech.aureliabooks.security.LoginAttemptService());doAnswer(a->{code=a.getArgument(2);return null;}).when(delivery).send(anyString(),anyString(),anyString());}
  @AfterEach void close(){vf.close();}
  RegisterRequest request(){return new RegisterRequest(null,"Abcd123!","Tên Khách","0912345678",null,"Abcd123!",null,true);}
  User account(){return User.builder().id(7L).email("a@example.test").emailVerified(true).phone("0912345678").phoneVerified(true).passwordHash("old-hash").build();}

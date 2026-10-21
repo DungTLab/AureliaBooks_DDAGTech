@@ -12,12 +12,8 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 /**
- * Explicit demo transport: approved test numbers are simulated via a private team inbox.
+ * Demo transport: all valid Vietnamese phone numbers use a private team inbox.
  */
 @Service
 @Profile("sms-demo")
@@ -26,12 +22,10 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
     private final ContactOtpDelivery emailDelivery;
     private final String from;
     private final String inbox;
-    private final Set<String> allowedPhones;
 
     public DemoSmsOtpDelivery(ObjectProvider<JavaMailSender> mail, Environment environment,
                               @Value("${app.contact-verification.mail-from:no-reply@aureliabook.local}") String from,
-                              @Value("${demo.sms.inbox:}") String inbox,
-                              @Value("${demo.sms.allowed-phones:}") String phones) {
+                              @Value("${demo.sms.inbox:}") String inbox) {
         if (environment.acceptsProfiles(Profiles.of("prod", "production"))) {
             throw new IllegalStateException("sms-demo must not run with prod or production");
         }
@@ -43,11 +37,6 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
             }
         } catch (AddressException e) {
             throw new IllegalStateException("Set DEMO_SMS_INBOX to one private team email address");
-        }
-        allowedPhones = Arrays.stream(phones.split(","))
-                .map(String::strip).filter(s -> !s.isEmpty()).collect(Collectors.toUnmodifiableSet());
-        if (allowedPhones.isEmpty() || allowedPhones.stream().anyMatch(p -> !p.matches("0[0-9]{9}"))) {
-            throw new IllegalStateException("Set DEMO_SMS_ALLOWED_PHONES to approved 10-digit test numbers");
         }
         this.mail = mail;
         this.from = from;
@@ -61,8 +50,8 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
             emailDelivery.send(channel, recipient, code);
             return;
         }
-        if (!"SMS".equals(channel) || !allowedPhones.contains(recipient)) {
-            throw new IllegalStateException("SMS demo only supports configured test numbers");
+        if (!"SMS".equals(channel) || recipient == null || !recipient.matches("0[0-9]{9}")) {
+            throw new IllegalStateException("SMS demo requires a valid 10-digit phone number");
         }
         JavaMailSender sender = mail.getIfAvailable();
         if (sender == null) throw new IllegalStateException("Configure SMTP before using SMS demo");

@@ -222,6 +222,13 @@ public class SecurityConfig {
                         .userInfoEndpoint(info -> info.userService(oauthUsers.getObject())
                                 .oidcUserService(oauthUsers.getObject()::loadOidcUser))
                         .failureHandler((request, response, exception) -> {
+                            if (exception instanceof OAuth2AuthenticationException pending
+                                    && "google_link_required".equals(pending.getError().getErrorCode())
+                                    && request.getSession(false) != null
+                                    && request.getSession(false).getAttribute("GOOGLE_LINK_FLOW") != null) {
+                                response.sendRedirect(request.getContextPath() + "/auth/google-link");
+                                return;
+                            }
                             String message = "Không thể xác thực bằng Google. Vui lòng thử lại.";
                             if (exception instanceof OAuth2AuthenticationException failure
                                     && "registration_failed".equals(failure.getError().getErrorCode())) {

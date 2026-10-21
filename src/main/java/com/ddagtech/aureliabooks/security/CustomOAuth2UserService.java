@@ -3,6 +3,10 @@ package com.ddagtech.aureliabooks.security;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.service.RegistrationService;
+import com.ddagtech.aureliabooks.service.GoogleSignInService;
+import com.ddagtech.aureliabooks.util.HttpRequestUtil;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -28,7 +32,13 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final OAuth2UserService<OidcUserRequest, OidcUser> oidcDelegate;
     private final LoginAttemptService attempts;
     private GoogleAccountAction accountAction;
+    private GoogleSignInService googleSignIn;
     @Autowired public void setAccountAction(GoogleAccountAction accountAction){this.accountAction=accountAction;}
+
+    @Autowired
+    public void setGoogleSignIn(GoogleSignInService googleSignIn) {
+        this.googleSignIn = googleSignIn;
+    }
 
     @Autowired
     public CustomOAuth2UserService(RegistrationService registration, LoginAttemptService attempts) {
@@ -99,6 +109,25 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             User actionAccount=accountAction==null?null:accountAction.resolve(claims);
             if(actionAccount!=null)return actionAccount;
             Object verified = claims.getAttribute("email_verified");
+            if (googleSignIn != null) {
+                if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
+                    throw new IllegalArgumentException("Phiên đăng nhập Google không còn hiệu lực.");
+                }
+                var request = attributes.getRequest();
+                var session = request.getSession();
+                var identity = new GoogleSignInService.Identity(claims.getAttribute("sub"), claims.getAttribute("email"),
+                        Boolean.TRUE.equals(verified), claims.getAttribute("hd"), claims.getAttribute("name"), claims.getAttribute("picture"));
+                var outcome = googleSignIn.resolve(identity, session.getId(), HttpRequestUtil.getClientIp(request));
+                if (outcome.pendingFlow() != null) {
+                    session.setAttribute("GOOGLE_LINK_FLOW", outcome.pendingFlow());
+                    throw new GoogleLinkRequiredException();
+                }
+                session.removeAttribute("GOOGLE_LINK_FLOW");
+                if (outcome.newlyLinked()) {
+                    session.setAttribute("GOOGLE_LINK_COMPLETED", true);
+                }
+                return outcome.user();
+            }
             return registration.registerGoogle(claims.getAttribute("sub"), claims.getAttribute("email"),
                     Boolean.TRUE.equals(verified), claims.getAttribute("name"), claims.getAttribute("picture"));
         } catch (AppException ex) {

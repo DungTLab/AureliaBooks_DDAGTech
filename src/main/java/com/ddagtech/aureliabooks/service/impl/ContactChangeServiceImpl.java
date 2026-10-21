@@ -83,7 +83,12 @@ public class ContactChangeServiceImpl implements ContactChangeService {
             try {writer.apply(owner,p.oldEmail,p.oldPhone,p.type,p.value,ip);}
             catch(DataIntegrityViolationException ex){pending.remove(owner);return fail("Email hoặc số điện thoại đã được tài khoản khác sử dụng. Vui lòng bắt đầu lại.");}
             catch(AppException ex){pending.remove(owner);return fail(ex.getMessage());}
-            pending.remove(owner);return new Result(true,"Đã cập nhật thông tin liên hệ. Vui lòng đăng nhập lại.");
+            pending.remove(owner);
+            String previous = "EMAIL".equals(p.type) ? p.oldEmail : p.oldPhone;
+            boolean loginRequired = previous != null && !previous.isBlank();
+            return new Result(true, loginRequired
+                    ? "Đã cập nhật thông tin liên hệ. Vui lòng đăng nhập lại."
+                    : "Đã bổ sung và xác minh thông tin liên hệ thành công.", loginRequired);
         }
     }
     private Pending bound(Long owner,String session){Pending p=pending.get(owner);return p!=null&&p.session.equals(session)?p:null;}

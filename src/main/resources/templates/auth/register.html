@@ -23,7 +23,8 @@
         <button th:unless="${googleEnabled}" type="button" disabled
                 class="w-full border border-dust_grey rounded-xl px-4 py-3 text-carbon_black-500 opacity-60">Tiếp tục với Google (chưa khả dụng)</button>
         <div class="flex items-center gap-4 text-sm text-carbon_black-500 my-6"><hr class="flex-1 border-dust_grey">hoặc đăng ký bằng số điện thoại<hr class="flex-1 border-dust_grey"></div>
-        <form th:action="@{/auth/register}" method="post" th:object="${registerRequest}" class="space-y-5">
+        <form id="registrationForm" th:action="@{/auth/register}" method="post" th:object="${registerRequest}" class="space-y-5">
+            <p class="text-sm text-carbon_black-500">Các trường có dấu <span class="text-blazing_flame">*</span> là bắt buộc.</p>
             <div th:if="${#fields.hasErrors('*')}" role="alert" class="bg-red-50 text-red-800 border border-red-200 rounded-xl p-4">
                 <p class="font-semibold">Vui lòng kiểm tra lại thông tin:</p>
                 <ul class="list-disc pl-5 mt-2"><li th:each="message : ${#fields.errors('*')}" th:text="${message}"></li></ul>
@@ -45,7 +46,9 @@
                 </div>
                 <div>
                     <label for="dob" class="block font-semibold text-sm mb-2">Ngày sinh (không bắt buộc)</label>
-                    <input id="dob" th:field="*{dob}" type="date" autocomplete="bday" th:max="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}"
+                    <input id="dob" th:field="*{dob}" type="text" autocomplete="bday" inputmode="numeric"
+                           placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10"
+                           data-birthdate th:data-max-date="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}"
                            th:attr="aria-invalid=${#fields.hasErrors('dob')}"
                            th:classappend="${#fields.hasErrors('dob')} ? 'border-red-600'"
                            class="w-full min-w-0 border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
@@ -87,13 +90,18 @@
                 </div>
             </fieldset>
             <label class="flex items-start gap-3 text-sm leading-relaxed">
-                <input type="checkbox" th:field="*{agreeTerms}" required class="mt-1 accent-blazing_flame">
+                <input id="agreeTerms" type="checkbox" th:field="*{agreeTerms}" required class="mt-1 accent-blazing_flame">
                 <span>Tôi đồng ý với điều khoản sử dụng của AureliaBook.</span>
             </label>
-            <button type="submit" class="w-full bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold py-3 rounded-xl transition-colors">Đăng ký</button>
+            <p id="registrationHint" role="status" aria-live="polite" aria-atomic="true" class="text-sm text-carbon_black-600">
+                Hoàn tất các trường bắt buộc và đồng ý điều khoản để tiếp tục.
+            </p>
+            <button type="submit" data-registration-submit aria-describedby="registrationHint"
+                    class="w-full bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold py-3 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blazing_flame focus-visible:ring-offset-2 disabled:bg-dust_grey-100 disabled:text-carbon_black-600 disabled:cursor-not-allowed disabled:hover:bg-dust_grey-100">Đăng ký</button>
         </form>
         <p class="text-center text-sm mt-6 text-carbon_black-500">Đã có tài khoản? <a th:href="@{/auth/login}" class="text-blazing_flame font-bold hover:underline">Đăng nhập</a></p>
     </div>
+    <script th:src="@{/js/registration-form.js}" defer></script>
 </section>
 </body>
 </html>

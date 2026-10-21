@@ -15,6 +15,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Collection;
+import org.springframework.web.servlet.FlashMap;
+import org.springframework.web.servlet.support.SessionFlashMapManager;
 
 /**
  * Authentication success handler that performs role-tailored landing dispatching.
@@ -38,6 +40,15 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
             requestCache.removeRequest(request,response);redirectStrategy.sendRedirect(request,response,"REAUTH".equals(action)?"/profile/contact-change":"/profile");return;
         }
         String targetUrl = determineTargetUrl(request, response, authentication);
+
+        if (session != null && Boolean.TRUE.equals(session.getAttribute("GOOGLE_LINK_COMPLETED"))) {
+            session.removeAttribute("GOOGLE_LINK_COMPLETED");
+            var flash = new FlashMap();
+            flash.put("successMessage", "Đã liên kết Google với tài khoản của bạn.");
+            var target = java.net.URI.create(targetUrl);
+            flash.setTargetRequestPath((target.isAbsolute() ? "" : request.getContextPath()) + target.getPath());
+            new SessionFlashMapManager().saveOutputFlashMap(flash, request, response);
+        }
 
         if (response.isCommitted()) {
             log.debug("Response has already been committed. Unable to redirect to {}", targetUrl);

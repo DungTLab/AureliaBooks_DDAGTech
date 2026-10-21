@@ -10,12 +10,16 @@
 
 <!-- Dynamic Main Content Slot -->
 <main class="flex-1 w-full">
+    <p th:if="${smsDemoEnabled == true}" role="note" class="max-w-6xl mx-auto mt-4 px-4 text-sm text-carbon_black-600">
+        Chế độ demo: mã xác thực SĐT được gửi về mail nhóm, không gửi SMS tới điện thoại.
+    </p>
     <th:block th:replace="${content}"/>
 </main>
 
 <!-- Global Footer -->
 <div th:replace="~{fragments/footer :: footer}"></div>
 <script th:src="@{/js/password-visibility.js}" defer></script>
+<script th:src="@{/js/birthdate-input.js}" defer></script>
 <script th:src="@{/js/cart.js}" defer></script>
 </body>
 </html>

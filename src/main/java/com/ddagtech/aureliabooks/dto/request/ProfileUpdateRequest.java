@@ -12,7 +12,7 @@ public record ProfileUpdateRequest(
         @Pattern(regexp = "[\\p{L}\\p{M} ]+", message = "Họ tên chỉ gồm chữ và khoảng trắng.") String fullName,
         @Pattern(regexp = "0[0-9]{9}", message = "Số điện thoại gồm 10 chữ số và bắt đầu bằng 0.") String phone,
         @Past(message = "Ngày sinh phải là ngày trong quá khứ.")
-        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dob,
+        @DateTimeFormat(pattern = "dd/MM/yyyy", fallbackPatterns = "yyyy-MM-dd") LocalDate dob,
         @NotNull(message = "Vui lòng chọn giới tính.") User.Gender gender) {
     public ProfileUpdateRequest {
         fullName = fullName == null ? null : fullName.strip();

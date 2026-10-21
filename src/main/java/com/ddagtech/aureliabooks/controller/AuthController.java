@@ -19,6 +19,12 @@ public class AuthController {
     private final ObjectProvider<ClientRegistrationRepository> clients;
     private final ObjectProvider<com.ddagtech.aureliabooks.service.AccountOtpService> accountOtp;
 
+    @ModelAttribute("authPage")
+    public String authPage(jakarta.servlet.http.HttpServletRequest request) {
+        String path = request.getServletPath();
+        return path.isEmpty() ? request.getRequestURI().substring(request.getContextPath().length()) : path;
+    }
+
     @GetMapping("/auth/login")
     public String login() {
         return "auth/login";

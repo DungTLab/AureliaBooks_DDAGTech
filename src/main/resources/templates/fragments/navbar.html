@@ -98,11 +98,11 @@
 
                 <!-- Guest Actions (Unauthenticated) -->
                 <div sec:authorize="!isAuthenticated()" class="hidden sm:flex items-center space-x-2">
-                    <a th:href="@{/auth/login}"
+                    <a th:if="${authPage != '/auth/login'}" th:href="@{/auth/login}"
                        class="inline-flex items-center px-4 py-2 text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 rounded-xl transition-colors">
                         Đăng Nhập
                     </a>
-                    <a th:href="@{/auth/register}"
+                    <a th:if="${authPage != '/auth/register'}" th:href="@{/auth/register}"
                        class="inline-flex items-center px-4 py-2 text-sm font-bold text-white bg-blazing_flame hover:bg-blazing_flame-600 rounded-xl shadow-flame transition-all transform hover:-translate-y-0.5">
                         Đăng Ký
                     </a>
@@ -633,11 +633,11 @@
 
         <!-- Guest Mobile Actions -->
         <div sec:authorize="!isAuthenticated()" class="pt-3 border-t border-dust_grey/50 flex flex-col gap-2">
-            <a th:href="@{/auth/login}"
+            <a th:if="${authPage != '/auth/login'}" th:href="@{/auth/login}"
                class="w-full text-center px-4 py-2.5 rounded-xl border border-dust_grey text-carbon_black font-bold text-sm hover:bg-parchment-200 transition-colors">
                 Đăng Nhập
             </a>
-            <a th:href="@{/auth/register}"
+            <a th:if="${authPage != '/auth/register'}" th:href="@{/auth/register}"
                class="w-full text-center px-4 py-2.5 rounded-xl bg-blazing_flame text-white font-bold text-sm hover:bg-blazing_flame-600 shadow-flame transition-colors">
                 Đăng Ký Thành Viên
             </a>

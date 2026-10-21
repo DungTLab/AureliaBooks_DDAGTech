@@ -60,6 +60,21 @@ class ContactChangeControllerTest {
    .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("contactMessage","Sai mật khẩu"));
   verifyNoInteractions(changes);
  }
+    @Test
+    void firstContactAdditionReturnsToProfileWithoutInvalidatingSession() throws Exception {
+        when(identity.resolve(any())).thenReturn(7L);
+        when(changes.verify(eq(7L), anyString(), eq("123456"), anyString()))
+                .thenReturn(new ContactChangeService.Result(true, "Đã bổ sung email.", false));
+        var session = new MockHttpSession();
+        session.setAttribute("retainedMarker", "customer-session");
+        mvc.perform(post("/profile/contact-change/verify").session(session)
+                        .with(user("customer").roles("CUSTOMER")).with(csrf()).param("code", "123456"))
+                .andExpect(redirectedUrl("/profile"))
+                .andExpect(org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated().withUsername("customer"))
+                .andExpect(flash().attribute("successMessage", "Đã bổ sung email."));
+        assertThat(session.isInvalid()).isFalse();
+        assertThat(session.getAttribute("retainedMarker")).isEqualTo("customer-session");
+    }
  @Test void verificationPageContainsOnlyOtpStepAndCsrf()throws Exception{
   when(identity.resolve(any())).thenReturn(7L);
   when(changes.view(eq(7L),anyString())).thenReturn(new ContactChangeService.View("PHONE","DESTINATION","******6789",299,60,5));

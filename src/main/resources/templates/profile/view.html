@@ -57,7 +57,7 @@
                             <h2 class="text-xl font-bold">Thông tin cá nhân</h2>
                             <p class="mt-1 text-sm text-carbon_black-500">Cập nhật họ tên và giới tính của bạn.</p>
                         </div>
-                        <form th:action="@{/profile}" th:object="${profileForm}" method="post" class="p-6 sm:p-8">
+                        <form id="profileInfoForm" th:action="@{/profile}" th:object="${profileForm}" method="post" class="p-6 sm:p-8">
                             <div class="grid sm:grid-cols-2 gap-5 sm:gap-6">
                                 <div>
                                     <label for="fullName" class="block text-sm font-semibold mb-2">Họ và tên <span aria-hidden="true" class="text-blazing_flame">*</span>
@@ -95,30 +95,18 @@
                                 <div>
                                     <label for="dob" class="flex justify-between text-sm font-semibold mb-2">Ngày sinh <span th:unless="${profile.canCompleteDob}" class="font-normal text-xs text-carbon_black-400">Đã khóa</span>
                                     </label>
-                                    <input th:if="${profile.canCompleteDob}" id="dob" type="date" th:field="*{dob}" autocomplete="bday" th:max="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}" aria-describedby="dobHint" class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                                    <input th:if="${profile.canCompleteDob}" id="dob" type="text" th:field="*{dob}" autocomplete="bday"
+                                           inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10"
+                                           data-birthdate th:data-max-date="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}"
+                                           aria-describedby="dobHint" class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                                     <input th:unless="${profile.canCompleteDob}" id="dob" th:value="${profile.dob == null ? null : #temporals.format(profile.dob, 'dd/MM/yyyy')}" readonly placeholder="Chưa cung cấp" class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500">
                                     <p th:if="${profile.canCompleteDob}" id="dobHint" class="text-xs text-carbon_black-500 mt-2">Không bắt buộc. Bạn chỉ được bổ sung một lần; ngày sinh sẽ khóa sau khi lưu.</p>
                                 </div>
                             </div>
                             <div class="mt-7 pt-5 border-t border-dust_grey/60 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
                                 <p class="text-xs text-carbon_black-500">Đổi email/SĐT cần xác thực lại và OTP tới thông tin mới. Ngày sinh chỉ khóa sau khi đã lưu.</p>
-                                <button class="shrink-0 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors" type="submit">Lưu thay đổi</button>
+                                <button data-profile-save class="shrink-0 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blazing_flame" type="submit">Lưu thay đổi</button>
                             </div>
-                        </form>
-                    </div>
-                    <div th:if="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey p-6 space-y-3">
-                        <h2 class="font-semibold">Liên kết Google</h2>
-                        <p class="text-sm">Liên kết để đăng nhập Google vào chính tài khoản này. Thêm email liên hệ không tự liên kết Google.</p>
-                        <form th:action="@{/profile/google/link}" method="post" class="space-y-3">
-                            <label for="linkPassword" class="block text-sm font-semibold">Mật khẩu hiện tại</label>
-                            <div class="relative" data-password-field>
-                                <input id="linkPassword" name="password" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl p-3 pr-14">
-                                <button type="button" data-password-toggle aria-controls="linkPassword" aria-label="Hiện mật khẩu hiện tại" aria-pressed="false" class="absolute right-2 top-1/2 -translate-y-1/2 p-2">
-                                    <i class="bi bi-eye" aria-hidden="true">
-                                    </i>
-                                </button>
-                            </div>
-                            <button class="border border-dust_grey rounded-xl p-3 font-semibold">Liên kết Google</button>
                         </form>
                     </div>
                     <details th:if="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey shadow-soft group">
@@ -179,6 +167,7 @@
             </div>
             <script th:src="@{/js/profile-avatar.js}" defer>
             </script>
+            <script th:src="@{/js/profile-info.js}" defer></script>
         </section>
     </body>
 </html>

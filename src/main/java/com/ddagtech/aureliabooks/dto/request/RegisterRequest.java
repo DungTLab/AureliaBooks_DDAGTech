@@ -22,7 +22,7 @@ public record RegisterRequest(
         @Pattern(regexp = "[\\p{L}\\p{M} ]+", message = "Họ tên chỉ gồm chữ cái và khoảng trắng.") String fullName,
         @NotBlank(message = "Vui lòng nhập số điện thoại.")
         @Pattern(regexp = "0[0-9]{9}", message = "Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.") String phone,
-        @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+        @org.springframework.format.annotation.DateTimeFormat(pattern = "dd/MM/yyyy", fallbackPatterns = "yyyy-MM-dd")
         @Past(message = "Ngày sinh phải là ngày trong quá khứ.") LocalDate dob,
         @NotBlank(message = "Vui lòng xác nhận mật khẩu.") String confirmPassword,
         User.Gender gender,

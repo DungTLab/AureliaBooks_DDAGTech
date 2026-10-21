@@ -18,7 +18,7 @@ import org.springframework.transaction.support.*;
 import java.time.LocalDate;
 import java.util.Objects;
 
-/** Transaction boundaries for OTP registration, recovery and explicit Google linking. */
+/** Transaction boundaries for registration, recovery and Google sign-in account linking. */
 @Service @RequiredArgsConstructor
 public class AccountSecurityServiceImpl implements AccountSecurityService {
     private final UserRepository users;
@@ -53,18 +53,39 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         u.setPasswordHash(newHash);users.saveAndFlush(u);
         audit.record(id,"PASSWORD_RESET","users",id,"{}",ip);expireAfterCommit(u);
     }
-    @Transactional public User linkGoogle(Long id,String sub,String mail,boolean verified,String ip){
-        var u=users.findOwnerForUpdate(id).orElseThrow();CustomerIdentity.requireCustomer(u);
-        if(!verified||sub==null||sub.isBlank()||sub.length()>100||mail==null||mail.isBlank())throw new IllegalArgumentException("Google chưa xác thực thông tin.");
-        var linked=users.findByGoogleIdentity(User.AuthProvider.GOOGLE,sub);
-        if(linked.isPresent()&&!linked.get().getId().equals(id))throw new IllegalArgumentException("Google này đã liên kết với tài khoản khác.");
-        if(u.getProviderId()!=null&&!u.getProviderId().equals(sub))throw new IllegalArgumentException("Tài khoản đã liên kết với Google khác.");
-        var emailOwner=users.findByEmail(mail);
-        if(emailOwner.isPresent()&&!emailOwner.get().getId().equals(id))throw new IllegalArgumentException("Email Google đã thuộc tài khoản khác; không thể tự gộp tài khoản.");
-        u.setProviderId(sub); // LOCAL plus provider_id supports both methods without changing the account/role.
-        if(u.getEmail()==null){u.setEmail(mail);u.setEmailVerified(true);}
-        users.saveAndFlush(u);audit.record(id,"GOOGLE_LINKED","users",id,"{}",ip);return u;
+    @Override
+    @Transactional
+    public User completeGoogleLink(Long id, String sub, String mail, String channel, String recipient, String ip) {
+        var user = users.findOwnerForUpdate(id).orElseThrow(() -> new IllegalArgumentException("Tài khoản không còn tồn tại."));
+        CustomerIdentity.requireCustomer(user);
+        if (sub == null || sub.isBlank() || sub.length() > 100 || mail == null
+                || !mail.equalsIgnoreCase(user.getEmail()) || channel == null) {
+            throw new IllegalArgumentException("Thông tin tài khoản đã thay đổi. Vui lòng đăng nhập Google lại.");
+        }
+        boolean validProof = switch (channel) {
+            case "AUTO", "EMAIL" -> user.isEmailVerified() && Objects.equals(recipient, user.getEmail());
+            case "SMS" -> user.isPhoneVerified() && user.getPhone() != null && Objects.equals(recipient, user.getPhone());
+            default -> false;
+        };
+        if (!validProof) {
+            throw new IllegalArgumentException("Kênh xác minh đã thay đổi hoặc chưa được xác minh.");
+        }
+        var linked = users.findByGoogleIdentity(User.AuthProvider.GOOGLE, sub);
+        if (linked.isPresent() && !id.equals(linked.get().getId())) {
+            throw new IllegalArgumentException("Google này đã liên kết với tài khoản khác.");
+        }
+        if (user.getProviderId() != null) {
+            if (!sub.equals(user.getProviderId())) {
+                throw new IllegalArgumentException("Tài khoản đã liên kết với Google khác.");
+            }
+            return user;
+        }
+        user.setProviderId(sub);
+        users.saveAndFlush(user);
+        audit.record(id, "GOOGLE_LINKED", "users", id, "{}", ip);
+        return user;
     }
+
     private void expireAfterCommit(User u){TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization(){
         @Override public void afterCommit(){for(Object p:sessions.getAllPrincipals()){
             boolean same=p instanceof CustomUserDetails local&&u.getId().equals(local.getId())||u.getProviderId()!=null&&p instanceof OAuth2User google&&u.getProviderId().equals(google.getAttribute("sub"));

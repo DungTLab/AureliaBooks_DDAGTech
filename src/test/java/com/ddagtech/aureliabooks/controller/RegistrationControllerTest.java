@@ -63,6 +63,17 @@ class RegistrationControllerTest {
                 .andExpect(content().string(containsString("Ngày sinh không hợp lệ.")));
         verifyNoInteractions(registration);
     }
+    @Test void dayMonthYearIsParsedWithoutSwappingAndInvalidCalendarDatesAreRejected() throws Exception {
+        when(otp.registration(any(), anyString(), anyString())).thenReturn("flow");
+        mvc.perform(form().param("dob", "31/12/2000")).andExpect(redirectedUrl("/auth/verification"));
+        verify(otp).registration(argThat(request -> LocalDate.of(2000, 12, 31).equals(request.dob())), anyString(), anyString());
+        clearInvocations(otp);
+        for (String invalid : new String[]{"31/02/2000", "29/02/2023", "12/31/2000"}) {
+            mvc.perform(form().param("dob", invalid)).andExpect(status().isOk())
+                    .andExpect(model().attributeHasFieldErrors("registerRequest", "dob"));
+        }
+        verifyNoInteractions(otp);
+    }
     @Test void concurrentDuplicateConstraintIsTranslatedWithoutSqlLeak() throws Exception {
         when(otp.registration(any(),anyString(),anyString())).thenThrow(new DataIntegrityViolationException("SQL secret"));
         mvc.perform(form()).andExpect(status().isOk())

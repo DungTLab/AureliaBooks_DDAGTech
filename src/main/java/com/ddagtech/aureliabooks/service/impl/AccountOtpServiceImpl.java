@@ -5,6 +5,8 @@ import com.ddagtech.aureliabooks.service.*;
 import com.ddagtech.aureliabooks.dto.request.*;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.repository.UserRepository;
+import com.ddagtech.aureliabooks.security.CustomerIdentity;
+import com.ddagtech.aureliabooks.security.LoginAttemptService;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +30,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
     private final PasswordEncoder passwords;
     private final ContactOtpDelivery delivery;
     private final AccountSecurityService writer;
+    private final LoginAttemptService attempts;
     private final SecureRandom random = new SecureRandom();
     private final byte[] key = new byte[32];
     private final Map<String, Flow> flows = new HashMap<>();
@@ -46,6 +49,8 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         byte[] mac;
         Instant expires, sent, authorized;
         int failures;
+        String googleSubject, googleEmail;
+        Instant googleProofExpires;
     }
 
     static class Counter {
@@ -140,14 +145,10 @@ public class AccountOtpServiceImpl implements AccountOtpService {
 
     public synchronized Result verify(String id, String session, String code, String ip) {
         var f = required(id, session);
-        if (f.authorized != null) throw new IllegalArgumentException("Mã đã được sử dụng.");
-        quota("verify:" + (f.owner == null ? f.target : f.owner), 10);
-        if (f.mac == null || !Instant.now().isBefore(f.expires) || f.failures >= 5)
-            throw new IllegalArgumentException("Mã đã hết hạn hoặc hết lượt thử.");
-        if (code == null || !code.matches("[0-9]{6}") || !MessageDigest.isEqual(f.mac, protect(f, code))) {
-            f.failures++;
-            throw new IllegalArgumentException("Mã xác thực không đúng.");
+        if (!"REGISTER".equals(f.kind) && !"RESET".equals(f.kind)) {
+            throw new IllegalArgumentException("Yêu cầu xác minh không hợp lệ.");
         }
+        verifyCode(f, code);
         if ("REGISTER".equals(f.kind)) {
             writer.register(f.draft, ip);
             flows.remove(id);
@@ -156,6 +157,113 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         f.mac = null;
         f.authorized = Instant.now().plusSeconds(300);
         return new Result(false, "Mã hợp lệ. Hãy đặt mật khẩu mới.");
+    }
+
+    private void verifyCode(Flow f, String code) {
+        if (f.authorized != null) throw new IllegalArgumentException("Mã đã được sử dụng.");
+        quota("verify:" + (f.owner == null ? f.target : f.owner), 10);
+        if (f.mac == null || !Instant.now().isBefore(f.expires) || f.failures >= 5)
+            throw new IllegalArgumentException("Mã đã hết hạn hoặc hết lượt thử.");
+        if (code == null || !code.matches("[0-9]{6}") || !MessageDigest.isEqual(f.mac, protect(f, code))) {
+            f.failures++;
+            throw new IllegalArgumentException("Mã xác thực không đúng.");
+        }
+    }
+
+    @Override
+    public synchronized String prepareGoogleLink(Long owner, String subject, String email, String session) {
+        if (subject == null || subject.isBlank() || subject.length() > 100 || email == null || session == null || session.isBlank()) {
+            throw new IllegalArgumentException("Yêu cầu Google không hợp lệ.");
+        }
+        var f = new Flow();
+        f.kind = "GOOGLE_LINK";
+        f.owner = owner;
+        f.googleSubject = subject;
+        f.googleEmail = email;
+        if (googleChannels(googleAccount(f)).isEmpty()) {
+            throw new IllegalArgumentException("Tài khoản chưa có kênh đã xác minh. Vui lòng đăng nhập bằng mật khẩu, xác minh thông tin liên hệ trong hồ sơ rồi thử đăng nhập Google lại.");
+        }
+        install(f, session);
+        f.googleProofExpires = Instant.now().plusSeconds(600);
+        f.expires = f.googleProofExpires;
+        return f.id;
+    }
+
+    @Override
+    public synchronized GoogleLinkView googleLinkView(String id, String session) {
+        Flow f = bound(id, session);
+        if (f == null || !"GOOGLE_LINK".equals(f.kind) || !Instant.now().isBefore(f.googleProofExpires)) {
+            return null;
+        }
+        var channels = googleChannels(googleAccount(f));
+        if (channels.isEmpty()) {
+            throw new IllegalArgumentException("Tài khoản không còn kênh đã xác minh. Vui lòng đăng nhập bằng mật khẩu.");
+        }
+        return new GoogleLinkView(channels, f.target == null ? "" : mask(f.target),
+                f.mac != null, Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()));
+    }
+
+    @Override
+    public synchronized void sendGoogleLink(String id, String session, String channel, String ip) {
+        Flow f = googleFlow(id, session);
+        User user = googleAccount(f);
+        var channels = googleChannels(user);
+        String selected = channels.size() == 1 ? channels.getFirst() : channel;
+        if (selected == null || !channels.contains(selected)) {
+            throw new IllegalArgumentException("Vui lòng chọn email hoặc số điện thoại đã xác minh.");
+        }
+        if (Duration.between(f.sent, Instant.now()).getSeconds() < 60) {
+            throw new IllegalArgumentException("Vui lòng chờ đủ 60 giây trước khi gửi lại mã.");
+        }
+        f.channel = selected;
+        f.target = "EMAIL".equals(selected) ? user.getEmail() : user.getPhone();
+        issue(f, ip);
+        if (f.expires.isAfter(f.googleProofExpires)) {
+            f.expires = f.googleProofExpires;
+        }
+    }
+
+    @Override
+    public synchronized User verifyGoogleLink(String id, String session, String code, String ip) {
+        Flow f = googleFlow(id, session);
+        return attempts.authenticate(f.owner, () -> {
+            verifyCode(f, code);
+            try {
+                return writer.completeGoogleLink(f.owner, f.googleSubject, f.googleEmail, f.channel, f.target, ip);
+            } finally {
+                flows.remove(id);
+            }
+        });
+    }
+
+    private Flow googleFlow(String id, String session) {
+        Flow f = required(id, session);
+        if (!"GOOGLE_LINK".equals(f.kind) || !Instant.now().isBefore(f.googleProofExpires)) {
+            throw new IllegalArgumentException("Yêu cầu Google đã hết hạn. Vui lòng bắt đầu lại.");
+        }
+        return f;
+    }
+
+    private User googleAccount(Flow f) {
+        User user = users.findByIdentifierWithRoles(f.googleEmail).orElseThrow(() ->
+                new IllegalArgumentException("Thông tin tài khoản đã thay đổi. Vui lòng bắt đầu lại."));
+        CustomerIdentity.requireCustomer(user);
+        if (!user.getId().equals(f.owner) || !f.googleEmail.equalsIgnoreCase(user.getEmail())
+                || user.getProviderId() != null && !user.getProviderId().equals(f.googleSubject)) {
+            throw new IllegalArgumentException("Thông tin liên kết đã thay đổi. Vui lòng bắt đầu lại.");
+        }
+        return user;
+    }
+
+    private List<String> googleChannels(User user) {
+        var channels = new ArrayList<String>();
+        if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) {
+            channels.add("EMAIL");
+        }
+        if (user.isPhoneVerified() && user.getPhone() != null && !user.getPhone().isBlank()) {
+            channels.add("SMS");
+        }
+        return List.copyOf(channels);
     }
 
     public synchronized void reset(String id, String session, String password, String confirmation, String ip) {

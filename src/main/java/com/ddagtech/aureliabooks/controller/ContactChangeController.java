@@ -80,9 +80,12 @@ public class ContactChangeController {
                          @RequestParam String code, RedirectAttributes flash) {
         var result = changes.verify(identity.resolve(auth), request.getSession().getId(), code.strip(), HttpRequestUtil.getClientIp(request));
         if (result.completed()) {
-            new SecurityContextLogoutHandler().logout(request, response, auth);
             flash.addFlashAttribute("successMessage", result.message());
-            return "redirect:/auth/login";
+            if (result.loginRequired()) {
+                new SecurityContextLogoutHandler().logout(request, response, auth);
+                return "redirect:/auth/login";
+            }
+            return "redirect:/profile";
         }
         flash.addFlashAttribute("contactMessage", result.message());
         return "redirect:/profile/contact-change/verification";

@@ -39,6 +39,7 @@ class ProfileControllerTest {
         var profile=mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
             .andExpect(status().isOk()).andExpect(content().string(containsString("Thông tin cá nhân")))
             .andExpect(content().string(containsString("name=\"_csrf\"")))
+            .andExpect(content().string(not(containsString("/profile/google/link"))))
             .andExpect(content().string(not(containsString("name=\"dob\""))))
             .andExpect(content().string(not(containsString("name=\"phone\"")))).andReturn();
         var book=mvc.perform(get("/profile/addresses").with(user("customer").roles("CUSTOMER")))
@@ -59,6 +60,25 @@ class ProfileControllerTest {
             .andExpect(content().string(containsString("name=\"dob\"")))
             .andExpect(content().string(containsString("ngày sinh sẽ khóa sau khi lưu")))
             .andExpect(content().string(not(containsString("name=\"currentPassword\""))));
+    }
+    @Test void profileAcceptsDayMonthYearAndRendersEditableDateWithExplicitFormat() throws Exception {
+        mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
+                        .param("fullName", "Nguyễn An").param("gender", "OTHER").param("dob", "31/12/2000"))
+                .andExpect(redirectedUrl("/profile"));
+        verify(users).updateProfile(eq(7L), argThat(request -> java.time.LocalDate.of(2000, 12, 31).equals(request.dob())));
+        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L, "an@example.com", "Nguyễn An", "0912345678",
+                null, "OTHER", null, false, true, true));
+        var result = mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("placeholder=\"dd/mm/yyyy\""))).andReturn();
+        String capture = System.getProperty("birthdate.capture.dir");
+        if (capture != null) java.nio.file.Files.writeString(java.nio.file.Path.of(capture, "profile.html"), result.getResponse().getContentAsString());
+    }
+
+    @Test void impossibleDayMonthYearNeverUpdatesProfile() throws Exception {
+        mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
+                        .param("fullName", "Nguyễn An").param("gender", "OTHER").param("dob", "31/02/2000"))
+                .andExpect(redirectedUrl("/profile"));
+        verify(users, never()).updateProfile(any(), any());
     }
     @Test void completedGoogleDobIsReadonly() throws Exception {
         when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"google@example.com","Nguyễn An",null,
@@ -110,6 +130,7 @@ class ProfileControllerTest {
         mvc.perform(get("/profile/addresses?edit=99").with(user("customer").roles("CUSTOMER")))
             .andExpect(redirectedUrl("/profile/addresses")).andExpect(flash().attributeExists("errorMessage"));
     }
+
     @Test void successfulPasswordChangeInvalidatesSession() throws Exception {
         var session=new org.springframework.mock.web.MockHttpSession();
         mvc.perform(post("/profile/password").session(session).with(user("customer").roles("CUSTOMER")).with(csrf())
