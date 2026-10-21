@@ -19,6 +19,7 @@ import java.util.Optional;
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
+    boolean existsByRole_RoleName(String roleName);
     // TODO: owner adds only queries required by their Sprint 1 use cases.
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
