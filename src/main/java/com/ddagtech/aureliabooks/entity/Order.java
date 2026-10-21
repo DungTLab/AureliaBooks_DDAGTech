@@ -25,6 +25,7 @@ public class Order extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // UC11 uses the checkout token as a unique order code so repeated submissions return the same order.
     @Column(name = "order_code", length = 32, nullable = false, unique = true)
     private String orderCode;
 
@@ -32,6 +33,12 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    // Retain the source address reference for replay checks; use the snapshots below for delivery details.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name= "shipping_address_id")
+    private ShippingAddress shippingAddress;
+
+    // Capture delivery details at placement so later address edits do not change existing orders.
     @Column(name = "shipping_recipient_name", length = 100, nullable = false)
     private String shippingRecipientName;
 
@@ -69,7 +76,7 @@ public class Order extends BaseEntity {
     @Column(name = "cancel_reason", length = 255)
     private String cancelReason;
 
-    // Stock posting markers on the source order (FND-03)
+    // Both COD and VNPay record stock deduction at order creation; the engine checks this marker to prevent repeats (FND-03).
     @Column(name = "stock_deducted_at")
     private LocalDateTime stockDeductedAt;
 
@@ -110,6 +117,12 @@ public class Order extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<OrderItem> items = new ArrayList<>();
+
+    /** Synchronize both sides of the relationship; cascaded items must reference their owning order. */
+    public void addItem(OrderItem item){
+        this.items.add(item);
+        item.setOrder(this);
+    }
 
     public enum OrderStatus {
         PENDING_PAYMENT,

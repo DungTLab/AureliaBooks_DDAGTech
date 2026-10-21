@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"><body>
+<!-- Share the three-step indicator; aria-current identifies the active step to assistive technology. -->
+<ol th:fragment="steps(current)" class="checkout-steps" aria-label="Tiến trình đặt hàng">
+    <li th:classappend="${current == 1} ? 'is-current'" th:attr="aria-current=${current == 1 ? 'step' : null}"><span>1</span> Giao hàng</li>
+    <li th:classappend="${current == 2} ? 'is-current'" th:attr="aria-current=${current == 2 ? 'step' : null}"><span>2</span> Xác nhận</li>
+    <li th:classappend="${current == 3} ? 'is-current'" th:attr="aria-current=${current == 3 ? 'step' : null}"><span>3</span> Hoàn tất</li>
+</ol>
+
+<!-- Render cart and order snapshot lines through the same display contract: title, unitPrice, quantity, and lineTotal. -->
+<div th:fragment="items(items)" class="checkout-items">
+    <article th:each="item : ${items}" class="checkout-item">
+        <div class="checkout-book-icon" aria-hidden="true"><i class="bi bi-book"></i></div>
+        <div class="checkout-item-body">
+            <a th:href="@{/products/{id}(id=${item.productId})}" th:text="${item.title}" class="checkout-item-title">Tên sản phẩm</a>
+            <p><span th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'POINT', 0, 'COMMA')}">100.000</span> đ × <span th:text="${item.quantity}">1</span></p>
+        </div>
+        <strong class="checkout-item-total"><span th:text="${#numbers.formatDecimal(item.lineTotal, 0, 'POINT', 0, 'COMMA')}">100.000</span> đ</strong>
+    </article>
+</div>
+
+<!-- Format server-provided amounts only; null shipping or total values mean shipping details are incomplete. -->
+<dl th:fragment="totals(subtotal, discount, shipping, total)" class="checkout-totals">
+    <div><dt>Tiền hàng <span class="checkout-muted">(đã gồm VAT)</span></dt><dd><span th:text="${#numbers.formatDecimal(subtotal, 0, 'POINT', 0, 'COMMA')}">0</span> đ</dd></div>
+    <div th:if="${discount != null and discount.signum() > 0}"><dt>Giảm giá</dt><dd class="checkout-discount">−<span th:text="${#numbers.formatDecimal(discount, 0, 'POINT', 0, 'COMMA')}">0</span> đ</dd></div>
+    <div><dt>Phí giao hàng</dt><dd th:if="${shipping != null}"><span th:text="${#numbers.formatDecimal(shipping, 0, 'POINT', 0, 'COMMA')}">0</span> đ</dd><dd th:unless="${shipping != null}" class="checkout-muted">Chọn địa chỉ</dd></div>
+    <div class="checkout-grand-total"><dt>Tổng thanh toán</dt><dd th:if="${total != null}"><span th:text="${#numbers.formatDecimal(total, 0, 'POINT', 0, 'COMMA')}">0</span> đ</dd><dd th:unless="${total != null}">—</dd></div>
+</dl>
+</body></html>
