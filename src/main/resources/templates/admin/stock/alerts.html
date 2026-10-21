@@ -21,7 +21,7 @@
                 <span>Quản lý Kho hàng &amp; Giám sát Tồn kho</span>
             </h1>
             <p class="text-sm text-carbon_black-600 mt-1">
-                Quản lý và giám sát mức độ tồn an toàn của toàn bộ danh mục Sách &amp; Văn phòng phẩm. Phân loại chuẩn xác theo ngưỡng: 0 (Hết hàng), 1–10 (Tồn thấp), &gt;10 (An toàn).
+                Quản lý và theo dõi tình trạng tồn kho của các sản phẩm Sách &amp; Văn phòng phẩm.
             </p>
         </div>
 
@@ -46,7 +46,6 @@
             <div>
                 <span class="text-xs font-semibold uppercase tracking-wider text-carbon_black-500 block mb-1">Tổng mặt hàng</span>
                 <span class="text-2xl font-extrabold text-carbon_black" th:text="${metrics.totalProducts}">120</span>
-                <span class="text-[11px] text-carbon_black-400 block mt-0.5">Sách &amp; Văn phòng phẩm</span>
             </div>
             <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl">
                 <i class="bi bi-box-seam"></i>
@@ -59,7 +58,6 @@
             <div>
                 <span class="text-xs font-semibold uppercase tracking-wider text-rose-600 block mb-1">Hết hàng</span>
                 <span class="text-2xl font-extrabold text-rose-600 group-hover:scale-105 transition-transform" th:text="${metrics.outOfStockCount}">15</span>
-                <span class="text-[11px] text-rose-500 block mt-0.5">Cần nhập kho ngay</span>
             </div>
             <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl group-hover:bg-rose-100 transition">
                 <i class="bi bi-x-circle-fill"></i>
@@ -72,7 +70,6 @@
             <div>
                 <span class="text-xs font-semibold uppercase tracking-wider text-amber-700 block mb-1">Tồn kho thấp</span>
                 <span class="text-2xl font-extrabold text-amber-600 group-hover:scale-105 transition-transform" th:text="${metrics.lowStockCount}">28</span>
-                <span class="text-[11px] text-amber-600 block mt-0.5">Dưới mức an toàn</span>
             </div>
             <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl group-hover:bg-amber-100 transition">
                 <i class="bi bi-exclamation-triangle-fill"></i>
@@ -85,7 +82,6 @@
             <div>
                 <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700 block mb-1">Tồn an toàn</span>
                 <span class="text-2xl font-extrabold text-emerald-600 group-hover:scale-105 transition-transform" th:text="${metrics.safeStockCount}">77</span>
-                <span class="text-[11px] text-emerald-600 block mt-0.5">Đủ nguồn cung bán</span>
             </div>
             <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl group-hover:bg-emerald-100 transition">
                 <i class="bi bi-check-circle-fill"></i>
