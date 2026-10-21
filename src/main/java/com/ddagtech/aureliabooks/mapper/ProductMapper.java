@@ -181,6 +181,30 @@ public class ProductMapper {
     }
 
     /**
+     * Creates a new Product entity for a Book without setting stockQuantity (BR-01-03 / QC02).
+     * Stock quantity is strictly initialized to 0.
+     */
+    public Product toNewBookProduct(BookForm form, Category category) {
+        if (form == null) {
+            return null;
+        }
+        return Product.builder()
+                .barcode(form.barcode() != null ? form.barcode().strip() : null)
+                .title(form.title() != null ? form.title().strip() : null)
+                .category(category)
+                .productType(Product.ProductType.BOOK)
+                .price(form.price())
+                .originalCost(form.originalCost())
+                .weightGrams(form.weightGrams() != null ? form.weightGrams() : 200)
+                .stockQuantity(0)
+                .isActive(true)
+                .mainImageUrl(form.mainImageUrl())
+                .tags(form.tags())
+                .description(form.description())
+                .build();
+    }
+
+    /**
      * Updates common product fields from a BookForm without modifying stockQuantity (BR-01-03 / QC02).
      */
     public void updateBookProductFields(Product target, BookForm form, Category category) {
@@ -197,6 +221,30 @@ public class ProductMapper {
         target.setTags(form.tags());
         target.setDescription(form.description());
         // STRICT INVARIANT (BR-01-03 / QC02): Never set stockQuantity from Product forms.
+    }
+
+    /**
+     * Creates a new Product entity for Stationery without setting stockQuantity (BR-01-03 / QC02).
+     * Stock quantity is strictly initialized to 0.
+     */
+    public Product toNewStationeryProduct(StationeryForm form, Category category) {
+        if (form == null) {
+            return null;
+        }
+        return Product.builder()
+                .barcode(form.barcode() != null ? form.barcode().strip() : null)
+                .title(form.title() != null ? form.title().strip() : null)
+                .category(category)
+                .productType(Product.ProductType.STATIONERY)
+                .price(form.price())
+                .originalCost(form.originalCost())
+                .weightGrams(form.weightGrams() != null ? form.weightGrams() : 100)
+                .stockQuantity(0)
+                .isActive(true)
+                .mainImageUrl(form.mainImageUrl())
+                .tags(form.tags())
+                .description(form.description())
+                .build();
     }
 
     /**

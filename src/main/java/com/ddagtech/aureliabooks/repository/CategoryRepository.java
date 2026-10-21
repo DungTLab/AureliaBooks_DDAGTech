@@ -18,14 +18,64 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      */
     List<Category> findByIsActiveTrue();
 
+    /**
+     * Retrieve all active categories ordered by name ascending.
+     *
+     * @return list of active categories sorted by name
+     */
+    List<Category> findByIsActiveTrueOrderByNameAsc();
+
+    /**
+     * Returns all active categories ordered by name ascending.
+     *
+     * @return list of active categories
+     */
     List<Category> findAllByIsActiveTrueOrderByNameAsc();
 
     List<Category> findAllByOrderByNameAsc();
 
+    /**
+     * Checks if a category name exists under a specific parent category.
+     *
+     * @param name     category name
+     * @param parentId parent category ID
+     * @return true if category exists under parent
+     */
     boolean existsByNameIgnoreCaseAndParentId(String name, Long parentId);
 
+    /**
+     * Checks if another category exists under the same parent with the same name.
+     *
+     * @param name     category name
+     * @param parentId parent category ID
+     * @param id       category ID to exclude
+     * @return true if another category exists with this name under the parent
+     */
+    boolean existsByNameIgnoreCaseAndParentIdAndIdNot(String name, Long parentId, Long id);
+
+    /**
+     * Checks if a root category with the given name exists.
+     *
+     * @param name category name
+     * @return true if root category exists
+     */
     boolean existsByNameIgnoreCaseAndParentIsNull(String name);
 
+    /**
+     * Checks if another root category with the given name exists excluding current ID.
+     *
+     * @param name category name
+     * @param id   category ID to exclude
+     * @return true if another root category exists with this name
+     */
+    boolean existsByNameIgnoreCaseAndParentIsNullAndIdNot(String name, Long id);
+
+    /**
+     * Checks if any subcategories exist under the specified parent ID.
+     *
+     * @param parentId parent ID
+     * @return true if child categories exist
+     */
     boolean existsByParentId(Long parentId);
 
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Product p WHERE p.category.id = :categoryId")
@@ -36,11 +86,4 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent ORDER BY c.id ASC")
     List<Category> findAllWithParent();
-
-    /**
-     * Retrieve all active categories ordered by name ascending.
-     *
-     * @return list of active categories sorted by name
-     */
-    List<Category> findByIsActiveTrueOrderByNameAsc();
 }

@@ -1,13 +1,16 @@
 package com.ddagtech.aureliabooks.service;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
+import com.ddagtech.aureliabooks.dto.request.AuthorForm;
 import com.ddagtech.aureliabooks.dto.request.BrandForm;
 import com.ddagtech.aureliabooks.dto.request.CategoryForm;
 import com.ddagtech.aureliabooks.dto.request.PublisherForm;
+import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Brand;
 import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Publisher;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.MasterDataMapper;
 import com.ddagtech.aureliabooks.repository.AuthorRepository;
 import com.ddagtech.aureliabooks.repository.BrandRepository;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -35,9 +39,11 @@ import static org.mockito.Mockito.*;
 
 /**
  * Unit test suite for MasterDataService covering:
+ * - UC17: Authors Management (SCR-M03a)
  * - UC18: Publisher Management (SCR-M03b)
  * - UC19: Brand Management (SCR-M03c)
  * - UC20: Hierarchical Category Management (SCR-M03d)
+ * Enforces business invariants: duplicate name prevention, cycle detection, and mapper usage.
  */
 @ExtendWith(MockitoExtension.class)
 class MasterDataServiceTest {
@@ -54,8 +60,87 @@ class MasterDataServiceTest {
     @Mock
     private CategoryRepository categoryRepository;
 
+    @Spy
+    private MasterDataMapper masterDataMapper = new MasterDataMapper();
+
     @InjectMocks
     private MasterDataServiceImpl masterDataService;
+
+    // =========================================================================
+    // UC17: AUTHORS MANAGEMENT TESTS
+    // =========================================================================
+    @Nested
+    @DisplayName("UC17: Author Management Tests")
+    class AuthorTests {
+
+        @Test
+        @DisplayName("createAuthor should save and flush entity when name is unique")
+        void createAuthor_whenNameUnique_shouldSaveAndFlush() {
+            AuthorForm form = new AuthorForm(null, "Nguyễn Nhật Ánh", "Nhà văn Việt Nam nổi tiếng");
+            when(authorRepository.existsByNameIgnoreCase("Nguyễn Nhật Ánh")).thenReturn(false);
+
+            Author savedAuthor = Author.builder()
+                    .id(1L)
+                    .name("Nguyễn Nhật Ánh")
+                    .biography("Nhà văn Việt Nam nổi tiếng")
+                    .build();
+            when(authorRepository.saveAndFlush(any(Author.class))).thenReturn(savedAuthor);
+
+            Long resultId = masterDataService.createAuthor(form);
+
+            assertThat(resultId).isEqualTo(1L);
+            verify(authorRepository).saveAndFlush(any(Author.class));
+        }
+
+        @Test
+        @DisplayName("createAuthor should throw AppException when author name already exists")
+        void createAuthor_whenNameExists_shouldThrowException() {
+            AuthorForm form = new AuthorForm(null, "Nguyễn Nhật Ánh", "Tiểu sử");
+            when(authorRepository.existsByNameIgnoreCase("Nguyễn Nhật Ánh")).thenReturn(true);
+
+            assertThatThrownBy(() -> masterDataService.createAuthor(form))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("đã tồn tại trong hệ thống")
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+
+            verify(authorRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        @DisplayName("updateAuthor should update entity and flush when name is unique")
+        void updateAuthor_whenValid_shouldUpdateAndFlush() {
+            Author existing = Author.builder().id(1L).name("Cũ").build();
+            AuthorForm form = new AuthorForm(1L, "Mới", "Tiểu sử mới");
+
+            when(authorRepository.findById(1L)).thenReturn(Optional.of(existing));
+            when(authorRepository.existsByNameIgnoreCaseAndIdNot("Mới", 1L)).thenReturn(false);
+
+            masterDataService.updateAuthor(1L, form);
+
+            assertThat(existing.getName()).isEqualTo("Mới");
+            assertThat(existing.getBiography()).isEqualTo("Tiểu sử mới");
+            verify(authorRepository).saveAndFlush(existing);
+        }
+
+        @Test
+        @DisplayName("updateAuthor should throw AppException when duplicate name exists on other author")
+        void updateAuthor_whenDuplicateName_shouldThrowException() {
+            Author existing = Author.builder().id(1L).name("Cũ").build();
+            AuthorForm form = new AuthorForm(1L, "Trùng Tên", "Tiểu sử");
+
+            when(authorRepository.findById(1L)).thenReturn(Optional.of(existing));
+            when(authorRepository.existsByNameIgnoreCaseAndIdNot("Trùng Tên", 1L)).thenReturn(true);
+
+            assertThatThrownBy(() -> masterDataService.updateAuthor(1L, form))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("đã tồn tại trong hệ thống")
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+
+            verify(authorRepository, never()).saveAndFlush(any());
+        }
+    }
 
     // =========================================================================
     // UC18: PUBLISHERS MANAGEMENT TESTS
@@ -137,8 +222,8 @@ class MasterDataServiceTest {
         }
 
         @Test
-        @DisplayName("deletePublisher should throw AppException when books are linked")
-        void deletePublisher_LinkedBooks_ThrowsException() {
+        @DisplayName("deletePublisher should throw AppException when books are linked to publisher")
+        void deletePublisher_HasBooks_ThrowsException() {
             Publisher publisher = Publisher.builder().id(1L).name("NXB Trẻ").build();
             when(publisherRepository.findById(1L)).thenReturn(Optional.of(publisher));
             when(publisherRepository.hasBooks(1L)).thenReturn(true);
@@ -151,13 +236,13 @@ class MasterDataServiceTest {
         }
 
         @Test
-        @DisplayName("listPublishers should filter by keyword when keyword is present")
-        void listPublishers_WithKeyword() {
+        @DisplayName("listPublishers should return paged results")
+        void listPublishers_ReturnsPagedResult() {
             Pageable pageable = PageRequest.of(0, 10);
-            List<Publisher> content = List.of(Publisher.builder().id(1L).name("NXB Trẻ").build());
-            Page<Publisher> expectedPage = new PageImpl<>(content, pageable, 1);
+            List<Publisher> publishers = List.of(Publisher.builder().id(1L).name("NXB Trẻ").build());
+            Page<Publisher> page = new PageImpl<>(publishers, pageable, 1);
 
-            when(publisherRepository.findByNameContainingIgnoreCaseOrderByNameAsc("Trẻ", pageable)).thenReturn(expectedPage);
+            when(publisherRepository.findByNameContainingIgnoreCaseOrderByNameAsc("Trẻ", pageable)).thenReturn(page);
 
             Page<Publisher> result = masterDataService.listPublishers("Trẻ", pageable);
 
@@ -198,26 +283,26 @@ class MasterDataServiceTest {
                     .isInstanceOf(AppException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
 
-            verify(brandRepository, never()).save(any(Brand.class));
+            verify(brandRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("updateBrand should succeed when valid")
+        @DisplayName("updateBrand should succeed when brand exists and name is valid")
         void updateBrand_Success() {
-            Brand existing = Brand.builder().id(10L).name("Pentel").originCountry("Nhật Bản").build();
+            Brand existing = Brand.builder().id(10L).name("Pentel").build();
             when(brandRepository.findById(10L)).thenReturn(Optional.of(existing));
             when(brandRepository.existsByNameIgnoreCaseAndIdNot("Pentel Japan", 10L)).thenReturn(false);
 
-            BrandForm form = new BrandForm("Pentel Japan", "Japan");
+            BrandForm form = new BrandForm("Pentel Japan", "Nhật Bản");
             masterDataService.updateBrand(10L, form);
 
             assertThat(existing.getName()).isEqualTo("Pentel Japan");
-            assertThat(existing.getOriginCountry()).isEqualTo("Japan");
+            assertThat(existing.getOriginCountry()).isEqualTo("Nhật Bản");
             verify(brandRepository).save(existing);
         }
 
         @Test
-        @DisplayName("deleteBrand should succeed when no stationeries linked")
+        @DisplayName("deleteBrand should succeed when no stationeries are linked")
         void deleteBrand_Success() {
             Brand brand = Brand.builder().id(10L).name("Deli").build();
             when(brandRepository.findById(10L)).thenReturn(Optional.of(brand));
@@ -229,9 +314,9 @@ class MasterDataServiceTest {
         }
 
         @Test
-        @DisplayName("deleteBrand should throw AppException when stationeries linked")
-        void deleteBrand_LinkedStationeries_ThrowsException() {
-            Brand brand = Brand.builder().id(10L).name("Thiên Long").build();
+        @DisplayName("deleteBrand should throw AppException when stationeries are linked to brand")
+        void deleteBrand_HasStationeries_ThrowsException() {
+            Brand brand = Brand.builder().id(10L).name("Deli").build();
             when(brandRepository.findById(10L)).thenReturn(Optional.of(brand));
             when(brandRepository.hasStationeries(10L)).thenReturn(true);
 
@@ -251,18 +336,12 @@ class MasterDataServiceTest {
     class CategoryTests {
 
         @Test
-        @DisplayName("createCategory should succeed for root category when name is unique")
+        @DisplayName("createCategory should succeed when category name is unique at root")
         void createCategory_RootCategory_Success() {
-            CategoryForm form = new CategoryForm("Sách Trong Nước", null, "Sách quốc văn", true);
+            CategoryForm form = new CategoryForm("Sách Trong Nước", null, "Danh mục sách", true);
             when(categoryRepository.existsByNameIgnoreCaseAndParentIsNull("Sách Trong Nước")).thenReturn(false);
 
-            Category saved = Category.builder()
-                    .id(100L)
-                    .name("Sách Trong Nước")
-                    .parent(null)
-                    .description("Sách quốc văn")
-                    .isActive(true)
-                    .build();
+            Category saved = Category.builder().id(100L).name("Sách Trong Nước").build();
             when(categoryRepository.save(any(Category.class))).thenReturn(saved);
 
             Long id = masterDataService.createCategory(form);
@@ -272,21 +351,16 @@ class MasterDataServiceTest {
         }
 
         @Test
-        @DisplayName("createCategory should succeed for child category when parent exists and name is unique in parent")
+        @DisplayName("createCategory should succeed when child category has unique name under parent")
         void createCategory_ChildCategory_Success() {
             Category parent = Category.builder().id(100L).name("Sách Trong Nước").build();
             when(categoryRepository.findById(100L)).thenReturn(Optional.of(parent));
             when(categoryRepository.existsByNameIgnoreCaseAndParentId("Văn Học", 100L)).thenReturn(false);
 
-            CategoryForm form = new CategoryForm("Văn Học", 100L, "Tiểu thuyết, thơ", true);
-            Category savedChild = Category.builder()
-                    .id(101L)
-                    .name("Văn Học")
-                    .parent(parent)
-                    .isActive(true)
-                    .build();
-            when(categoryRepository.save(any(Category.class))).thenReturn(savedChild);
+            Category saved = Category.builder().id(101L).name("Văn Học").parent(parent).build();
+            when(categoryRepository.save(any(Category.class))).thenReturn(saved);
 
+            CategoryForm form = new CategoryForm("Văn Học", 100L, "Sách văn học", true);
             Long id = masterDataService.createCategory(form);
 
             assertThat(id).isEqualTo(101L);
@@ -294,13 +368,10 @@ class MasterDataServiceTest {
         }
 
         @Test
-        @DisplayName("createCategory should throw AppException when duplicate name in same parent group")
-        void createCategory_DuplicateNameInParent_ThrowsException() {
-            Category parent = Category.builder().id(100L).name("Sách Trong Nước").build();
-            when(categoryRepository.findById(100L)).thenReturn(Optional.of(parent));
-            when(categoryRepository.existsByNameIgnoreCaseAndParentId("Văn Học", 100L)).thenReturn(true);
-
-            CategoryForm form = new CategoryForm("Văn Học", 100L, null, true);
+        @DisplayName("createCategory should throw AppException when duplicate root category exists")
+        void createCategory_DuplicateRoot_ThrowsException() {
+            CategoryForm form = new CategoryForm("Sách Trong Nước", null, null, true);
+            when(categoryRepository.existsByNameIgnoreCaseAndParentIsNull("Sách Trong Nước")).thenReturn(true);
 
             assertThatThrownBy(() -> masterDataService.createCategory(form))
                     .isInstanceOf(AppException.class)
@@ -341,6 +412,44 @@ class MasterDataServiceTest {
             assertThatThrownBy(() -> masterDataService.updateCategory(100L, form))
                     .isInstanceOf(AppException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
+
+            verify(categoryRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("updateCategory should throw AppException when sibling name duplicates under same parent")
+        void updateCategory_whenDuplicateSibling_shouldThrowException() {
+            Category child = Category.builder().id(2L).name("Truyện Tranh").build();
+            Category parent = Category.builder().id(1L).name("Sách Thiếu Nhi").build();
+            CategoryForm form = new CategoryForm("Văn Học Thiếu Nhi", 1L, "Mô tả", true);
+
+            when(categoryRepository.findById(2L)).thenReturn(Optional.of(child));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(parent));
+            when(categoryRepository.existsByNameIgnoreCaseAndParentIdAndIdNot("Văn Học Thiếu Nhi", 1L, 2L)).thenReturn(true);
+
+            assertThatThrownBy(() -> masterDataService.updateCategory(2L, form))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("đã tồn tại dưới danh mục cha đã chọn")
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+
+            verify(categoryRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("updateCategory should throw AppException when root category name duplicates")
+        void updateCategory_whenDuplicateRoot_shouldThrowException() {
+            Category root = Category.builder().id(2L).name("Sách Cũ").build();
+            CategoryForm form = new CategoryForm("Sách Mới", null, "Mô tả", true);
+
+            when(categoryRepository.findById(2L)).thenReturn(Optional.of(root));
+            when(categoryRepository.existsByNameIgnoreCaseAndParentIsNullAndIdNot("Sách Mới", 2L)).thenReturn(true);
+
+            assertThatThrownBy(() -> masterDataService.updateCategory(2L, form))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("Danh mục gốc 'Sách Mới' đã tồn tại")
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
 
             verify(categoryRepository, never()).save(any());
         }

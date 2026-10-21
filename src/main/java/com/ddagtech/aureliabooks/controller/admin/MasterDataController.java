@@ -95,10 +95,22 @@ public class MasterDataController {
     public String updateAuthor(@PathVariable("id") Long id,
                                @Valid @ModelAttribute("authorForm") AuthorForm form,
                                BindingResult bindingResult,
-                               RedirectAttributes redirectAttributes) {
+                               @RequestParam(value = "keyword", required = false) String keyword,
+                               @PageableDefault(size = 10) Pageable pageable,
+                               RedirectAttributes redirectAttributes,
+                               Model model) {
         if (bindingResult.hasErrors()) {
-            redirectAttributes.addFlashAttribute("errorMessage", bindingResult.getFieldErrors().get(0).getDefaultMessage());
-            return "redirect:/manager/authors";
+Page<Author> authorsPage = masterDataService.listAuthors(keyword, pageable);
+            model.addAttribute("authorsPage", authorsPage);
+            model.addAttribute("keyword", keyword != null ? keyword : "");
+            Map<Long, Long> bookCounts = new HashMap<>();
+            for (Author author : authorsPage.getContent()) {
+                bookCounts.put(author.getId(), masterDataService.countBooksByAuthor(author.getId()));
+            }
+            model.addAttribute("bookCounts", bookCounts);
+            model.addAttribute("editAuthorId", id);
+            return "admin/catalog/authors";
+
         }
 
         try {

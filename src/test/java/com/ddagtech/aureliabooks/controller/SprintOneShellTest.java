@@ -95,7 +95,7 @@ class SprintOneShellTest {
         org.mockito.Mockito.when(categoryRepository.findByIsActiveTrueOrderByNameAsc())
                 .thenReturn(java.util.List.of());
 
-        mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")))
+mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")))
                 .andExpect(status().isOk());
         mvc.perform(get("/staff/receipts/new").with(user("shell-review").roles("SALE_STAFF")))
                 .andExpect(status().isOk());

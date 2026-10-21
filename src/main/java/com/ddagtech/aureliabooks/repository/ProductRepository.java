@@ -20,19 +20,7 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
-    /** Deduct stock conditionally in the database; accept exactly one updated row, otherwise roll back the entire order. */
-    @Modifying(flushAutomatically = true)
-    @Query("""
-        UPDATE Product p
-        SET p.stockQuantity = p.stockQuantity - :quantity
-        WHERE p.id = :productId
-          AND p.isActive = true
-          AND :quantity > 0
-          AND p.stockQuantity >= :quantity
-    """)
-    int deductStockIfAvailable(@Param("productId") Long productId, @Param("quantity") int quantity);
-
-    /**
+/**
      * Checks if a product with the specified barcode exists.
      *
      * @param barcode unique barcode
@@ -40,6 +28,12 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      */
     boolean existsByBarcodeIgnoreCase(String barcode);
 
+    /**
+     * Checks if a product with the specified barcode exists (exact case).
+     *
+     * @param barcode barcode string
+     * @return true if barcode exists
+     */
     boolean existsByBarcode(String barcode);
 
     /**
@@ -109,6 +103,24 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
             @Param("title") String title,
             @Param("barcode") String barcode,
             Pageable pageable);
+
+    /**
+     * Deduct stock conditionally in the database; accept exactly one updated row, otherwise roll back the entire order.
+     *
+     * @param productId product ID
+     * @param quantity  quantity to deduct
+     * @return number of updated rows
+     */
+@Modifying(flushAutomatically = true)
+    @Query("""
+        UPDATE Product p
+        SET p.stockQuantity = p.stockQuantity - :quantity
+        WHERE p.id = :productId
+          AND p.isActive = true
+          AND :quantity > 0
+          AND p.stockQuantity >= :quantity
+    """)
+    int deductStockIfAvailable(@Param("productId") Long productId, @Param("quantity") int quantity);
 
     /**
      * Retrieves a product with a pessimistic write lock for inventory mutation.
