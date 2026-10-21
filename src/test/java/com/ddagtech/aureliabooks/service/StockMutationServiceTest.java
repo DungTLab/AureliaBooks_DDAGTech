@@ -16,6 +16,8 @@ import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.impl.StockMutationServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -68,6 +70,9 @@ class StockMutationServiceTest {
 
     @Mock
     private AuditLogService auditLogService;
+
+    @Mock
+    private EntityManager entityManager;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -231,6 +236,55 @@ class StockMutationServiceTest {
     @DisplayName("deductOrder - Document-based Order Stock Deduction")
     class DeductOrderTests {
 
+        /** A failed conditional update must not stamp the marker or record success; MySQL tests verify SQL rollback. */
+        @Test
+        void failedConditionalUpdateDoesNotStampOrder() {
+            Order order = pendingOrderWithLines(3, 2);
+            when(productRepository.deductStockIfAvailable(product1.getId(), 3)).thenReturn(1);
+            when(productRepository.deductStockIfAvailable(product2.getId(), 2)).thenReturn(0);
+
+            assertThatThrownBy(() -> stockMutationService.deductOrder(order.getId()))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INSUFFICIENT_STOCK);
+            assertThat(order.getStockDeductedAt()).isNull();
+            verify(orderRepository, never()).save(any());
+            verifyNoInteractions(auditLogService);
+        }
+
+        @Test
+        void duplicateProductLinesAreDeductedAsOneQuantity() {
+            Order order = pendingOrderWithLines(2, 3);
+            order.getItems().getLast().setProduct(product1);
+            when(productRepository.findAllByIdInWithLock(anyCollection())).thenReturn(List.of(product1));
+            when(productRepository.deductStockIfAvailable(product1.getId(), 5)).thenReturn(1);
+
+            stockMutationService.deductOrder(order.getId());
+
+            verify(productRepository).deductStockIfAvailable(product1.getId(), 5);
+            assertThat(order.getStockDeductedAt()).isNotNull();
+        }
+
+        @Test
+        void invalidQuantityCannotMutateStock() {
+            Order order = pendingOrderWithLines(0, 2);
+            assertThatThrownBy(() -> stockMutationService.deductOrder(order.getId()))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
+            verify(productRepository, never()).deductStockIfAvailable(anyLong(), anyInt());
+        }
+
+        private Order pendingOrderWithLines(int firstQuantity, int secondQuantity) {
+            Order order = Order.builder().id(100L).orderCode("QA-ORDER").user(testCustomer)
+                    .orderStatus(Order.OrderStatus.PENDING_PAYMENT).build();
+            order.addItem(OrderItem.builder().product(product1).quantity(firstQuantity).build());
+            order.addItem(OrderItem.builder().product(product2).quantity(secondQuantity).build());
+            when(orderRepository.findByIdWithLock(order.getId())).thenReturn(Optional.of(order));
+            when(orderItemRepository.findByOrderId(order.getId())).thenReturn(order.getItems());
+            lenient().when(productRepository.findAllByIdInWithLock(anyCollection()))
+                    .thenReturn(List.of(product1, product2));
+            return order;
+        }
+
         @Test
         @DisplayName("Atomic multi-line deduction: all items deducted and stock_deducted_at stamped")
         void shouldAtomicallyDeductAllOrderItemsAndStampMetadata() {
@@ -261,12 +315,20 @@ class StockMutationServiceTest {
             when(orderItemRepository.findByOrderId(orderId)).thenReturn(Arrays.asList(item1, item2));
             when(productRepository.findAllByIdInWithLock(anyCollection())).thenReturn(Arrays.asList(product1, product2));
 
+            when(productRepository.deductStockIfAvailable(product1.getId(), 3)).thenReturn(1);
+            when(productRepository.deductStockIfAvailable(product2.getId(), 2)).thenReturn(1);
+
             // Act
             stockMutationService.deductOrder(orderId);
 
             // Assert
-            assertThat(product1.getStockQuantity()).isEqualTo(10 - 3); // 7
-            assertThat(product2.getStockQuantity()).isEqualTo(5 - 2);  // 3
+            // Bulk updates belong to the repository; unit tests verify calls while MySQL tests verify actual balances.
+            verify(productRepository).deductStockIfAvailable(product1.getId(), 3);
+            verify(productRepository).deductStockIfAvailable(product2.getId(), 2);
+            verify(productRepository, never()).save(any());
+            verify(entityManager).refresh(product1, LockModeType.PESSIMISTIC_WRITE);
+            verify(entityManager).refresh(product1);
+            verify(entityManager).refresh(product2);
             assertThat(order.getStockDeductedAt()).isNotNull();
 
             verify(orderRepository).save(order);
@@ -341,6 +403,7 @@ class StockMutationServiceTest {
             assertThat(order.getStockDeductedAt()).isEqualTo(pastDeductionTime);
             verify(orderItemRepository, never()).findByOrderId(any());
             verify(productRepository, never()).save(any());
+            verify(productRepository, never()).deductStockIfAvailable(anyLong(), anyInt());
             verify(auditLogService, never()).record(any(), any(), any(), any(), any(), any());
         }
 
