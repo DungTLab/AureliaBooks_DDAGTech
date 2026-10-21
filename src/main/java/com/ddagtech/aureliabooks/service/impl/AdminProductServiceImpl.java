@@ -5,6 +5,7 @@ import com.ddagtech.aureliabooks.dto.request.BookForm;
 import com.ddagtech.aureliabooks.dto.request.StationeryForm;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.ProductMapper;
 import com.ddagtech.aureliabooks.repository.*;
 import com.ddagtech.aureliabooks.service.AdminProductService;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,6 +36,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final PublisherRepository publisherRepository;
     private final AuthorRepository authorRepository;
     private final BrandRepository brandRepository;
+    private final ProductMapper productMapper;
 
     // =========================================================================
     // UC15: BOOK MANAGEMENT
@@ -65,22 +66,8 @@ public class AdminProductServiceImpl implements AdminProductService {
             authors.addAll(authorRepository.findAllById(form.authorIds()));
         }
 
-        // 1. Create Base Product (Stock is always initialized to 0, never directly set from form per invariant)
-        Product product = Product.builder()
-                .barcode(barcode)
-                .title(form.title().trim())
-                .category(category)
-                .productType(Product.ProductType.BOOK)
-                .price(form.price())
-                .originalCost(form.originalCost())
-                .weightGrams(form.weightGrams() != null ? form.weightGrams() : 200)
-                .stockQuantity(0)
-                .isActive(true)
-                .mainImageUrl(form.mainImageUrl())
-                .tags(form.tags())
-                .description(form.description())
-                .build();
-
+        // 1. Create Base Product via ProductMapper (Stock is strictly initialized to 0, never directly set from form per invariant)
+        Product product = productMapper.toNewBookProduct(form, category);
         Product savedProduct = productRepository.save(product);
 
         // 2. Create Book Specific Details (@MapsId automatically maps the identifier from product)
@@ -132,16 +119,8 @@ public class AdminProductServiceImpl implements AdminProductService {
             authors.addAll(authorRepository.findAllById(form.authorIds()));
         }
 
-        // Update Base Product fields (PRESERVE stockQuantity)
-        product.setBarcode(barcode);
-        product.setTitle(form.title().trim());
-        product.setCategory(category);
-        product.setPrice(form.price());
-        product.setOriginalCost(form.originalCost());
-        product.setWeightGrams(form.weightGrams() != null ? form.weightGrams() : 200);
-        product.setMainImageUrl(form.mainImageUrl());
-        product.setTags(form.tags());
-        product.setDescription(form.description());
+        // Update Base Product fields via ProductMapper (Strictly PRESERVES stockQuantity per BR-01-03 / QC02)
+        productMapper.updateBookProductFields(product, form, category);
         productRepository.save(product);
 
         // Update Book details
@@ -155,11 +134,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         book.setEdition(form.edition());
         book.setPageCount(form.pageCount());
         book.setLanguage(form.language() != null && !form.language().isBlank() ? form.language() : "Tiếng Việt");
-        if (form.coverType() != null) {
-            book.setCoverType(form.coverType());
-        }
+        book.setCoverType(form.coverType() != null ? form.coverType() : Book.CoverType.PAPERBACK);
         bookRepository.save(book);
-        log.info("Updated book [productId={}, title='{}']", productId, product.getTitle());
+
+        log.info("Updated book successfully [productId={}, isbn='{}', title='{}']", productId, isbn, product.getTitle());
     }
 
     @Override
@@ -213,23 +191,11 @@ public class AdminProductServiceImpl implements AdminProductService {
         Brand brand = brandRepository.findById(form.brandId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy thương hiệu với ID: " + form.brandId()));
 
-        Product product = Product.builder()
-                .barcode(barcode)
-                .title(form.title().trim())
-                .category(category)
-                .productType(Product.ProductType.STATIONERY)
-                .price(form.price())
-                .originalCost(form.originalCost())
-                .weightGrams(form.weightGrams() != null ? form.weightGrams() : 200)
-                .stockQuantity(0)
-                .isActive(true)
-                .mainImageUrl(form.mainImageUrl())
-                .tags(form.tags())
-                .description(form.description())
-                .build();
-
+        // 1. Create Base Product via ProductMapper
+        Product product = productMapper.toNewStationeryProduct(form, category);
         Product savedProduct = productRepository.save(product);
 
+        // 2. Create Stationery details
         Stationery stationery = Stationery.builder()
                 .product(savedProduct)
                 .brand(brand)
@@ -262,15 +228,8 @@ public class AdminProductServiceImpl implements AdminProductService {
         Brand brand = brandRepository.findById(form.brandId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy thương hiệu với ID: " + form.brandId()));
 
-        product.setBarcode(barcode);
-        product.setTitle(form.title().trim());
-        product.setCategory(category);
-        product.setPrice(form.price());
-        product.setOriginalCost(form.originalCost());
-        product.setWeightGrams(form.weightGrams() != null ? form.weightGrams() : 200);
-        product.setMainImageUrl(form.mainImageUrl());
-        product.setTags(form.tags());
-        product.setDescription(form.description());
+        // Update Base Product fields via ProductMapper (Strictly PRESERVES stockQuantity per BR-01-03 / QC02)
+        productMapper.updateStationeryProductFields(product, form, category);
         productRepository.save(product);
 
         stationery.setBrand(brand);

@@ -146,30 +146,38 @@
     </div>
 
     <!-- Modal Form (Create / Edit Author) -->
-    <div id="authorModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div id="authorModal"
+         th:object="${authorForm}"
+         th:classappend="${#fields.hasErrors() ? '' : 'hidden'}"
+         class="fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl border border-dust_grey shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-down">
             <div class="px-6 py-4 bg-alabaster_grey/40 border-b border-dust_grey/60 flex items-center justify-between">
-                <h3 id="modalTitle" class="font-serif font-bold text-lg text-carbon_black">Thêm Tác Giả Mới</h3>
+                <h3 id="modalTitle" class="font-serif font-bold text-lg text-carbon_black"
+                    th:text="${editAuthorId != null ? 'Chỉnh Sửa Thông Tin Tác Giả' : 'Thêm Tác Giả Mới'}">Thêm Tác Giả Mới</h3>
                 <button type="button" onclick="closeAuthorModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-            <form id="authorForm" th:action="@{/manager/authors}" method="post" class="p-6 space-y-4">
+            <form id="authorForm" th:action="${editAuthorId != null ? '/manager/authors/' + editAuthorId + '/edit' : '/manager/authors'}" method="post" class="p-6 space-y-4">
                 <div>
                     <label for="authorNameInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Tên Tác Giả <span class="text-blazing_flame">*</span>
                     </label>
-                    <input type="text" id="authorNameInput" name="name" required maxlength="100"
+                    <input type="text" id="authorNameInput" th:field="*{name}" required maxlength="100"
                            placeholder="Ví dụ: Nguyễn Nhật Ánh, Haruki Murakami..."
-                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame">
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"
+                           th:classappend="${#fields.hasErrors('name')} ? 'border-[#d3380d] focus:ring-[#d3380d] focus:border-[#d3380d]' : ''">
+                    <p th:if="${#fields.hasErrors('name')}" th:errors="*{name}" class="mt-1 text-xs text-[#d3380d] font-semibold"></p>
                 </div>
                 <div>
                     <label for="authorBioInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Tiểu Sử Tóm Tắt
                     </label>
-                    <textarea id="authorBioInput" name="biography" rows="4" maxlength="5000"
+                    <textarea id="authorBioInput" th:field="*{biography}" rows="4" maxlength="5000"
                               placeholder="Thông tin tiểu sử tóm tắt, năm sinh, sự nghiệp văn học..."
-                              class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"></textarea>
+                              class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"
+                              th:classappend="${#fields.hasErrors('biography')} ? 'border-[#d3380d] focus:ring-[#d3380d] focus:border-[#d3380d]' : ''"></textarea>
+                    <p th:if="${#fields.hasErrors('biography')}" th:errors="*{biography}" class="mt-1 text-xs text-[#d3380d] font-semibold"></p>
                 </div>
                 <div class="pt-3 flex items-center justify-end gap-3 border-t border-dust_grey/60">
                     <button type="button" onclick="closeAuthorModal()"
@@ -192,6 +200,11 @@
             const form = document.getElementById('authorForm');
             const nameInput = document.getElementById('authorNameInput');
             const bioInput = document.getElementById('authorBioInput');
+
+            // Clear previous validation error elements if any
+            document.querySelectorAll('#authorModal p.text-\[\#d3380d\]').forEach(el => el.remove());
+            nameInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
+            bioInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
 
             if (id) {
                 title.textContent = 'Chỉnh Sửa Thông Tin Tác Giả';

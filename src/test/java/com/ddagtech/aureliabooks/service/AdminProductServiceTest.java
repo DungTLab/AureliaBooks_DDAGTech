@@ -60,6 +60,9 @@ class AdminProductServiceTest {
     @Mock
     private BrandRepository brandRepository;
 
+    @org.mockito.Spy
+    private com.ddagtech.aureliabooks.mapper.ProductMapper productMapper = new com.ddagtech.aureliabooks.mapper.ProductMapper();
+
     @InjectMocks
     private AdminProductServiceImpl adminProductService;
 
@@ -382,3 +385,4 @@ class AdminProductServiceTest {
         }
     }
 }
+

@@ -10,6 +10,7 @@ import com.ddagtech.aureliabooks.entity.Brand;
 import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Publisher;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.mapper.MasterDataMapper;
 import com.ddagtech.aureliabooks.repository.AuthorRepository;
 import com.ddagtech.aureliabooks.repository.BrandRepository;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
@@ -38,6 +39,7 @@ public class MasterDataServiceImpl implements MasterDataService {
     private final PublisherRepository publisherRepository;
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
+    private final MasterDataMapper masterDataMapper;
 
     // =========================================================================
     // UC17: AUTHORS
@@ -45,25 +47,21 @@ public class MasterDataServiceImpl implements MasterDataService {
 
     @Override
     @Transactional
-    public Long createAuthor(AuthorForm form) {
+    public synchronized Long createAuthor(AuthorForm form) {
         String trimmedName = form.name() != null ? form.name().trim() : "";
         if (authorRepository.existsByNameIgnoreCase(trimmedName)) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tác giả với tên '" + trimmedName + "' đã tồn tại trong hệ thống.");
         }
 
-        Author author = Author.builder()
-                .name(trimmedName)
-                .biography(form.biography() != null ? form.biography().trim() : null)
-                .build();
-
-        Author saved = authorRepository.save(author);
+        Author author = masterDataMapper.toAuthorEntity(form);
+        Author saved = authorRepository.saveAndFlush(author);
         log.info("Created new author [id={}, name='{}']", saved.getId(), saved.getName());
         return saved.getId();
     }
 
     @Override
     @Transactional
-    public void updateAuthor(Long authorId, AuthorForm form) {
+    public synchronized void updateAuthor(Long authorId, AuthorForm form) {
         Author author = authorRepository.findById(authorId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy tác giả với ID: " + authorId));
 
@@ -72,9 +70,8 @@ public class MasterDataServiceImpl implements MasterDataService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tác giả với tên '" + trimmedName + "' đã tồn tại trong hệ thống.");
         }
 
-        author.setName(trimmedName);
-        author.setBiography(form.biography() != null ? form.biography().trim() : null);
-        authorRepository.save(author);
+        masterDataMapper.updateAuthorEntity(author, form);
+        authorRepository.saveAndFlush(author);
         log.info("Updated author [id={}, name='{}']", authorId, trimmedName);
     }
 
@@ -129,12 +126,7 @@ public class MasterDataServiceImpl implements MasterDataService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Nhà xuất bản '" + trimmedName + "' đã tồn tại.");
         }
 
-        Publisher publisher = Publisher.builder()
-                .name(trimmedName)
-                .address(form.address() != null ? form.address().trim() : null)
-                .email(form.email() != null ? form.email().trim() : null)
-                .build();
-
+        Publisher publisher = masterDataMapper.toPublisherEntity(form);
         Publisher saved = publisherRepository.save(publisher);
         log.info("Created publisher [id={}, name='{}']", saved.getId(), saved.getName());
         return saved.getId();
@@ -151,9 +143,7 @@ public class MasterDataServiceImpl implements MasterDataService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Nhà xuất bản '" + trimmedName + "' đã tồn tại.");
         }
 
-        publisher.setName(trimmedName);
-        publisher.setAddress(form.address() != null ? form.address().trim() : null);
-        publisher.setEmail(form.email() != null ? form.email().trim() : null);
+        masterDataMapper.updatePublisherEntity(publisher, form);
         publisherRepository.save(publisher);
         log.info("Updated publisher [id={}, name='{}']", publisherId, trimmedName);
     }
@@ -190,11 +180,7 @@ public class MasterDataServiceImpl implements MasterDataService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Thương hiệu '" + trimmedName + "' đã tồn tại.");
         }
 
-        Brand brand = Brand.builder()
-                .name(trimmedName)
-                .originCountry(form.originCountry() != null ? form.originCountry().trim() : null)
-                .build();
-
+        Brand brand = masterDataMapper.toBrandEntity(form);
         Brand saved = brandRepository.save(brand);
         log.info("Created brand [id={}, name='{}']", saved.getId(), saved.getName());
         return saved.getId();
@@ -211,8 +197,7 @@ public class MasterDataServiceImpl implements MasterDataService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Thương hiệu '" + trimmedName + "' đã tồn tại.");
         }
 
-        brand.setName(trimmedName);
-        brand.setOriginCountry(form.originCountry() != null ? form.originCountry().trim() : null);
+        masterDataMapper.updateBrandEntity(brand, form);
         brandRepository.save(brand);
         log.info("Updated brand [id={}, name='{}']", brandId, trimmedName);
     }
@@ -254,13 +239,7 @@ public class MasterDataServiceImpl implements MasterDataService {
             }
         }
 
-        Category category = Category.builder()
-                .name(trimmedName)
-                .parent(parent)
-                .description(form.description() != null ? form.description().trim() : null)
-                .isActive(form.active() != null ? form.active() : true)
-                .build();
-
+        Category category = masterDataMapper.toCategoryEntity(form, parent);
         Category saved = categoryRepository.save(category);
         log.info("Created category [id={}, name='{}']", saved.getId(), saved.getName());
         return saved.getId();
@@ -283,6 +262,11 @@ public class MasterDataServiceImpl implements MasterDataService {
                     .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục cha với ID: " + form.parentId()));
 
             // Cycle detection: traverse ancestors of target parent to verify current category is not among them
+                if (categoryRepository.existsByNameIgnoreCaseAndParentIdAndIdNot(trimmedName, form.parentId(), categoryId)) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục con '" + trimmedName + "' đã tồn tại dưới danh mục cha đã chọn.");
+            }
+
+            // Cycle detection: traverse ancestors of target parent to verify current category is not among them
             Category ancestor = parent;
             while (ancestor != null) {
                 if (ancestor.getId().equals(categoryId)) {
@@ -291,14 +275,13 @@ public class MasterDataServiceImpl implements MasterDataService {
                 }
                 ancestor = ancestor.getParent();
             }
+        } else {
+            if (categoryRepository.existsByNameIgnoreCaseAndParentIsNullAndIdNot(trimmedName, categoryId)) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục gốc '" + trimmedName + "' đã tồn tại.");
+            }
         }
 
-        category.setName(trimmedName);
-        category.setParent(parent);
-        category.setDescription(form.description() != null ? form.description().trim() : null);
-        if (form.active() != null) {
-            category.setIsActive(form.active());
-        }
+        masterDataMapper.updateCategoryEntity(category, form, parent);
         categoryRepository.save(category);
         log.info("Updated category [id={}, name='{}']", categoryId, trimmedName);
     }
