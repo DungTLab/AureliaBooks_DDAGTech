@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Embedded inside the checkout form; the owner handles voucher:preview and calls the server quote API. -->
+<section th:fragment="voucher(quote, errorMessage)" data-checkout-voucher class="rounded-2xl border border-dust_grey bg-white p-5 space-y-4">
+    <h2 class="font-bold text-lg">Mã giảm giá</h2>
+    <label for="checkoutVoucherCode" class="block text-sm font-medium">Nhập mã khuyến mãi</label>
+    <div class="flex flex-col sm:flex-row gap-3">
+        <input id="checkoutVoucherCode" name="voucherCode" maxlength="30" autocomplete="off" data-voucher-code
+               th:value="${quote != null ? quote.code : ''}" class="min-w-0 flex-1 rounded-xl border border-dust_grey p-3 uppercase">
+        <button type="button" data-voucher-preview class="rounded-xl border border-blazing_flame text-blazing_flame font-semibold px-5 py-3">Áp dụng</button>
+    </div>
+    <p class="text-xs text-carbon_black-500">Mỗi đơn dùng một mã. Ưu đãi được kiểm tra lại khi đặt hàng.</p>
+    <p th:if="${errorMessage != null}" th:text="${errorMessage}" role="alert" class="text-sm text-red-700"></p>
+    <div th:if="${quote != null}" class="bg-green-50 rounded-xl p-4 text-sm" role="status">
+        <p th:text="'Mã ' + ${quote.code} + ' đã được áp dụng.'"></p>
+        <p th:text="'Giảm ' + ${#numbers.formatDecimal(quote.discountAmount, 0, 'POINT', 2, 'COMMA')} + ' đ'"></p>
+        <p class="font-semibold" th:text="'Tổng thanh toán: ' + ${#numbers.formatDecimal(quote.payableTotal, 0, 'POINT', 2, 'COMMA')} + ' đ'"></p>
+    </div>
+    <script th:src="@{/js/checkout-voucher.js}" defer></script>
+</section>
+</body>
+</html>
