@@ -33,7 +33,7 @@
             <span th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}">Lập Phiếu Nhập Kho</span>
         </h1>
         <p class="text-sm text-carbon_black-600 mt-1">
-            Tạo lập chứng từ nhập hàng từ Nhà cung cấp. Tồn kho sản phẩm <strong>chưa bị thay đổi</strong> cho đến khi quản lý duyệt hoàn tất phiếu nhập.
+            Tạo lập chứng từ nhập hàng từ Nhà cung cấp vào kho.
         </p>
     </div>
 
@@ -42,7 +42,7 @@
         <div class="flex items-start gap-3">
             <i class="bi bi-exclamation-circle-fill text-rose-500 text-xl flex-shrink-0 mt-0.5"></i>
             <div class="text-sm space-y-0.5">
-                <p class="font-bold text-rose-600" id="formValidationTitle">Cảnh báo quy định nhập kho:</p>
+                <p class="font-bold text-rose-600" id="formValidationTitle">Thông báo:</p>
                 <p id="formValidationMessage" class="text-xs font-medium text-carbon_black-700 leading-relaxed"></p>
             </div>
         </div>
@@ -110,7 +110,7 @@
                         <i class="bi bi-box-seam text-blazing_flame"></i>
                         <span>2. Danh mục sản phẩm nhập kho</span>
                     </h2>
-                    <p class="text-xs text-carbon_black-500 mt-0.5">Thêm mặt hàng có sẵn trong hệ thống cần nhập thêm tồn kho. Tìm kiếm nhanh theo tên hoặc mã vạch (ưu tiên hàng hết hoặc sắp hết).</p>
+                    <p class="text-xs text-carbon_black-500 mt-0.5">Danh sách các mặt hàng nhập kho và số lượng tương ứng.</p>
                 </div>
                 <button type="button"
                         id="addRowBtn"
@@ -396,8 +396,8 @@
 
         if (duplicateRowIdx > 0) {
             showErrorBox(
-                `Mặt hàng "${p.title}" đã được chọn tại dòng #${duplicateRowIdx} của phiếu nhập kho. Bạn đã chọn mặt hàng này 2 lần. Vui lòng cập nhật số lượng ở dòng đã có thay vì tạo thêm dòng mới.`,
-                'Cảnh báo trùng lặp mặt hàng:'
+                `Mặt hàng "${p.title}" đã có tại dòng #${duplicateRowIdx}. Vui lòng cập nhật số lượng ở dòng đã có.`,
+                'Thông báo:'
             );
             hiddenInput.value = '';
             searchInput.value = '';
@@ -767,7 +767,7 @@
             receiptFloatingTooltip.innerHTML = `
                 <div class="font-bold text-rose-600 flex items-center gap-1.5 mb-1 text-[11px] uppercase tracking-wider">
                     <i class="bi bi-exclamation-circle-fill text-xs text-rose-500"></i>
-                    <span>Cảnh báo hạn mức</span>
+                    <span>Cảnh báo số lượng</span>
                 </div>
                 <div id="receiptFloatingTooltipText" class="text-carbon_black-700 text-xs leading-relaxed font-medium"></div>
             `;
@@ -890,7 +890,7 @@
 
                 if (qty > maxCap) {
                     const excess = qty - maxCap;
-                    const msg = `Sản phẩm "${p.title}" hiện nhập ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}).`;
+                    const msg = `Sản phẩm "${p.title}" vượt quá số lượng tối đa cho phép (${maxCap} đơn vị).`;
                     setRowQtyWarning(row, msg);
                     isValid = false;
                 } else {
@@ -983,7 +983,7 @@
                     const firstRowIdx = seenProductIds.get(pid);
                     const p = availableProducts.find(x => String(x.id) === String(pid));
                     const cleanTitle = p ? p.title : 'Sản phẩm';
-                    errorMessage = `Mặt hàng "${cleanTitle}" bị chọn trùng lặp tại dòng #${firstRowIdx + 1} và dòng #${i + 1}. Bạn đã chọn mặt hàng này 2 lần. Mỗi mặt hàng chỉ được xuất hiện một lần trên phiếu nhập kho, vui lòng gộp số lượng vào cùng một dòng.`;
+                    errorMessage = `Mặt hàng "${cleanTitle}" bị trùng lặp tại dòng #${firstRowIdx + 1} và dòng #${i + 1}. Vui lòng gộp số lượng vào cùng một dòng.`;
                     firstErrorInput = searchInput || hiddenInput;
                     break;
                 } else {
@@ -1027,7 +1027,7 @@
                     if (qty > maxCap) {
                         const typeLabel = p.isTextbook ? 'Sách giáo khoa' : 'Sản phẩm mới';
                         const excess = qty - maxCap;
-                        errorMessage = `Dòng ${i + 1} - Sản phẩm "${p.title}": Số lượng nhập hiện tại là ${qty} đơn vị, vượt ${excess} đơn vị so với hạn mức nhập đợt đầu (quy định tối đa ${maxCap} đơn vị đối với ${typeLabel}). Vui lòng điều chỉnh lại số lượng phù hợp.`;
+                        errorMessage = `Dòng ${i + 1} - Sản phẩm "${p.title}": Số lượng nhập vượt quá số lượng tối đa cho phép (${maxCap} đơn vị).`;
                         firstErrorInput = qtyInput;
                         break;
                     }
@@ -1037,7 +1037,7 @@
 
         if (firstErrorInput) {
             event.preventDefault();
-            showErrorBox(errorMessage, 'Cảnh báo lỗi thông tin phiếu nhập:');
+            showErrorBox(errorMessage, 'Thông báo:');
             firstErrorInput.focus();
             firstErrorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return false;
