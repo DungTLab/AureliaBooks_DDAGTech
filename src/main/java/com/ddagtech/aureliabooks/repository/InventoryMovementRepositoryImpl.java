@@ -167,7 +167,7 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
                 SELECT COUNT(*)
                 FROM inventory_movements im
                 JOIN products p ON im.product_id = p.id
-                LEFT JOIN books b ON p.id = b.id
+                LEFT JOIN books b ON p.id = b.product_id
                 """ + ENRICHED_WHERE;
 
         Long totalCount = jdbc.queryForObject(countSql, params, Long.class);
@@ -197,7 +197,7 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
                        END AS note
                 FROM inventory_movements im
                 JOIN products p ON im.product_id = p.id
-                LEFT JOIN books b ON p.id = b.id
+                LEFT JOIN books b ON p.id = b.product_id
                 LEFT JOIN users u ON im.actor_user_id = u.id
                 LEFT JOIN goods_receipts gr ON im.source_table = 'goods_receipts' AND im.source_id = gr.id
                 LEFT JOIN orders o ON im.source_table = 'orders' AND im.source_id = o.id
