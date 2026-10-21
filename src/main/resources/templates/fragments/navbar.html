@@ -170,8 +170,16 @@
                                class="flex items-center gap-2.5 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50 transition-colors font-semibold">
                                 <i class="bi bi-truck"></i> Quản lý Nhà cung cấp
                             </a>
-                            <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/orders}"
-                               class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold">
+                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/receipts}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors font-semibold">
+                                <i class="bi bi-journal-arrow-down"></i> Quản lý Phiếu nhập kho
+                            </a>
+                            <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/receipts/new}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-indigo-700 hover:bg-indigo-50 transition-colors font-semibold">
+                                <i class="bi bi-file-earmark-plus"></i> Lập phiếu nhập kho
+                            </a>
+                            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" th:href="@{/manager/stock/alerts}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 transition-colors font-semibold">
+                                <i class="bi bi-boxes"></i> Quản lý kho
+                            </a>
+                            <a sec:authorize="hasRole('SALE_STAFF')" th:href="@{/staff/orders}" class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold">
                                 <i class="bi bi-card-checklist"></i> Xử lý đơn hàng
                             </a>
                         </div>
