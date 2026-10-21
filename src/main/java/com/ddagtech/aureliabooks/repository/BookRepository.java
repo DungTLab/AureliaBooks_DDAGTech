@@ -5,9 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
+
     /**
      * Checks if a book with the given ISBN already exists.
      *
@@ -41,4 +44,12 @@ public interface BookRepository extends JpaRepository<Book, Long> {
      */
     @Query("SELECT b FROM Book b JOIN FETCH b.product p JOIN FETCH p.category cat JOIN FETCH b.publisher pub LEFT JOIN FETCH b.authors a WHERE b.productId = :id")
     Optional<Book> findByIdWithDetails(@Param("id") Long id);
+
+    Optional<Book> findByProductId(Long productId);
+
+    @Query("SELECT b.productId FROM Book b WHERE b.productId IN :productIds AND b.isTextbook = true")
+    Set<Long> findTextbookProductIdsIn(@Param("productIds") Collection<Long> productIds);
+
+    @Query("SELECT b.productId FROM Book b WHERE b.isTextbook = true")
+    Set<Long> findProductIdsByIsTextbookTrue();
 }

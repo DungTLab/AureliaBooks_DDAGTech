@@ -16,6 +16,7 @@ public interface GoodsReceiptRepository extends JpaRepository<GoodsReceipt, Long
     Optional<GoodsReceipt> findByIdWithLock(@Param("id") Long id);
 
     Optional<GoodsReceipt> findByReceiptCode(String receiptCode);
+
     /**
      * Checks if any goods receipt exists referencing the specified supplier.
      * Used to enforce UC30 business rule: prohibit hard deletion of suppliers with receipts.
@@ -26,4 +27,22 @@ public interface GoodsReceiptRepository extends JpaRepository<GoodsReceipt, Long
      * Counts the total number of goods receipts linked to a supplier.
      */
     long countBySupplierId(Long supplierId);
+
+    boolean existsByReceiptCode(String receiptCode);
+
+    org.springframework.data.domain.Page<GoodsReceipt> findAllByOrderByCreatedAtDesc(org.springframework.data.domain.Pageable pageable);
+
+    org.springframework.data.domain.Page<GoodsReceipt> findByStatusOrderByCreatedAtDesc(GoodsReceipt.Status status, org.springframework.data.domain.Pageable pageable);
+
+    long countByStatus(GoodsReceipt.Status status);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"supplier", "createdBy", "receivedBy"})
+    @Query(value = "SELECT gr FROM GoodsReceipt gr WHERE (:status IS NULL OR gr.status = :status) " +
+                   "AND (:supplierId IS NULL OR gr.supplier.id = :supplierId)",
+           countQuery = "SELECT COUNT(gr) FROM GoodsReceipt gr WHERE (:status IS NULL OR gr.status = :status) " +
+                        "AND (:supplierId IS NULL OR gr.supplier.id = :supplierId)")
+    org.springframework.data.domain.Page<GoodsReceipt> findWithFilters(
+            @Param("status") GoodsReceipt.Status status,
+            @Param("supplierId") Long supplierId,
+            org.springframework.data.domain.Pageable pageable);
 }

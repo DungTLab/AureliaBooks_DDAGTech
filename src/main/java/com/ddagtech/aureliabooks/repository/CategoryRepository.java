@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.repository;
 import com.ddagtech.aureliabooks.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -21,6 +22,13 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * @return list of active categories
      */
     List<Category> findByIsActiveTrue();
+
+    /**
+     * Retrieve all active categories ordered by name ascending.
+     *
+     * @return list of active categories sorted by name
+     */
+    List<Category> findByIsActiveTrueOrderByNameAsc();
 
     /**
      * Returns all active categories ordered by name ascending.
@@ -61,5 +69,5 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * @return true if at least one product references this category
      */
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Product p WHERE p.category.id = :categoryId")
-    boolean hasProducts(@org.springframework.data.repository.query.Param("categoryId") Long categoryId);
+    boolean hasProducts(@Param("categoryId") Long categoryId);
 }

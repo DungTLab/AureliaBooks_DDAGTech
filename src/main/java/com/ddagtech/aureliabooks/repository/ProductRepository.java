@@ -1,9 +1,11 @@
 package com.ddagtech.aureliabooks.repository;
 
+import com.ddagtech.aureliabooks.dto.response.StockMetricSummary;
 import com.ddagtech.aureliabooks.entity.Product;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -24,6 +26,14 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * @return true if barcode exists
      */
     boolean existsByBarcodeIgnoreCase(String barcode);
+
+    /**
+     * Checks if a product with the specified barcode exists (exact case).
+     *
+     * @param barcode barcode string
+     * @return true if barcode exists
+     */
+    boolean existsByBarcode(String barcode);
 
     /**
      * Checks if another product with the specified barcode exists excluding the current ID.
@@ -131,4 +141,31 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * @return optional product
      */
     Optional<Product> findByBarcode(String barcode);
+
+    Page<Product> findByStockQuantityLessThanEqual(Integer maxStock, Pageable pageable);
+
+    long countByStockQuantityEquals(Integer stockQuantity);
+
+    long countByStockQuantityBetween(Integer minStock, Integer maxStock);
+
+    long countByStockQuantityGreaterThan(Integer minStock);
+
+    @EntityGraph(attributePaths = {"category"})
+    List<Product> findByIsActiveTrueOrderByTitleAsc();
+
+    @Override
+    @EntityGraph(attributePaths = {"category"})
+    Page<Product> findAll(Specification<Product> spec, Pageable pageable);
+
+    @Query("""
+        SELECT new com.ddagtech.aureliabooks.dto.response.StockMetricSummary(
+            COUNT(p),
+            COALESCE(SUM(CASE WHEN p.stockQuantity <= 0 THEN 1L ELSE 0L END), 0L),
+            COALESCE(SUM(CASE WHEN p.stockQuantity >= 1 AND p.stockQuantity <= 10 THEN 1L ELSE 0L END), 0L),
+            COALESCE(SUM(CASE WHEN p.stockQuantity > 10 THEN 1L ELSE 0L END), 0L)
+        )
+        FROM Product p
+        WHERE p.isActive = true
+    """)
+    StockMetricSummary getActiveStockMetrics();
 }
