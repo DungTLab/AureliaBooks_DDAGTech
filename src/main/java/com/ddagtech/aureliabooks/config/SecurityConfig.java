@@ -139,6 +139,7 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // 2. Back-Office Administrative Routes (Lean RBAC Governance)
+                        .requestMatchers("/admin/analytics/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                         .requestMatchers("/manager/stock/alerts").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
                         .requestMatchers("/manager", "/manager/**").hasAnyRole("ADMIN", "MANAGER")

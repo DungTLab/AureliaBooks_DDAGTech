@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/base :: layout('Báo cáo Doanh thu & Hiệu quả kinh doanh', ~{::#main-content})}">
+<head>
+    <title>Báo cáo Doanh thu - AureliaBooks</title>
+</head>
+<body>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header & Action Bar -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-400 uppercase tracking-wider mb-1">
+                <span>Khu vực quản trị</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span>Tài chính &amp; Thống kê</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Báo cáo Doanh thu</span>
+            </div>
+            <h1 class="text-2xl font-bold font-serif text-carbon_black flex items-center gap-2.5">
+                <i class="bi bi-graph-up-arrow text-blazing_flame"></i>
+                <span>Báo Cáo Doanh Thu &amp; Hiệu Quả Kinh Doanh</span>
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Số liệu doanh thu thực nhận chỉ ghi nhận từ các đơn hàng <strong class="text-emerald-700">GIAO THÀNH CÔNG (DELIVERED)</strong> và đã thanh toán.
+            </p>
+        </div>
+
+        <!-- Excel Export Actions -->
+        <div class="flex flex-wrap items-center gap-3">
+            <a th:href="@{/manager/analytics/export/stock}"
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dust_grey hover:border-indigo-600 hover:text-indigo-600 text-carbon_black-700 font-semibold text-sm rounded-xl shadow-sm transition">
+                <i class="bi bi-box-seam text-indigo-600 text-base"></i>
+                <span>Xuất Excel Tồn Kho</span>
+            </a>
+            <a th:href="@{/manager/analytics/export/revenue(startDate=${filter.startDate}, endDate=${filter.endDate}, preset=${filter.preset})}"
+               class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm rounded-xl shadow-md hover:shadow-lg transition">
+                <i class="bi bi-file-earmark-excel text-base"></i>
+                <span>Xuất Excel Doanh Thu (.xlsx)</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter & Preset Selection Toolbar -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dust_grey/50 pb-4">
+            <!-- Preset Quick Buttons -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-carbon_black-400 mr-1">Chu kỳ nhanh:</span>
+                <a th:href="@{/manager/analytics/revenue(preset='today')}"
+                   th:classappend="${filter.preset == 'today'} ? 'bg-blazing_flame text-white font-bold shadow-sm' : 'bg-parchment-100 text-carbon_black-700 hover:bg-parchment-200'"
+                   class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition">Hôm nay</a>
+                <a th:href="@{/manager/analytics/revenue(preset='last7days')}"
+                   th:classappend="${filter.preset == 'last7days'} ? 'bg-blazing_flame text-white font-bold shadow-sm' : 'bg-parchment-100 text-carbon_black-700 hover:bg-parchment-200'"
+                   class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition">7 ngày qua</a>
+                <a th:href="@{/manager/analytics/revenue(preset='thismonth')}"
+                   th:classappend="${filter.preset == 'thismonth'} ? 'bg-blazing_flame text-white font-bold shadow-sm' : 'bg-parchment-100 text-carbon_black-700 hover:bg-parchment-200'"
+                   class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition">Tháng này</a>
+                <a th:href="@{/manager/analytics/revenue(preset='lastmonth')}"
+                   th:classappend="${filter.preset == 'lastmonth'} ? 'bg-blazing_flame text-white font-bold shadow-sm' : 'bg-parchment-100 text-carbon_black-700 hover:bg-parchment-200'"
+                   class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition">Tháng trước</a>
+            </div>
+
+            <div class="text-xs text-carbon_black-500 font-medium">
+                Kỳ đang xem: <span class="font-bold text-carbon_black" th:text="${#temporals.format(filter.startDate, 'dd/MM/yyyy')} + ' - ' + ${#temporals.format(filter.endDate, 'dd/MM/yyyy')}">01/10/2026 - 21/10/2026</span>
+            </div>
+        </div>
+
+        <!-- Custom Date Range Form -->
+        <form th:action="@{/manager/analytics/revenue}" method="get" class="flex flex-wrap items-end gap-4">
+            <input type="hidden" name="preset" value="custom"/>
+            <div class="flex-1 min-w-[160px]">
+                <label for="startDate" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-600 mb-1.5">
+                    Từ ngày
+                </label>
+                <input type="date" id="startDate" name="startDate" th:value="${filter.startDate}" required
+                       class="w-full px-3.5 py-2 border border-dust_grey rounded-xl text-sm focus:outline-none focus:border-blazing_flame focus:ring-1 focus:ring-blazing_flame bg-white text-carbon_black"/>
+            </div>
+
+            <div class="flex-1 min-w-[160px]">
+                <label for="endDate" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-600 mb-1.5">
+                    Đến ngày
+                </label>
+                <input type="date" id="endDate" name="endDate" th:value="${filter.endDate}" required
+                       class="w-full px-3.5 py-2 border border-dust_grey rounded-xl text-sm focus:outline-none focus:border-blazing_flame focus:ring-1 focus:ring-blazing_flame bg-white text-carbon_black"/>
+            </div>
+
+            <div>
+                <button type="submit"
+                        class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-carbon_black-800 hover:bg-carbon_black text-white font-semibold text-sm rounded-xl shadow transition">
+                    <i class="bi bi-filter"></i>
+                    <span>Lọc Dữ Liệu</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Empty State Alert (Negative Case) -->
+    <div th:unless="${report.hasData}"
+         class="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-3 text-amber-800">
+        <i class="bi bi-info-circle-fill text-xl text-amber-600 flex-shrink-0"></i>
+        <div class="text-sm">
+            <span class="font-bold">Không có giao dịch giao thành công:</span> Không có đơn hàng nào ở trạng thái hoàn tất (DELIVERED) trong khoảng thời gian đã chọn. Doanh thu hiển thị 0 ₫.
+        </div>
+    </div>
+
+    <!-- 4 Primary Financial KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- KPI 1: Gross Revenue -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-carbon_black-400 block mb-1">Tổng doanh thu thực nhận</span>
+                <span class="text-2xl font-extrabold text-blazing_flame block" th:text="${report.kpi.formattedGrossRevenue}">0 ₫</span>
+                <span class="text-[11px] text-emerald-600 font-semibold block mt-1">
+                    <i class="bi bi-shield-check"></i> Đơn DELIVERED
+                </span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-orange-50 text-blazing_flame flex items-center justify-center text-2xl flex-shrink-0">
+                <i class="bi bi-cash-coin"></i>
+            </div>
+        </div>
+
+        <!-- KPI 2: Completed Orders -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-carbon_black-400 block mb-1">Đơn hàng hoàn tất</span>
+                <span class="text-2xl font-extrabold text-carbon_black block" th:text="${report.kpi.totalOrders}">0</span>
+                <span class="text-[11px] text-carbon_black-500 block mt-1">Đã giao khách &amp; đối soát</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl flex-shrink-0">
+                <i class="bi bi-check2-circle"></i>
+            </div>
+        </div>
+
+        <!-- KPI 3: Average Order Value (AOV) -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-carbon_black-400 block mb-1">Giá trị trung bình / đơn</span>
+                <span class="text-2xl font-extrabold text-sky-700 block" th:text="${report.kpi.formattedAverageOrderValue}">0 ₫</span>
+                <span class="text-[11px] text-carbon_black-500 block mt-1">AOV = Doanh thu / Đơn</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl flex-shrink-0">
+                <i class="bi bi-calculator"></i>
+            </div>
+        </div>
+
+        <!-- KPI 4: Shipping Fees -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-xs font-semibold uppercase tracking-wider text-carbon_black-400 block mb-1">Tổng cước vận chuyển</span>
+                <span class="text-2xl font-extrabold text-carbon_black block" th:text="${report.kpi.formattedTotalShippingFee}">0 ₫</span>
+                <span class="text-[11px] text-carbon_black-500 block mt-1">Thu từ khách giao nhận</span>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl flex-shrink-0">
+                <i class="bi bi-truck"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section: Daily Revenue Trend (Left) & Payment Segregation (Right) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Daily Revenue Trend Chart -->
+        <div class="lg:col-span-8 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-base font-bold text-carbon_black flex items-center gap-2">
+                        <i class="bi bi-bezier2 text-blazing_flame"></i>
+                        <span>Xu Hướng Doanh Thu Theo Ngày</span>
+                    </h2>
+                    <p class="text-xs text-carbon_black-500 mt-0.5">Biểu đồ đường mượt mà, tự động điền 0 cho các ngày không có giao dịch.</p>
+                </div>
+            </div>
+            <div class="relative w-full h-[320px]">
+                <canvas id="dailyRevenueChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Payment Breakdown Doughnut Chart -->
+        <div class="lg:col-span-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+            <div>
+                <h2 class="text-base font-bold text-carbon_black flex items-center gap-2 mb-1">
+                    <i class="bi bi-pie-chart text-indigo-600"></i>
+                    <span>Cơ Cấu Phương Thức Thanh Toán</span>
+                </h2>
+                <p class="text-xs text-carbon_black-500">Đối soát tiền mặt COD vs VNPay Sandbox</p>
+            </div>
+
+            <div class="relative w-full h-[220px] my-3">
+                <canvas id="paymentMethodChart"></canvas>
+            </div>
+
+            <!-- Objective BO-4 Metric Progress -->
+            <div class="border-t border-dust_grey/50 pt-3 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-carbon_black-600 font-medium">Tỷ lệ thanh toán điện tử (BO-4):</span>
+                    <span class="font-bold"
+                          th:classappend="${report.paymentBreakdown.meetingElectronicTarget} ? 'text-emerald-600' : 'text-amber-600'"
+                          th:text="${report.paymentBreakdown.formattedElectronicSharePercent}">0.0%</span>
+                </div>
+                <div class="w-full bg-parchment-200 rounded-full h-2 overflow-hidden">
+                    <div class="bg-indigo-600 h-2 rounded-full transition-all duration-500"
+                         th:style="'width: ' + ${report.paymentBreakdown.electronicSharePercent} + '%;'"></div>
+                </div>
+                <div class="text-[11px] text-carbon_black-400 text-right">
+                    Mục tiêu tối thiểu: &gt;= 40%
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 Bestsellers Section (Books & Stationery) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top 5 Books -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-dust_grey/50">
+                <h2 class="text-base font-bold text-carbon_black flex items-center gap-2">
+                    <i class="bi bi-book-half text-sky-600"></i>
+                    <span>Top 5 Sách Bán Chạy Nhất</span>
+                </h2>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700">Sách</span>
+            </div>
+
+            <div th:if="${report.hasTopBooks}" class="divide-y divide-dust_grey/40">
+                <div th:each="book, iter : ${report.topBooks}" class="py-3 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold flex-shrink-0"
+                              th:classappend="${iter.index == 0} ? 'bg-amber-100 text-amber-800' : (${iter.index == 1} ? 'bg-slate-200 text-slate-700' : (${iter.index == 2} ? 'bg-orange-100 text-orange-800' : 'bg-parchment-100 text-carbon_black-500'))"
+                              th:text="${iter.count}">1</span>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-carbon_black truncate" th:text="${book.title}">Tên sách</h3>
+                            <span class="text-xs text-carbon_black-400 block" th:text="'Mã vạch: ' + ${book.barcode}">893...</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <span class="text-sm font-extrabold text-blazing_flame block" th:text="${book.formattedTotalRevenue}">0 ₫</span>
+                        <span class="text-xs text-carbon_black-500 block" th:text="${book.totalQuantitySold} + ' cuốn đã bán'">10 cuốn</span>
+                    </div>
+                </div>
+            </div>
+
+            <div th:unless="${report.hasTopBooks}" class="text-center py-8 text-sm text-carbon_black-400">
+                <i class="bi bi-inbox text-3xl block mb-2 text-carbon_black-300"></i>
+                Chưa có dữ liệu sách bán chạy trong kỳ này.
+            </div>
+        </div>
+
+        <!-- Top 5 Stationery -->
+        <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b border-dust_grey/50">
+                <h2 class="text-base font-bold text-carbon_black flex items-center gap-2">
+                    <i class="bi bi-pen-fill text-amber-600"></i>
+                    <span>Top 5 Văn Phòng Phẩm Bán Chạy</span>
+                </h2>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700">VPP</span>
+            </div>
+
+            <div th:if="${report.hasTopStationeries}" class="divide-y divide-dust_grey/40">
+                <div th:each="stat, iter : ${report.topStationeries}" class="py-3 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold flex-shrink-0"
+                              th:classappend="${iter.index == 0} ? 'bg-amber-100 text-amber-800' : (${iter.index == 1} ? 'bg-slate-200 text-slate-700' : (${iter.index == 2} ? 'bg-orange-100 text-orange-800' : 'bg-parchment-100 text-carbon_black-500'))"
+                              th:text="${iter.count}">1</span>
+                        <div class="min-w-0">
+                            <h3 class="text-sm font-bold text-carbon_black truncate" th:text="${stat.title}">Tên văn phòng phẩm</h3>
+                            <span class="text-xs text-carbon_black-400 block" th:text="'Mã vạch: ' + ${stat.barcode}">893...</span>
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <span class="text-sm font-extrabold text-blazing_flame block" th:text="${stat.formattedTotalRevenue}">0 ₫</span>
+                        <span class="text-xs text-carbon_black-500 block" th:text="${stat.totalQuantitySold} + ' chiếc đã bán'">50 chiếc</span>
+                    </div>
+                </div>
+            </div>
+
+            <div th:unless="${report.hasTopStationeries}" class="text-center py-8 text-sm text-carbon_black-400">
+                <i class="bi bi-inbox text-3xl block mb-2 text-carbon_black-300"></i>
+                Chưa có dữ liệu văn phòng phẩm bán chạy trong kỳ này.
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Completed Orders Audit Table -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-base font-bold text-carbon_black flex items-center gap-2">
+                    <i class="bi bi-receipt-cutoff text-carbon_black-700"></i>
+                    <span>Danh Sách Đơn Hàng Hoàn Tất (DELIVERED)</span>
+                </h2>
+                <p class="text-xs text-carbon_black-500 mt-0.5">Danh sách các đơn hàng giao thành công cấu thành doanh thu thực nhận.</p>
+            </div>
+            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span th:text="${#lists.size(report.recentDeliveredOrders)}">0</span> đơn hiển thị
+            </span>
+        </div>
+
+        <div th:if="${report.hasDeliveredOrders}" class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                <tr class="bg-parchment-100 text-carbon_black-600 uppercase font-bold border-b border-dust_grey">
+                    <th class="py-3 px-3">Mã đơn hàng</th>
+                    <th class="py-3 px-3">Người nhận</th>
+                    <th class="py-3 px-3">Số điện thoại</th>
+                    <th class="py-3 px-3 text-center">Phương thức</th>
+                    <th class="py-3 px-3 text-center">Ngày đặt</th>
+                    <th class="py-3 px-3 text-center">Ngày giao</th>
+                    <th class="py-3 px-3 text-right">Phí vận chuyển</th>
+                    <th class="py-3 px-3 text-right font-bold text-carbon_black">Tổng tiền thanh toán</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/40">
+                <tr th:each="order : ${report.recentDeliveredOrders}" class="hover:bg-parchment-50 transition">
+                    <td class="py-2.5 px-3 font-mono font-bold text-indigo-700" th:text="${order.orderCode}">ORD-123</td>
+                    <td class="py-2.5 px-3 font-semibold text-carbon_black" th:text="${order.recipientName}">Nguyễn Văn A</td>
+                    <td class="py-2.5 px-3 text-carbon_black-500" th:text="${order.phone}">0912345678</td>
+                    <td class="py-2.5 px-3 text-center">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-bold"
+                              th:classappend="${order.paymentMethod != null && order.paymentMethod.name() == 'VNPAY'} ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+                              th:text="${order.paymentMethodLabel}">COD</span>
+                    </td>
+                    <td class="py-2.5 px-3 text-center text-carbon_black-500" th:text="${order.formattedCreatedAt}">21/10/2026</td>
+                    <td class="py-2.5 px-3 text-center text-carbon_black-500" th:text="${order.formattedDeliveredAt}">21/10/2026</td>
+                    <td class="py-2.5 px-3 text-right text-carbon_black-600" th:text="${order.formattedShippingFee}">30.000 ₫</td>
+                    <td class="py-2.5 px-3 text-right font-bold text-blazing_flame" th:text="${order.formattedFinalTotalAmount}">350.000 ₫</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div th:unless="${report.hasDeliveredOrders}" class="text-center py-8 text-sm text-carbon_black-400">
+            Không có đơn hàng nào hoàn tất trong kỳ này.
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Pure Presentation Chart Initialization (Zero Business Logic) -->
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        // Direct injection of pre-calculated backend datasets (Zero math in JS)
+        const dailyLabels = /*[[${report.chartDailyLabels}]]*/ [];
+        const dailyRevenues = /*[[${report.chartDailyRevenues}]]*/ [];
+        const dailyOrderCounts = /*[[${report.chartDailyOrderCounts}]]*/ [];
+
+        const paymentLabels = /*[[${report.chartPaymentLabels}]]*/ [];
+        const paymentValues = /*[[${report.chartPaymentValues}]]*/ [];
+
+        // 1. Daily Revenue & Order Count Trend Chart
+        const dailyCtx = document.getElementById('dailyRevenueChart');
+        if (dailyCtx) {
+            new Chart(dailyCtx, {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [
+                        {
+                            label: 'Doanh thu (VND)',
+                            data: dailyRevenues,
+                            borderColor: '#d94a26',
+                            backgroundColor: 'rgba(217, 74, 38, 0.1)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.3,
+                            yAxisID: 'yRevenue',
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#d94a26'
+                        },
+                        {
+                            label: 'Số đơn hoàn tất',
+                            data: dailyOrderCounts,
+                            type: 'bar',
+                            backgroundColor: 'rgba(51, 65, 85, 0.25)',
+                            borderColor: '#334155',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            yAxisID: 'yOrders',
+                            barThickness: 14
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    if (context.dataset.yAxisID === 'yRevenue') {
+                                        return 'Doanh thu: ' + new Intl.NumberFormat('vi-VN').format(context.raw) + ' ₫';
+                                    }
+                                    return 'Số đơn: ' + context.raw + ' đơn';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false }
+                        },
+                        yRevenue: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    if (value >= 1000000) {
+                                        return (value / 1000000).toFixed(1) + 'M';
+                                    }
+                                    if (value >= 1000) {
+                                        return (value / 1000).toFixed(0) + 'k';
+                                    }
+                                    return value;
+                                }
+                            }
+                        },
+                        yOrders: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. Payment Method Breakdown Doughnut Chart
+        const paymentCtx = document.getElementById('paymentMethodChart');
+        if (paymentCtx) {
+            new Chart(paymentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: paymentLabels,
+                    datasets: [{
+                        data: paymentValues,
+                        backgroundColor: [
+                            '#10b981', // Emerald for COD
+                            '#3b82f6'  // Sky/Blue for VNPay
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const value = context.raw || 0;
+                                    return context.label + ': ' + new Intl.NumberFormat('vi-VN').format(value) + ' ₫';
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>
