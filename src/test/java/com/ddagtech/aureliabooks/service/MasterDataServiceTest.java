@@ -20,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -381,11 +382,25 @@ class MasterDataServiceTest {
         }
 
         @Test
+        @DisplayName("createCategory with unchecked active (null or false) should persist with isActive = false")
+        void createCategory_UncheckedActive_PersistsAsInactive() {
+            CategoryForm form = new CategoryForm("Sách Thanh Lý", null, "Mô tả", false);
+            when(categoryRepository.existsByNameIgnoreCaseAndParentIsNull("Sách Thanh Lý")).thenReturn(false);
+
+            Category saved = Category.builder().id(105L).name("Sách Thanh Lý").isActive(false).build();
+            when(categoryRepository.save(any(Category.class))).thenReturn(saved);
+
+            Long id = masterDataService.createCategory(form);
+
+            assertThat(id).isEqualTo(105L);
+            ArgumentCaptor<Category> captor = ArgumentCaptor.forClass(Category.class);
+            verify(categoryRepository).save(captor.capture());
+            assertThat(captor.getValue().getIsActive()).isFalse();
+        }
+
+        @Test
         @DisplayName("updateCategory should prevent self-parenting")
         void updateCategory_SelfParent_ThrowsException() {
-            Category existing = Category.builder().id(100L).name("Sách Trong Nước").build();
-            when(categoryRepository.findById(100L)).thenReturn(Optional.of(existing));
-
             CategoryForm form = new CategoryForm("Sách Trong Nước", 100L, null, true);
 
             assertThatThrownBy(() -> masterDataService.updateCategory(100L, form))
@@ -393,6 +408,19 @@ class MasterDataServiceTest {
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
 
             verify(categoryRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("updateCategory with unchecked active (null or false) should update isActive to false")
+        void updateCategory_UncheckedActive_UpdatesToInactive() {
+            Category existing = Category.builder().id(100L).name("Sách Trong Nước").isActive(true).build();
+            when(categoryRepository.findById(100L)).thenReturn(Optional.of(existing));
+
+            CategoryForm form = new CategoryForm("Sách Trong Nước", null, "Mô tả", false);
+            masterDataService.updateCategory(100L, form);
+
+            assertThat(existing.getIsActive()).isFalse();
+            verify(categoryRepository).save(existing);
         }
 
         @Test
@@ -414,6 +442,37 @@ class MasterDataServiceTest {
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
 
             verify(categoryRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("updateCategory should abort and throw exception when circular cycle graph exists")
+        void updateCategory_CircularGraph_TerminatesAndThrowsException() {
+            // Setup circular loop: A -> B -> A
+            Category catA = Category.builder().id(1L).name("A").build();
+            Category catB = Category.builder().id(2L).name("B").parent(catA).build();
+            catA.setParent(catB); // Circular reference
+
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(catA));
+            when(categoryRepository.findById(2L)).thenReturn(Optional.of(catB));
+
+            CategoryForm form = new CategoryForm("A", 2L, "Mô tả", true);
+
+            assertThatThrownBy(() -> masterDataService.updateCategory(1L, form))
+                    .isInstanceOf(AppException.class)
+                    .hasMessageContaining("phát hiện chu trình vòng lặp");
+        }
+
+        @Test
+        @DisplayName("createCategory should convert pessimistic locking failure to AppException")
+        void createCategory_PessimisticLockFailure_ThrowsAppException() {
+            CategoryForm form = new CategoryForm("Văn Học", 100L, "Mô tả", true);
+            when(categoryRepository.findByIdWithLock(100L))
+                    .thenThrow(new org.springframework.dao.PessimisticLockingFailureException("Lock conflict"));
+
+            assertThatThrownBy(() -> masterDataService.createCategory(form))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA)
+                    .hasMessageContaining("xung đột");
         }
 
         @Test

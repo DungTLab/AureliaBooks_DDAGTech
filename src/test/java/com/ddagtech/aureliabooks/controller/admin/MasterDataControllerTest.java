@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
+import com.ddagtech.aureliabooks.dto.request.CategoryForm;
 import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Brand;
 import com.ddagtech.aureliabooks.entity.Category;
@@ -9,6 +10,7 @@ import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.service.MasterDataService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -19,8 +21,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -193,6 +199,44 @@ class MasterDataControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/manager/categories"))
                 .andExpect(flash().attributeExists("successMessage"));
+    }
+
+    @Test
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    @DisplayName("POST /manager/categories with unchecked active should pass active=false via _active marker")
+    void createCategory_withUncheckedActive_shouldPassFalse() throws Exception {
+        when(masterDataService.createCategory(any())).thenReturn(2L);
+
+        mockMvc.perform(post("/manager/categories")
+                        .with(csrf())
+                        .param("name", "Sách Ngoại Văn")
+                        .param("_active", "on"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/manager/categories"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        ArgumentCaptor<CategoryForm> captor = ArgumentCaptor.forClass(CategoryForm.class);
+        verify(masterDataService).createCategory(captor.capture());
+        assertThat(captor.getValue().active()).isFalse();
+    }
+
+    @Test
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    @DisplayName("POST /manager/categories/{id}/edit with unchecked active should bind active=false")
+    void updateCategory_withUncheckedActive_shouldBindFalse() throws Exception {
+        doNothing().when(masterDataService).updateCategory(eq(1L), any());
+
+        mockMvc.perform(post("/manager/categories/1/edit")
+                        .with(csrf())
+                        .param("name", "Sách Trong Nước")
+                        .param("_active", "on"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/manager/categories"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        ArgumentCaptor<CategoryForm> captor = ArgumentCaptor.forClass(CategoryForm.class);
+        verify(masterDataService).updateCategory(eq(1L), captor.capture());
+        assertThat(captor.getValue().active()).isFalse();
     }
 
     @Test

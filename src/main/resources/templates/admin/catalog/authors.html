@@ -202,7 +202,7 @@
             const bioInput = document.getElementById('authorBioInput');
 
             // Clear previous validation error elements if any
-            document.querySelectorAll('#authorModal p.text-\[\#d3380d\]').forEach(el => el.remove());
+            document.querySelectorAll('#authorModal [class*="text-[#d3380d]"]').forEach(el => el.remove());
             nameInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
             bioInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
 

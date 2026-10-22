@@ -18,12 +18,16 @@ import com.ddagtech.aureliabooks.repository.PublisherRepository;
 import com.ddagtech.aureliabooks.service.MasterDataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Service implementation for managing master taxonomies (UC17: Authors, UC18: Publishers, UC19: Brands, UC20: Categories).
@@ -269,63 +273,110 @@ public class MasterDataServiceImpl implements MasterDataService {
     public Long createCategory(CategoryForm form) {
         String trimmedName = form.name() != null ? form.name().trim() : "";
         Category parent = null;
-        if (form.parentId() != null) {
-            parent = categoryRepository.findById(form.parentId())
-                    .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục cha với ID: " + form.parentId()));
-            if (categoryRepository.existsByNameIgnoreCaseAndParentId(trimmedName, form.parentId())) {
-                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục '" + trimmedName + "' đã tồn tại trong nhóm này.");
+        try {
+            if (form.parentId() != null) {
+                // Lock parent exclusively to serialize sibling creation under the same parent
+                parent = categoryRepository.findByIdWithLock(form.parentId())
+                        .or(() -> categoryRepository.findById(form.parentId()))
+                        .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục cha với ID: " + form.parentId()));
+                if (categoryRepository.existsByNameIgnoreCaseAndParentId(trimmedName, form.parentId())) {
+                    throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục '" + trimmedName + "' đã tồn tại trong nhóm này.");
+                }
+            } else {
+                // Lock root categories to serialize root category creation
+                categoryRepository.findRootCategoriesWithLock();
+                if (categoryRepository.existsByNameIgnoreCaseAndParentIsNull(trimmedName)) {
+                    throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục gốc '" + trimmedName + "' đã tồn tại.");
+                }
             }
-        } else {
-            if (categoryRepository.existsByNameIgnoreCaseAndParentIsNull(trimmedName)) {
-                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục gốc '" + trimmedName + "' đã tồn tại.");
-            }
-        }
 
-        Category category = masterDataMapper.toCategoryEntity(form, parent);
-        Category saved = categoryRepository.save(category);
-        log.info("Created category [id={}, name='{}']", saved.getId(), saved.getName());
-        return saved.getId();
+            Category category = masterDataMapper.toCategoryEntity(form, parent);
+            Category saved = categoryRepository.save(category);
+            log.info("Created category [id={}, name='{}']", saved.getId(), saved.getName());
+            return saved.getId();
+        } catch (PessimisticLockingFailureException | DataIntegrityViolationException e) {
+            log.warn("Concurrent category creation conflict for name='{}': {}", trimmedName, e.getMessage());
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục '" + trimmedName + "' đã tồn tại hoặc đang bị xung đột với giao dịch khác.");
+        }
     }
 
     @Override
     @Transactional
     public void updateCategory(Long categoryId, CategoryForm form) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục với ID: " + categoryId));
-
-        String trimmedName = form.name() != null ? form.name().trim() : "";
-        Category parent = null;
-        if (form.parentId() != null) {
-            if (form.parentId().equals(categoryId)) {
-                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Một danh mục không thể nhận chính nó làm danh mục cha.");
-            }
-
-            parent = categoryRepository.findById(form.parentId())
-                    .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục cha với ID: " + form.parentId()));
-
-            // Cycle detection: traverse ancestors of target parent to verify current category is not among them
-                if (categoryRepository.existsByNameIgnoreCaseAndParentIdAndIdNot(trimmedName, form.parentId(), categoryId)) {
-                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục con '" + trimmedName + "' đã tồn tại dưới danh mục cha đã chọn.");
-            }
-
-            // Cycle detection: traverse ancestors of target parent to verify current category is not among them
-            Category ancestor = parent;
-            while (ancestor != null) {
-                if (ancestor.getId().equals(categoryId)) {
-                    throw new AppException(ErrorCode.INVALID_INPUT_DATA,
-                            "Không thể chọn danh mục con/cháu làm danh mục cha (phát hiện chu trình vòng lặp).");
-                }
-                ancestor = ancestor.getParent();
-            }
-        } else {
-            if (categoryRepository.existsByNameIgnoreCaseAndParentIsNullAndIdNot(trimmedName, categoryId)) {
-                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục gốc '" + trimmedName + "' đã tồn tại.");
-            }
+        if (form.parentId() != null && form.parentId().equals(categoryId)) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Một danh mục không thể nhận chính nó làm danh mục cha.");
         }
 
-        masterDataMapper.updateCategoryEntity(category, form, parent);
-        categoryRepository.save(category);
-        log.info("Updated category [id={}, name='{}']", categoryId, trimmedName);
+        String trimmedName = form.name() != null ? form.name().trim() : "";
+        Category category;
+        Category parent = null;
+
+        try {
+            if (form.parentId() != null) {
+                // Lock both categoryId and parentId in deterministic ascending ID order to prevent deadlocks during concurrent re-parenting
+                Long firstId = Math.min(categoryId, form.parentId());
+                Long secondId = Math.max(categoryId, form.parentId());
+
+                Category first = categoryRepository.findByIdWithLock(firstId)
+                        .or(() -> categoryRepository.findById(firstId))
+                        .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND,
+                                firstId.equals(categoryId) ? "Không tìm thấy danh mục với ID: " + categoryId : "Không tìm thấy danh mục cha với ID: " + form.parentId()));
+
+                Category second = categoryRepository.findByIdWithLock(secondId)
+                        .or(() -> categoryRepository.findById(secondId))
+                        .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND,
+                                secondId.equals(categoryId) ? "Không tìm thấy danh mục với ID: " + categoryId : "Không tìm thấy danh mục cha với ID: " + form.parentId()));
+
+                category = categoryId.equals(firstId) ? first : second;
+                parent = form.parentId().equals(firstId) ? first : second;
+
+                if (categoryRepository.existsByNameIgnoreCaseAndParentIdAndIdNot(trimmedName, form.parentId(), categoryId)) {
+                    throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục con '" + trimmedName + "' đã tồn tại dưới danh mục cha đã chọn.");
+                }
+
+                // Cycle detection: traverse ancestors of target parent with visited set to verify categoryId is not in path
+                Category ancestor = parent;
+                Set<Long> visited = new HashSet<>();
+                visited.add(categoryId);
+                while (ancestor != null) {
+                    if (!visited.add(ancestor.getId())) {
+                        throw new AppException(ErrorCode.INVALID_INPUT_DATA,
+                                "Không thể chọn danh mục con/cháu làm danh mục cha (phát hiện chu trình vòng lặp).");
+                    }
+                    ancestor = ancestor.getParent();
+                }
+            } else {
+                category = categoryRepository.findByIdWithLock(categoryId)
+                        .or(() -> categoryRepository.findById(categoryId))
+                        .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy danh mục với ID: " + categoryId));
+                categoryRepository.findRootCategoriesWithLock();
+                if (categoryRepository.existsByNameIgnoreCaseAndParentIsNullAndIdNot(trimmedName, categoryId)) {
+                    throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Danh mục gốc '" + trimmedName + "' đã tồn tại.");
+                }
+            }
+
+            masterDataMapper.updateCategoryEntity(category, form, parent);
+
+            // Re-verify cycle detection right before saving to guard against interleaved concurrent modifications
+            if (parent != null) {
+                Category recheckAncestor = parent;
+                Set<Long> recheckVisited = new HashSet<>();
+                recheckVisited.add(categoryId);
+                while (recheckAncestor != null) {
+                    if (!recheckVisited.add(recheckAncestor.getId())) {
+                        throw new AppException(ErrorCode.INVALID_INPUT_DATA,
+                                "Không thể chọn danh mục con/cháu làm danh mục cha (phát hiện chu trình vòng lặp).");
+                    }
+                    recheckAncestor = recheckAncestor.getParent();
+                }
+            }
+
+            categoryRepository.save(category);
+            log.info("Updated category [id={}, name='{}']", categoryId, trimmedName);
+        } catch (PessimisticLockingFailureException | DataIntegrityViolationException e) {
+            log.warn("Concurrent category update conflict for id={}: {}", categoryId, e.getMessage());
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Thao tác cập nhật danh mục bị xung đột giao dịch, vui lòng thử lại.");
+        }
     }
 
     @Override

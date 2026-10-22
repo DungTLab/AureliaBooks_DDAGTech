@@ -128,6 +128,7 @@ public class MasterDataMapper {
 
     /**
      * Converts CategoryForm request DTO and resolved parent entity to new Category JPA entity.
+     * Unchecked active checkbox resolves to Boolean.FALSE via form binding or explicit false fallback.
      */
     public Category toCategoryEntity(CategoryForm form, Category parent) {
         if (form == null) {
@@ -137,12 +138,13 @@ public class MasterDataMapper {
                 .name(form.name() != null ? form.name().strip() : null)
                 .parent(parent)
                 .description(form.description() != null && !form.description().isBlank() ? form.description().strip() : null)
-                .isActive(form.active() != null ? form.active() : true)
+                .isActive(Boolean.TRUE.equals(form.active()))
                 .build();
     }
 
     /**
      * Updates an existing Category entity with CategoryForm request DTO fields and resolved parent.
+     * Explicitly syncs isActive to false when active checkbox is unchecked (null or false).
      */
     public void updateCategoryEntity(Category category, CategoryForm form, Category parent) {
         if (category == null || form == null) {
@@ -151,8 +153,6 @@ public class MasterDataMapper {
         category.setName(form.name() != null ? form.name().strip() : null);
         category.setParent(parent);
         category.setDescription(form.description() != null && !form.description().isBlank() ? form.description().strip() : null);
-        if (form.active() != null) {
-            category.setIsActive(form.active());
-        }
+        category.setIsActive(Boolean.TRUE.equals(form.active()));
     }
 }
