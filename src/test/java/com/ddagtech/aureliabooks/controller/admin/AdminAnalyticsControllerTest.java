@@ -4,6 +4,7 @@ import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.dto.analytics.RevenueAnalyticsReportDto;
 import com.ddagtech.aureliabooks.dto.analytics.RevenueFilterRequest;
 import com.ddagtech.aureliabooks.dto.analytics.RevenueSummaryKpiDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockValuationItemDto;
 import com.ddagtech.aureliabooks.service.AnalyticsService;
 import com.ddagtech.aureliabooks.service.ExcelExportService;
 import org.junit.jupiter.api.DisplayName;
@@ -11,12 +12,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -39,6 +42,7 @@ class AdminAnalyticsControllerTest {
 
     @Test
     @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("ROLE_MANAGER can access revenue analytics dashboard (HTTP 200)")
     void manager_canAccessRevenueDashboard() throws Exception {
         RevenueAnalyticsReportDto mockReport = RevenueAnalyticsReportDto.builder()
                 .filter(new RevenueFilterRequest())
@@ -55,20 +59,96 @@ class AdminAnalyticsControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "admin@aureliabook.vn", roles = {"ADMIN"})
+    @DisplayName("ROLE_ADMIN can access revenue analytics dashboard (HTTP 200)")
+    void admin_canAccessRevenueDashboard() throws Exception {
+        RevenueAnalyticsReportDto mockReport = RevenueAnalyticsReportDto.builder()
+                .filter(new RevenueFilterRequest())
+                .kpi(RevenueSummaryKpiDto.builder().totalOrders(10).grossRevenue(BigDecimal.valueOf(3000000)).build())
+                .build();
+
+        when(analyticsService.getRevenueReport(any())).thenReturn(mockReport);
+
+        mockMvc.perform(get("/admin/analytics/revenue"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/analytics/revenue-report"))
+                .andExpect(model().attributeExists("report"));
+    }
+
+    @Test
     @WithMockUser(username = "staff@aureliabook.vn", roles = {"SALE_STAFF"})
+    @DisplayName("ROLE_SALE_STAFF is blocked from revenue analytics (HTTP 403 Forbidden)")
     void saleStaff_isForbidden() throws Exception {
         mockMvc.perform(get("/manager/analytics/revenue"))
                 .andExpect(status().isForbidden());
     }
 
     @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("ROLE_CUSTOMER is blocked from revenue analytics (HTTP 403 Forbidden)")
+    void customer_isForbidden() throws Exception {
+        mockMvc.perform(get("/manager/analytics/revenue"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Anonymous user is redirected to login (HTTP 302)")
+    void anonymous_isRedirectedToLogin() throws Exception {
+        mockMvc.perform(get("/manager/analytics/revenue"))
+                .andExpect(status().is3xxRedirection());
+    }
+
+    @Test
     @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("Export revenue excel returns xlsx binary with valid attachment header")
     void exportRevenueExcel_success() throws Exception {
-        when(analyticsService.getRevenueReport(any())).thenReturn(new RevenueAnalyticsReportDto());
+        RevenueFilterRequest filter = RevenueFilterRequest.builder().preset("last7days").build();
+        filter.resolveDates();
+
+        RevenueAnalyticsReportDto report = RevenueAnalyticsReportDto.builder()
+                .filter(filter)
+                .build();
+
+        when(analyticsService.getRevenueReport(any())).thenReturn(report);
         doNothing().when(excelExportService).exportRevenueExcel(any(), any(OutputStream.class));
 
-        mockMvc.perform(get("/manager/analytics/export/revenue"))
+        mockMvc.perform(get("/manager/analytics/export/revenue")
+                        .param("preset", "last7days"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().exists("Content-Disposition"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("Bao_Cao_Doanh_Thu_")));
+    }
+
+    @Test
+    @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("Export stock valuation excel returns xlsx binary with valid attachment header")
+    void exportStockValuationExcel_success() throws Exception {
+        when(analyticsService.getStockValuationReport()).thenReturn(List.of(new StockValuationItemDto()));
+        doNothing().when(excelExportService).exportStockValuationExcel(any(), any(OutputStream.class));
+
+        mockMvc.perform(get("/manager/analytics/export/stock"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().exists("Content-Disposition"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("Bao_Cao_Ton_Kho_Dinh_Gia_")));
+    }
+
+    @Test
+    @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("AJAX REST endpoint /api/revenue-data returns JSON report")
+    void getRevenueDataApi_success() throws Exception {
+        RevenueAnalyticsReportDto report = RevenueAnalyticsReportDto.builder()
+                .filter(new RevenueFilterRequest())
+                .kpi(RevenueSummaryKpiDto.builder().totalOrders(2).grossRevenue(BigDecimal.valueOf(400000)).build())
+                .build();
+
+        when(analyticsService.getRevenueReport(any())).thenReturn(report);
+
+        mockMvc.perform(get("/manager/analytics/api/revenue-data"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.kpi.totalOrders").value(2))
+                .andExpect(jsonPath("$.kpi.grossRevenue").value(400000));
     }
 }
