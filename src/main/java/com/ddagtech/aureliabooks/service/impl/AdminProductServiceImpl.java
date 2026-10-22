@@ -64,6 +64,12 @@ public class AdminProductServiceImpl implements AdminProductService {
         Set<Author> authors = new HashSet<>();
         if (form.authorIds() != null && !form.authorIds().isEmpty()) {
             authors.addAll(authorRepository.findAllById(form.authorIds()));
+            if (authors.size() != form.authorIds().size()) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Một hoặc nhiều tác giả được chọn không tồn tại trong hệ thống.");
+            }
+        }
+        if (authors.isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng chọn ít nhất một tác giả hợp lệ cho sách.");
         }
 
         // 1. Create Base Product via ProductMapper (Stock is strictly initialized to 0, never directly set from form per invariant)
@@ -117,6 +123,12 @@ public class AdminProductServiceImpl implements AdminProductService {
         Set<Author> authors = new HashSet<>();
         if (form.authorIds() != null && !form.authorIds().isEmpty()) {
             authors.addAll(authorRepository.findAllById(form.authorIds()));
+            if (authors.size() != form.authorIds().size()) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Một hoặc nhiều tác giả được chọn không tồn tại trong hệ thống.");
+            }
+        }
+        if (authors.isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng chọn ít nhất một tác giả hợp lệ cho sách.");
         }
 
         // Update Base Product fields via ProductMapper (Strictly PRESERVES stockQuantity per BR-01-03 / QC02)
@@ -152,7 +164,7 @@ public class AdminProductServiceImpl implements AdminProductService {
                 product.getId(),
                 product.getBarcode(),
                 product.getTitle(),
-                product.getCategory().getId(),
+                product.getCategory() != null ? product.getCategory().getId() : null,
                 product.getPrice(),
                 product.getOriginalCost(),
                 product.getWeightGrams(),
@@ -160,7 +172,7 @@ public class AdminProductServiceImpl implements AdminProductService {
                 product.getTags(),
                 product.getDescription(),
                 book.getIsbn(),
-                book.getPublisher().getId(),
+                book.getPublisher() != null ? book.getPublisher().getId() : null,
                 authorIds,
                 book.getSeriesName(),
                 book.getVolumeNumber(),
@@ -250,14 +262,14 @@ public class AdminProductServiceImpl implements AdminProductService {
                 product.getId(),
                 product.getBarcode(),
                 product.getTitle(),
-                product.getCategory().getId(),
+                product.getCategory() != null ? product.getCategory().getId() : null,
                 product.getPrice(),
                 product.getOriginalCost(),
                 product.getWeightGrams(),
                 product.getMainImageUrl(),
                 product.getTags(),
                 product.getDescription(),
-                stationery.getBrand().getId(),
+                stationery.getBrand() != null ? stationery.getBrand().getId() : null,
                 stationery.getMaterial(),
                 stationery.getColor(),
                 stationery.getWarrantyMonths()

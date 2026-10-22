@@ -167,7 +167,7 @@
                            placeholder="Ví dụ: Nguyễn Nhật Ánh, Haruki Murakami..."
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"
                            th:classappend="${#fields.hasErrors('name')} ? 'border-[#d3380d] focus:ring-[#d3380d] focus:border-[#d3380d]' : ''">
-                    <p th:if="${#fields.hasErrors('name')}" th:errors="*{name}" class="mt-1 text-xs text-[#d3380d] font-semibold"></p>
+                    <p th:if="${#fields.hasErrors('name')}" th:errors="*{name}" class="field-error mt-1 text-xs text-[#d3380d] font-semibold"></p>
                 </div>
                 <div>
                     <label for="authorBioInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
@@ -177,7 +177,7 @@
                               placeholder="Thông tin tiểu sử tóm tắt, năm sinh, sự nghiệp văn học..."
                               class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"
                               th:classappend="${#fields.hasErrors('biography')} ? 'border-[#d3380d] focus:ring-[#d3380d] focus:border-[#d3380d]' : ''"></textarea>
-                    <p th:if="${#fields.hasErrors('biography')}" th:errors="*{biography}" class="mt-1 text-xs text-[#d3380d] font-semibold"></p>
+                    <p th:if="${#fields.hasErrors('biography')}" th:errors="*{biography}" class="field-error mt-1 text-xs text-[#d3380d] font-semibold"></p>
                 </div>
                 <div class="pt-3 flex items-center justify-end gap-3 border-t border-dust_grey/60">
                     <button type="button" onclick="closeAuthorModal()"
@@ -198,32 +198,33 @@
             const modal = document.getElementById('authorModal');
             const title = document.getElementById('modalTitle');
             const form = document.getElementById('authorForm');
-            const nameInput = document.getElementById('authorNameInput');
-            const bioInput = document.getElementById('authorBioInput');
+            const nameInput = document.getElementById('authorNameInput') || document.getElementById('name') || (form ? form.querySelector('[name="name"]') : null);
+            const bioInput = document.getElementById('authorBioInput') || document.getElementById('biography') || (form ? form.querySelector('[name="biography"]') : null);
 
             // Clear previous validation error elements if any
-            document.querySelectorAll('#authorModal p.text-\[\#d3380d\]').forEach(el => el.remove());
-            nameInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
-            bioInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
+            document.querySelectorAll('#authorModal .field-error').forEach(el => el.remove());
+            if (nameInput) nameInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
+            if (bioInput) bioInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
 
             if (id) {
-                title.textContent = 'Chỉnh Sửa Thông Tin Tác Giả';
-                form.action = '/manager/authors/' + id + '/edit';
-                nameInput.value = name || '';
-                bioInput.value = biography || '';
+                if (title) title.textContent = 'Chỉnh Sửa Thông Tin Tác Giả';
+                if (form) form.action = '/manager/authors/' + id + '/edit';
+                if (nameInput) nameInput.value = name || '';
+                if (bioInput) bioInput.value = biography || '';
             } else {
-                title.textContent = 'Thêm Tác Giả Mới';
-                form.action = '/manager/authors';
-                nameInput.value = '';
-                bioInput.value = '';
+                if (title) title.textContent = 'Thêm Tác Giả Mới';
+                if (form) form.action = '/manager/authors';
+                if (nameInput) nameInput.value = '';
+                if (bioInput) bioInput.value = '';
             }
 
-            modal.classList.remove('hidden');
-            nameInput.focus();
+            if (modal) modal.classList.remove('hidden');
+            if (nameInput) nameInput.focus();
         }
 
         function closeAuthorModal() {
-            document.getElementById('authorModal').classList.add('hidden');
+            const modal = document.getElementById('authorModal');
+            if (modal) modal.classList.add('hidden');
         }
     </script>
 </div>

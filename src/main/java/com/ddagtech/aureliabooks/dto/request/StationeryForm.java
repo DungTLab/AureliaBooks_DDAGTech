@@ -12,6 +12,7 @@ public record StationeryForm(
 
         @NotBlank(message = "Mã vạch không được để trống.")
         @Size(max = 50, message = "Mã vạch không vượt quá 50 ký tự.")
+        @Pattern(regexp = "^\\s*[0-9]{8,14}\\s*$", message = "Mã vạch phải là chuỗi số từ 8 đến 14 chữ số (chuẩn EAN/UPC).")
         String barcode,
 
         @NotBlank(message = "Tên sản phẩm không được để trống.")
@@ -51,5 +52,10 @@ public record StationeryForm(
 
         @Min(value = 0, message = "Số tháng bảo hành không được âm.")
         Integer warrantyMonths) {
+
+    public StationeryForm {
+        if (barcode != null) barcode = barcode.strip();
+        if (title != null) title = title.strip();
+    }
 }
 
