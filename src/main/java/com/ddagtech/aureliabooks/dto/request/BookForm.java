@@ -45,7 +45,7 @@ public record BookForm(
 
         @NotBlank(message = "Mã ISBN không được để trống.")
         @Size(max = 20, message = "Mã ISBN không vượt quá 20 ký tự.")
-        @Pattern(regexp = "^\\s*(?=(?:(?:[^\\dX]*\\d){9}[^\\dX]*[0-9Xx]|(?:[^\\dX]*\\d){13})$)[0-9Xx-]+\\s*$", message = "Mã ISBN phải đúng định dạng chuẩn ISBN-10 hoặc ISBN-13.")
+        @Pattern(regexp = "^\\s*(?=(?:(?:[-]*\\d){9}[-]*[0-9Xx]|(?:[-]*\\d){13})$)[0-9Xx-]+\\s*$", message = "Mã ISBN phải đúng định dạng chuẩn ISBN-10 hoặc ISBN-13.")
         String isbn,
 
         @NotNull(message = "Vui lòng chọn nhà xuất bản.")

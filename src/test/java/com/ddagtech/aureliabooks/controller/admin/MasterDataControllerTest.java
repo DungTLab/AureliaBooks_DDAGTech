@@ -1,16 +1,11 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
-import com.ddagtech.aureliabooks.dto.request.CategoryForm;
 import com.ddagtech.aureliabooks.entity.Author;
-import com.ddagtech.aureliabooks.entity.Brand;
-import com.ddagtech.aureliabooks.entity.Category;
-import com.ddagtech.aureliabooks.entity.Publisher;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.service.MasterDataService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -21,10 +16,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,8 +30,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * WebMvc test suite for MasterDataController (UC17: Authors, UC18: Publishers, UC19: Brands, UC20: Categories).
- * Verifies role authorization, model attributes, view resolution, and form submissions.
+ * WebMvc test suite for MasterDataController (UC17: Authors).
+ * Verifies role authorization, model attributes, view resolution, and validation errors.
  */
 @WebMvcTest(controllers = MasterDataController.class)
 @Import(SecurityConfig.class)
@@ -49,10 +45,6 @@ class MasterDataControllerTest {
 
     @MockitoBean
     private RoleRepository roleRepository;
-
-    // =========================================================================
-    // UC17: AUTHORS
-    // =========================================================================
 
     @Test
     @WithMockUser(username = "manager", roles = {"MANAGER"})
@@ -248,5 +240,20 @@ class MasterDataControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/manager/categories"))
                 .andExpect(flash().attributeExists("successMessage"));
+    }
+
+    @Test
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    @DisplayName("POST /manager/authors/{id}/toggle-status should toggle status and redirect")
+    void toggleAuthorStatus_shouldRedirect() throws Exception {
+        doNothing().when(masterDataService).toggleAuthorStatus(1L);
+
+        mockMvc.perform(post("/manager/authors/1/toggle-status")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/manager/authors"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(masterDataService).toggleAuthorStatus(1L);
     }
 }

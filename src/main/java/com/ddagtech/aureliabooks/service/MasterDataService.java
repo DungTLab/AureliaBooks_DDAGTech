@@ -1,22 +1,16 @@
 package com.ddagtech.aureliabooks.service;
 
-import com.ddagtech.aureliabooks.dto.request.AuthorForm;
-import com.ddagtech.aureliabooks.dto.request.BrandForm;
-import com.ddagtech.aureliabooks.dto.request.CategoryForm;
-import com.ddagtech.aureliabooks.dto.request.PublisherForm;
+import com.ddagtech.aureliabooks.dto.request.*;
+import com.ddagtech.aureliabooks.dto.response.*;
 import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Brand;
 import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Publisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.*;
 
 import java.util.List;
 
-/**
- * Service contract for managing Master Taxonomies (UC17: Authors, UC18: Publishers, UC19: Brands, UC20: Categories).
- * Maintained by Catalog Specialist (Huỳnh Nhật Duy - husky).
- */
+/** UC17/18/19/20. Owner: Huỳnh Nhật Duy. Sprint 1 scaffold; business implementation pending. */
 public interface MasterDataService {
 
     // =========================================================================
@@ -58,6 +52,14 @@ public interface MasterDataService {
     Long createCategory(CategoryForm form);
     void updateCategory(Long categoryId, CategoryForm form);
     void deleteCategory(Long categoryId);
+    // Query methods for UI selection and management
+    Page<Author> listAuthors(String keyword, Pageable pageable);
+    Author getAuthorById(Long authorId);
+    long countBooksByAuthor(Long authorId);
+    List<Author> getAllAuthors();
+    void toggleAuthorStatus(Long authorId);
+    List<Publisher> getAllPublishers();
+    List<Brand> getAllBrands();
     List<Category> getAllCategoriesWithParent();
     List<Category> getAllActiveCategories();
     long countProductsByCategory(Long categoryId);

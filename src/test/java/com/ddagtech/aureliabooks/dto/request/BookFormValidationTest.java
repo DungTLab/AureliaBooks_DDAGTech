@@ -77,7 +77,13 @@ class BookFormValidationTest {
             "080442957",         // Only 9 digits without check digit
             "080442957XX",       // Too many check characters
             "978030640615",      // 12 digits (incomplete ISBN-13)
-            "97803064061578"     // 14 digits (exceeds ISBN-13)
+            "97803064061578",    // 14 digits (exceeds ISBN-13)
+            "978x0306406157",    // Lowercase x inside ISBN-13 (reviewer witness)
+            "978X0306406157",    // Uppercase X inside ISBN-13
+            "9780306406157x",    // Lowercase x at the end of ISBN-13
+            "9780306406157X",    // Uppercase X at the end of ISBN-13
+            "0x804429571",       // Lowercase x in the middle of ISBN-10
+            "0X804429571"        // Uppercase X in the middle of ISBN-10
     })
     @DisplayName("Should reject invalid ISBN strings")
     void shouldRejectInvalidIsbn(String invalidIsbn) {

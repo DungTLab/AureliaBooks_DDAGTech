@@ -114,4 +114,52 @@ class AdminProductControllerTest {
 
         verify(adminProductService, never()).toggleActive(any());
     }
+
+    @Test
+    @DisplayName("Black-Box HTTP Test: POST /manager/books with lowercase x inside ISBN-13 is rejected with field error")
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    void createBook_WithLowercaseXInsideIsbn13_ReturnsFormWithFieldError() throws Exception {
+        mockMvc.perform(post("/manager/books")
+                .with(csrf())
+                .param("barcode", "893500000001")
+                .param("title", "Sách Lỗi ISBN")
+                .param("categoryId", "1")
+                .param("price", "100000")
+                .param("originalCost", "60000")
+                .param("weightGrams", "200")
+                .param("isbn", "978x0306406157") // Reviewer witness: lowercase x inside ISBN-13
+                .param("publisherId", "1")
+                .param("authorIds", "1")
+                .param("pageCount", "300"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/products/book-form"))
+                .andExpect(model().attributeHasFieldErrors("bookForm", "isbn"));
+
+        verify(adminProductService, never()).createBook(any());
+    }
+
+    @Test
+    @DisplayName("Black-Box HTTP Test: POST /manager/books with valid ISBN-10 check digit X is accepted and calls service")
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    void createBook_WithValidIsbn10CheckDigitX_SucceedsAndCallsService() throws Exception {
+        when(adminProductService.createBook(any(BookForm.class))).thenReturn(100L);
+
+        mockMvc.perform(post("/manager/books")
+                .with(csrf())
+                .param("barcode", "893500000001")
+                .param("title", "Sách Hợp Lệ ISBN-10")
+                .param("categoryId", "1")
+                .param("price", "100000")
+                .param("originalCost", "60000")
+                .param("weightGrams", "200")
+                .param("isbn", "080442957X") // Valid ISBN-10 check digit X
+                .param("publisherId", "1")
+                .param("authorIds", "1")
+                .param("pageCount", "300"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/manager/products?type=BOOK"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(adminProductService).createBook(any(BookForm.class));
+    }
 }

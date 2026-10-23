@@ -46,6 +46,13 @@ public interface AuthorRepository extends JpaRepository<Author, Long> {
     java.util.List<Author> findAllByOrderByNameAsc();
 
     /**
+     * Returns all active authors ordered by name ascending for selection dropdowns.
+     *
+     * @return list of active authors
+     */
+    java.util.List<Author> findAllByIsActiveTrueOrderByNameAsc();
+
+    /**
      * Verifies if any book is currently linked to the specified author.
      *
      * @param authorId author ID to verify
