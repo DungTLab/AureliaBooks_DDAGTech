@@ -72,6 +72,7 @@
                         <th class="px-6 py-3.5">Địa Chỉ Trụ Sở</th>
                         <th class="px-6 py-3.5">Email Liên Hệ</th>
                         <th class="px-6 py-3.5 text-center w-32">Số Sách</th>
+                        <th class="px-6 py-3.5 text-center w-32">Trạng Thái</th>
                         <th class="px-6 py-3.5 text-right w-36">Thao Tác</th>
                     </tr>
                 </thead>
@@ -103,6 +104,17 @@
                                 0 cuốn
                             </span>
                         </td>
+                        <td class="px-6 py-4 text-center">
+                            <form th:action="@{/manager/publishers/{id}/toggle-status(id=${publisher.id})}" method="post" class="inline">
+                                <button type="submit"
+                                        th:title="${publisher.isActive ? 'Nhấn để tạm ẩn nhà xuất bản' : 'Nhấn để kích hoạt nhà xuất bản'}"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all"
+                                        th:classappend="${publisher.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                                    <i class="bi" th:classappend="${publisher.isActive ? 'bi-check-circle-fill text-emerald-600' : 'bi-dash-circle-fill text-gray-400'}"></i>
+                                    <span th:text="${publisher.isActive ? 'Hoạt động' : 'Tạm ẩn'}">Hoạt động</span>
+                                </button>
+                            </form>
+                        </td>
                         <td class="px-6 py-4 text-right whitespace-nowrap">
                             <div class="flex items-center justify-end gap-2">
                                 <button type="button"
@@ -127,7 +139,7 @@
                         </td>
                     </tr>
                     <tr th:if="${publishersPage.content.isEmpty()}">
-                        <td colspan="6" class="px-6 py-12 text-center text-carbon_black-400">
+                        <td colspan="7" class="px-6 py-12 text-center text-carbon_black-400">
                             <i class="bi bi-building-slash text-3xl mb-2 block"></i>
                             <p class="text-sm font-medium">Không tìm thấy nhà xuất bản nào phù hợp.</p>
                         </td>

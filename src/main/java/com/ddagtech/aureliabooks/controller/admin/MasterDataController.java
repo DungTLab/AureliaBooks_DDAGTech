@@ -190,6 +190,21 @@ Page<Author> authorsPage = masterDataService.listAuthors(keyword, pageable);
         return "redirect:/manager/publishers";
     }
 
+    /**
+     * Handles publisher status toggling (activation / deactivation).
+     */
+    @PostMapping("/manager/publishers/{id}/toggle-status")
+    public String togglePublisherStatus(@PathVariable("id") Long id,
+                                        RedirectAttributes redirectAttributes) {
+        try {
+            masterDataService.togglePublisherStatus(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đổi trạng thái hoạt động nhà xuất bản thành công!");
+        } catch (AppException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        return "redirect:/manager/publishers";
+    }
+
     @PostMapping("/manager/publishers/{id}/edit")
     public String updatePublisher(@PathVariable("id") Long id,
                                   @Valid @ModelAttribute("publisherForm") PublisherForm form,
@@ -255,6 +270,21 @@ Page<Author> authorsPage = masterDataService.listAuthors(keyword, pageable);
         try {
             masterDataService.createBrand(form);
             redirectAttributes.addFlashAttribute("successMessage", "Thêm thương hiệu mới thành công!");
+        } catch (AppException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        return "redirect:/manager/brands";
+    }
+
+    /**
+     * Handles brand status toggling (activation / deactivation).
+     */
+    @PostMapping("/manager/brands/{id}/toggle-status")
+    public String toggleBrandStatus(@PathVariable("id") Long id,
+                                    RedirectAttributes redirectAttributes) {
+        try {
+            masterDataService.toggleBrandStatus(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đổi trạng thái hoạt động thương hiệu thành công!");
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }

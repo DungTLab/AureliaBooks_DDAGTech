@@ -19,10 +19,6 @@ public interface MasterDataService {
     Long createAuthor(AuthorForm form);
     void updateAuthor(Long authorId, AuthorForm form);
     void deleteAuthor(Long authorId);
-    Page<Author> listAuthors(String keyword, Pageable pageable);
-    Author getAuthorById(Long authorId);
-    long countBooksByAuthor(Long authorId);
-    List<Author> getAllAuthors();
 
     // =========================================================================
     // UC18: PUBLISHERS MANAGEMENT (SCR-M03b)
@@ -34,6 +30,8 @@ public interface MasterDataService {
     Publisher getPublisherById(Long publisherId);
     long countBooksByPublisher(Long publisherId);
     List<Publisher> getAllPublishers();
+    void togglePublisherStatus(Long publisherId);
+    List<Publisher> getAllActivePublishers();
 
     // =========================================================================
     // UC19: BRANDS MANAGEMENT (SCR-M03c)
@@ -45,6 +43,8 @@ public interface MasterDataService {
     Brand getBrandById(Long brandId);
     long countStationeriesByBrand(Long brandId);
     List<Brand> getAllBrands();
+    void toggleBrandStatus(Long brandId);
+    List<Brand> getAllActiveBrands();
 
     // =========================================================================
     // UC20: CATEGORIES MANAGEMENT (SCR-M03d)
@@ -58,8 +58,7 @@ public interface MasterDataService {
     long countBooksByAuthor(Long authorId);
     List<Author> getAllAuthors();
     void toggleAuthorStatus(Long authorId);
-    List<Publisher> getAllPublishers();
-    List<Brand> getAllBrands();
+
     List<Category> getAllCategoriesWithParent();
     List<Category> getAllActiveCategories();
     long countProductsByCategory(Long categoryId);

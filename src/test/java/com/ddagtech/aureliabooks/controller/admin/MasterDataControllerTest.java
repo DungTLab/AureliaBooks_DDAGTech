@@ -1,11 +1,16 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
+import com.ddagtech.aureliabooks.dto.request.CategoryForm;
 import com.ddagtech.aureliabooks.entity.Author;
+import com.ddagtech.aureliabooks.entity.Brand;
+import com.ddagtech.aureliabooks.entity.Category;
+import com.ddagtech.aureliabooks.entity.Publisher;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.service.MasterDataService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -16,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -255,5 +261,35 @@ class MasterDataControllerTest {
                 .andExpect(flash().attributeExists("successMessage"));
 
         verify(masterDataService).toggleAuthorStatus(1L);
+    }
+
+    @Test
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    @DisplayName("POST /manager/publishers/{id}/toggle-status should toggle status and redirect")
+    void togglePublisherStatus_shouldRedirect() throws Exception {
+        doNothing().when(masterDataService).togglePublisherStatus(1L);
+
+        mockMvc.perform(post("/manager/publishers/1/toggle-status")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/manager/publishers"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(masterDataService).togglePublisherStatus(1L);
+    }
+
+    @Test
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    @DisplayName("POST /manager/brands/{id}/toggle-status should toggle status and redirect")
+    void toggleBrandStatus_shouldRedirect() throws Exception {
+        doNothing().when(masterDataService).toggleBrandStatus(1L);
+
+        mockMvc.perform(post("/manager/brands/1/toggle-status")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/manager/brands"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(masterDataService).toggleBrandStatus(1L);
     }
 }

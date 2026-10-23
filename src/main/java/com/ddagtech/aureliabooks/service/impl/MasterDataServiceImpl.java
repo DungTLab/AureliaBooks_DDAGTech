@@ -213,6 +213,21 @@ public class MasterDataServiceImpl implements MasterDataService {
         return publisherRepository.findAllByOrderByNameAsc();
     }
 
+    @Override
+    @Transactional
+    public void togglePublisherStatus(Long publisherId) {
+        Publisher publisher = publisherRepository.findById(publisherId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nhà xuất bản với ID: " + publisherId));
+        publisher.setIsActive(!Boolean.TRUE.equals(publisher.getIsActive()));
+        publisherRepository.save(publisher);
+        log.info("Toggled publisher status [id={}, active={}]", publisherId, publisher.getIsActive());
+    }
+
+    @Override
+    public List<Publisher> getAllActivePublishers() {
+        return publisherRepository.findAllByIsActiveTrueOrderByNameAsc();
+    }
+
     // =========================================================================
     // UC19: BRANDS MANAGEMENT (SCR-M03c)
     // =========================================================================
@@ -286,6 +301,21 @@ public class MasterDataServiceImpl implements MasterDataService {
         return brandRepository.findAllByOrderByNameAsc();
     }
 
+    @Override
+    @Transactional
+    public void toggleBrandStatus(Long brandId) {
+        Brand brand = brandRepository.findById(brandId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy thương hiệu với ID: " + brandId));
+        brand.setIsActive(!Boolean.TRUE.equals(brand.getIsActive()));
+        brandRepository.save(brand);
+        log.info("Toggled brand status [id={}, active={}]", brandId, brand.getIsActive());
+    }
+
+    @Override
+    public List<Brand> getAllActiveBrands() {
+        return brandRepository.findAllByIsActiveTrueOrderByNameAsc();
+    }
+
     // =========================================================================
     // UC20: CATEGORIES MANAGEMENT (SCR-M03d)
     // =========================================================================
@@ -297,6 +327,8 @@ public class MasterDataServiceImpl implements MasterDataService {
         Category parent = null;
         try {
             if (form.parentId() != null) {
+                // Lock root categories exclusively to serialize re-parenting and prevent disjoint multi-node cycles
+                categoryRepository.findRootCategoriesWithLock();
                 // Lock parent exclusively to serialize sibling creation under the same parent
                 parent = categoryRepository.findByIdWithLock(form.parentId())
                         .or(() -> categoryRepository.findById(form.parentId()))
@@ -335,6 +367,8 @@ public class MasterDataServiceImpl implements MasterDataService {
 
         try {
             if (form.parentId() != null) {
+                // Lock root categories exclusively to serialize re-parenting and prevent disjoint multi-node cycles
+                categoryRepository.findRootCategoriesWithLock();
                 // Lock both categoryId and parentId in deterministic ascending ID order to prevent deadlocks during concurrent re-parenting
                 Long firstId = Math.min(categoryId, form.parentId());
                 Long secondId = Math.max(categoryId, form.parentId());
@@ -365,7 +399,10 @@ public class MasterDataServiceImpl implements MasterDataService {
                         throw new AppException(ErrorCode.INVALID_INPUT_DATA,
                                 "Không thể chọn danh mục con/cháu làm danh mục cha (phát hiện chu trình vòng lặp).");
                     }
-                    ancestor = ancestor.getParent();
+                    Category parentEntity = ancestor.getParent();
+                    ancestor = (parentEntity != null)
+                            ? categoryRepository.findById(parentEntity.getId()).orElse(parentEntity)
+                            : null;
                 }
             } else {
                 category = categoryRepository.findByIdWithLock(categoryId)
@@ -389,7 +426,10 @@ public class MasterDataServiceImpl implements MasterDataService {
                         throw new AppException(ErrorCode.INVALID_INPUT_DATA,
                                 "Không thể chọn danh mục con/cháu làm danh mục cha (phát hiện chu trình vòng lặp).");
                     }
-                    recheckAncestor = recheckAncestor.getParent();
+                    Category recheckParent = recheckAncestor.getParent();
+                    recheckAncestor = (recheckParent != null)
+                            ? categoryRepository.findById(recheckParent.getId()).orElse(recheckParent)
+                            : null;
                 }
             }
 

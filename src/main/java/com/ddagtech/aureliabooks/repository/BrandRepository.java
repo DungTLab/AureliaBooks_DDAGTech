@@ -17,6 +17,8 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
 
     List<Brand> findAllByOrderByNameAsc();
 
+    List<Brand> findAllByIsActiveTrueOrderByNameAsc();
+
     Page<Brand> findAllByOrderByNameAsc(Pageable pageable);
 
     Page<Brand> findByNameContainingIgnoreCaseOrderByNameAsc(String keyword, Pageable pageable);

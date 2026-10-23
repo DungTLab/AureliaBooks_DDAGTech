@@ -71,6 +71,7 @@
                         <th class="px-6 py-3.5">Tên Thương Hiệu</th>
                         <th class="px-6 py-3.5">Quốc Gia Xuất Xứ</th>
                         <th class="px-6 py-3.5 text-center w-36">Số Sản Phẩm VPP</th>
+                        <th class="px-6 py-3.5 text-center w-32">Trạng Thái</th>
                         <th class="px-6 py-3.5 text-right w-36">Thao Tác</th>
                     </tr>
                 </thead>
@@ -96,6 +97,17 @@
                                 0 món
                             </span>
                         </td>
+                        <td class="px-6 py-4 text-center">
+                            <form th:action="@{/manager/brands/{id}/toggle-status(id=${brand.id})}" method="post" class="inline">
+                                <button type="submit"
+                                        th:title="${brand.isActive ? 'Nhấn để tạm ẩn thương hiệu' : 'Nhấn để kích hoạt thương hiệu'}"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all"
+                                        th:classappend="${brand.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                                    <i class="bi" th:classappend="${brand.isActive ? 'bi-check-circle-fill text-emerald-600' : 'bi-dash-circle-fill text-gray-400'}"></i>
+                                    <span th:text="${brand.isActive ? 'Hoạt động' : 'Tạm ẩn'}">Hoạt động</span>
+                                </button>
+                            </form>
+                        </td>
                         <td class="px-6 py-4 text-right whitespace-nowrap">
                             <div class="flex items-center justify-end gap-2">
                                 <button type="button"
@@ -119,7 +131,7 @@
                         </td>
                     </tr>
                     <tr th:if="${brandsPage.content.isEmpty()}">
-                        <td colspan="5" class="px-6 py-12 text-center text-carbon_black-400">
+                        <td colspan="6" class="px-6 py-12 text-center text-carbon_black-400">
                             <i class="bi bi-tag-fill text-3xl mb-2 block opacity-30"></i>
                             <p class="text-sm font-medium">Không tìm thấy thương hiệu nào phù hợp.</p>
                         </td>

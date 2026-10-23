@@ -17,6 +17,8 @@ public interface PublisherRepository extends JpaRepository<Publisher, Long> {
 
     List<Publisher> findAllByOrderByNameAsc();
 
+    List<Publisher> findAllByIsActiveTrueOrderByNameAsc();
+
     Page<Publisher> findAllByOrderByNameAsc(Pageable pageable);
 
     Page<Publisher> findByNameContainingIgnoreCaseOrderByNameAsc(String keyword, Pageable pageable);

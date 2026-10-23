@@ -287,6 +287,56 @@ class MasterDataServiceTest {
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0).getName()).isEqualTo("NXB Trẻ");
         }
+
+        @Test
+        @DisplayName("togglePublisherStatus should toggle from active to inactive")
+        void togglePublisherStatus_whenActive_shouldDeactivate() {
+            Publisher publisher = Publisher.builder().id(1L).name("NXB Trẻ").isActive(true).build();
+            when(publisherRepository.findById(1L)).thenReturn(Optional.of(publisher));
+
+            masterDataService.togglePublisherStatus(1L);
+
+            assertThat(publisher.getIsActive()).isFalse();
+            verify(publisherRepository).save(publisher);
+        }
+
+        @Test
+        @DisplayName("togglePublisherStatus should toggle from inactive to active")
+        void togglePublisherStatus_whenInactive_shouldActivate() {
+            Publisher publisher = Publisher.builder().id(1L).name("NXB Trẻ").isActive(false).build();
+            when(publisherRepository.findById(1L)).thenReturn(Optional.of(publisher));
+
+            masterDataService.togglePublisherStatus(1L);
+
+            assertThat(publisher.getIsActive()).isTrue();
+            verify(publisherRepository).save(publisher);
+        }
+
+        @Test
+        @DisplayName("togglePublisherStatus should throw AppException when publisher not found")
+        void togglePublisherStatus_whenNotFound_shouldThrowException() {
+            when(publisherRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> masterDataService.togglePublisherStatus(99L))
+                    .isInstanceOf(AppException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+
+            verify(publisherRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("getAllActivePublishers should return only active publishers ordered by name")
+        void getAllActivePublishers_shouldReturnActiveList() {
+            List<Publisher> activeList = List.of(Publisher.builder().id(1L).name("NXB Kim Đồng").isActive(true).build());
+            when(publisherRepository.findAllByIsActiveTrueOrderByNameAsc()).thenReturn(activeList);
+
+            List<Publisher> result = masterDataService.getAllActivePublishers();
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getName()).isEqualTo("NXB Kim Đồng");
+            verify(publisherRepository).findAllByIsActiveTrueOrderByNameAsc();
+        }
     }
 
     // =========================================================================
@@ -363,6 +413,56 @@ class MasterDataServiceTest {
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
 
             verify(brandRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("toggleBrandStatus should toggle from active to inactive")
+        void toggleBrandStatus_whenActive_shouldDeactivate() {
+            Brand brand = Brand.builder().id(1L).name("Thiên Long").isActive(true).build();
+            when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
+
+            masterDataService.toggleBrandStatus(1L);
+
+            assertThat(brand.getIsActive()).isFalse();
+            verify(brandRepository).save(brand);
+        }
+
+        @Test
+        @DisplayName("toggleBrandStatus should toggle from inactive to active")
+        void toggleBrandStatus_whenInactive_shouldActivate() {
+            Brand brand = Brand.builder().id(1L).name("Thiên Long").isActive(false).build();
+            when(brandRepository.findById(1L)).thenReturn(Optional.of(brand));
+
+            masterDataService.toggleBrandStatus(1L);
+
+            assertThat(brand.getIsActive()).isTrue();
+            verify(brandRepository).save(brand);
+        }
+
+        @Test
+        @DisplayName("toggleBrandStatus should throw AppException when brand not found")
+        void toggleBrandStatus_whenNotFound_shouldThrowException() {
+            when(brandRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> masterDataService.toggleBrandStatus(99L))
+                    .isInstanceOf(AppException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+
+            verify(brandRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("getAllActiveBrands should return only active brands ordered by name")
+        void getAllActiveBrands_shouldReturnActiveList() {
+            List<Brand> activeList = List.of(Brand.builder().id(1L).name("Thiên Long").isActive(true).build());
+            when(brandRepository.findAllByIsActiveTrueOrderByNameAsc()).thenReturn(activeList);
+
+            List<Brand> result = masterDataService.getAllActiveBrands();
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getName()).isEqualTo("Thiên Long");
+            verify(brandRepository).findAllByIsActiveTrueOrderByNameAsc();
         }
     }
 
