@@ -16,6 +16,7 @@ import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.ddagtech.aureliabooks.service.StockMutationService;
+import com.ddagtech.aureliabooks.service.VoucherService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
@@ -53,6 +54,7 @@ public class StockMutationServiceImpl implements StockMutationService {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final EntityManager entityManager;
+    private final VoucherService vouchers;
 
     /**
      * Manager posts a draft goods receipt (UC23/FND-03).
@@ -260,6 +262,9 @@ public class StockMutationServiceImpl implements StockMutationService {
         // Idempotency / Replay protection: if already restored, no-op
         if (order.getStockRestoredAt() != null) {
             log.info("Order id={} stock was already restored at {}. Replay ignored.", orderId, order.getStockRestoredAt());
+            if (order.getOrderStatus() == Order.OrderStatus.CANCELLED) {
+                vouchers.releaseCancelledOrder(orderId, actorUserId, null);
+            }
             return;
         }
 
@@ -273,6 +278,7 @@ public class StockMutationServiceImpl implements StockMutationService {
                 order.setCancelledAt(LocalDateTime.now());
             }
             orderRepository.save(order);
+            vouchers.releaseCancelledOrder(orderId, actorUserId, null);
             return;
         }
 
@@ -311,6 +317,7 @@ public class StockMutationServiceImpl implements StockMutationService {
             order.setCancelledAt(now);
         }
         orderRepository.save(order);
+        vouchers.releaseCancelledOrder(orderId, actorUserId, null);
 
         // Record audit log within the same database transaction
         Map<String, Object> auditDetails = new HashMap<>();

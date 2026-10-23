@@ -30,6 +30,10 @@ import com.ddagtech.aureliabooks.service.CartService;
 import com.ddagtech.aureliabooks.service.OrderPlacementService;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.ddagtech.aureliabooks.service.StockMutationService;
+import com.ddagtech.aureliabooks.service.VoucherService;
+import com.ddagtech.aureliabooks.repository.OrderVoucherRepository;
+import com.ddagtech.aureliabooks.entity.Voucher;
+import java.util.Locale;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
@@ -66,6 +70,8 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private final OrderMapper orderMapper;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
+    private final VoucherService vouchers;
+    private final OrderVoucherRepository orderVouchers;
 
     /** Validate the active customer and query by owner to prevent disclosure of another customer's order. */
     @Override
@@ -108,7 +114,26 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return checkoutView(cartView, addressViews, selectedAddress);
     }
 
-    /** Calculate regional shipping; discounts remain zero until voucher integration and free-shipping policy are confirmed. */
+    @Override
+    @Transactional(readOnly = true)
+    public CheckoutView getCheckoutView(Long userId, Long shippingAddressId, String voucherCode) {
+        return applyVoucher(userId, getCheckoutView(userId, shippingAddressId), voucherCode);
+    }
+
+    private CheckoutView applyVoucher(Long owner, CheckoutView base, String code) {
+        if (normalizeVoucher(code).isEmpty()) return base;
+        if (base.selectedAddressId() == null) {
+            throw new AppException(ErrorCode.ADDRESS_NOT_FOUND, "Vui lòng chọn địa chỉ trước khi áp mã.");
+        }
+        var quote = vouchers.preview(owner, code, base.merchandiseSubtotal(), base.baseShippingFee());
+        BigDecimal productDiscount = quote.scope() == Voucher.Scope.PRODUCT ? quote.discountAmount() : BigDecimal.ZERO;
+        BigDecimal shippingDiscount = quote.scope() == Voucher.Scope.SHIPPING ? quote.discountAmount() : BigDecimal.ZERO;
+        return new CheckoutView(base.items(), base.addressViews(), base.selectedAddressId(),
+                base.merchandiseSubtotal(), productDiscount, base.baseShippingFee(), shippingDiscount,
+                base.baseShippingFee().subtract(shippingDiscount), quote.payableTotal());
+    }
+
+    /** Calculate base regional shipping before an optional voucher is applied. */
     private CheckoutView checkoutView(CartView cartView, List<AddressView> addressViews,
                                       AddressView selectedAddress) {
         BigDecimal subTotal = cartView.merchandiseSubtotal();
@@ -155,12 +180,6 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         if (!violations.isEmpty()) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, violations.iterator().next().getMessage());
         }
-        // UC11.2 owns voucher handling; reject unsupported codes explicitly rather than silently placing a full-price order.
-        if (!normalizeVoucher(request.getVoucherCode()).isEmpty()) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA,
-                    "Chức năng áp dụng voucher chưa được tích hợp.");
-        }
-
         // Lock the same owner row used by cart and address services to serialize changes for one customer.
         User owner = userRepository.findOwnerForUpdate(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -181,6 +200,11 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                 throw new AppException(ErrorCode.CHECKOUT_CHANGED);
             }
 
+            String storedCode = orderVouchers.findByOrderId(existingOrder.getId())
+                    .map(applied -> applied.getVoucher().getCode()).orElse("");
+            if (!normalizeVoucher(request.getVoucherCode()).equals(storedCode)) {
+                throw new AppException(ErrorCode.CHECKOUT_CHANGED);
+            }
             return existingOrder.getOrderCode();
         }
 
@@ -214,8 +238,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         // Recalculate using current locked data; the saved review is a comparison baseline, not the source of persisted prices.
         AddressView selectedAddress = addressMapper.toView(address);
-        CheckoutView current = checkoutView(cartMapper.toCartView(items),
+        CheckoutView base = checkoutView(cartMapper.toCartView(items),
                 List.of(selectedAddress), selectedAddress);
+        CheckoutView current = applyVoucher(userId, base, request.getVoucherCode());
         if (!sameReviewedCheckout(confirmation.reviewedCheckout(), current)) {
             throw new AppException(ErrorCode.CHECKOUT_CHANGED);
         }
@@ -223,8 +248,17 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         // Both payment methods deduct stock at creation; only the initial order status differs.
         Order.OrderStatus status = request.getPaymentMethod() == Order.PaymentMethod.COD
                 ? Order.OrderStatus.PENDING_CONFIRMATION : Order.OrderStatus.PENDING_PAYMENT;
-        Order order = orderMapper.toNewOrder(owner, address, items, request, current, status);
+        Order order = orderMapper.toNewOrder(owner, address, items, request, base, status);
         orderRepository.saveAndFlush(order);
+        if (!normalizeVoucher(request.getVoucherCode()).isEmpty()) {
+            var applied = vouchers.redeem(userId, order.getId(), request.getVoucherCode(), null);
+            if (!sameMoney(applied.payableTotal(), current.finalTotalAmount())) {
+                throw new AppException(ErrorCode.CHECKOUT_CHANGED);
+            }
+        }
+
+        // Stock posting refreshes the order; persist its discounted snapshot before that refresh.
+        entityManager.flush();
 
         // The stock engine owns balances, markers, and stock audit; REQUIRED joins the current placement transaction.
         // Any line failure must roll back the order, items, and all preceding stock updates.
@@ -404,6 +438,6 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
     /** Normalize whitespace and null voucher values for consistent request and review comparisons. */
     private String normalizeVoucher(String value) {
-        return value == null ? "" : value.strip();
+        return value == null ? "" : value.strip().toUpperCase(Locale.ROOT);
     }
 }

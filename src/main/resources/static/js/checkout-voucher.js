@@ -1,19 +1,10 @@
-'use strict';
-
-document.querySelectorAll('[data-checkout-voucher]').forEach((panel) => {
-    const input = panel.querySelector('[data-voucher-code]');
-    const requestPreview = () => {
-        input.value = input.value.trim().toUpperCase();
-        panel.dispatchEvent(new CustomEvent('voucher:preview', {
-            bubbles: true,
-            detail: {code: input.value}
-        }));
-    };
-    panel.querySelector('[data-voucher-preview]').addEventListener('click', requestPreview);
-    input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            requestPreview();
-        }
+// Preview totals on the server; the form also works without JavaScript.
+(() => {
+    const form = document.getElementById('voucherPreview');
+    if (!form) return;
+    form.addEventListener('submit', () => {
+        const payment = document.querySelector('input[name="paymentMethod"]:checked');
+        if (payment) form.elements.paymentMethod.value = payment.value;
+        form.elements.voucherCode.value = form.elements.voucherCode.value.trim().toUpperCase();
     });
-});
+})();

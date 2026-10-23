@@ -75,7 +75,10 @@ import static org.mockito.Mockito.*;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({OrderPlacementServiceImpl.class, CartServiceImpl.class, AddressServiceImpl.class,
         CartMapper.class, ShippingAddressMapper.class, OrderMapper.class, AuditLogServiceImpl.class,
-        AddressOrderGuard.class, StockMutationServiceImpl.class, OrderPlacementMySqlTest.Support.class})
+        AddressOrderGuard.class, StockMutationServiceImpl.class,
+        com.ddagtech.aureliabooks.service.impl.VoucherServiceImpl.class,
+        com.ddagtech.aureliabooks.mapper.VoucherMapper.class,
+        com.ddagtech.aureliabooks.config.PromotionConfiguration.class, OrderPlacementMySqlTest.Support.class})
 // Avoid a surrounding Spring Test transaction so commit and rollback behavior belongs to the service itself.
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @EnabledIfSystemProperty(named = "checkout.mysql", matches = "true")

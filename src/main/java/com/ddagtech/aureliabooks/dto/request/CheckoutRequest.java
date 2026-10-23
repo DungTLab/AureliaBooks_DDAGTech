@@ -22,7 +22,7 @@ public class CheckoutRequest {
     @NotNull(message = "Vui lòng chọn phương thức thanh toán")
     private Order.PaymentMethod paymentMethod;
 
-    // Retain the UC11.2 integration field; nonblank codes are rejected until voucher handling is available.
+    // Voucher selection is bound to the server review and revalidated atomically at placement.
     @Size(max = 30, message = "Mã giảm giá tối đa 30 ký tự")
     private String voucherCode;
 

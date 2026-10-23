@@ -31,6 +31,7 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.net.URI;
+import java.util.Locale;
 
 /** Coordinate UC11: select delivery details, review server-side data, place the order, and display the result. */
 @Slf4j
@@ -46,9 +47,20 @@ public class CheckoutController {
     /** Load the cart and addresses for display; opening this page does not create an order or reserve stock. */
     @GetMapping("/checkout")
     public String checkout(Authentication auth, @RequestParam(required = false) Long shippingAddressId,
-                           @RequestParam(defaultValue = "COD") Order.PaymentMethod paymentMethod, Model model) {
+                           @RequestParam(defaultValue = "COD") Order.PaymentMethod paymentMethod,
+                           @RequestParam(required = false) String voucherCode, Model model) {
         Long owner = identity.resolve(auth);
-        CheckoutView checkout = orders.getCheckoutView(owner, shippingAddressId);
+        CheckoutView checkout;
+        String code = normalizeVoucher(voucherCode);
+        try {
+            checkout = loadCheckout(owner, shippingAddressId, code);
+            model.addAttribute("appliedVoucherCode", code);
+        } catch (AppException error) {
+            if (code.isEmpty() || !error.getErrorCode().name().startsWith("VOUCHER_")) throw error;
+            checkout = orders.getCheckoutView(owner, shippingAddressId);
+            model.addAttribute("errorMessage", error.getMessage());
+        }
+        model.addAttribute("voucherCode", code);
         addCheckout(model, checkout, paymentMethod);
         if (!model.containsAttribute("addressForm")) {
             model.addAttribute("addressForm", new AddressRequest(null, null, null,
@@ -64,21 +76,17 @@ public class CheckoutController {
                           BindingResult errors, HttpServletRequest request, RedirectAttributes flash) {
         Long owner = identity.resolve(auth);
         if (errors.hasErrors()) return invalidForm(errors, flash);
-        if (selection.voucherCode() != null && !selection.voucherCode().isBlank()) {
-            flash.addFlashAttribute("errorMessage", "Mã giảm giá chưa thể sử dụng lúc này.");
-            return "redirect:/checkout";
-        }
         if (selection.paymentMethod() == Order.PaymentMethod.VNPAY && !paymentAvailable()) {
             flash.addFlashAttribute("errorMessage", "Thanh toán trực tuyến tạm thời chưa khả dụng. Vui lòng chọn COD.");
             return "redirect:/checkout";
         }
-        CheckoutView view = orders.getCheckoutView(owner, selection.shippingAddressId());
+        CheckoutView view = loadCheckout(owner, selection.shippingAddressId(), normalizeVoucher(selection.voucherCode()));
         if (hasInvalidItems(view)) {
             flash.addFlashAttribute("errorMessage", "Một số sản phẩm cần được cập nhật. Vui lòng kiểm tra giỏ hàng.");
             return "redirect:/cart";
         }
         CheckoutConfirmation review = reviews.save(request.getSession(), owner, view,
-                selection.paymentMethod(), null);
+                selection.paymentMethod(), normalizeVoucher(selection.voucherCode()).isEmpty() ? null : normalizeVoucher(selection.voucherCode()));
         return "redirect:/checkout/review/" + review.checkoutToken();
     }
 
@@ -153,6 +161,15 @@ public class CheckoutController {
         Long addressId = addresses.create(owner, form);
         flash.addFlashAttribute("successMessage", "Đã lưu địa chỉ giao hàng.");
         return "redirect:/checkout?shippingAddressId=" + addressId;
+    }
+
+    private CheckoutView loadCheckout(Long owner, Long addressId, String code) {
+        return code.isEmpty() ? orders.getCheckoutView(owner, addressId)
+                : orders.getCheckoutView(owner, addressId, code);
+    }
+
+    private String normalizeVoucher(String code) {
+        return code == null ? "" : code.strip().toUpperCase(Locale.ROOT);
     }
 
     /** Share display attributes between the checkout page and address forms returned with validation errors. */
