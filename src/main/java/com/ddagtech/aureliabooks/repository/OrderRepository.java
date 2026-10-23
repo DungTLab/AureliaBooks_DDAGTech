@@ -8,8 +8,14 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
+/**
+ * Spring Data JPA Repository for {@link Order} entities.
+ * Provides pessimistic write locks for atomic checkout/IPN/restock mutations and timeout queries.
+ */
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -25,4 +31,26 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             String orderCode,
             Long userId
     );
+
+    /**
+     * Acquires a pessimistic write lock on the order matching the VNPay transaction reference or order code.
+     *
+     * @param txnRef VNPay vnp_TxnRef or order_code
+     * @return locked Order if found
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.user WHERE o.vnpayTxnRef = :txnRef OR o.orderCode = :txnRef")
+    Optional<Order> findByVnpayTxnRefWithLock(@Param("txnRef") String txnRef);
+
+    /**
+     * Finds VNPay orders stuck in PENDING_PAYMENT and UNPAID past the 15-minute TTL cutoff (CRON-01).
+     *
+     * @param cutoffTime expiration cutoff timestamp (now - 15 minutes)
+     * @return list of expired pending VNPay orders ordered by creation timestamp ascending
+     */
+    @Query("SELECT o FROM Order o WHERE o.orderStatus = com.ddagtech.aureliabooks.entity.Order$OrderStatus.PENDING_PAYMENT " +
+           "AND o.paymentStatus = com.ddagtech.aureliabooks.entity.Order$PaymentStatus.UNPAID " +
+           "AND o.paymentMethod = com.ddagtech.aureliabooks.entity.Order$PaymentMethod.VNPAY " +
+           "AND o.createdAt < :cutoffTime ORDER BY o.createdAt ASC")
+    List<Order> findExpiredPendingPaymentOrders(@Param("cutoffTime") LocalDateTime cutoffTime);
 }
