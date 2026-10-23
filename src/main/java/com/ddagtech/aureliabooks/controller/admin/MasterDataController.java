@@ -146,6 +146,21 @@ public class MasterDataController {
         return "redirect:/manager/authors";
     }
 
+    /**
+     * Handles author status toggling (activation / deactivation).
+     */
+    @PostMapping("/manager/authors/{id}/toggle-status")
+    public String toggleAuthorStatus(@PathVariable("id") Long id,
+                                    RedirectAttributes redirectAttributes) {
+        try {
+            masterDataService.toggleAuthorStatus(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Đổi trạng thái hoạt động tác giả thành công!");
+        } catch (AppException e) {
+            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+        }
+        return "redirect:/manager/authors";
+    }
+
     // =========================================================================
     // UC18/19/20 SHELLS
     // =========================================================================

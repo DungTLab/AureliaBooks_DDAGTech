@@ -29,6 +29,7 @@ public interface MasterDataService {
     Author getAuthorById(Long authorId);
     long countBooksByAuthor(Long authorId);
     List<Author> getAllAuthors();
+    void toggleAuthorStatus(Long authorId);
     List<Publisher> getAllPublishers();
     List<Brand> getAllBrands();
     List<Category> getAllActiveCategories();

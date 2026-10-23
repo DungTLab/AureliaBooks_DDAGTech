@@ -125,6 +125,43 @@ class MasterDataServiceTest {
 
             verify(authorRepository, never()).saveAndFlush(any());
         }
+
+        @Test
+        @DisplayName("toggleAuthorStatus should toggle from active to inactive")
+        void toggleAuthorStatus_whenActive_shouldDeactivate() {
+            Author author = Author.builder().id(1L).name("Nguyễn Nhật Ánh").isActive(true).build();
+            when(authorRepository.findById(1L)).thenReturn(Optional.of(author));
+
+            masterDataService.toggleAuthorStatus(1L);
+
+            assertThat(author.getIsActive()).isFalse();
+            verify(authorRepository).save(author);
+        }
+
+        @Test
+        @DisplayName("toggleAuthorStatus should toggle from inactive to active")
+        void toggleAuthorStatus_whenInactive_shouldActivate() {
+            Author author = Author.builder().id(1L).name("Nguyễn Nhật Ánh").isActive(false).build();
+            when(authorRepository.findById(1L)).thenReturn(Optional.of(author));
+
+            masterDataService.toggleAuthorStatus(1L);
+
+            assertThat(author.getIsActive()).isTrue();
+            verify(authorRepository).save(author);
+        }
+
+        @Test
+        @DisplayName("toggleAuthorStatus should throw AppException when author not found")
+        void toggleAuthorStatus_whenNotFound_shouldThrowException() {
+            when(authorRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> masterDataService.toggleAuthorStatus(99L))
+                    .isInstanceOf(AppException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+
+            verify(authorRepository, never()).save(any());
+        }
     }
 
     @Nested

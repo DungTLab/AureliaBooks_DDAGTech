@@ -71,6 +71,7 @@
                         <th class="px-6 py-3.5">Họ và Tên Tác Giả</th>
                         <th class="px-6 py-3.5">Tiểu Sử Tóm Tắt</th>
                         <th class="px-6 py-3.5 text-center w-32">Số Sách</th>
+                        <th class="px-6 py-3.5 text-center w-32">Trạng Thái</th>
                         <th class="px-6 py-3.5 text-right w-36">Thao Tác</th>
                     </tr>
                 </thead>
@@ -92,6 +93,17 @@
                                   th:text="${bookCounts.get(author.id) + ' cuốn'}">
                                 0 cuốn
                             </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <form th:action="@{/manager/authors/{id}/toggle-status(id=${author.id})}" method="post" class="inline">
+                                <button type="submit"
+                                        th:title="${author.isActive ? 'Nhấn để tạm ẩn tác giả' : 'Nhấn để kích hoạt tác giả'}"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all"
+                                        th:classappend="${author.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                                    <i class="bi" th:classappend="${author.isActive ? 'bi-check-circle-fill text-emerald-600' : 'bi-dash-circle-fill text-gray-400'}"></i>
+                                    <span th:text="${author.isActive ? 'Hoạt động' : 'Tạm ẩn'}">Hoạt động</span>
+                                </button>
+                            </form>
                         </td>
                         <td class="px-6 py-4 text-right whitespace-nowrap">
                             <div class="flex items-center justify-end gap-2">
@@ -116,7 +128,7 @@
                         </td>
                     </tr>
                     <tr th:if="${authorsPage.content.isEmpty()}">
-                        <td colspan="5" class="px-6 py-12 text-center text-carbon_black-400">
+                        <td colspan="6" class="px-6 py-12 text-center text-carbon_black-400">
                             <i class="bi bi-person-x text-3xl mb-2 block"></i>
                             <p class="text-sm font-medium">Không tìm thấy tác giả nào phù hợp.</p>
                         </td>

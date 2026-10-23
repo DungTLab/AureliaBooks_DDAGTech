@@ -18,6 +18,8 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -85,5 +87,20 @@ class MasterDataControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/manager/authors"))
                 .andExpect(flash().attributeExists("successMessage"));
+    }
+
+    @Test
+    @WithMockUser(username = "manager", roles = {"MANAGER"})
+    @DisplayName("POST /manager/authors/{id}/toggle-status should toggle status and redirect")
+    void toggleAuthorStatus_shouldRedirect() throws Exception {
+        doNothing().when(masterDataService).toggleAuthorStatus(1L);
+
+        mockMvc.perform(post("/manager/authors/1/toggle-status")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/manager/authors"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(masterDataService).toggleAuthorStatus(1L);
     }
 }

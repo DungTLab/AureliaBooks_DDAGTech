@@ -34,7 +34,6 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class MasterDataServiceImpl implements MasterDataService {
 
     private final AuthorRepository authorRepository;
@@ -125,6 +124,16 @@ public class MasterDataServiceImpl implements MasterDataService {
     @Override
     public List<Author> getAllAuthors() {
         return authorRepository.findAllByOrderByNameAsc();
+    }
+
+    @Override
+    @Transactional
+    public void toggleAuthorStatus(Long authorId) {
+        Author author = authorRepository.findById(authorId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy tác giả với ID: " + authorId));
+        author.setIsActive(!Boolean.TRUE.equals(author.getIsActive()));
+        authorRepository.save(author);
+        log.info("Toggled author status [id={}, active={}]", authorId, author.getIsActive());
     }
 
     // =========================================================================
