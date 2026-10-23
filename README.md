@@ -13,11 +13,17 @@ Spring Boot or MySQL does not reset accounts. Do not remove your volume to refre
 | MANAGER | manager@aureliabook.vn | Manager@123 |
 | SALE_STAFF | staff@aureliabook.vn | Staff@123 |
 | CUSTOMER | customer@aureliabook.vn | Customer@123 |
+| MANAGER (supplementary) | kho.nguyen@aureliabook.vn | Manager@123 |
+| SALE_STAFF (supplementary) | lan.tran@aureliabook.vn | Staff@123 |
+| CUSTOMER (supplementary) | anhntdce200031@gmail.com | Customer@123 |
 
 These credentials are public **demo fixtures**, never production credentials.
 The SQL stores BCrypt cost-12 hashes, resolves role IDs by role name, and never
 overwrites an existing password, role, name or active flag. Email/phone ownership
 conflicts abort and roll back the whole seed. It does not claim contacts are verified.
+The supplementary fixtures from main use the same mechanism. The legacy
+`docker/initdb/03_seed_users.sql` is removed; it must not be run alongside this seed.
+The agreed Admin is `aureliabook.team@gmail.com`, not the legacy Admin email.
 
 For an existing development DB, run the roles script and demo users script in a
 MySQL console after reviewing account conflicts. Do not rerun `01_schema.sql`:

@@ -14,16 +14,22 @@ BEGIN
     DECLARE wanted_phone VARCHAR(15);
     DECLARE wanted_hash VARCHAR(255);
     DECLARE wanted_name VARCHAR(100);
+    DECLARE wanted_dob DATE;
+    DECLARE wanted_gender VARCHAR(10);
     DECLARE role_key BIGINT;
     DECLARE email_owner BIGINT;
     DECLARE phone_owner BIGINT;
     DECLARE existing_role BIGINT;
     DECLARE conflict_message VARCHAR(128);
     DECLARE accounts CURSOR FOR
-        SELECT 'ROLE_ADMIN', 'aureliabook.team@gmail.com', '0988888888', '$2a$12$V7bsA/S/UGI4w1AF9lPk9.PDh.O2sefnI.RuHuxFR8WVvZgGoFgVK', 'DDAGTech Demo Admin'
-        UNION ALL SELECT 'ROLE_MANAGER', 'manager@aureliabook.vn', '0977777777', '$2a$12$miXP/3RJoDMt.2J/HMs8VOJw42cX448doR6uwAKHwXdTEJPaI66Gy', 'DDAGTech Demo Manager'
-        UNION ALL SELECT 'ROLE_SALE_STAFF', 'staff@aureliabook.vn', '0966666666', '$2a$12$OvZFsunlEIoSvxSDKpPJ/eb1/66LJ5GofJAciv.3z39zXiIz6W6Ge', 'DDAGTech Demo Staff'
-        UNION ALL SELECT 'ROLE_CUSTOMER', 'customer@aureliabook.vn', '0944444444', '$2a$12$Ex2xqIZAmnmR5nVgsNxBjuOPlep85VyAf5gt3WGL5zdEjU5LjKaMq', 'DDAGTech Demo Customer';
+        SELECT 'ROLE_ADMIN', 'aureliabook.team@gmail.com', '0988888888', '$2a$12$V7bsA/S/UGI4w1AF9lPk9.PDh.O2sefnI.RuHuxFR8WVvZgGoFgVK', 'DDAGTech Demo Admin', NULL, 'OTHER'
+        UNION ALL SELECT 'ROLE_MANAGER', 'manager@aureliabook.vn', '0977777777', '$2a$12$miXP/3RJoDMt.2J/HMs8VOJw42cX448doR6uwAKHwXdTEJPaI66Gy', 'DDAGTech Demo Manager', NULL, 'OTHER'
+        UNION ALL SELECT 'ROLE_SALE_STAFF', 'staff@aureliabook.vn', '0966666666', '$2a$12$OvZFsunlEIoSvxSDKpPJ/eb1/66LJ5GofJAciv.3z39zXiIz6W6Ge', 'DDAGTech Demo Staff', NULL, 'OTHER'
+        UNION ALL SELECT 'ROLE_CUSTOMER', 'customer@aureliabook.vn', '0944444444', '$2a$12$Ex2xqIZAmnmR5nVgsNxBjuOPlep85VyAf5gt3WGL5zdEjU5LjKaMq', 'DDAGTech Demo Customer', NULL, 'OTHER'
+        -- Supplementary fixtures added on main; kept in the same safe demo-only seed.
+        UNION ALL SELECT 'ROLE_MANAGER', 'kho.nguyen@aureliabook.vn', '0971111111', '$2a$12$miXP/3RJoDMt.2J/HMs8VOJw42cX448doR6uwAKHwXdTEJPaI66Gy', 'Nguyễn Văn Kho (Manager)', '1991-03-10', 'MALE'
+        UNION ALL SELECT 'ROLE_SALE_STAFF', 'lan.tran@aureliabook.vn', '0961111111', '$2a$12$OvZFsunlEIoSvxSDKpPJ/eb1/66LJ5GofJAciv.3z39zXiIz6W6Ge', 'Trần Thị Lan (Sale Staff)', '1996-08-25', 'FEMALE'
+        UNION ALL SELECT 'ROLE_CUSTOMER', 'anhntdce200031@gmail.com', '0955555555', '$2a$12$Ex2xqIZAmnmR5nVgsNxBjuOPlep85VyAf5gt3WGL5zdEjU5LjKaMq', 'Lê Khách Hàng (Customer)', '1999-09-09', 'OTHER';
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -37,7 +43,7 @@ BEGIN
     END IF;
     OPEN accounts;
     account_loop: LOOP
-        FETCH accounts INTO wanted_role, wanted_email, wanted_phone, wanted_hash, wanted_name;
+        FETCH accounts INTO wanted_role, wanted_email, wanted_phone, wanted_hash, wanted_name, wanted_dob, wanted_gender;
         IF finished THEN
             LEAVE account_loop;
         END IF;
@@ -56,8 +62,8 @@ BEGIN
             SET conflict_message = CONCAT('Demo seed phone conflict for ', wanted_role, '; existing accounts unchanged.');
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = conflict_message;
         ELSE
-            INSERT INTO users (role_id, email, phone, password_hash, full_name, auth_provider, is_active)
-            VALUES (role_key, wanted_email, wanted_phone, wanted_hash, wanted_name, 'LOCAL', TRUE);
+            INSERT INTO users (role_id, email, phone, password_hash, full_name, dob, gender, auth_provider, is_active)
+            VALUES (role_key, wanted_email, wanted_phone, wanted_hash, wanted_name, wanted_dob, wanted_gender, 'LOCAL', TRUE);
         END IF;
     END LOOP;
     CLOSE accounts;
