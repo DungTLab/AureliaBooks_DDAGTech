@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Hàng đợi xử lý đơn', ~{::#main-content})}">
+<head><title>Hàng đợi xử lý đơn</title></head><body>
+<section id="main-content" class="checkout-page staff-orders-page">
+    <link rel="stylesheet" th:href="@{/css/checkout.css}"><link rel="stylesheet" th:href="@{/css/orders.css}"><link rel="stylesheet" th:href="@{/css/staff-orders.css}">
+    <p class="checkout-eyebrow">Sale Staff · Quản lý đơn hàng</p><h1>Hàng đợi xử lý đơn</h1>
+    <p class="checkout-help">Ưu tiên đơn đặt trước. Mở phiếu đóng gói để kiểm hàng và cập nhật trạng thái.</p>
+    <form class="checkout-card staff-order-filters" th:action="@{/staff/orders}" method="get" th:object="${filter}">
+        <label>Trạng thái đơn<select th:field="*{status}"><option value="">Tất cả trạng thái</option><option th:each="option : ${statusOptions}" th:value="${option.key}" th:text="${option.value}"></option></select></label>
+        <label>Thanh toán<select th:field="*{paymentStatus}"><option value="">Tất cả</option><option value="UNPAID">Chưa thanh toán</option><option value="PAID">Đã thanh toán</option><option value="REFUNDED">Đã hoàn tiền</option></select></label>
+        <label>Phương thức<select th:field="*{paymentMethod}"><option value="">Tất cả</option><option value="COD">COD</option><option value="VNPAY">VNPay</option></select></label>
+        <label>Từ ngày<input type="date" th:field="*{fromDate}"></label><label>Đến ngày<input type="date" th:field="*{toDate}"></label>
+        <div class="staff-filter-actions"><button type="submit" class="checkout-button">Lọc đơn</button><a th:href="@{/staff/orders}" class="checkout-back-link">Xóa bộ lọc</a></div>
+    </form>
+    <p class="checkout-help" th:text="|${orders.totalElements} đơn hàng phù hợp|"></p>
+    <div class="checkout-card staff-order-table-wrap">
+        <table class="staff-order-table"><thead><tr><th scope="col">Đơn hàng / Ngày đặt</th><th scope="col">Khách hàng / Người nhận</th><th scope="col">Trạng thái</th><th scope="col">Thanh toán</th><th scope="col" class="staff-money">Tổng tiền</th><th scope="col">Xử lý</th></tr></thead>
+            <tbody><tr th:each="order : ${orders.content}">
+                <td><strong class="checkout-order-code" th:text="${order.orderCode}"></strong><time th:text="${#temporals.format(order.createdAt, 'dd/MM/yyyy HH:mm')}"></time></td>
+                <td><strong th:text="${order.customerName}"></strong><small class="staff-payment-label" th:text="${order.customerEmail}"></small><span class="staff-payment-label" th:text="|Nhận: ${order.recipientName}|"></span></td><td><span class="order-status-badge" th:attr="data-status=${order.status}" th:text="${order.statusLabel()}"></span></td>
+                <td><strong th:text="${order.paymentMethod}"></strong><span class="staff-payment-label" th:text="${order.paymentLabel()}"></span><strong th:if="${order.needsRefund()}" class="staff-refund-needed">Cần hoàn tiền</strong></td>
+                <td class="staff-money"><span th:text="${#numbers.formatDecimal(order.total, 0, 'POINT', 0, 'COMMA')}"></span> đ</td>
+                <td><a class="checkout-button is-secondary" th:href="@{/staff/orders/{id}(id=${order.id})}">Xử lý đơn</a></td>
+            </tr><tr th:if="${orders.empty}"><td colspan="6" class="order-empty-state">Không có đơn hàng phù hợp với bộ lọc.</td></tr></tbody>
+        </table>
+    </div>
+    <nav class="order-pagination" th:if="${orders.totalPages > 0}" aria-label="Phân trang hàng đợi">
+        <a th:if="${orders.hasPrevious()}" th:href="@{/staff/orders(page=${orders.number - 1},status=${filter.status},paymentStatus=${filter.paymentStatus},paymentMethod=${filter.paymentMethod},fromDate=${filter.fromDate},toDate=${filter.toDate})}">Trang trước</a>
+        <span th:text="|Trang ${orders.number + 1} / ${orders.totalPages}|"></span>
+        <a th:if="${orders.hasNext()}" th:href="@{/staff/orders(page=${orders.number + 1},status=${filter.status},paymentStatus=${filter.paymentStatus},paymentMethod=${filter.paymentMethod},fromDate=${filter.fromDate},toDate=${filter.toDate})}">Trang sau</a>
+    </nav>
+</section></body></html>

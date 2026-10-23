@@ -151,8 +151,8 @@ public class StockMutationServiceImpl implements StockMutationService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Order ID must not be null.");
         }
 
-        // Pessimistic lock on order document
-        Order order = orderRepository.findByIdWithLock(orderId)
+        // Refresh acquires the lock and latest posting markers together, including when the entity is cached.
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
         // The caller may have loaded this order before another transaction deducted its stock.

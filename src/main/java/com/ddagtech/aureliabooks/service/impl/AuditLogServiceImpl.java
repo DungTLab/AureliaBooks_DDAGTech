@@ -93,24 +93,32 @@ public class AuditLogServiceImpl implements AuditLogService {
     public void record(Long authenticatedUserId, String action, String targetTable,
                        Long targetId, String detailsJson, String ipAddress) {
         try {
-            AuditLog auditLog = new AuditLog();
-            if (authenticatedUserId != null) {
-                User actor = userRepository.findById(authenticatedUserId).orElse(null);
-                auditLog.setUser(actor);
-            }
-            auditLog.setAction(action);
-            auditLog.setTargetTable(targetTable);
-            auditLog.setTargetId(targetId);
-            auditLog.setDetailsJson(sanitizeDetailsJson(detailsJson));
-            auditLog.setIpAddress(ipAddress);
-
-            auditLogRepository.save(auditLog);
+            append(authenticatedUserId, action, targetTable, targetId, detailsJson, ipAddress);
             log.info("Audit log recorded: action={}, table={}, targetId={}, userId={}",
                     action, targetTable, targetId, authenticatedUserId);
         } catch (Exception ex) {
             log.error("Failed to persist audit log entry: action={}, table={}, targetId={}",
                     action, targetTable, targetId, ex);
         }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRED)
+    public void recordRequired(Long actorId, String action, String targetTable, Long targetId,
+                               String detailsJson, String ipAddress) {
+        append(actorId, action, targetTable, targetId, detailsJson, ipAddress);
+    }
+
+    private void append(Long actorId, String action, String targetTable, Long targetId,
+                        String detailsJson, String ipAddress) {
+        AuditLog entry = new AuditLog();
+        if (actorId != null) entry.setUser(userRepository.findById(actorId).orElse(null));
+        entry.setAction(action);
+        entry.setTargetTable(targetTable);
+        entry.setTargetId(targetId);
+        entry.setDetailsJson(sanitizeDetailsJson(detailsJson));
+        entry.setIpAddress(ipAddress);
+        auditLogRepository.save(entry);
     }
 
     /**

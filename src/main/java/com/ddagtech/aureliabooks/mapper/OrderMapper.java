@@ -12,10 +12,34 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.math.BigDecimal;
+import com.ddagtech.aureliabooks.dto.response.OrderHistoryView;
+import com.ddagtech.aureliabooks.dto.response.OrderTimelineStep;
+import java.util.ArrayList;
 
 /** Copy point-in-time values only; validation, status decisions, and transaction handling belong to the service. */
 @Component
 public class OrderMapper {
+
+    public OrderHistoryView toHistory(Order order) {
+        return new OrderHistoryView(order.getOrderCode(), order.getCreatedAt(),
+                order.getFinalTotalAmount(), order.getOrderStatus(), order.getPaymentStatus());
+    }
+
+    public List<OrderTimelineStep> toTimeline(Order order) {
+        var steps = new ArrayList<OrderTimelineStep>();
+        var status = order.getOrderStatus();
+        steps.add(new OrderTimelineStep("Đã đặt hàng", order.getCreatedAt(),
+                status == Order.OrderStatus.PENDING_PAYMENT || status == Order.OrderStatus.PENDING_CONFIRMATION));
+        if (status != Order.OrderStatus.CANCELLED || order.getConfirmedAt() != null)
+            steps.add(new OrderTimelineStep("Đã xác nhận", order.getConfirmedAt(), status == Order.OrderStatus.CONFIRMED));
+        if (status != Order.OrderStatus.CANCELLED || order.getShippedAt() != null)
+            steps.add(new OrderTimelineStep("Đang giao hàng", order.getShippedAt(), status == Order.OrderStatus.SHIPPING));
+        if (status != Order.OrderStatus.CANCELLED || order.getDeliveredAt() != null)
+            steps.add(new OrderTimelineStep("Giao thành công", order.getDeliveredAt(), status == Order.OrderStatus.DELIVERED));
+        if (status == Order.OrderStatus.CANCELLED)
+            steps.add(new OrderTimelineStep("Đã hủy", order.getCancelledAt(), true));
+        return List.copyOf(steps);
+    }
 
     /** Build the confirmation from stored name, price, and delivery snapshots rather than current catalog prices. */
     public OrderConfirmationView toConfirmation(Order order) {

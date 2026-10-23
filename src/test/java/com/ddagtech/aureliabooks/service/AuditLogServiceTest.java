@@ -39,6 +39,12 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuditLogServiceTest {
 
+    @Test void requiredAuditPropagatesPersistenceFailure() {
+        when(auditLogRepository.save(any(AuditLog.class))).thenThrow(new IllegalStateException("ledger unavailable"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> auditLogService.recordRequired(null,
+                "ORDER_REFUND_CONFIRMED", "orders", 1L, "{}", null)).isInstanceOf(IllegalStateException.class);
+    }
+
     @Mock
     private AuditLogRepository auditLogRepository;
 
