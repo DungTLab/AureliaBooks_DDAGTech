@@ -22,6 +22,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
@@ -40,39 +42,50 @@ public class MasterDataServiceImpl implements MasterDataService {
     private final BrandRepository brandRepository;
     private final CategoryRepository categoryRepository;
     private final MasterDataMapper masterDataMapper;
+    private final TransactionTemplate transactionTemplate;
 
     // =========================================================================
     // UC17: AUTHORS
     // =========================================================================
 
     @Override
-    @Transactional
     public synchronized Long createAuthor(AuthorForm form) {
-        String trimmedName = form.name() != null ? form.name().trim() : "";
-        if (authorRepository.existsByNameIgnoreCase(trimmedName)) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tác giả với tên '" + trimmedName + "' đã tồn tại trong hệ thống.");
-        }
+        return executeInTransaction(status -> {
+            String trimmedName = form.name() != null ? form.name().trim() : "";
+            if (authorRepository.existsByNameIgnoreCase(trimmedName)) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tác giả với tên '" + trimmedName + "' đã tồn tại trong hệ thống.");
+            }
 
-        Author author = masterDataMapper.toAuthorEntity(form);
-        Author saved = authorRepository.saveAndFlush(author);
-        log.info("Created new author [id={}, name='{}']", saved.getId(), saved.getName());
-        return saved.getId();
+            Author author = masterDataMapper.toAuthorEntity(form);
+            Author saved = authorRepository.saveAndFlush(author);
+            log.info("Created new author [id={}, name='{}']", saved.getId(), saved.getName());
+            return saved.getId();
+        });
     }
 
     @Override
-    @Transactional
     public synchronized void updateAuthor(Long authorId, AuthorForm form) {
-        Author author = authorRepository.findById(authorId)
-                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy tác giả với ID: " + authorId));
+        executeInTransaction(status -> {
+            Author author = authorRepository.findById(authorId)
+                    .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy tác giả với ID: " + authorId));
 
-        String trimmedName = form.name() != null ? form.name().trim() : "";
-        if (authorRepository.existsByNameIgnoreCaseAndIdNot(trimmedName, authorId)) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tác giả với tên '" + trimmedName + "' đã tồn tại trong hệ thống.");
+            String trimmedName = form.name() != null ? form.name().trim() : "";
+            if (authorRepository.existsByNameIgnoreCaseAndIdNot(trimmedName, authorId)) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tác giả với tên '" + trimmedName + "' đã tồn tại trong hệ thống.");
+            }
+
+            masterDataMapper.updateAuthorEntity(author, form);
+            authorRepository.saveAndFlush(author);
+            log.info("Updated author [id={}, name='{}']", authorId, trimmedName);
+            return null;
+        });
+    }
+
+    private <T> T executeInTransaction(TransactionCallback<T> action) {
+        if (transactionTemplate != null) {
+            return transactionTemplate.execute(action);
         }
-
-        masterDataMapper.updateAuthorEntity(author, form);
-        authorRepository.saveAndFlush(author);
-        log.info("Updated author [id={}, name='{}']", authorId, trimmedName);
+        return action.doInTransaction(null);
     }
 
     @Override
