@@ -216,7 +216,7 @@ public class ProductMapper {
         target.setCategory(category);
         target.setPrice(form.price());
         target.setOriginalCost(form.originalCost());
-        target.setWeightGrams(form.weightGrams());
+        target.setWeightGrams(form.weightGrams() != null ? form.weightGrams() : (target.getWeightGrams() != null ? target.getWeightGrams() : 200));
         target.setMainImageUrl(form.mainImageUrl());
         target.setTags(form.tags());
         target.setDescription(form.description());
@@ -259,7 +259,7 @@ public class ProductMapper {
         target.setCategory(category);
         target.setPrice(form.price());
         target.setOriginalCost(form.originalCost());
-        target.setWeightGrams(form.weightGrams());
+        target.setWeightGrams(form.weightGrams() != null ? form.weightGrams() : (target.getWeightGrams() != null ? target.getWeightGrams() : 200));
         target.setMainImageUrl(form.mainImageUrl());
         target.setTags(form.tags());
         target.setDescription(form.description());

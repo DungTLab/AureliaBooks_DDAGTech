@@ -14,6 +14,7 @@ public record BookForm(
 
         @NotBlank(message = "Mã vạch không được để trống.")
         @Size(max = 50, message = "Mã vạch không vượt quá 50 ký tự.")
+        @Pattern(regexp = "^\\s*[0-9]{8,14}\\s*$", message = "Mã vạch phải là chuỗi số từ 8 đến 14 chữ số (chuẩn EAN/UPC).")
         String barcode,
 
         @NotBlank(message = "Tựa sách không được để trống.")
@@ -44,6 +45,7 @@ public record BookForm(
 
         @NotBlank(message = "Mã ISBN không được để trống.")
         @Size(max = 20, message = "Mã ISBN không vượt quá 20 ký tự.")
+        @Pattern(regexp = "^\\s*(?=(?:(?:[^\\dX]*\\d){9}[^\\dX]*[0-9Xx]|(?:[^\\dX]*\\d){13})$)[0-9Xx-]+\\s*$", message = "Mã ISBN phải đúng định dạng chuẩn ISBN-10 hoặc ISBN-13.")
         String isbn,
 
         @NotNull(message = "Vui lòng chọn nhà xuất bản.")
@@ -73,5 +75,11 @@ public record BookForm(
         String language,
 
         Book.CoverType coverType) {
+
+    public BookForm {
+        if (barcode != null) barcode = barcode.strip();
+        if (title != null) title = title.strip();
+        if (isbn != null) isbn = isbn.strip();
+    }
 }
 

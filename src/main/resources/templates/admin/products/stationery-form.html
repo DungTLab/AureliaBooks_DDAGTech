@@ -108,7 +108,7 @@
                     <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Giá Bán Niêm Yết (VNĐ) <span class="text-blazing_flame">*</span>
                     </label>
-                    <input type="number" step="1000" th:field="*{price}" required min="0"
+                    <input type="number" step="1" th:field="*{price}" required min="0"
                            placeholder="Ví dụ: 15000"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                            th:classappend="${#fields.hasErrors('price')} ? 'border-rose-500' : 'border-dust_grey'">
@@ -120,7 +120,7 @@
                     <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Giá Vốn Gốc (VNĐ) <span class="text-blazing_flame">*</span>
                     </label>
-                    <input type="number" step="1000" th:field="*{originalCost}" required min="0"
+                    <input type="number" step="1" th:field="*{originalCost}" required min="0"
                            placeholder="Ví dụ: 9000"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                            th:classappend="${#fields.hasErrors('originalCost')} ? 'border-rose-500' : 'border-dust_grey'">
