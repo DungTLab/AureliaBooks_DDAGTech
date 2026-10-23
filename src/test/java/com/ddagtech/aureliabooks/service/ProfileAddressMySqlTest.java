@@ -23,7 +23,22 @@ class ProfileAddressMySqlTest {
     @Autowired org.springframework.transaction.PlatformTransactionManager transactions;
     Long owner; Long other;
     AddressRequest request(boolean def) { return new AddressRequest("Nguyễn An","0912345678",
-            ShippingAddress.EconomicRegion.NORTHERN,"Hà Nội","Ba Đình","Đội Cấn","12 Đội Cấn",def); }
+            "01","Phường Ngọc Hà","12 Đội Cấn",def); }
+
+    @Test void twoTierAddressPersistsDerivedZoneAndConvertsLegacyDistrictOnlyOnEdit() {
+        Long id = addresses.create(owner, request(true));
+        assertNull(jdbc.queryForObject("SELECT district FROM shipping_addresses WHERE id=?", String.class, id));
+        assertEquals("Thành phố Hà Nội", jdbc.queryForObject("SELECT province FROM shipping_addresses WHERE id=?", String.class, id));
+        assertEquals("NORTHERN", jdbc.queryForObject("SELECT economic_region FROM shipping_addresses WHERE id=?", String.class, id));
+        jdbc.update("UPDATE shipping_addresses SET district='Ba Đình' WHERE id=?", id);
+        assertEquals("Ba Đình", addresses.list(owner).getFirst().district());
+        addresses.update(owner, id, new AddressRequest("Nguyễn An", "0912345678", "79",
+                "Phường Sài Gòn", "12 Đường Hoa", true));
+        assertNull(jdbc.queryForObject("SELECT district FROM shipping_addresses WHERE id=?", String.class, id));
+        assertEquals("SOUTHERN_MEKONG", jdbc.queryForObject("SELECT economic_region FROM shipping_addresses WHERE id=?", String.class, id));
+        assertEquals("Thành phố Hồ Chí Minh", addresses.list(owner).getFirst().province());
+        assertTrue(addresses.list(owner).getFirst().isDefault());
+    }
     @BeforeEach void setup() {
         String database=jdbc.queryForObject("SELECT DATABASE()",String.class);
         assertNotNull(database,"A disposable QA database must be selected");

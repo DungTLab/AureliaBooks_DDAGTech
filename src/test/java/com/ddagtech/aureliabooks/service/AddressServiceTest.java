@@ -13,7 +13,7 @@ class AddressServiceTest {
     jakarta.validation.ValidatorFactory validatorFactory;
     ShippingAddressRepository addresses; UserRepository users; AddressOrderGuard orders;
     AddressServiceImpl service; List<ShippingAddress> all;
-    AddressRequest request=new AddressRequest("Nguyễn An","0912345678",ShippingAddress.EconomicRegion.NORTHERN,"Hà Nội","Ba Đình","Đội Cấn","12 Đội Cấn",false);
+    AddressRequest request=new AddressRequest("Nguyễn An","0912345678","01","Phường Ngọc Hà","12 Đội Cấn",false);
     @BeforeEach void setup() {
         addresses=mock(ShippingAddressRepository.class); users=mock(UserRepository.class); orders=mock(AddressOrderGuard.class);
         var role=new Role();role.setRoleName("ROLE_CUSTOMER");
@@ -53,5 +53,47 @@ class AddressServiceTest {
     @Test void firstAddressIsDefaultEvenIfCheckboxNotSelected() {
         when(addresses.saveAllAndFlush(any())).thenAnswer(i->{List<ShippingAddress> values=i.getArgument(0);var a=values.get(0);a.setId(1L);assertTrue(a.getIsDefault());return values;});
         assertEquals(1L,service.create(1L,request));
+    }
+
+    @Test void createDerivesLocationFromProvinceCodeAndLeavesDistrictEmpty() {
+        when(addresses.saveAllAndFlush(any())).thenAnswer(invocation -> {
+            List<ShippingAddress> saved = invocation.getArgument(0);
+            ShippingAddress address = saved.getFirst();
+            assertEquals("Thành phố Hà Nội", address.getProvince());
+            assertEquals(ShippingAddress.EconomicRegion.NORTHERN, address.getEconomicRegion());
+            assertNull(address.getDistrict());
+            address.setId(1L);
+            return saved;
+        });
+        service.create(1L, request);
+    }
+
+    @Test void changingProvinceRecomputesZoneAndConvertsLegacyAddress() {
+        ShippingAddress address = address(1L, true);
+        address.setProvince("Hà Nội");
+        address.setDistrict("Ba Đình");
+        address.setEconomicRegion(ShippingAddress.EconomicRegion.NORTHERN);
+        service.update(1L, 1L, new AddressRequest("Nguyễn An", "0912345678", "68",
+                "Phường Xuân Hương - Đà Lạt", "12 Đường Hoa", true));
+        assertEquals("Tỉnh Lâm Đồng", address.getProvince());
+        assertEquals(ShippingAddress.EconomicRegion.CENTRAL_HIGHLANDS, address.getEconomicRegion());
+        assertNull(address.getDistrict());
+    }
+
+    @Test void rejectsUnknownOldAndMalformedProvinceCodesBeforeWriting() {
+        for (String code : List.of("99", "74", "Hà Nội", "1", "01 OR 1=1")) {
+            AddressRequest invalid = new AddressRequest("Nguyễn An", "0912345678", code,
+                    "Phường Ngọc Hà", "12 Đội Cấn", false);
+            assertThrows(AppException.class, () -> service.create(1L, invalid));
+        }
+        verifyNoInteractions(users, addresses, orders);
+    }
+
+    @Test void rejectsBlankOverlongAndControlCharacterWard() {
+        for (String ward : List.of("  ", "a".repeat(101), "Ngọc Hà\nPhường")) {
+            AddressRequest invalid = new AddressRequest("Nguyễn An", "0912345678", "01", ward, "12 Đội Cấn", false);
+            assertThrows(AppException.class, () -> service.create(1L, invalid));
+        }
+        verify(addresses, never()).saveAllAndFlush(any());
     }
 }

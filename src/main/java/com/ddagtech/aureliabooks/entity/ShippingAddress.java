@@ -28,7 +28,8 @@ public class ShippingAddress {
     private EconomicRegion economicRegion;
     @Column(name = "province", length = 100, nullable = false)
     private String province;
-    @Column(name = "district", length = 100, nullable = false)
+    // Read legacy addresses; new two-tier addresses do not have a district.
+    @Column(name = "district", length = 100)
     private String district;
     @Column(name = "ward", length = 100, nullable = false)
     private String ward;

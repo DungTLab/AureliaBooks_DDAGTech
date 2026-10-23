@@ -52,6 +52,9 @@ class DemoSmsOtpDeliveryTest {
         verify(mail).send(capture.capture());
         assertThat(capture.getValue().getTo()).containsExactly("customer@example.test");
         assertThat(capture.getValue().getSubject()).doesNotContain("SMS DEMO");
+        assertThat(capture.getValue().getText()).contains("Mã xác thực: 246810", "5 phút", "chỉ sử dụng một lần",
+                "Nếu bạn không thực hiện yêu cầu này", "Đội ngũ AureliaBook")
+                .doesNotContain("http", "******", "SMS MÔ PHỎNG");
     }
 
     @Test

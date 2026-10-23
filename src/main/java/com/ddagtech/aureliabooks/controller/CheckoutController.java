@@ -11,6 +11,7 @@ import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.AddressService;
+import com.ddagtech.aureliabooks.util.DeliveryProvinceCatalog;
 import com.ddagtech.aureliabooks.service.CheckoutPaymentGateway;
 import com.ddagtech.aureliabooks.service.OrderPlacementService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,8 +52,7 @@ public class CheckoutController {
         CheckoutView checkout = orders.getCheckoutView(owner, shippingAddressId);
         addCheckout(model, checkout, paymentMethod);
         if (!model.containsAttribute("addressForm")) {
-            model.addAttribute("addressForm", new AddressRequest(null, null, null,
-                    null, null, null, null, false));
+            model.addAttribute("addressForm", new AddressRequest(null, null, null, null, null, false));
         }
         return "checkout/view";
     }
@@ -145,6 +145,9 @@ public class CheckoutController {
     public String addAddress(Authentication auth, @Valid @ModelAttribute("addressForm") AddressRequest form,
                              BindingResult errors, Model model, RedirectAttributes flash) {
         Long owner = identity.resolve(auth);
+        if (!errors.hasFieldErrors("provinceCode") && DeliveryProvinceCatalog.findByCode(form.provinceCode()).isEmpty()) {
+            errors.rejectValue("provinceCode", "invalidProvince", "Vui lòng chọn tỉnh/thành phố trong danh sách hiện hành.");
+        }
         if (errors.hasErrors()) {
             addCheckout(model, orders.getCheckoutView(owner, null), Order.PaymentMethod.COD);
             model.addAttribute("addressFormOpen", true);
@@ -157,6 +160,7 @@ public class CheckoutController {
 
     /** Share display attributes between the checkout page and address forms returned with validation errors. */
     private void addCheckout(Model model, CheckoutView view, Order.PaymentMethod method) {
+        model.addAttribute("provinces", DeliveryProvinceCatalog.all());
         model.addAttribute("checkout", view);
         model.addAttribute("selectedPaymentMethod", method);
         model.addAttribute("onlinePaymentAvailable", paymentAvailable());

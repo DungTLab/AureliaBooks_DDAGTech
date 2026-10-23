@@ -5,7 +5,7 @@
     <title>Liên kết Google</title>
 </head>
 <body>
-<section id="main-content" class="max-w-lg mx-auto px-4 py-10">
+<section data-otp-timer th:attr="data-expires-seconds=${link.expiresIn},data-resend-seconds=${link.resendIn}" id="main-content" class="max-w-lg mx-auto px-4 py-10">
     <div class="bg-white border border-dust_grey rounded-2xl p-6 space-y-5">
         <h1 class="font-serif text-2xl font-bold">Xác minh để liên kết Google</h1>
         <p>Email Google này đã thuộc một tài khoản. Xác minh qua kênh đã đăng ký để tiếp tục sử dụng tài khoản đó.</p>
@@ -23,17 +23,17 @@
             <p th:if="${link.channels.size() == 1}">
                 Mã sẽ được gửi qua <strong th:text="${link.channels[0] == 'EMAIL' ? 'email đã xác minh' : 'số điện thoại đã xác minh'}"></strong>.
             </p>
-            <button type="submit" th:disabled="${link.resendIn > 0}"
+            <button data-otp-resend type="submit" th:disabled="${link.resendIn > 0}"
                     th:text="${link.sent ? 'Gửi lại mã' : 'Gửi mã xác thực'}"
                     class="border border-dust_grey rounded-xl px-4 py-3 disabled:opacity-50">Gửi mã xác thực</button>
-            <p th:if="${link.resendIn > 0}" class="text-sm text-carbon_black-500">
-                Có thể gửi lại sau <span th:text="${link.resendIn}"></span> giây; tải lại trang để cập nhật.
+            <p data-otp-cooldown class="text-sm text-carbon_black-500">
+                Có thể gửi lại sau <span data-otp-resend-seconds th:text="${link.resendIn}"></span> giây.
             </p>
         </form>
         <div th:if="${link.sent}" class="border-t border-dust_grey pt-5 space-y-3">
             <p>Mã gồm 6 chữ số đã gửi tới <strong th:text="${link.recipient}"></strong>.
-                Mã có hiệu lực tối đa 5 phút; bạn có tối đa 5 lần nhập sai.</p>
-            <form th:action="@{/auth/google-link/verify}" method="post" class="space-y-3">
+                Mã còn hiệu lực <span data-otp-expiry th:text="${link.expiresIn}"></span> giây; bạn có tối đa 5 lần nhập sai.</p>
+            <form data-valid-form data-otp-code-form th:action="@{/auth/google-link/verify}" method="post" class="space-y-3">
                 <label for="googleLinkCode" class="block font-semibold">Mã xác thực</label>
                 <input id="googleLinkCode" name="code" inputmode="numeric" autocomplete="one-time-code"
                        pattern="[0-9]{6}" maxlength="6" required
@@ -46,6 +46,6 @@
         <p class="text-sm text-carbon_black-500">Yêu cầu liên kết có hiệu lực tối đa 10 phút. Chưa xác minh thì chưa thể đăng nhập bằng Google.</p>
         <a th:href="@{/auth/login}" class="inline-block underline text-sm">Đăng nhập bằng phương thức hiện có</a>
     </div>
-</section>
+<script th:src="@{/js/profile-forms.js}" defer></script></section>
 </body>
 </html>

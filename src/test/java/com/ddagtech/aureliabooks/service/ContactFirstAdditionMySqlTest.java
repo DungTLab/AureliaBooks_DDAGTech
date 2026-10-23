@@ -30,6 +30,7 @@ class ContactFirstAdditionMySqlTest {
     @Autowired UserRepository users;
     @Autowired PasswordEncoder passwords;
     @Autowired SessionRegistry sessions;
+    @Autowired GoogleSignInService googleSignIn;
     @MockitoBean ContactOtpDelivery delivery;
     String code;
 
@@ -48,24 +49,53 @@ class ContactFirstAdditionMySqlTest {
         var principal = new CustomUserDetails(owner);
         var session = new MockHttpSession();
         sessions.registerNewSession(session.getId(), principal);
+        mvc.perform(post("/profile/contact-change/reauth").session(session).with(user(principal)).with(csrf())
+                        .param("type", "EMAIL").param("password", "QaPassword1!"))
+                .andExpect(redirectedUrl("/profile/contact-change?type=EMAIL"));
         mvc.perform(post("/profile/contact-change/start").session(session).with(user(principal)).with(csrf())
                         .param("type", "EMAIL").param("value", target).param("password", "QaPassword1!"))
                 .andExpect(redirectedUrl("/profile/contact-change/verification"));
         assertNotNull(code);
         var verification = mvc.perform(post("/profile/contact-change/verify").session(session).with(csrf()).param("code", code));
-        if (existingEmail) {
-            verification.andExpect(redirectedUrl("/auth/login")).andExpect(unauthenticated());
-            assertTrue(session.isInvalid());
-        } else {
-            verification.andExpect(redirectedUrl("/profile")).andExpect(authenticated().withUsername(phone));
-            assertFalse(session.isInvalid());
-            assertFalse(sessions.getSessionInformation(session.getId()).isExpired());
-            mvc.perform(get("/profile").session(session)).andExpect(status().isOk()).andExpect(authenticated());
-        }
+        verification.andExpect(redirectedUrl("/profile")).andExpect(authenticated());
+        assertFalse(session.isInvalid());
+        assertFalse(sessions.getSessionInformation(session.getId()).isExpired());
+        mvc.perform(get("/profile").session(session)).andExpect(status().isOk()).andExpect(authenticated());
         assertEquals(target, jdbc.queryForObject("SELECT email FROM users WHERE id=?", String.class, owner.getId()));
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE action='PROFILE_EMAIL_CHANGED' AND target_id=?", Integer.class, owner.getId()));
     }
 
     @Test void firstEmailAdditionPreservesAuthenticatedProfileAccess() throws Exception { verifyEmail(false); }
-    @Test void replacingExistingEmailStillRequiresLogin() throws Exception { verifyEmail(true); }
+    @Test void replacingExistingEmailKeepsCurrentSession() throws Exception { verifyEmail(true); }
+
+    @Test void googleOnlyEmailChangeKeepsSessionDetachesOldSubjectAndLinksNewGoogleToSameAccount() throws Exception {
+        String marker=UUID.randomUUID().toString().replace("-", "");
+        String oldEmail="old-"+marker+"@gmail.com", newEmail="new-"+marker+"@gmail.com", oldSub="old-"+marker;
+        jdbc.update("INSERT INTO users(email,email_verified,full_name,auth_provider,provider_id,role_id) VALUES(?,TRUE,'Google Contact QA','GOOGLE',?,(SELECT id FROM roles WHERE role_name='ROLE_CUSTOMER'))",oldEmail,oldSub);
+        Long owner=jdbc.queryForObject("SELECT id FROM users WHERE email=?",Long.class,oldEmail);
+        var token=new org.springframework.security.oauth2.core.oidc.OidcIdToken("qa-token",java.time.Instant.now(),java.time.Instant.now().plusSeconds(600),java.util.Map.of("sub",oldSub,"email",oldEmail,"email_verified",true));
+        var roles=java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CUSTOMER"));
+        var google=new org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser(roles,token);
+        var authentication=new org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken(google,roles,"google");
+        var context=org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();context.setAuthentication(authentication);
+        var session=new MockHttpSession();session.setAttribute("SPRING_SECURITY_CONTEXT",context);sessions.registerNewSession(session.getId(),google);
+        mvc.perform(post("/profile/contact-change/reauth").session(session).with(csrf()).param("type","EMAIL").param("method","EMAIL"))
+                .andExpect(redirectedUrl("/profile/contact-change/verification"));
+        mvc.perform(post("/profile/contact-change/verify").session(session).with(csrf()).param("code",code))
+                .andExpect(redirectedUrl("/profile/contact-change?type=EMAIL"));
+        mvc.perform(post("/profile/contact-change/start").session(session).with(csrf()).param("type","EMAIL").param("value",newEmail))
+                .andExpect(redirectedUrl("/profile/contact-change/verification"));
+        mvc.perform(post("/profile/contact-change/verify").session(session).with(csrf()).param("code",code))
+                .andExpect(redirectedUrl("/profile")).andExpect(authenticated());
+        mvc.perform(get("/profile").session(session)).andExpect(status().isOk()).andExpect(authenticated());
+        assertFalse(session.isInvalid());
+        assertFalse(sessions.getSessionInformation(session.getId()).isExpired());
+        assertNull(jdbc.queryForObject("SELECT provider_id FROM users WHERE id=?",String.class,owner));
+        assertNull(jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?",String.class,owner));
+        assertTrue(users.findByGoogleIdentity(com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE,oldSub).isEmpty());
+        var outcome=googleSignIn.resolve(new GoogleSignInService.Identity("new-"+marker,newEmail,true,null,"New Google",null),"new-login-session","127.0.0.1");
+        assertEquals(owner,outcome.user().getId());assertTrue(outcome.newlyLinked());
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email=?",Integer.class,newEmail));
+        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE user_id=? AND action='GOOGLE_UNLINKED'",Integer.class,owner));
+    }
 }

@@ -1,3 +1,14 @@
+-- Demo login credentials (email = username; new local/demo databases only):
+-- ADMIN:      aureliabook.team@gmail.com | DDAGTechAdmin391@
+-- MANAGER:    manager@aureliabook.vn     | Manager@123
+-- SALE_STAFF: staff@aureliabook.vn       | Staff@123
+-- CUSTOMER:   customer@aureliabook.vn    | Customer@123
+-- MANAGER:    kho.nguyen@aureliabook.vn  | Manager@123
+-- SALE_STAFF: lan.tran@aureliabook.vn    | Staff@123
+-- CUSTOMER:   anhntdce200031@gmail.com   | Customer@123
+-- Existing accounts keep their current password; re-running does not reset it.
+-- These are public test credentials. Production does not load this demo seed.
+--
 -- LOCAL / DEMO ONLY. Mounted automatically by docker-compose.override.yml.
 -- Re-running preserves passwords, roles, profile data and inactive status.
 -- Conflicting contacts abort the entire seed; no existing account is promoted.

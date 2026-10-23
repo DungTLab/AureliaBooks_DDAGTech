@@ -17,7 +17,9 @@ public class GoogleProfileController {
     private final ObjectProvider<ClientRegistrationRepository> clients;
 
     @PostMapping("/profile/google/reauth")
-    public String reauth(Authentication auth, HttpServletRequest request, RedirectAttributes flash) {
+    public String reauth(Authentication auth, HttpServletRequest request, RedirectAttributes flash,
+            @RequestParam(defaultValue = "EMAIL") String type) {
+        request.getSession().setAttribute("GOOGLE_REAUTH_TYPE", "PHONE".equals(type) ? "PHONE" : "EMAIL");
         return begin(request, identity.resolve(auth), "REAUTH", flash);
     }
 

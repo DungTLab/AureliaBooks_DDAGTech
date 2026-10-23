@@ -64,7 +64,9 @@ public class OrderMapper {
 
     /** Flatten the existing address fields into a snapshot that preserves the order's delivery details. */
     public String fullAddress(ShippingAddress address) {
-        return String.join(", ", address.getDetailedAddress(), address.getWard(),
-                address.getDistrict(), address.getProvince());
+        return java.util.stream.Stream.of(address.getDetailedAddress(), address.getWard(),
+                address.getDistrict(), address.getProvince())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(", "));
     }
 }

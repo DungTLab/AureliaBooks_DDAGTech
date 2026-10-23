@@ -46,8 +46,8 @@ public class ContactOtpDeliveryImpl implements ContactOtpDelivery {
             var message = new SimpleMailMessage();
             message.setFrom(from);
             message.setTo(recipient);
-            message.setSubject("AureliaBook — Xác thực tài khoản");
-            message.setText(body);
+            message.setSubject(OtpMailContent.SUBJECT);
+            message.setText(OtpMailContent.body(code));
             sender.send(message);
         } else {
             if (sid.isBlank() || token.isBlank() || smsFrom.isBlank())

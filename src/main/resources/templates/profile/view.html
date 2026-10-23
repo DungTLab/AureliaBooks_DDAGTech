@@ -104,7 +104,7 @@
                                 </div>
                             </div>
                             <div class="mt-7 pt-5 border-t border-dust_grey/60 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-                                <p class="text-xs text-carbon_black-500">Đổi email/SĐT cần xác thực lại và OTP tới thông tin mới. Ngày sinh chỉ khóa sau khi đã lưu.</p>
+                                <p class="text-xs text-carbon_black-500">Đổi email/SĐT cần xác thực lại và OTP tới thông tin mới.</p>
                                 <button data-profile-save class="shrink-0 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blazing_flame" type="submit">Lưu thay đổi</button>
                             </div>
                         </form>
@@ -119,7 +119,7 @@
                                 <path d="m6 9 6 6 6-6"/>
                             </svg>
                         </summary>
-                        <form th:action="@{/profile/password}" method="post" class="px-6 sm:px-8 pb-6 sm:pb-8 border-t border-dust_grey/60">
+                        <form data-valid-form data-password-change th:action="@{/profile/password}" method="post" class="px-6 sm:px-8 pb-6 sm:pb-8 border-t border-dust_grey/60">
                             <p class="text-sm text-carbon_black-500 mt-5 mb-5">Từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Sau khi đổi mật khẩu, bạn cần đăng nhập lại. <a th:href="@{/auth/forgot-password}" class="text-blazing_flame underline">Quên mật khẩu?</a>
                             </p>
                             <div class="space-y-4">
@@ -156,7 +156,8 @@
                                     </div>
                                 </div>
                             </div>
-                            <button type="submit" class="mt-6 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">Đổi mật khẩu</button>
+                            <p data-form-feedback aria-live="polite" class="text-sm text-carbon_black-500 mt-4">Hoàn tất các trường bắt buộc để đổi mật khẩu.</p>
+                            <button type="submit" disabled class="disabled:opacity-40 disabled:cursor-not-allowed mt-6 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">Đổi mật khẩu</button>
                         </form>
                     </details>
                     <div th:unless="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey p-6 sm:p-8">
@@ -168,6 +169,7 @@
             <script th:src="@{/js/profile-avatar.js}" defer>
             </script>
             <script th:src="@{/js/profile-info.js}" defer></script>
+            <script th:src="@{/js/profile-forms.js}" defer></script>
         </section>
     </body>
 </html>

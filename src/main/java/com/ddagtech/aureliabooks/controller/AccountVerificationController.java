@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.controller;
 import com.ddagtech.aureliabooks.service.AccountOtpService;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
 import jakarta.servlet.http.*;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,14 +23,27 @@ public class AccountVerificationController {
     }
 
     @PostMapping("/auth/forgot-password/lookup")
-    public String lookup(@RequestParam String identifier, HttpServletRequest request, Model model, RedirectAttributes flash) {
+    public String lookup(@RequestParam String identifier, @RequestParam(required = false) String channel,
+                         HttpServletRequest request, Model model, RedirectAttributes flash) {
         identifier = identifier.strip();
         var session = request.getSession();
         session.removeAttribute("RECOVERY_IDENTIFIER");
         session.removeAttribute("ACCOUNT_OTP_FLOW");
         model.addAttribute("identifier", identifier);
+        model.addAttribute("selectedChannel", "SMS".equals(channel) ? "SMS" : "EMAIL");
         try {
+            if (channel != null && (!List.of("EMAIL", "SMS").contains(channel)
+                    || ("SMS".equals(channel) && !identifier.matches("0[0-9]{9}"))
+                    || ("EMAIL".equals(channel) && !identifier.contains("@")))) {
+                throw new IllegalArgumentException("Vui lòng nhập thông tin phù hợp với phương thức nhận mã đã chọn.");
+            }
             var channels = otp.recoveryChannels(identifier);
+            if (channel != null) {
+                if (!channels.contains(channel)) {
+                    throw new IllegalArgumentException("Thông tin này chưa được xác minh để nhận mã khôi phục.");
+                }
+                return startRecovery(identifier, channel, request, flash);
+            }
             session.setAttribute("RECOVERY_IDENTIFIER", identifier);
             if (channels.size() == 1) return startRecovery(identifier, channels.getFirst(), request, flash);
             model.addAttribute("channels", channels);
@@ -60,6 +74,7 @@ public class AccountVerificationController {
             return "redirect:/auth/verification";
         } catch (RuntimeException ex) {
             flash.addFlashAttribute("identifier", identifier);
+            flash.addFlashAttribute("selectedChannel", channel);
             flash.addFlashAttribute("recoveryError", ex instanceof IllegalArgumentException ? ex.getMessage() : "Không thể gửi mã xác thực lúc này. Vui lòng thử lại.");
             return "redirect:/auth/forgot-password";
         }

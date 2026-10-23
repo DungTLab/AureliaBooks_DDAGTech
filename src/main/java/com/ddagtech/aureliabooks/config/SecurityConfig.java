@@ -234,6 +234,15 @@ public class SecurityConfig {
                                     && "registration_failed".equals(failure.getError().getErrorCode())) {
                                 message = failure.getMessage();
                             }
+                            if (com.ddagtech.aureliabooks.security.GoogleAccountAction.restoreAfterFailure(request, response)) {
+                                FlashMap reauthFlash = new FlashMap();
+                                reauthFlash.put("contactMessage", message);
+                                String target = com.ddagtech.aureliabooks.security.GoogleAccountAction.returnPath(request.getSession());
+                                reauthFlash.setTargetRequestPath(request.getContextPath() + "/profile/contact-change");
+                                new SessionFlashMapManager().saveOutputFlashMap(reauthFlash, request, response);
+                                response.sendRedirect(request.getContextPath() + target);
+                                return;
+                            }
                             // OAuth filters execute before DispatcherServlet creates its output flash map.
                             FlashMap flash = new FlashMap();
                             flash.put("errorMessage", message);

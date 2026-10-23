@@ -5,6 +5,7 @@ import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.*;
+import com.ddagtech.aureliabooks.util.DeliveryProvinceCatalog;
 import jakarta.servlet.http.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -93,13 +94,14 @@ public class ProfileController {
     public String addresses(Authentication auth, @RequestParam(required = false) Long edit, Model model) {
         var list = addresses.list(identity.resolve(auth));
         model.addAttribute("addresses", list);
+        model.addAttribute("provinces", DeliveryProvinceCatalog.all());
         if (!model.containsAttribute("addressForm")) {
             var selected = list.stream().filter(a -> a.id().equals(edit)).findFirst();
             if (edit != null && selected.isEmpty())
                 throw new AppException(com.ddagtech.aureliabooks.constant.ErrorCode.ADDRESS_NOT_FOUND);
             model.addAttribute("addressForm", selected.map(a -> new AddressRequest(a.recipientName(), a.phone(),
-                            a.economicRegion(), a.province(), a.district(), a.ward(), a.detailedAddress(), a.isDefault()))
-                    .orElse(new AddressRequest(null, null, null, null, null, null, null, false)));
+                            DeliveryProvinceCatalog.codeForStoredName(a.province()), a.ward(), a.detailedAddress(), a.isDefault()))
+                    .orElse(new AddressRequest(null, null, null, null, null, false)));
         }
         model.addAttribute("editId", edit);
         return "profile/addresses";
@@ -109,6 +111,9 @@ public class ProfileController {
     public String saveAddress(Authentication auth, @RequestParam(required = false) Long addressId,
                               @Valid @ModelAttribute("addressForm") AddressRequest form, BindingResult errors, RedirectAttributes flash) {
         Long owner = identity.resolve(auth);
+        if (!errors.hasFieldErrors("provinceCode") && DeliveryProvinceCatalog.findByCode(form.provinceCode()).isEmpty()) {
+            errors.rejectValue("provinceCode", "invalidProvince", "Vui lòng chọn tỉnh/thành phố trong danh sách hiện hành.");
+        }
         if (errors.hasErrors()) {
             feedback(errors, flash);
             flash.addFlashAttribute("addressForm", form);

@@ -241,10 +241,14 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     /** Reuse UC09 address constraints, including the delivery phone; account phone verification is not required. */
     private void validateShippingAddress(ShippingAddress address) {
         AddressRequest delivery = new AddressRequest(address.getRecipientName(), address.getPhone(),
-                address.getEconomicRegion(), address.getProvince(), address.getDistrict(),
-                address.getWard(), address.getDetailedAddress(), address.getIsDefault());
-        var violations = validator.validate(delivery);
-        if (!violations.isEmpty() || orderMapper.fullAddress(address).length() > 500) {
+                null, address.getWard(), address.getDetailedAddress(), address.getIsDefault());
+        // New address input requires the current province catalogue. Existing stored addresses
+        // may have legacy province names; preserve them instead of silently relocating an order.
+        boolean invalidFields = validator.validate(delivery).stream()
+                .anyMatch(violation -> !"provinceCode".equals(violation.getPropertyPath().toString()));
+        if (invalidFields || address.getProvince() == null || address.getProvince().isBlank()
+                || address.getProvince().length() > 100 || address.getEconomicRegion() == null
+                || orderMapper.fullAddress(address).length() > 500) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA,
                     "Thông tin giao hàng không hợp lệ hoặc địa chỉ vượt quá 500 ký tự.");
         }

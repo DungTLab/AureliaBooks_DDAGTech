@@ -71,4 +71,22 @@ class ContactChangeSessionTest {
         commit();
         assertTrue(sessions.getSessionInformation("current").isExpired());
     }
+
+    @Test void verifyingExistingContactPreservesBothSessions() {
+        writer.apply(7L, owner.getEmail(), owner.getPhone(), "EMAIL", owner.getEmail(), "ip");
+        commit();
+        assertTrue(owner.isEmailVerified());
+        assertFalse(sessions.getSessionInformation("current").isExpired());
+        assertFalse(sessions.getSessionInformation("other-device").isExpired());
+    }
+
+    @Test void replacementKeepsCurrentSessionButExpiresOtherDevicesAndUnlinksGoogle() {
+        owner.setProviderId("old-google");
+        writer.apply(7L,owner.getEmail(),owner.getPhone(),"EMAIL","new@example.com","ip","current");
+        commit();
+        assertFalse(sessions.getSessionInformation("current").isExpired());
+        assertTrue(sessions.getSessionInformation("other-device").isExpired());
+        assertNull(owner.getProviderId());
+        verify(audit).record(7L,"GOOGLE_UNLINKED","users",7L,"{\"reason\":\"EMAIL_CHANGED\"}","ip");
+    }
 }

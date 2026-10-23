@@ -13,6 +13,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -131,6 +133,60 @@ class ProfileControllerTest {
             .andExpect(redirectedUrl("/profile/addresses")).andExpect(flash().attributeExists("errorMessage"));
     }
 
+    @Test void twoTierAddressFormHasProvinceSelectAndNoEditableZoneOrDistrict() throws Exception {
+        var result = mvc.perform(get("/profile/addresses?edit=9").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<select id=\"address-provinceCode\"")))
+                .andExpect(content().string(containsString("Phường / Xã / Đặc khu")))
+                .andExpect(content().string(not(containsString("name=\"economicRegion\""))))
+                .andExpect(content().string(not(containsString("name=\"district\""))))
+                .andExpect(content().string(containsString("Ba Đình")))
+                .andReturn();
+        String html = result.getResponse().getContentAsString();
+        var select = java.util.regex.Pattern.compile("(?s)<select[^>]*name=\"provinceCode\"[^>]*>.*?</select>").matcher(html);
+        assertTrue(select.find());
+        assertEquals(35L, java.util.regex.Pattern.compile("<option\\b").matcher(select.group()).results().count());
+        assertTrue(java.util.regex.Pattern.compile("<option(?=[^>]*value=\"01\")(?=[^>]*selected)[^>]*>")
+                .matcher(select.group()).find());
+        String directory = System.getProperty("uc08.capture.dir");
+        if (directory != null) {
+            java.nio.file.Files.createDirectories(java.nio.file.Path.of(directory));
+            java.nio.file.Files.writeString(java.nio.file.Path.of(directory).resolve("address-edit.html"),
+                    result.getResponse().getContentAsString());
+        }
+    }
+
+    @Test void addressPostCannotSupplyItsOwnRegionOrDistrict() throws Exception {
+        mvc.perform(post("/profile/addresses").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("recipientName", "Nguyễn An").param("phone", "0912345678").param("provinceCode", "79")
+                .param("ward", "Phường Sài Gòn").param("detailedAddress", "12 Đường Hoa")
+                .param("economicRegion", "NORTHERN").param("district", "Quận giả").param("userId", "999"))
+                .andExpect(redirectedUrl("/profile/addresses"))
+                .andExpect(flash().attributeExists("successMessage"));
+        verify(addresses).create(eq(7L), argThat(request -> "79".equals(request.provinceCode())
+                && "Phường Sài Gòn".equals(request.ward())));
+    }
+
+    @Test void unknownProvinceAndMissingWardPreserveFormWithoutCallingService() throws Exception {
+        for (String code : List.of("99", "01")) {
+            mvc.perform(post("/profile/addresses").with(user("customer").roles("CUSTOMER")).with(csrf())
+                    .param("recipientName", "Nguyễn An").param("phone", "0912345678").param("provinceCode", code)
+                    .param("ward", "01".equals(code) ? "" : "Phường Sài Gòn").param("detailedAddress", "12 Đường Hoa"))
+                    .andExpect(redirectedUrl("/profile/addresses"))
+                    .andExpect(flash().attributeExists("errorMessage", "addressForm"));
+        }
+        verifyNoInteractions(addresses);
+    }
+
+    @Test void newAddressRendersWithoutNullOrFakeDistrict() throws Exception {
+        when(addresses.list(7L)).thenReturn(List.of(new AddressView(9L, "Nguyễn An", "0912345678",
+                ShippingAddress.EconomicRegion.SOUTHERN_MEKONG, "Thành phố Hồ Chí Minh", null,
+                "Phường Sài Gòn", "12 Đường Hoa", true)));
+        mvc.perform(get("/profile/addresses").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("12 Đường Hoa, Phường Sài Gòn, Thành phố Hồ Chí Minh")))
+                .andExpect(content().string(not(containsString(", null,"))));
+    }
     @Test void successfulPasswordChangeInvalidatesSession() throws Exception {
         var session=new org.springframework.mock.web.MockHttpSession();
         mvc.perform(post("/profile/password").session(session).with(user("customer").roles("CUSTOMER")).with(csrf())

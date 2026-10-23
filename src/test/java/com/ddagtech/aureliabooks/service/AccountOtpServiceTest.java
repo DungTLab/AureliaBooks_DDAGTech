@@ -24,7 +24,15 @@ class AccountOtpServiceTest {
  @Test void fiveWrongCodesPreventCorrectCode(){String id=service.registration(request(),"s","ip");String correct=code,wrong=correct.equals("000000")?"111111":"000000";for(int i=0;i<5;i++)assertThatThrownBy(()->service.verify(id,"s",wrong,"ip")).isInstanceOf(IllegalArgumentException.class);assertThatThrownBy(()->service.verify(id,"s",correct,"ip")).hasMessageContaining("hết lượt");verifyNoInteractions(writer);}
  @Test void expiredCodeCannotRegister()throws Exception{String id=service.registration(request(),"s","ip");var field=AccountOtpServiceImpl.class.getDeclaredField("flows");field.setAccessible(true);@SuppressWarnings("unchecked") var flows=(Map<String,?>)field.get(service);var flow=flows.get(id);var expiry=flow.getClass().getDeclaredField("expires");expiry.setAccessible(true);expiry.set(flow,Instant.now().minusSeconds(1));assertThatThrownBy(()->service.verify(id,"s",code,"ip")).hasMessageContaining("hết hạn");}
  @Test void newRegistrationCannotBypassTargetCooldown(){service.registration(request(),"s","ip");assertThatThrownBy(()->service.registration(request(),"s","ip")).hasMessageContaining("60 giây");verify(delivery,times(1)).send(anyString(),anyString(),anyString());}
- @Test void verifiedChannelsOnlyAndSingleChannelAutomatic(){User u=account();u.setEmailVerified(false);assertThat(reset(u)).isNotBlank();verify(delivery).send(eq("SMS"),eq(u.getPhone()),anyString());assertThat(service.recoveryChannels("a@example.test")).containsExactly("SMS");}
+ @Test void verifiedSelectedChannelNeverFallsBackToAnotherContact(){
+  User u=account();u.setEmailVerified(false);
+  when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(u));
+  assertThatThrownBy(()->reset(u)).hasMessageContaining("Kênh");
+  verifyNoInteractions(delivery);
+  assertThat(service.recovery("a@example.test","SMS","session","ip")).isNotBlank();
+  verify(delivery).send(eq("SMS"),eq(u.getPhone()),anyString());
+  assertThat(service.recoveryChannels("a@example.test")).containsExactly("SMS");
+ }
  @Test void googleOnlyInactiveAndUnknownCannotGetReset(){
   assertThatThrownBy(()->service.recovery("missing@example.test","EMAIL","session","ip")).hasMessageContaining("Không tìm thấy tài khoản");
   User u=account();u.setPasswordHash(null);when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(u));

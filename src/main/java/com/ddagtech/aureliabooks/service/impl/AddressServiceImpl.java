@@ -9,6 +9,7 @@ import com.ddagtech.aureliabooks.mapper.ShippingAddressMapper;
 import com.ddagtech.aureliabooks.repository.*;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.AddressService;
+import com.ddagtech.aureliabooks.util.DeliveryProvinceCatalog;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,12 +43,13 @@ public class AddressServiceImpl implements AddressService {
 
     @Transactional
     public Long create(Long ownerId, AddressRequest request) {
-        validate(request);
+        var province = validate(request);
         User owner = lockOwner(ownerId);
         var all = active(ownerId);
         if (all.size() >= 5) throw new AppException(ErrorCode.ADDRESS_QUOTA_EXCEEDED);
         boolean isDefault = all.isEmpty() || Boolean.TRUE.equals(request.isDefault());
         ShippingAddress a = addressMapper.toEntity(request, owner, isDefault);
+        applyLocation(a, province);
         if (Boolean.TRUE.equals(a.getIsDefault())) all.forEach(existing -> existing.setIsDefault(false));
         all.add(a);
         normalizeDefault(all);
@@ -57,10 +59,11 @@ public class AddressServiceImpl implements AddressService {
 
     @Transactional
     public void update(Long ownerId, Long id, AddressRequest request) {
-        validate(request);
+        var province = validate(request);
         lockOwner(ownerId);
         ShippingAddress a = owned(ownerId, id);
         addressMapper.updateEntity(a, request);
+        applyLocation(a, province);
         var all = active(ownerId);
         // A selected default cannot be unset without choosing another address.
         if (Boolean.TRUE.equals(request.isDefault()))
@@ -112,9 +115,16 @@ public class AddressServiceImpl implements AddressService {
         all.forEach(a -> a.setIsDefault(a == chosen));
     }
 
-    private void validate(AddressRequest r) {
+    private void applyLocation(ShippingAddress address, DeliveryProvinceCatalog.Province province) {
+        address.setProvince(province.name());
+        address.setEconomicRegion(province.region());
+    }
+
+    private DeliveryProvinceCatalog.Province validate(AddressRequest r) {
         var violations = validator.validate(r);
         if (!violations.isEmpty())
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, violations.iterator().next().getMessage());
+        return DeliveryProvinceCatalog.findByCode(r.provinceCode()).orElseThrow(() ->
+                new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng chọn tỉnh/thành phố trong danh sách hiện hành."));
     }
 }

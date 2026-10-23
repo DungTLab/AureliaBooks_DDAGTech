@@ -107,7 +107,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
     public synchronized String recovery(String identifier, String channel, String session, String ip) {
         var u = recoveryAccount(identifier);
         var channels = verifiedRecoveryChannels(u);
-        String selected = channels.size() == 1 ? channels.getFirst() : channel;
+        String selected = channel;
         if (!channels.contains(selected))
             throw new IllegalArgumentException("Kênh khôi phục không hợp lệ. Vui lòng chọn email hoặc số điện thoại đã xác minh.");
         var f = new Flow();
@@ -132,7 +132,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
 
     public synchronized View view(String id, String session) {
         var f = bound(id, session);
-        return f == null ? null : new View(f.kind, mask(f.target), f.authorized != null, Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()));
+        return f == null ? null : new View(f.kind, mask(f.target), f.authorized != null, Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()), Math.max(0, Duration.between(Instant.now(), f.expires).getSeconds()));
     }
 
     public synchronized void resend(String id, String session, String ip) {
@@ -200,7 +200,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
             throw new IllegalArgumentException("Tài khoản không còn kênh đã xác minh. Vui lòng đăng nhập bằng mật khẩu.");
         }
         return new GoogleLinkView(channels, f.target == null ? "" : mask(f.target),
-                f.mac != null, Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()));
+                f.mac != null, Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()), Math.max(0, Duration.between(Instant.now(), f.expires).getSeconds()));
     }
 
     @Override

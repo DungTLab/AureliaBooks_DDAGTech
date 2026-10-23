@@ -29,14 +29,14 @@ class ContactChangeServiceTest {
     @Test void emailUsesDestinationProofOnlyAfterControllerReauthentication(){
         startEmail();assertEquals("new@example.com",recipient);verifyNoInteractions(writer);
         assertTrue(service.verify(1L,"session",code,"203.0.113.1").completed());
-        verify(writer,times(1)).apply(1L,"old@example.com","0912345678","EMAIL","new@example.com","203.0.113.1");
+        verify(writer,times(1)).apply(1L,"old@example.com","0912345678","EMAIL","new@example.com","203.0.113.1","session");
         assertFalse(service.verify(1L,"session",code,"203.0.113.1").completed());
     }
     @Test void smsCanAuthorizePhoneChange(){
         service.startDestination(1L,"session","PHONE","+84 987654321","203.0.113.1");
         assertEquals("SMS",channel);assertEquals("0987654321",recipient);
         assertTrue(service.verify(1L,"session",code,"203.0.113.1").completed());
-        verify(writer).apply(1L,"old@example.com","0912345678","PHONE","0987654321","203.0.113.1");
+        verify(writer).apply(1L,"old@example.com","0912345678","PHONE","0987654321","203.0.113.1","session");
     }
     @Test
     void addingFirstEmailKeepsLoginAndStillRequiresDestinationOtp() {
@@ -47,13 +47,13 @@ class ContactChangeServiceTest {
         assertTrue(result.completed());
         assertFalse(result.loginRequired());
         assertFalse(result.message().contains("đăng nhập lại"));
-        verify(writer).apply(1L, null, "0912345678", "EMAIL", "new@example.com", "203.0.113.1");
+        verify(writer).apply(1L, null, "0912345678", "EMAIL", "new@example.com", "203.0.113.1","session");
     }
     @Test void googleMissingPhoneUsesOtpToNewPhone(){
         user.setAuthProvider(User.AuthProvider.GOOGLE);user.setPhone(null);
         service.startDestination(1L,"session","PHONE","0987654321","203.0.113.1");
         assertTrue(service.verify(1L,"session",code,"203.0.113.1").completed());
-        verify(writer).apply(1L,"old@example.com",null,"PHONE","0987654321","203.0.113.1");
+        verify(writer).apply(1L,"old@example.com",null,"PHONE","0987654321","203.0.113.1","session");
     }
     @Test void cannotVerifyOrResendFromAnotherSessionOrAccount(){
         startEmail();assertNull(service.view(1L,"other"));
@@ -94,11 +94,46 @@ class ContactChangeServiceTest {
     }
     @Test void uniqueIndexRaceLeavesAccountUnchangedAndConsumesPendingFlow(){
         service.startDestination(1L,"session","PHONE","0987654321","ip");
-        doThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate")).when(writer).apply(any(),any(),any(),any(),any(),any());
+        doThrow(new org.springframework.dao.DataIntegrityViolationException("duplicate")).when(writer).apply(any(),any(),any(),any(),any(),any(),any());
         assertFalse(service.verify(1L,"session",code,"ip").completed());assertNull(service.view(1L,"session"));
     }
     @Test void sendQuotaCannotBeResetByStartingAgain(){
         for(int i=0;i<6;i++){service.startDestination(1L,"session","PHONE","0987654321","ip");clock.advance(60);}
         assertEquals(5,deliveries);
+    }
+
+    @Test void verifyingCurrentEmailOrPhoneDoesNotRequireLogout() {
+        for (String type : List.of("EMAIL", "PHONE")) {
+            service.startDestination(1L, "session", type, "EMAIL".equals(type) ? user.getEmail() : user.getPhone(), "ip");
+            var result = service.verify(1L, "session", code, "ip");
+            assertTrue(result.completed());
+            assertFalse(result.loginRequired());
+            clock.advance(61);
+        }
+    }
+
+    @Test void onlyVerifiedExistingContactsAndPasswordAreAvailable() {
+        assertEquals(List.of(), service.reauthenticationMethods(1L));
+        user.setPasswordHash("hash"); user.setEmailVerified(true);
+        assertEquals(List.of("PASSWORD", "EMAIL"), service.reauthenticationMethods(1L));
+        user.setPhoneVerified(true);
+        assertEquals(List.of("PASSWORD", "EMAIL", "SMS"), service.reauthenticationMethods(1L));
+    }
+
+    @Test void sourceOtpDoesNotChangeContactsAndCannotBeReplayedAsDestinationOtp() {
+        user.setEmailVerified(true);
+        assertTrue(service.startReauthentication(1L,"session","PHONE","EMAIL","ip").challengeIssued());
+        assertEquals("old@example.com",recipient);
+        var proof=service.verify(1L,"session",code,"ip");
+        assertTrue(proof.reauthenticated()); assertFalse(proof.completed());
+        verifyNoInteractions(writer);
+        assertFalse(service.verify(1L,"session",code,"ip").reauthenticated());
+    }
+
+    @Test void unverifiedOrMissingSourceCannotSendOtp() {
+        assertFalse(service.startReauthentication(1L,"session","EMAIL","SMS","ip").challengeIssued());
+        user.setEmail(null);user.setEmailVerified(true);
+        assertFalse(service.startReauthentication(1L,"session","PHONE","EMAIL","ip").challengeIssued());
+        verifyNoInteractions(send,writer);
     }
 }

@@ -58,10 +58,9 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
         var message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(inbox);
-        message.setSubject("[SMS DEMO] AureliaBook — không gửi tới điện thoại");
-        message.setText("SMS MÔ PHỎNG cho số ******" + recipient.substring(6)
-                + ". Không xác minh quyền sở hữu SĐT thật.\nMã xác thực: " + code
-                + ". Mã có hiệu lực 5 phút. Không chia sẻ mã với người khác.");
+        message.setSubject("[SMS DEMO] " + OtpMailContent.SUBJECT);
+        message.setText(OtpMailContent.body(code) + "\nThông tin bản demo: yêu cầu cho số ******"
+                + recipient.substring(6) + ". Không xác minh quyền sở hữu SĐT thật.\n");
         sender.send(message);
     }
 }

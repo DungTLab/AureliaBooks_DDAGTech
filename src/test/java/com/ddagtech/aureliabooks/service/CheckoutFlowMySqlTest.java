@@ -122,12 +122,19 @@ class CheckoutFlowMySqlTest {
     @Test void inlineAddressCanBeAddedAndSelectedWithoutLeavingCheckout() throws Exception {
         mvc.perform(post("/checkout/addresses").session(session).with(user(principal)).with(csrf())
                         .param("recipientName", "Người nhận mới").param("phone", "0987654321")
-                        .param("economicRegion", "SOUTHERN_MEKONG").param("province", "TP. Hồ Chí Minh")
-                        .param("district", "Quận 1").param("ward", "Bến Nghé").param("detailedAddress", "12 Lê Lợi"))
+                        .param("provinceCode", "79").param("economicRegion", "NORTHERN").param("ward", "Bến Nghé").param("detailedAddress", "12 Lê Lợi"))
                 .andExpect(status().is3xxRedirection());
         long selected = jdbc.queryForObject("SELECT id FROM shipping_addresses WHERE user_id=? AND economic_region='SOUTHERN_MEKONG'", Long.class, owner);
         mvc.perform(get("/checkout").session(session).with(user(principal)).param("shippingAddressId", Long.toString(selected)))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("230.000")));
+        assertThat(jdbc.queryForObject("SELECT district FROM shipping_addresses WHERE id=?", String.class, selected)).isNull();
+        address = selected;
+        var review = prepare();
+        mvc.perform(post("/checkout/place").session(session).with(user(principal)).with(csrf())
+                .param("checkoutToken", review.checkoutToken()).param("shippingAddressId", Long.toString(selected))
+                .param("paymentMethod", "COD")).andExpect(status().is3xxRedirection());
+        String snapshot = jdbc.queryForObject("SELECT shipping_full_address FROM orders WHERE order_code=?", String.class, review.checkoutToken());
+        assertThat(snapshot).contains("12 Lê Lợi", "Bến Nghé", "Thành phố Hồ Chí Minh").doesNotContain("null", ", ,");
     }
 
     @Test void unavailableVnpayCannotCreateOrder() throws Exception {

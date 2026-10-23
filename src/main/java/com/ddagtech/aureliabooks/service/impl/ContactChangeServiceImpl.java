@@ -26,7 +26,7 @@ public class ContactChangeServiceImpl implements ContactChangeService {
     private final Map<Long,Pending> pending=new ConcurrentHashMap<>();private final Map<String,Counter> counters=new HashMap<>();
     private final Object[] locks=new Object[64];
     static class Pending {
-        String session,type,value,oldEmail,oldPhone,channel,recipient,id,phase="DESTINATION";
+        String session,type,value,oldEmail,oldPhone,oldHash,channel,recipient,id,phase="DESTINATION";
         byte[] mac;Instant expires,lastSent,authorizedUntil;int attempts;
     }
     static class Counter {Instant reset;int count;Counter(Instant reset){this.reset=reset;}}
@@ -39,6 +39,49 @@ public class ContactChangeServiceImpl implements ContactChangeService {
         random.nextBytes(key);for(int i=0;i<locks.length;i++)locks[i]=new Object();
     }
     private Object lock(Long id){return locks[Math.floorMod(id.hashCode(),locks.length)];}
+    @Override
+    public List<String> reauthenticationMethods(Long owner) {
+        var user = users.findById(owner).orElseThrow();
+        CustomerIdentity.requireCustomer(user);
+        var methods = new ArrayList<String>();
+        if (user.getPasswordHash() != null && !user.getPasswordHash().isBlank()) methods.add("PASSWORD");
+        if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) methods.add("EMAIL");
+        if (user.isPhoneVerified() && user.getPhone() != null && !user.getPhone().isBlank()) methods.add("SMS");
+        return List.copyOf(methods);
+    }
+
+    @Override
+    public Result startReauthentication(Long owner, String session, String type, String channel, String ip) {
+        synchronized (lock(owner)) {
+            if (type == null || channel == null || !Set.of("EMAIL", "PHONE").contains(type) || !Set.of("EMAIL", "SMS").contains(channel)
+                    || !reauthenticationMethods(owner).contains(channel)) {
+                return fail("Phương thức xác minh không khả dụng.");
+            }
+            var user = users.findById(owner).orElseThrow();
+            var old = pending.get(owner);
+            if (old != null && Duration.between(old.lastSent, clock.instant()).getSeconds() < 60) {
+                return fail("Vui lòng chờ đủ 60 giây.");
+            }
+            pending.entrySet().removeIf(entry -> entry.getValue().expires.isBefore(clock.instant()));
+            if (pending.size() >= 5000 && !pending.containsKey(owner)) return fail("Hệ thống đang bận.");
+            var flow = new Pending();
+            flow.session = session;
+            flow.type = type;
+            flow.phase = "CURRENT";
+            flow.channel = channel;
+            flow.recipient = "EMAIL".equals(channel) ? user.getEmail() : user.getPhone();
+            flow.oldEmail = user.getEmail();
+            flow.oldPhone = user.getPhone();
+            flow.oldHash = user.getPasswordHash();
+            flow.id = UUID.randomUUID().toString();
+            flow.expires = clock.instant();
+            flow.lastSent = Instant.EPOCH;
+            flow.authorizedUntil = clock.instant().plus(TTL);
+            pending.put(owner, flow);
+            return issue(owner, flow, ip);
+        }
+    }
+
     /** Caller has reauthenticated the owner; verify the NEW destination before saving. */
     public Result startDestination(Long owner,String session,String type,String value,String ip) {
         synchronized(lock(owner)) {
@@ -80,15 +123,22 @@ public class ContactChangeServiceImpl implements ContactChangeService {
             if(code==null||!code.matches("[0-9]{6}")||!MessageDigest.isEqual(p.mac,protect(p,code))) {
                 p.attempts++;return fail(p.attempts>=5?"Bạn đã nhập sai 5 lần. Vui lòng gửi lại mã.":"Mã xác thực không đúng.");
             }
-            try {writer.apply(owner,p.oldEmail,p.oldPhone,p.type,p.value,ip);}
+            if ("CURRENT".equals(p.phase)) {
+                var user = users.findById(owner).orElseThrow();
+                CustomerIdentity.requireCustomer(user);
+                if (!Objects.equals(p.oldEmail, user.getEmail()) || !Objects.equals(p.oldPhone, user.getPhone())
+                        || !Objects.equals(p.oldHash, user.getPasswordHash()) || !reauthenticationMethods(owner).contains(p.channel)) {
+                    pending.remove(owner);
+                    return fail("Thông tin tài khoản đã thay đổi. Vui lòng xác thực lại.");
+                }
+                pending.remove(owner);
+                return new Result(false, "Đã xác thực tài khoản.", false, false, true);
+            }
+            try {writer.apply(owner,p.oldEmail,p.oldPhone,p.type,p.value,ip,p.session);}
             catch(DataIntegrityViolationException ex){pending.remove(owner);return fail("Email hoặc số điện thoại đã được tài khoản khác sử dụng. Vui lòng bắt đầu lại.");}
             catch(AppException ex){pending.remove(owner);return fail(ex.getMessage());}
             pending.remove(owner);
-            String previous = "EMAIL".equals(p.type) ? p.oldEmail : p.oldPhone;
-            boolean loginRequired = previous != null && !previous.isBlank();
-            return new Result(true, loginRequired
-                    ? "Đã cập nhật thông tin liên hệ. Vui lòng đăng nhập lại."
-                    : "Đã bổ sung và xác minh thông tin liên hệ thành công.", loginRequired);
+            return new Result(true, "Đã cập nhật và xác minh thông tin liên hệ thành công.", false);
         }
     }
     private Pending bound(Long owner,String session){Pending p=pending.get(owner);return p!=null&&p.session.equals(session)?p:null;}
@@ -101,7 +151,7 @@ public class ContactChangeServiceImpl implements ContactChangeService {
         do{code=String.format(Locale.ROOT,"%06d",random.nextInt(1_000_000));}while(previous!=null&&MessageDigest.isEqual(previous,protect(p,code)));
         try {delivery.send(p.channel,p.recipient,code);p.mac=protect(p,code);}
         catch(RuntimeException ex){return fail("Không gửi được mã xác thực. Vui lòng kiểm tra cấu hình email/SMS hoặc thử gửi lại sau 60 giây.");}
-        return new Result(false,"DESTINATION".equals(p.phase)?"Đã gửi mã tới thông tin mới. Nhập mã để hoàn tất thay đổi.":"NEW_EMAIL".equals(p.phase)?"Đã gửi mã tới email mới. Nhập mã để hoàn tất thay đổi.":"Đã gửi mã tới thông tin liên hệ hiện tại.");
+        return new Result(false,"DESTINATION".equals(p.phase)?"Đã gửi mã tới thông tin mới. Nhập mã để hoàn tất thay đổi.":"NEW_EMAIL".equals(p.phase)?"Đã gửi mã tới email mới. Nhập mã để hoàn tất thay đổi.":"Đã gửi mã tới thông tin liên hệ hiện tại.",false,true);
     }
     private synchronized boolean quota(List<String> keys,int max) {
         Instant now=clock.instant();counters.entrySet().removeIf(e->!now.isBefore(e.getValue().reset));

@@ -34,6 +34,7 @@ public class AuthController {
     public String googleLogin(jakarta.servlet.http.HttpServletRequest request) {
         if (!googleEnabled()) return "redirect:/auth/login?error=google";
         request.getSession().removeAttribute("GOOGLE_ACCOUNT_ACTION");
+        request.getSession().removeAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH");
         request.getSession().setAttribute("GOOGLE_AUTH_ORIGIN", "login");
         return "redirect:/oauth2/authorization/google";
     }
@@ -42,6 +43,7 @@ public class AuthController {
     public String googleRegister(jakarta.servlet.http.HttpServletRequest request) {
         if (!googleEnabled()) return "redirect:/auth/register";
         request.getSession().removeAttribute("GOOGLE_ACCOUNT_ACTION");
+        request.getSession().removeAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH");
         request.getSession().setAttribute("GOOGLE_AUTH_ORIGIN", "register");
         return "redirect:/oauth2/authorization/google";
     }
