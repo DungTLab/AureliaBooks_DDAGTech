@@ -1,5 +1,14 @@
 package com.ddagtech.aureliabooks.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.controller.admin.AuditLogController;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
@@ -11,6 +20,9 @@ import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.ddagtech.aureliabooks.service.impl.AuditLogServiceImpl;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,19 +38,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 /**
  * Comprehensive Security and Robustness Verification Test Suite for UC29 (SWP-56 / TASK-GIAC-05).
  * Validates Lean RBAC access boundaries, DoS input bounds, CWE-290 anti-IP spoofing,
@@ -50,11 +49,11 @@ class AuditLogSecurityTest {
     @DisplayName("1. RBAC & Route Access Control Verification")
     @WebMvcTest(controllers = AuditLogController.class)
     @Import({
-            SecurityConfig.class,
-            CustomAccessDeniedHandler.class,
-            CustomAuthenticationEntryPoint.class,
-            RoleBasedAuthenticationSuccessHandler.class,
-            CustomAuthenticationFailureHandler.class
+        SecurityConfig.class,
+        CustomAccessDeniedHandler.class,
+        CustomAuthenticationEntryPoint.class,
+        RoleBasedAuthenticationSuccessHandler.class,
+        CustomAuthenticationFailureHandler.class,
     })
     static class RbacAccessControlTests {
 
@@ -70,84 +69,102 @@ class AuditLogSecurityTest {
         @Test
         @DisplayName("SEC-01: Anonymous request to /admin/audit-logs must redirect to /auth/login")
         void testAnonymousAccess_RedirectsToLogin() throws Exception {
-            mockMvc.perform(get("/admin/audit-logs"))
-                    .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("/auth/login"));
+            mockMvc
+                .perform(get("/admin/audit-logs"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login"));
         }
 
         @Test
         @DisplayName("SEC-02: Authenticated CUSTOMER accessing /admin/audit-logs must receive 403 Forbidden redirect")
         void testCustomerAccess_ReturnsForbidden() throws Exception {
-            mockMvc.perform(get("/admin/audit-logs").with(user("customer").roles("CUSTOMER")))
-                    .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("/error/403"));
+            mockMvc
+                .perform(get("/admin/audit-logs").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
         }
 
         @Test
         @DisplayName("SEC-03: Authenticated SALE_STAFF accessing /admin/audit-logs must receive 403 Forbidden redirect")
         void testSaleStaffAccess_ReturnsForbidden() throws Exception {
-            mockMvc.perform(get("/admin/audit-logs").with(user("staff").roles("SALE_STAFF")))
-                    .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("/error/403"));
+            mockMvc
+                .perform(get("/admin/audit-logs").with(user("staff").roles("SALE_STAFF")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
         }
 
         @Test
         @DisplayName("SEC-04: Authenticated MANAGER accessing /admin/audit-logs must receive 403 Forbidden redirect")
         void testManagerAccess_ReturnsForbidden() throws Exception {
-            mockMvc.perform(get("/admin/audit-logs").with(user("manager").roles("MANAGER")))
-                    .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("/error/403"));
+            mockMvc
+                .perform(get("/admin/audit-logs").with(user("manager").roles("MANAGER")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
         }
 
         @Test
         @DisplayName("SEC-05: Authenticated ADMIN accessing /admin/audit-logs must return 200 OK")
         void testAdminAccess_Returns200Ok() throws Exception {
-            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any()))
-                    .thenReturn(Page.empty());
+            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any())).thenReturn(Page.empty());
             when(auditLogService.getDistinctActions()).thenReturn(List.of());
             when(auditLogService.getDistinctTargetTables()).thenReturn(List.of());
             when(auditLogService.getDistinctActors()).thenReturn(List.of());
 
-            mockMvc.perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
-                    .andExpect(status().isOk())
-                    .andExpect(view().name("admin/audit_logs"));
+            mockMvc
+                .perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/audit_logs"));
         }
 
         @Test
         @DisplayName("SEC-06: Unauthenticated AJAX request receives HTTP 401 JSON ApiResponse")
         void testAjaxUnauthenticated_ReturnsJson401() throws Exception {
-            mockMvc.perform(get("/admin/audit-logs").header("Accept", "application/json"))
-                    .andExpect(status().isUnauthorized())
-                    .andExpect(jsonPath("$.code").value(1001));
+            mockMvc
+                .perform(get("/admin/audit-logs").header("Accept", "application/json"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(1001));
         }
 
         @Test
         @DisplayName("SEC-07: Authenticated CUSTOMER AJAX request receives HTTP 403 JSON ApiResponse")
         void testAjaxCustomer_ReturnsJson403() throws Exception {
-            mockMvc.perform(get("/admin/audit-logs")
-                            .with(user("customer").roles("CUSTOMER"))
-                            .header("Accept", "application/json"))
-                    .andExpect(status().isForbidden())
-                    .andExpect(jsonPath("$.code").value(1002));
+            mockMvc
+                .perform(
+                    get("/admin/audit-logs")
+                        .with(user("customer").roles("CUSTOMER"))
+                        .header("Accept", "application/json")
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(1002));
         }
 
         @Test
         @DisplayName("SEC-08: DoS Pagination bounds check: negative page is clamped to 0, size > 100 is clamped to 20")
         void testPaginationBoundsClamping_PreventsMemoryExhaustion() throws Exception {
-            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any()))
-                    .thenReturn(Page.empty());
+            when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any())).thenReturn(Page.empty());
             when(auditLogService.getDistinctActions()).thenReturn(List.of());
             when(auditLogService.getDistinctTargetTables()).thenReturn(List.of());
             when(auditLogService.getDistinctActors()).thenReturn(List.of());
 
-            mockMvc.perform(get("/admin/audit-logs")
-                            .with(user("admin").roles("ADMIN"))
-                            .param("page", "-50")
-                            .param("size", "999999"))
-                    .andExpect(status().isOk());
+            mockMvc
+                .perform(
+                    get("/admin/audit-logs")
+                        .with(user("admin").roles("ADMIN"))
+                        .param("page", "-50")
+                        .param("size", "999999")
+                )
+                .andExpect(status().isOk());
 
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-            verify(auditLogService).searchLogs(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), pageableCaptor.capture());
+            verify(auditLogService).searchLogs(
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                isNull(),
+                pageableCaptor.capture()
+            );
 
             Pageable captured = pageableCaptor.getValue();
             assertThat(captured.getPageNumber()).isEqualTo(0);
@@ -162,7 +179,9 @@ class AuditLogSecurityTest {
         private final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
         private final UserRepository userRepository = mock(UserRepository.class);
         private final AuditLogServiceImpl auditLogService = new AuditLogServiceImpl(
-                auditLogRepository, userRepository, new ObjectMapper()
+            auditLogRepository,
+            userRepository,
+            new ObjectMapper()
         );
 
         @Test
@@ -173,20 +192,20 @@ class AuditLogSecurityTest {
             when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
 
             String complexPayload = """
-                {
-                    "user": {
-                        "name": "Target User",
-                        "password": "MySuperSecretPassword@2026",
-                        "AUTH_TOKEN": "Bearer xyz-999-secret",
-                        "otp_code": "654321"
-                    },
-                    "billing": {
-                        "card_cvv": "123",
-                        "api_secret_key": "sec_live_987654"
-                    },
-                    "safeField": "public_value"
-                }
-                """;
+            {
+                "user": {
+                    "name": "Target User",
+                    "password": "MySuperSecretPassword@2026",
+                    "AUTH_TOKEN": "Bearer xyz-999-secret",
+                    "otp_code": "654321"
+                },
+                "billing": {
+                    "card_cvv": "123",
+                    "api_secret_key": "sec_live_987654"
+                },
+                "safeField": "public_value"
+            }
+            """;
 
             auditLogService.record(actorId, "USER_UPDATE", "users", 10L, complexPayload, "127.0.0.1");
 
@@ -210,7 +229,8 @@ class AuditLogSecurityTest {
         @Test
         @DisplayName("SEC-10: Fallback regex masks credentials in malformed/unparseable JSON")
         void testMalformedJson_FallbackRegexRedaction() {
-            String malformedPayload = "malformed_json_block: {\"password\": \"leakMe123\", \"access_token\": \"leakToken456\"}";
+            String malformedPayload =
+                "malformed_json_block: {\"password\": \"leakMe123\", \"access_token\": \"leakToken456\"}";
 
             auditLogService.record(null, "MALFORMED_ACTION", "raw", null, malformedPayload, "127.0.0.1");
 
@@ -258,21 +278,47 @@ class AuditLogSecurityTest {
 
         private final AuditLogRepository auditLogRepository = new AuditLogRepository() {
             @Override
-            public AuditLog save(AuditLog auditLog) { return auditLog; }
+            public AuditLog save(AuditLog auditLog) {
+                return auditLog;
+            }
+
             @Override
-            public Optional<AuditLog> findById(Long id) { return Optional.empty(); }
+            public Optional<AuditLog> findById(Long id) {
+                return Optional.empty();
+            }
+
             @Override
-            public Page<AuditLog> findAll(Pageable pageable) { return Page.empty(); }
-            @Override
-            public Page<AuditLog> searchLogs(String a, String t, Long actorId, LocalDateTime s, LocalDateTime e, String k, Pageable p) {
+            public Page<AuditLog> findAll(Pageable pageable) {
                 return Page.empty();
             }
+
             @Override
-            public List<String> findDistinctActions() { return List.of(); }
+            public Page<AuditLog> searchLogs(
+                String a,
+                String t,
+                Long actorId,
+                LocalDateTime s,
+                LocalDateTime e,
+                String k,
+                Pageable p
+            ) {
+                return Page.empty();
+            }
+
             @Override
-            public List<String> findDistinctTargetTables() { return List.of(); }
+            public List<String> findDistinctActions() {
+                return List.of();
+            }
+
             @Override
-            public List<com.ddagtech.aureliabooks.dto.response.ActorOption> findDistinctActors() { return List.of(); }
+            public List<String> findDistinctTargetTables() {
+                return List.of();
+            }
+
+            @Override
+            public List<com.ddagtech.aureliabooks.dto.response.ActorOption> findDistinctActors() {
+                return List.of();
+            }
         };
 
         @Test
@@ -280,24 +326,24 @@ class AuditLogSecurityTest {
         void testDeleteEntity_Rejected() {
             AuditLog log = new AuditLog();
             assertThatThrownBy(() -> auditLogRepository.delete(log))
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessageContaining("[BR-08-02]");
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("[BR-08-02]");
         }
 
         @Test
         @DisplayName("SEC-14: Repository rejects deleteById() mutation")
         void testDeleteById_Rejected() {
             assertThatThrownBy(() -> auditLogRepository.deleteById(999L))
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessageContaining("[BR-08-02]");
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("[BR-08-02]");
         }
 
         @Test
         @DisplayName("SEC-15: Repository rejects deleteAll() purge mutation")
         void testDeleteAll_Rejected() {
             assertThatThrownBy(auditLogRepository::deleteAll)
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessageContaining("[BR-08-02]");
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("[BR-08-02]");
         }
     }
 }

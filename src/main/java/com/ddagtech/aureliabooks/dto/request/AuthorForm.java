@@ -20,4 +20,3 @@ public record AuthorForm(
         @Size(max = 5000, message = "Tiểu sử tác giả không được vượt quá 5000 ký tự.")
         String biography
 ) {}
-
