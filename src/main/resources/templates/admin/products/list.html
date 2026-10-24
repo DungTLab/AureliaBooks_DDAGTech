@@ -1,13 +1,223 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Sprint 1', ~{::#main-content})}">
-<head><title>admin / products / list</title></head>
+      th:replace="~{layout/base :: layout('Quản Lý Sản Phẩm | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Quản Lý Sản Phẩm</title>
+</head>
 <body>
-<section id="main-content" class="max-w-7xl mx-auto px-4 py-12">
-    <!-- TODO UC15/16; Owner: Huỳnh Nhật Duy. Build fields, validation and service binding here. -->
-    <h1 class="text-2xl font-bold">admin / products / list</h1>
-    <p class="mt-4">Trang đang được xây dựng.</p>
-    <!-- No data mutation or successful workflow is implemented in this page shell. -->
-</section>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
+        <div>
+            <nav class="flex text-xs text-carbon_black-400 gap-1.5 mb-1">
+                <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Bàn làm việc</a>
+                <span>/</span>
+                <span>Quản trị kho & SP</span>
+                <span>/</span>
+                <span class="text-carbon_black font-semibold">Sản phẩm</span>
+            </nav>
+            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Trị Danh Mục Sản Phẩm</h1>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Quản lý danh mục sách và văn phòng phẩm trong hệ thống</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a th:href="@{/manager/authors}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition-colors">
+                <i class="bi bi-people"></i>
+                <span>Tác Giả</span>
+            </a>
+            <a th:href="@{/manager/books/new}"
+               class="inline-flex items-center gap-1.5 px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-xs font-bold shadow-flame transition-all">
+                <i class="bi bi-journal-plus"></i>
+                <span>Thêm Sách Mới</span>
+            </a>
+            <a th:href="@{/manager/stationeries/new}"
+               class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black hover:bg-carbon_black-600 text-white rounded-xl text-xs font-bold transition-colors">
+                <i class="bi bi-pencil-square"></i>
+                <span>Thêm Văn Phòng Phẩm</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter & Search Toolbar -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+        <!-- Type Tabs -->
+        <div class="flex items-center gap-1.5 bg-alabaster_grey/60 p-1 rounded-xl self-start md:self-center">
+            <a th:href="@{/manager/products(keyword=${keyword})}"
+               class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors"
+               th:classappend="${selectedType == null ? 'bg-white text-carbon_black shadow-sm' : 'text-carbon_black-500 hover:text-carbon_black'}">
+                Tất cả
+            </a>
+            <a th:href="@{/manager/products(type='BOOK', keyword=${keyword})}"
+               class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors"
+               th:classappend="${selectedType != null and selectedType.name() == 'BOOK' ? 'bg-white text-blazing_flame shadow-sm' : 'text-carbon_black-500 hover:text-carbon_black'}">
+                <i class="bi bi-book mr-1"></i>Sách
+            </a>
+            <a th:href="@{/manager/products(type='STATIONERY', keyword=${keyword})}"
+               class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors"
+               th:classappend="${selectedType != null and selectedType.name() == 'STATIONERY' ? 'bg-white text-carbon_black shadow-sm' : 'text-carbon_black-500 hover:text-carbon_black'}">
+                <i class="bi bi-pencil mr-1"></i>Văn phòng phẩm
+            </a>
+        </div>
+
+        <!-- Search Form -->
+        <form th:action="@{/manager/products}" method="get" class="w-full md:max-w-md flex gap-2">
+            <input th:if="${selectedType != null}" type="hidden" name="type" th:value="${selectedType}">
+            <div class="relative flex-1">
+                <input type="text" name="keyword" th:value="${keyword}"
+                       placeholder="Tìm tựa đề, barcode..."
+                       class="w-full pl-9 pr-4 py-2 text-sm bg-alabaster_grey/40 border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:bg-white transition-all">
+                <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs"></i>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-carbon_black text-white rounded-xl text-sm font-semibold hover:bg-carbon_black-600 transition-colors">
+                Tìm
+            </button>
+            <a th:if="${keyword != null and !keyword.isEmpty()}" th:href="@{/manager/products(type=${selectedType})}"
+               class="px-3 py-2 border border-dust_grey rounded-xl text-sm font-semibold hover:bg-alabaster_grey transition-colors text-carbon_black-600">
+                Xóa
+            </a>
+        </form>
+    </div>
+
+    <!-- Products Table -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-dust_grey/60 text-left text-sm">
+                <thead class="bg-alabaster_grey/50 text-carbon_black-600 text-xs uppercase font-bold tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3.5 w-20">Ảnh</th>
+                        <th class="px-6 py-3.5">Thông Tin Sản Phẩm</th>
+                        <th class="px-6 py-3.5">Danh Mục</th>
+                        <th class="px-6 py-3.5 text-right">Giá Bán / Vốn</th>
+                        <th class="px-6 py-3.5 text-center">Tồn Khả Dụng</th>
+                        <th class="px-6 py-3.5 text-center">Trạng Thái</th>
+                        <th class="px-6 py-3.5 text-right w-36">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/40">
+                    <tr th:each="product : ${productsPage.content}" class="hover:bg-alabaster_grey/20 transition-colors">
+                        <!-- Image -->
+                        <td class="px-6 py-4">
+                            <div class="w-12 h-16 bg-alabaster_grey rounded-lg border border-dust_grey/60 overflow-hidden flex items-center justify-center">
+                                <img th:if="${product.mainImageUrl != null and !product.mainImageUrl.isEmpty()}"
+                                     th:src="${product.mainImageUrl}" th:alt="${product.title}"
+                                     class="w-full h-full object-cover">
+                                <i th:unless="${product.mainImageUrl != null and !product.mainImageUrl.isEmpty()}"
+                                   class="bi bi-image text-carbon_black-400"></i>
+                            </div>
+                        </td>
+
+                        <!-- Title & Barcode -->
+                        <td class="px-6 py-4 max-w-sm">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider"
+                                      th:classappend="${product.productType.name() == 'BOOK' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}"
+                                      th:text="${product.productType.name() == 'BOOK' ? 'Sách' : 'VPP'}">
+                                    Sách
+                                </span>
+                                <span class="text-xs font-mono text-carbon_black-400" th:text="${product.barcode}">BC-12345</span>
+                            </div>
+                            <h3 class="font-bold text-carbon_black text-sm line-clamp-2" th:text="${product.title}">
+                                Tên sản phẩm
+                            </h3>
+                        </td>
+
+                        <!-- Category -->
+                        <td class="px-6 py-4 text-xs font-medium text-carbon_black-600">
+                            <span th:text="${product.category != null ? product.category.name : 'N/A'}">Danh mục</span>
+                        </td>
+
+                        <!-- Price -->
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="font-extrabold text-sm text-blazing_flame"
+                                 th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' đ'">
+                                100,000 đ
+                            </div>
+                            <div class="text-[11px] text-carbon_black-400"
+                                 th:text="'Vốn: ' + ${#numbers.formatDecimal(product.originalCost, 0, 'COMMA', 0, 'POINT')} + ' đ'">
+                                Vốn: 70,000 đ
+                            </div>
+                        </td>
+
+                        <!-- Stock (Readonly) -->
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold"
+                                  th:classappend="${product.stockQuantity == 0 ? 'bg-rose-100 text-rose-800' : (product.stockQuantity <= 10 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800')}"
+                                  th:text="${product.stockQuantity + ' tồn'}">
+                                0 tồn
+                            </span>
+                        </td>
+
+                        <!-- Status -->
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+                                  th:classappend="${product.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                                <span class="w-1.5 h-1.5 rounded-full" th:classappend="${product.isActive ? 'bg-emerald-500' : 'bg-rose-500'}"></span>
+                                <span th:text="${product.isActive ? 'Đang bán' : 'Tạm ẩn'}">Đang bán</span>
+                            </span>
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <!-- Edit Link based on Type -->
+                                <a th:if="${product.productType.name() == 'BOOK'}"
+                                   th:href="@{/manager/books/{id}/edit(id=${product.id})}"
+                                   class="p-2 text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 rounded-lg transition-colors"
+                                   title="Chỉnh sửa sách">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                <a th:if="${product.productType.name() == 'STATIONERY'}"
+                                   th:href="@{/manager/stationeries/{id}/edit(id=${product.id})}"
+                                   class="p-2 text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 rounded-lg transition-colors"
+                                   title="Chỉnh sửa văn phòng phẩm">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+
+                                <!-- Toggle Active Status Form -->
+                                <form th:action="@{/manager/products/{id}/toggle-status(id=${product.id})}" method="post" class="inline">
+                                    <button type="submit"
+                                            class="p-2 rounded-lg transition-colors"
+                                            th:classappend="${product.isActive ? 'text-amber-600 hover:bg-amber-50 hover:text-amber-800' : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-800'}"
+                                            th:title="${product.isActive ? 'Ẩn khỏi cửa hàng' : 'Hiện trên cửa hàng'}">
+                                        <i class="bi" th:classappend="${product.isActive ? 'bi-eye-slash' : 'bi-eye'}"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr th:if="${productsPage.content.isEmpty()}">
+                        <td colspan="7" class="px-6 py-12 text-center text-carbon_black-400">
+                            <i class="bi bi-box-seam text-3xl mb-2 block"></i>
+                            <p class="text-sm font-medium">Không tìm thấy sản phẩm nào phù hợp.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div th:if="${productsPage.totalPages > 1}" class="px-6 py-4 bg-alabaster_grey/30 border-t border-dust_grey/60 flex items-center justify-between">
+            <span class="text-xs text-carbon_black-500">
+                Trang <span class="font-bold" th:text="${productsPage.number + 1}">1</span> / <span th:text="${productsPage.totalPages}">1</span>
+                (Tổng cộng <span th:text="${productsPage.totalElements}">0</span> sản phẩm)
+            </span>
+            <div class="flex gap-1.5">
+                <a th:if="${!productsPage.first}"
+                   th:href="@{/manager/products(page=${productsPage.number - 1}, type=${selectedType}, keyword=${keyword})}"
+                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
+                    Trước
+                </a>
+                <a th:if="${!productsPage.last}"
+                   th:href="@{/manager/products(page=${productsPage.number + 1}, type=${selectedType}, keyword=${keyword})}"
+                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
+                    Sau
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
 </body>
 </html>
