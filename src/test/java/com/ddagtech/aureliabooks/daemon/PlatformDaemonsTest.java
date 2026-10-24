@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +61,7 @@ class PlatformDaemonsTest {
         assertThat(loadedCount).isEqualTo(3);
         assertThat(vectorStore.size()).isEqualTo(3);
         assertThat(vectorStore.getLastRefreshedAt()).isNotNull();
+        assertThat(vectorStore.getByProductId(1L)).isPresent();
 
         // Query recommendations for [1.0, 0.0, 0.0], excluding product 1 (self) and product 2 (already purchased per BR-05-03)
         List<ProductVectorEntry> recommendations = vectorStore.findTopSimilar(
@@ -69,6 +71,27 @@ class PlatformDaemonsTest {
         );
         assertThat(recommendations).hasSize(1);
         assertThat(recommendations.get(0).productId()).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("CRON-02: computeCentroid() should calculate mean User Centroid Vector and exclude purchased products in personalized search")
+    void cron02_ComputeCentroid_CalculatesMeanVectorAndExcludesPurchasedIds() {
+        InMemoryProductVectorStore vectorStore = new InMemoryProductVectorStore();
+        vectorStore.upsert(1L, "Clean Code", new double[]{1.0, 0.0, 0.0});
+        vectorStore.upsert(2L, "Refactoring", new double[]{0.8, 0.2, 0.0});
+        vectorStore.upsert(3L, "Effective Java", new double[]{0.85, 0.15, 0.0});
+
+        Set<Long> purchasedIds = Set.of(1L, 2L);
+        double[] centroid = vectorStore.computeCentroid(purchasedIds);
+
+        assertThat(centroid).hasSize(3);
+        assertThat(centroid[0]).isCloseTo(0.9, within(1e-6));
+        assertThat(centroid[1]).isCloseTo(0.1, within(1e-6));
+        assertThat(centroid[2]).isCloseTo(0.0, within(1e-6));
+
+        List<ProductVectorEntry> personalized = vectorStore.findTopSimilar(centroid, purchasedIds, 5);
+        assertThat(personalized).hasSize(1);
+        assertThat(personalized.get(0).productId()).isEqualTo(3L);
     }
 
     @Test

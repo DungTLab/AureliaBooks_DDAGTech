@@ -3,9 +3,11 @@ package com.ddagtech.aureliabooks.service;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -13,7 +15,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Thread-safe in-memory semantic vector store running in the JVM heap (FE-6 / CRON-02).
  * Stores product embedding vectors loaded from products.embedding JSON column and computes
- * cosine similarity recommendations while dynamically excluding already-purchased products (BR-05-03).
+ * cosine similarity recommendations and user centroid vectors while dynamically excluding
+ * already-purchased products (V2.4 §1, §6 / BR-05-03).
  */
 @Component
 public class InMemoryProductVectorStore {
@@ -22,7 +25,7 @@ public class InMemoryProductVectorStore {
     private final AtomicReference<LocalDateTime> lastRefreshedAt = new AtomicReference<>();
 
     /**
-     * Immutable entry representing a product's normalized embedding vector in heap memory.
+     * Immutable entry representing a product's embedding vector in heap memory.
      */
     public record ProductVectorEntry(
             Long productId,
@@ -32,20 +35,27 @@ public class InMemoryProductVectorStore {
     }
 
     /**
-     * Replaces the in-memory vector index atomically after a preloader refresh cycle.
+     * Replaces the in-memory vector index after a preloader refresh cycle without
+     * creating an empty-index window for concurrent readers.
      *
      * @param freshEntries map of productId to vector entries
      */
     public void replaceAll(Map<Long, ProductVectorEntry> freshEntries) {
-        vectorIndex.clear();
-        if (freshEntries != null && !freshEntries.isEmpty()) {
+        if (freshEntries == null || freshEntries.isEmpty()) {
+            vectorIndex.clear();
+        } else {
             vectorIndex.putAll(freshEntries);
+            vectorIndex.keySet().retainAll(freshEntries.keySet());
         }
         lastRefreshedAt.set(LocalDateTime.now());
     }
 
     /**
      * Inserts or updates a single product embedding in the in-memory store.
+     *
+     * @param productId product identifier
+     * @param title     product title
+     * @param vector    embedding vector array
      */
     public void upsert(Long productId, String title, double[] vector) {
         if (productId == null || vector == null || vector.length == 0) {
@@ -53,6 +63,61 @@ public class InMemoryProductVectorStore {
         }
         vectorIndex.put(productId, new ProductVectorEntry(productId, title, vector.clone()));
         lastRefreshedAt.set(LocalDateTime.now());
+    }
+
+    /**
+     * Retrieves the cached vector entry for a given product ID if present.
+     *
+     * @param productId product identifier
+     * @return optional vector entry
+     */
+    public Optional<ProductVectorEntry> getByProductId(Long productId) {
+        if (productId == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(vectorIndex.get(productId));
+    }
+
+    /**
+     * Computes the User Centroid Vector (mean vector) from a collection of purchased product IDs
+     * (V2.4 §1, §6 personalized recommendation from DELIVERED order history).
+     *
+     * @param purchasedProductIds IDs of products purchased by the customer
+     * @return mean embedding vector, or empty array if no matching vectors exist
+     */
+    public double[] computeCentroid(Collection<Long> purchasedProductIds) {
+        if (purchasedProductIds == null || purchasedProductIds.isEmpty()) {
+            return new double[0];
+        }
+        double[] sumVector = null;
+        int count = 0;
+        for (Long productId : purchasedProductIds) {
+            if (productId == null) {
+                continue;
+            }
+            ProductVectorEntry entry = vectorIndex.get(productId);
+            if (entry == null || entry.vector() == null || entry.vector().length == 0) {
+                continue;
+            }
+            double[] vec = entry.vector();
+            if (sumVector == null) {
+                sumVector = new double[vec.length];
+            }
+            if (vec.length != sumVector.length) {
+                continue;
+            }
+            for (int i = 0; i < vec.length; i++) {
+                sumVector[i] += vec[i];
+            }
+            count++;
+        }
+        if (sumVector == null || count == 0) {
+            return new double[0];
+        }
+        for (int i = 0; i < sumVector.length; i++) {
+            sumVector[i] /= count;
+        }
+        return sumVector;
     }
 
     /**
@@ -96,6 +161,10 @@ public class InMemoryProductVectorStore {
 
     /**
      * Computes the cosine similarity between two equal-length vectors.
+     *
+     * @param vectorA first vector
+     * @param vectorB second vector
+     * @return cosine similarity in [-1.0, 1.0], or 0.0 if invalid/zero-norm
      */
     public static double cosineSimilarity(double[] vectorA, double[] vectorB) {
         if (vectorA == null || vectorB == null || vectorA.length == 0 || vectorA.length != vectorB.length) {

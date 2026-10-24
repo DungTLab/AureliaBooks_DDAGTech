@@ -37,9 +37,15 @@ public class SessionRegistryCleanupDaemon {
 
         int purgedCount = 0;
         for (Object principal : principals) {
+            if (principal == null) {
+                continue;
+            }
             List<SessionInformation> sessions = sessionRegistry.getAllSessions(principal, true);
+            if (sessions == null || sessions.isEmpty()) {
+                continue;
+            }
             for (SessionInformation sessionInfo : sessions) {
-                if (sessionInfo.isExpired()) {
+                if (sessionInfo != null && sessionInfo.isExpired()) {
                     sessionRegistry.removeSessionInformation(sessionInfo.getSessionId());
                     purgedCount++;
                 }
