@@ -279,7 +279,7 @@ class StockMutationServiceTest {
                     .orderStatus(Order.OrderStatus.PENDING_PAYMENT).build();
             order.addItem(OrderItem.builder().product(product1).quantity(firstQuantity).build());
             order.addItem(OrderItem.builder().product(product2).quantity(secondQuantity).build());
-            when(orderRepository.findByIdWithLock(order.getId())).thenReturn(Optional.of(order));
+            when(orderRepository.findById(order.getId())).thenReturn(Optional.of(order));
             when(orderItemRepository.findByOrderId(order.getId())).thenReturn(order.getItems());
             lenient().when(productRepository.findAllByIdInWithLock(anyCollection()))
                     .thenReturn(List.of(product1, product2));
@@ -312,7 +312,7 @@ class StockMutationServiceTest {
                     .quantity(2)
                     .build();
 
-            when(orderRepository.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+            when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
             when(orderItemRepository.findByOrderId(orderId)).thenReturn(Arrays.asList(item1, item2));
             when(productRepository.findAllByIdInWithLock(anyCollection())).thenReturn(Arrays.asList(product1, product2));
 
@@ -362,7 +362,7 @@ class StockMutationServiceTest {
                     .quantity(10) // Exceeds product2.stockQuantity (5)
                     .build();
 
-            when(orderRepository.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+            when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
             when(orderItemRepository.findByOrderId(orderId)).thenReturn(Arrays.asList(item1, item2));
             when(productRepository.findAllByIdInWithLock(anyCollection())).thenReturn(Arrays.asList(product1, product2));
 
@@ -394,7 +394,7 @@ class StockMutationServiceTest {
                     .stockDeductedAt(pastDeductionTime)
                     .build();
 
-            when(orderRepository.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+            when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
             // Act
             stockMutationService.deductOrder(orderId);
@@ -420,7 +420,7 @@ class StockMutationServiceTest {
                     .orderStatus(Order.OrderStatus.CANCELLED)
                     .build();
 
-            when(orderRepository.findByIdWithLock(orderId)).thenReturn(Optional.of(order));
+            when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
             // Act & Assert
             assertThatThrownBy(() -> stockMutationService.deductOrder(orderId))

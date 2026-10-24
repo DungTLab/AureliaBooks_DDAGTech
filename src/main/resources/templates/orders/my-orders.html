@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Đơn hàng của tôi', ~{::#main-content})}">
+<head><title>Đơn hàng của tôi</title></head><body>
+<section id="main-content" class="checkout-page">
+    <link rel="stylesheet" th:href="@{/css/checkout.css}"><link rel="stylesheet" th:href="@{/css/orders.css}">
+    <h1>Đơn hàng của tôi</h1><p class="checkout-help">Lịch sử mua hàng và tình trạng giao hàng của bạn.</p>
+    <nav class="order-status-tabs" aria-label="Lọc đơn hàng theo trạng thái">
+        <a th:href="@{/orders/my-orders}" th:classappend="${selectedStatus == null} ? 'is-active'" th:attr="aria-current=${selectedStatus == null ? 'page' : null}">Tất cả</a>
+        <a th:each="option : ${statusOptions}" th:href="@{/orders/my-orders(status=${option.key})}"
+           th:text="${option.value}" th:classappend="${selectedStatus == option.key} ? 'is-active'"
+           th:attr="aria-current=${selectedStatus == option.key ? 'page' : null}"></a>
+    </nav>
+    <div th:if="${orders.empty}" class="checkout-card order-empty-state">
+        <i class="bi bi-bag" aria-hidden="true"></i>
+        <p th:text="${orders.number > 0 ? 'Chưa có đơn hàng ở trang này.' : (selectedStatus == null ? 'Bạn chưa có đơn hàng nào.' : 'Chưa có đơn hàng ở trạng thái này.')}"></p>
+        <a th:href="@{/products}" class="checkout-back-link">Khám phá sách</a>
+        <a th:if="${orders.number > 0}" th:href="@{/orders/my-orders(status=${selectedStatus})}" class="checkout-back-link">Về trang đầu</a>
+    </div>
+    <article th:each="order : ${orders.content}" class="checkout-card order-history-card">
+        <div class="order-history-info"><strong class="checkout-order-code" th:text="${order.orderCode}"></strong><p class="checkout-muted" th:text="${#temporals.format(order.createdAt, 'dd/MM/yyyy HH:mm')}"></p></div>
+        <p class="order-status-badge" th:attr="data-status=${order.orderStatus}" th:text="${order.statusLabel()}"></p>
+        <strong class="order-history-total"><span th:text="${#numbers.formatDecimal(order.finalTotalAmount, 0, 'POINT', 0, 'COMMA')}"></span> đ</strong>
+        <a class="checkout-button is-secondary order-history-action" th:href="@{/orders/my-orders/{code}(code=${order.orderCode})}">Xem chi tiết</a>
+    </article>
+    <nav th:if="${orders.totalPages > 0}" class="order-pagination" aria-label="Phân trang đơn hàng">
+        <a th:if="${orders.hasPrevious()}" th:href="@{/orders/my-orders(page=${orders.number - 1},status=${selectedStatus})}" class="checkout-back-link">Trang trước</a>
+        <span th:text="|Trang ${orders.number + 1} / ${orders.totalPages}|"></span>
+        <a th:if="${orders.hasNext()}" th:href="@{/orders/my-orders(page=${orders.number + 1},status=${selectedStatus})}" class="checkout-back-link">Trang sau</a>
+    </nav>
+</section></body></html>

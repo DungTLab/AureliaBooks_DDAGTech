@@ -28,6 +28,10 @@ public interface AuditLogService {
     void record(Long authenticatedUserId, String action, String targetTable,
                 Long targetId, String detailsJson, String ipAddress);
 
+    /** Required business ledger entry: persistence failure must roll back the caller's transaction. */
+    void recordRequired(Long authenticatedUserId, String action, String targetTable,
+                        Long targetId, String detailsJson, String ipAddress);
+
     /**
      * Performs multi-criteria paginated search over audit entries.
      *

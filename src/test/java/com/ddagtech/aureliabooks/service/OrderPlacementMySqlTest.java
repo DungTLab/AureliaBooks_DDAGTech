@@ -16,6 +16,12 @@ import com.ddagtech.aureliabooks.service.impl.AuditLogServiceImpl;
 import com.ddagtech.aureliabooks.service.impl.CartServiceImpl;
 import com.ddagtech.aureliabooks.service.impl.OrderPlacementServiceImpl;
 import com.ddagtech.aureliabooks.service.impl.StockMutationServiceImpl;
+import com.ddagtech.aureliabooks.service.impl.OrderStateMachineServiceImpl;
+import com.ddagtech.aureliabooks.dto.request.OrderTransitionRequest;
+import com.ddagtech.aureliabooks.dto.request.RefundConfirmationRequest;
+import com.ddagtech.aureliabooks.dto.request.OrderQueueFilter;
+import com.ddagtech.aureliabooks.exception.IllegalStateTransitionException;
+import org.springframework.data.domain.PageRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ddagtech.aureliabooks.entity.Product;
 import jakarta.persistence.EntityManager;
@@ -75,7 +81,8 @@ import static org.mockito.Mockito.*;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({OrderPlacementServiceImpl.class, CartServiceImpl.class, AddressServiceImpl.class,
         CartMapper.class, ShippingAddressMapper.class, OrderMapper.class, AuditLogServiceImpl.class,
-        AddressOrderGuard.class, StockMutationServiceImpl.class,
+        AddressOrderGuard.class, StockMutationServiceImpl.class, OrderStateMachineServiceImpl.class,
+        OrderStatusValidator.class,
         com.ddagtech.aureliabooks.service.impl.VoucherServiceImpl.class,
         com.ddagtech.aureliabooks.mapper.VoucherMapper.class,
         com.ddagtech.aureliabooks.config.PromotionConfiguration.class, OrderPlacementMySqlTest.Support.class})
@@ -91,6 +98,7 @@ class OrderPlacementMySqlTest {
     private static boolean created;
 
     @Autowired OrderPlacementService service;
+    @Autowired OrderStateMachineService stateMachine;
     @Autowired StockMutationService stockMutations;
     @Autowired JdbcTemplate jdbc;
     @Autowired EntityManager entityManager;
@@ -355,6 +363,186 @@ class OrderPlacementMySqlTest {
                         service.getCheckoutView(other.id(), other.addressId()), Order.PaymentMethod.COD, null)));
         assertNoOrder(buyer);
         assertThat(stock(productId)).isEqualTo(5);
+    }
+
+    @Test void staffHappyPathAndQueueFiltersUseRealDatabase() {
+        long staffId = saleStaff();
+        long id = placedCodOrder();
+        transition(id, staffId, Order.OrderStatus.CONFIRMED);
+        assertThat(jdbc.queryForObject("SELECT confirmed_at IS NOT NULL FROM orders WHERE id=?", Boolean.class, id)).isTrue();
+        var queue = stateMachine.getOrderQueue(new OrderQueueFilter(Order.OrderStatus.CONFIRMED, Order.PaymentStatus.UNPAID,
+                Order.PaymentMethod.COD, java.time.LocalDate.now(), java.time.LocalDate.now()), PageRequest.of(0, 100), staffId);
+        assertThat(queue.getContent()).extracting("id").contains(id);
+        var checklist = stateMachine.getPackagingChecklist(id, staffId);
+        assertThat(checklist.order().recipientName()).isEqualTo("QA Recipient");
+        assertThat(checklist.order().fullAddress()).startsWith("12 Đội Cấn");
+        assertThat(checklist.order().items()).hasSize(1);
+        transition(id, staffId, Order.OrderStatus.SHIPPING);
+        transition(id, staffId, Order.OrderStatus.DELIVERED);
+        assertThat(jdbc.queryForObject("SELECT shipped_at IS NOT NULL AND delivered_at IS NOT NULL FROM orders WHERE id=?", Boolean.class, id)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT tracking_number FROM orders WHERE id=?", String.class, id)).isEqualTo("TRACK-QA");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_STATUS_CHANGED'", Integer.class, id)).isEqualTo(3);
+        assertThatThrownBy(() -> transition(id, staffId, Order.OrderStatus.PENDING_CONFIRMATION)).isInstanceOf(IllegalStateTransitionException.class);
+    }
+
+    @Test void staffCancellationRestoresStockOnceAndPersistsReasonAndAudit() {
+        long staffId = saleStaff();
+        long id = placedCodOrder();
+        long productId = jdbc.queryForObject("SELECT product_id FROM order_items WHERE order_id=?", Long.class, id);
+        assertThat(stock(productId)).isEqualTo(8);
+        transition(id, staffId, Order.OrderStatus.CANCELLED);
+        assertThat(stock(productId)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT cancel_reason FROM orders WHERE id=?", String.class, id)).isEqualTo("QA cancellation");
+        assertThat(jdbc.queryForObject("SELECT stock_restored_by_user_id FROM orders WHERE id=?", Long.class, id)).isEqualTo(staffId);
+        assertThat(jdbc.queryForObject("SELECT cancelled_at IS NOT NULL AND stock_restored_at IS NOT NULL FROM orders WHERE id=?", Boolean.class, id)).isTrue();
+        assertThatThrownBy(() -> transition(id, staffId, Order.OrderStatus.CANCELLED)).isInstanceOf(IllegalStateTransitionException.class);
+        assertThat(stock(productId)).isEqualTo(10);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_STATUS_CHANGED'", Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test void staffAuditFailureRollsBackCancellationAndRestock() {
+        long staffId = saleStaff();
+        long id = placedCodOrder();
+        long productId = jdbc.queryForObject("SELECT product_id FROM order_items WHERE order_id=?", Long.class, id);
+        doThrow(new IllegalStateException("forced audit failure")).when(audit)
+                .recordRequired(eq(staffId), eq("ORDER_STATUS_CHANGED"), eq("orders"), eq(id), anyString(), isNull());
+        assertThatThrownBy(() -> transition(id, staffId, Order.OrderStatus.CANCELLED)).isInstanceOf(IllegalStateException.class);
+        assertThat(stock(productId)).isEqualTo(8);
+        assertThat(jdbc.queryForObject("SELECT order_status FROM orders WHERE id=?", String.class, id)).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(jdbc.queryForObject("SELECT cancel_reason FROM orders WHERE id=?", String.class, id)).isNull();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_CANCELLED_RESTOCK'", Integer.class, id)).isZero();
+    }
+
+    @Test void staffConcurrentApprovalLocksAndValidatesLatestState() throws Exception {
+        long staffA = saleStaff(); long staffB = saleStaff(); long id = placedCodOrder();
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var a = executor.submit(() -> staffAfter(start, id, staffA));
+            var b = executor.submit(() -> staffAfter(start, id, staffB));
+            start.countDown();
+            var results = List.of(a.get(25, TimeUnit.SECONDS), b.get(25, TimeUnit.SECONDS));
+            assertThat(results.stream().filter("OK"::equals)).hasSize(1);
+            assertThat(results.stream().filter(IllegalStateTransitionException.class::isInstance)).hasSize(1);
+        }
+        assertThat(jdbc.queryForObject("SELECT order_status FROM orders WHERE id=?", String.class, id)).isEqualTo("CONFIRMED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_STATUS_CHANGED'", Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test void staffRefreshesCachedOrderUnderLockBeforeCheckingState() {
+        long staffId = saleStaff(); long id = placedCodOrder();
+        assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            Order cached = entityManager.find(Order.class, id);
+            TransactionTemplate separate = new TransactionTemplate(transactionManager);
+            separate.setPropagationBehavior(Propagation.REQUIRES_NEW.value());
+            separate.executeWithoutResult(inner -> transition(id, staffId, Order.OrderStatus.CONFIRMED));
+            assertThat(cached.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+            transition(id, staffId, Order.OrderStatus.CONFIRMED);
+        })).isInstanceOf(IllegalStateTransitionException.class);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_STATUS_CHANGED'", Integer.class, id)).isEqualTo(1);
+    }
+
+    private Object staffAfter(CountDownLatch start, long id, long staff) throws InterruptedException {
+        start.await();
+        try {
+            stateMachine.transitionStatus(id, new OrderTransitionRequest(Order.OrderStatus.CONFIRMED, null, null, null), staff);
+            return "OK";
+        } catch (RuntimeException exception) { return exception; }
+    }
+
+    @Test void staffQueueExcludesPendingVnpayIncludingExplicitFilterAndDirectDetail() {
+        long staff = saleStaff();
+        long product = product(10, "100000");
+        Buyer buyer = buyer(List.of(product), List.of(1));
+        Attempt pending = attempt(buyer, Order.PaymentMethod.VNPAY);
+        service.placeOrder(buyer.id(), pending.request(), pending.confirmation());
+        long id = orderId(pending);
+        var all = stateMachine.getOrderQueue(new OrderQueueFilter(null, null, null, null, null), PageRequest.of(0, 100), staff);
+        assertThat(all.getContent()).extracting("id").doesNotContain(id);
+        var explicitlyPending = stateMachine.getOrderQueue(new OrderQueueFilter(Order.OrderStatus.PENDING_PAYMENT, null, null, null, null), PageRequest.of(0, 100), staff);
+        assertThat(explicitlyPending.getContent()).isEmpty();
+        assertThatThrownBy(() -> stateMachine.getPackagingChecklist(id, staff)).isInstanceOf(AppException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ORDER_NOT_FOUND);
+    }
+
+    @Test void staffCodDeliveryRequiresCollectionAndCommitsPaidTogether() {
+        long staff = saleStaff(); long id = placedCodOrder();
+        transition(id, staff, Order.OrderStatus.CONFIRMED); transition(id, staff, Order.OrderStatus.SHIPPING);
+        assertThatThrownBy(() -> stateMachine.transitionStatus(id,
+                new OrderTransitionRequest(Order.OrderStatus.DELIVERED, null, null, false), staff)).isInstanceOf(AppException.class);
+        assertThat(jdbc.queryForObject("SELECT order_status FROM orders WHERE id=?", String.class, id)).isEqualTo("SHIPPING");
+        assertThat(jdbc.queryForObject("SELECT payment_status FROM orders WHERE id=?", String.class, id)).isEqualTo("UNPAID");
+        transition(id, staff, Order.OrderStatus.DELIVERED);
+        assertThat(jdbc.queryForObject("SELECT payment_status FROM orders WHERE id=?", String.class, id)).isEqualTo("PAID");
+    }
+
+    @Test void staffFullRefundPersistsEvidenceAndDoesNotRestockAgain() {
+        long staff = saleStaff(); long id = cancelledPaidOrder(staff);
+        long product = jdbc.queryForObject("SELECT product_id FROM order_items WHERE order_id=?", Long.class, id);
+        int before = stock(product);
+        var request = refundRequest(id);
+        stateMachine.confirmExternalRefund(id, request, staff);
+        assertThat(jdbc.queryForObject("SELECT payment_status FROM orders WHERE id=?", String.class, id)).isEqualTo("REFUNDED");
+        assertThat(jdbc.queryForObject("SELECT order_status FROM orders WHERE id=?", String.class, id)).isEqualTo("CANCELLED");
+        assertThat(stock(product)).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(details_json,'$.reference')) FROM audit_logs WHERE target_id=? AND action='ORDER_REFUND_CONFIRMED'", String.class, id)).isEqualTo("QA-REFUND-" + id);
+        assertThat(stateMachine.getPackagingChecklist(id, staff).history()).extracting("action").contains("ORDER_REFUND_CONFIRMED");
+        assertThatThrownBy(() -> stateMachine.confirmExternalRefund(id, request, staff)).isInstanceOf(AppException.class);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_REFUND_CONFIRMED'", Integer.class, id)).isEqualTo(1);
+    }
+
+    @Test void staffRefundAuditFailureRollsBackPayment() {
+        long staff = saleStaff(); long id = cancelledPaidOrder(staff);
+        doThrow(new IllegalStateException("forced required audit failure")).when(audit)
+                .recordRequired(eq(staff), eq("ORDER_REFUND_CONFIRMED"), eq("orders"), eq(id), anyString(), isNull());
+        assertThatThrownBy(() -> stateMachine.confirmExternalRefund(id, refundRequest(id), staff)).isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("SELECT payment_status FROM orders WHERE id=?", String.class, id)).isEqualTo("PAID");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_REFUND_CONFIRMED'", Integer.class, id)).isZero();
+    }
+
+    @Test void staffConcurrentRefundConfirmsExactlyOnce() throws Exception {
+        long first = saleStaff(); long second = saleStaff(); long id = cancelledPaidOrder(first);
+        var request = refundRequest(id);
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var a = executor.submit(() -> refundAfter(start, id, first, request));
+            var b = executor.submit(() -> refundAfter(start, id, second, request));
+            start.countDown();
+            var results = List.of(a.get(25, TimeUnit.SECONDS), b.get(25, TimeUnit.SECONDS));
+            assertThat(results.stream().filter("OK"::equals)).hasSize(1);
+            assertThat(results.stream().filter(AppException.class::isInstance)).hasSize(1);
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_REFUND_CONFIRMED'", Integer.class, id)).isEqualTo(1);
+    }
+
+    private Object refundAfter(CountDownLatch start, long id, long actor, RefundConfirmationRequest request) throws InterruptedException {
+        start.await();
+        try { stateMachine.confirmExternalRefund(id, request, actor); return "OK"; }
+        catch (RuntimeException exception) { return exception; }
+    }
+    private long cancelledPaidOrder(long staff) {
+        long id = placedCodOrder();
+        jdbc.update("UPDATE orders SET payment_method='VNPAY', payment_status='PAID', vnpay_txn_ref=? WHERE id=?", "QA-PAID-" + id, id);
+        transition(id, staff, Order.OrderStatus.CANCELLED);
+        return id;
+    }
+    private RefundConfirmationRequest refundRequest(long id) {
+        return new RefundConfirmationRequest(jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE id=?", java.math.BigDecimal.class, id),
+                "BANK_TRANSFER", java.time.LocalDate.now(), "QA-REFUND-" + id, "QA bank receipt", true);
+    }
+    private long saleStaff() {
+        jdbc.update("INSERT INTO roles(role_name) VALUES('ROLE_SALE_STAFF') ON DUPLICATE KEY UPDATE role_name=role_name");
+        long role = jdbc.queryForObject("SELECT id FROM roles WHERE role_name='ROLE_SALE_STAFF'", Long.class);
+        return insert("INSERT INTO users(role_id,password_hash,full_name) VALUES(?,'qa-hash','QA Staff')", role);
+    }
+    private long placedCodOrder() {
+        long productId = product(10, "100000");
+        Buyer buyer = buyer(List.of(productId), List.of(2));
+        Attempt attempt = attempt(buyer, Order.PaymentMethod.COD);
+        service.placeOrder(buyer.id(), attempt.request(), attempt.confirmation());
+        return orderId(attempt);
+    }
+    private void transition(long id, long staff, Order.OrderStatus target) {
+        stateMachine.transitionStatus(id, new OrderTransitionRequest(target, "QA cancellation", "TRACK-QA", target == Order.OrderStatus.DELIVERED), staff);
     }
 
     private List<Object> concurrent(Buyer first, Attempt a, Buyer second, Attempt b) throws Exception {
