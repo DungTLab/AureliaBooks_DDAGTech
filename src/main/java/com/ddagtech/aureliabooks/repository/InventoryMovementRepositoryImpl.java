@@ -103,10 +103,13 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
               AND (:toExclusive IS NULL OR im.occurred_at < :toExclusive)
               AND (
                    :keywordPattern IS NULL
+                   OR p.barcode = :rawKeyword
+                   OR b.isbn = :rawKeyword
+                   OR im.reference_code = :rawKeyword
+                   OR p.barcode LIKE :prefixPattern ESCAPE '\\\\'
+                   OR b.isbn LIKE :prefixPattern ESCAPE '\\\\'
+                   OR im.reference_code LIKE :prefixPattern ESCAPE '\\\\'
                    OR LOWER(p.title) LIKE :keywordPattern ESCAPE '\\\\'
-                   OR p.barcode LIKE :keywordPattern ESCAPE '\\\\'
-                   OR b.isbn LIKE :keywordPattern ESCAPE '\\\\'
-                   OR im.reference_code LIKE :keywordPattern ESCAPE '\\\\'
               )
             """;
 
@@ -148,9 +151,11 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
         Long actorId = filter != null ? filter.actorUserId() : null;
         boolean isSystemActor = actorId != null && actorId == -1L;
 
-        String kw = (filter != null && filter.keyword() != null && !filter.keyword().isBlank())
-                ? escapeLikePattern(filter.keyword())
+        String rawKw = (filter != null && filter.keyword() != null && !filter.keyword().isBlank())
+                ? filter.keyword().trim()
                 : null;
+        String kwPattern = escapeLikePattern(rawKw);
+        String prefixPattern = escapePrefixPattern(rawKw);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("productId", productId)
@@ -159,7 +164,9 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
                 .addValue("isSystemActor", isSystemActor)
                 .addValue("fromInclusive", fromInclusive)
                 .addValue("toExclusive", toExclusive)
-                .addValue("keywordPattern", kw)
+                .addValue("rawKeyword", rawKw)
+                .addValue("prefixPattern", prefixPattern)
+                .addValue("keywordPattern", kwPattern)
                 .addValue("limit", pageable.getPageSize())
                 .addValue("offset", pageable.getOffset());
 
@@ -216,15 +223,39 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
      * @param raw keyword input
      * @return lowercase escaped LIKE pattern with leading and trailing wildcard
      */
+    /**
+     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters for prefix matching (L-REMAIN-03).
+     * Unlike substring LIKE pattern, does NOT prepend '%' so MySQL B-Tree indexes on barcode/isbn can be utilized.
+     *
+     * @param raw keyword input
+     * @return escaped prefix LIKE pattern with trailing wildcard only
+     */
+    static String escapePrefixPattern(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String sanitized = sanitizeLikeString(raw);
+        return sanitized + "%";
+    }
+
+    /**
+     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters to prevent wildcard pollution [L-04].
+     *
+     * @param raw keyword input
+     * @return lowercase escaped LIKE pattern with leading and trailing wildcard
+     */
     static String escapeLikePattern(String raw) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        String sanitized = raw.trim()
-                .replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
+        String sanitized = sanitizeLikeString(raw);
         return "%" + sanitized.toLowerCase() + "%";
     }
 
+    private static String sanitizeLikeString(String raw) {
+        return raw.trim()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+    }
 }

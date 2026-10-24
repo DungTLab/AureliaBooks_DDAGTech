@@ -90,7 +90,7 @@ class InventoryHistoryIntegrationTest {
                 entityManager
         );
 
-        inventoryHistoryService = new InventoryHistoryServiceImpl(inventoryMovementRepository);
+        inventoryHistoryService = new InventoryHistoryServiceImpl(inventoryMovementRepository, orderRepository);
 
         // Seed Users
         manager = User.builder().id(1L).email("manager@aureliabooks.com").fullName("Nguyễn Quản Lý").build();

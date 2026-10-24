@@ -7,6 +7,14 @@ import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary.MovementType;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.InventoryMovementRepository;
+import com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto;
+import com.ddagtech.aureliabooks.entity.Order;
+import com.ddagtech.aureliabooks.entity.OrderItem;
+import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.repository.OrderRepository;
+import java.math.BigDecimal;
+import java.util.Optional;
+
 import com.ddagtech.aureliabooks.service.impl.InventoryHistoryServiceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,6 +44,9 @@ class InventoryHistoryServiceTest {
 
     @Mock
     private InventoryMovementRepository inventoryMovementRepository;
+
+    @Mock
+    private OrderRepository orderRepository;
 
     @InjectMocks
     private InventoryHistoryServiceImpl inventoryHistoryService;
@@ -176,6 +187,79 @@ class InventoryHistoryServiceTest {
             Pageable captured = pageableCaptor.getValue();
             assertThat(captured.getPageNumber()).isEqualTo(2);
             assertThat(captured.getPageSize()).isEqualTo(50);
+        }
+    }
+
+    @Nested
+    @DisplayName("getOrderDetail() Tests (L-NEW-02)")
+    class GetOrderDetailTests {
+
+        @Test
+        @DisplayName("Returns empty Optional when orderId is null")
+        void getOrderDetail_whenIdNull_returnsEmpty() {
+            Optional<OrderDetailModalDto> result = inventoryHistoryService.getOrderDetail(null);
+            assertThat(result).isEmpty();
+            verifyNoInteractions(orderRepository);
+        }
+
+        @Test
+        @DisplayName("Returns empty Optional when order is not found in database")
+        void getOrderDetail_whenNotFound_returnsEmpty() {
+            when(orderRepository.findByIdWithItemsAndProduct(99L)).thenReturn(Optional.empty());
+
+            Optional<OrderDetailModalDto> result = inventoryHistoryService.getOrderDetail(99L);
+            assertThat(result).isEmpty();
+            verify(orderRepository).findByIdWithItemsAndProduct(99L);
+        }
+
+        @Test
+        @DisplayName("Eagerly loads order with items and product to eliminate N+1 queries")
+        void getOrderDetail_whenFound_mapsAllFieldsAndItemsProperly() {
+            Product p1 = Product.builder().id(101L).barcode("893001").build();
+            OrderItem item1 = OrderItem.builder()
+                    .id(1L)
+                    .product(p1)
+                    .productNameSnapshot("Book Title 1")
+                    .quantity(2)
+                    .unitPriceSnapshot(BigDecimal.valueOf(50000))
+                    .build();
+
+            Order order = Order.builder()
+                    .id(10L)
+                    .orderCode("ORD-10")
+                    .orderStatus(Order.OrderStatus.CONFIRMED)
+                    .paymentMethod(Order.PaymentMethod.COD)
+                    .paymentStatus(Order.PaymentStatus.UNPAID)
+                    .shippingRecipientName("John Doe")
+                    .shippingPhone("0123456789")
+                    .shippingFullAddress("123 Street")
+                    .shippingFee(BigDecimal.valueOf(25000))
+                    .finalTotalAmount(BigDecimal.valueOf(125000))
+                    .stockDeductedAt(LocalDateTime.of(2026, 10, 20, 10, 0))
+                    .items(List.of(item1))
+                    .build();
+
+            when(orderRepository.findByIdWithItemsAndProduct(10L)).thenReturn(Optional.of(order));
+
+            Optional<OrderDetailModalDto> result = inventoryHistoryService.getOrderDetail(10L);
+
+            assertThat(result).isPresent();
+            OrderDetailModalDto dto = result.get();
+            assertThat(dto.id()).isEqualTo(10L);
+            assertThat(dto.orderCode()).isEqualTo("ORD-10");
+            assertThat(dto.orderStatus()).isEqualTo("CONFIRMED");
+            assertThat(dto.recipientName()).isEqualTo("John Doe");
+            assertThat(dto.items()).hasSize(1);
+
+            OrderDetailModalDto.OrderItemDetailDto itemDto = dto.items().getFirst();
+            assertThat(itemDto.productId()).isEqualTo(101L);
+            assertThat(itemDto.productTitle()).isEqualTo("Book Title 1");
+            assertThat(itemDto.barcode()).isEqualTo("893001");
+            assertThat(itemDto.quantity()).isEqualTo(2);
+            assertThat(itemDto.unitPrice()).isEqualByComparingTo(BigDecimal.valueOf(50000));
+            assertThat(itemDto.subtotal()).isEqualByComparingTo(BigDecimal.valueOf(100000));
+
+            verify(orderRepository).findByIdWithItemsAndProduct(10L);
         }
     }
 }

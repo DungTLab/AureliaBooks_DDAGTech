@@ -89,6 +89,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countActiveAdmins();
 
     /**
+     * Retrieves all internal staff actors (ADMIN, MANAGER, SALE_STAFF) for operator/actor filter.
+     * Uses JOIN FETCH on role and filters strictly at the database level to prevent PII exposure (QC05)
+     * of customer accounts and avoid Out-Of-Memory (OOM) overhead.
+     *
+     * @return list of internal staff users ordered by full name
+     */
+    @Query("SELECT u FROM User u JOIN FETCH u.role r WHERE r.roleName IN ('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_SALE_STAFF') ORDER BY u.fullName ASC")
+    List<User> findInternalStaffActors();
+
+    /**
      * Retrieves all currently active administrator accounts with a pessimistic write lock (FOR UPDATE).
      * In MySQL InnoDB with REPEATABLE READ isolation, executing a Locking Read bypasses the transaction's
      * consistent read snapshot (Read View) and always reads the latest committed database state,

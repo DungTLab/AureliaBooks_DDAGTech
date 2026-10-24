@@ -16,6 +16,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.id = :id")
     Optional<Order> findByIdWithLock(@Param("id") Long id);
 
+    /**
+     * Eagerly loads an order with its items and products in a single SQL query.
+     * Eliminates N+1 query problem when viewing order detail modal (L-NEW-02).
+     *
+     * @param id order entity ID
+     * @return Optional containing the order with items and products fetched
+     */
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.items oi LEFT JOIN FETCH oi.product WHERE o.id = :id")
+    Optional<Order> findByIdWithItemsAndProduct(@Param("id") Long id);
+
     /** Look up the token before reading the cart to identify an already committed order on repeated submission. */
     Optional<Order> findByOrderCode(String orderCode);
 

@@ -3,10 +3,8 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementResponse;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary.MovementType;
-import com.ddagtech.aureliabooks.repository.OrderRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.InventoryHistoryService;
-import com.ddagtech.aureliabooks.entity.Order;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,9 +37,6 @@ class AdminStockHistoryControllerTest {
 
     @MockitoBean
     private InventoryHistoryService inventoryHistoryService;
-
-    @MockitoBean
-    private OrderRepository orderRepository;
 
     @MockitoBean
     private UserRepository userRepository;
@@ -178,36 +173,68 @@ class AdminStockHistoryControllerTest {
         }
 
         @Test
-        @DisplayName("GET /api/orders/{id} returns 200 with order details modal DTO (L-02)")
-        void getOrderApi_whenFound_returnsOk() throws Exception {
-            Order mockOrder = Order.builder()
-                    .id(10L)
-                    .orderCode("ORD-20261015-001")
-                    .shippingRecipientName("Nguyen Van A")
-                    .shippingPhone("0987654321")
-                    .shippingFullAddress("123 Hoa Lac, Ha Noi")
-                    .shippingFee(java.math.BigDecimal.valueOf(30000))
-                    .finalTotalAmount(java.math.BigDecimal.valueOf(150000))
-                    .items(java.util.List.of())
-                    .build();
+        @DisplayName("Populates internal staff actors from findInternalStaffActors to prevent PII leak (L-NEW-01)")
+        void list_populatesInternalStaffActors_excludingCustomers() throws Exception {
+            com.ddagtech.aureliabooks.entity.Role adminRole = com.ddagtech.aureliabooks.entity.Role.builder()
+                    .roleName("ROLE_ADMIN").build();
+            com.ddagtech.aureliabooks.entity.User staffUser = com.ddagtech.aureliabooks.entity.User.builder()
+                    .id(5L).fullName("Staff Member").email("staff@store.com").role(adminRole).build();
 
-            when(orderRepository.findById(10L)).thenReturn(Optional.of(mockOrder));
+            when(userRepository.findInternalStaffActors()).thenReturn(List.of(staffUser));
+            when(inventoryHistoryService.getInventoryHistory(any(), any())).thenReturn(Page.empty());
+
+            mockMvc.perform(get("/manager/stock/history")
+                            .with(user("manager").roles("MANAGER")))
+                    .andExpect(status().isOk())
+                    .andExpect(model().attribute("actors", List.of(staffUser)));
+
+            verify(userRepository).findInternalStaffActors();
+            verify(userRepository, never()).findAll();
+        }
+
+        @Test
+        @DisplayName("GET /api/orders/{id} returns 200 with order details modal DTO (L-02 / L-NEW-02)")
+        void getOrderApi_whenFound_returnsOk() throws Exception {
+            com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto mockDto = new com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto(
+                    10L,
+                    "ORD-20261015-001",
+                    java.time.LocalDateTime.now(),
+                    "CONFIRMED",
+                    "COD",
+                    "UNPAID",
+                    "Nguyen Van A",
+                    "0987654321",
+                    "123 Hoa Lac, Ha Noi",
+                    java.math.BigDecimal.valueOf(30000),
+                    java.math.BigDecimal.valueOf(150000),
+                    null,
+                    java.time.LocalDateTime.now(),
+                    null,
+                    null,
+                    List.of()
+            );
+
+            when(inventoryHistoryService.getOrderDetail(10L)).thenReturn(Optional.of(mockDto));
 
             mockMvc.perform(get("/api/orders/10")
                             .with(user("manager").roles("MANAGER")))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.orderCode").value("ORD-20261015-001"))
                     .andExpect(jsonPath("$.recipientName").value("Nguyen Van A"));
+
+            verify(inventoryHistoryService).getOrderDetail(10L);
         }
 
         @Test
-        @DisplayName("GET /api/orders/{id} returns 404 when not found (L-02)")
+        @DisplayName("GET /api/orders/{id} returns 404 when not found (L-02 / L-NEW-02)")
         void getOrderApi_whenNotFound_returns404() throws Exception {
-            when(orderRepository.findById(999L)).thenReturn(Optional.empty());
+            when(inventoryHistoryService.getOrderDetail(999L)).thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/orders/999")
                             .with(user("manager").roles("MANAGER")))
                     .andExpect(status().isNotFound());
+
+            verify(inventoryHistoryService).getOrderDetail(999L);
         }
     }
 }

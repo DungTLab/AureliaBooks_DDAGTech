@@ -5,7 +5,15 @@ import com.ddagtech.aureliabooks.dto.request.InventoryHistoryFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementResponse;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary;
 import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto;
+import com.ddagtech.aureliabooks.entity.Order;
+import com.ddagtech.aureliabooks.entity.OrderItem;
 import com.ddagtech.aureliabooks.repository.InventoryMovementRepository;
+import com.ddagtech.aureliabooks.repository.OrderRepository;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import com.ddagtech.aureliabooks.service.InventoryHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +34,7 @@ import java.time.LocalDateTime;
 public class InventoryHistoryServiceImpl implements InventoryHistoryService {
 
     private final InventoryMovementRepository inventoryMovementRepository;
+    private final OrderRepository orderRepository;
 
     @Override
     public Page<InventoryMovementSummary> history(
@@ -88,5 +97,54 @@ public class InventoryHistoryServiceImpl implements InventoryHistoryService {
         }
 
         return PageRequest.of(page, size);
+    }
+    @Override
+    public Optional<OrderDetailModalDto> getOrderDetail(Long orderId) {
+        if (orderId == null) {
+            return Optional.empty();
+        }
+        return orderRepository.findByIdWithItemsAndProduct(orderId)
+                .map(this::mapToOrderDetailDto);
+    }
+
+    private OrderDetailModalDto mapToOrderDetailDto(Order order) {
+        List<OrderDetailModalDto.OrderItemDetailDto> items = new ArrayList<>();
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                BigDecimal price = item.getUnitPriceSnapshot() != null ? item.getUnitPriceSnapshot() : BigDecimal.ZERO;
+                int qty = item.getQuantity() != null ? item.getQuantity() : 0;
+                BigDecimal subtotal = price.multiply(BigDecimal.valueOf(qty));
+                String barcode = (item.getProduct() != null && item.getProduct().getBarcode() != null)
+                        ? item.getProduct().getBarcode()
+                        : "-";
+                items.add(new OrderDetailModalDto.OrderItemDetailDto(
+                        item.getProduct() != null ? item.getProduct().getId() : null,
+                        item.getProductNameSnapshot(),
+                        barcode,
+                        qty,
+                        price,
+                        subtotal
+                ));
+            }
+        }
+
+        return new OrderDetailModalDto(
+                order.getId(),
+                order.getOrderCode(),
+                order.getCreatedAt(),
+                order.getOrderStatus() != null ? order.getOrderStatus().name() : "-",
+                order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "-",
+                order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "-",
+                order.getShippingRecipientName(),
+                order.getShippingPhone(),
+                order.getShippingFullAddress(),
+                order.getShippingFee(),
+                order.getFinalTotalAmount(),
+                order.getCancelReason(),
+                order.getStockDeductedAt(),
+                order.getStockRestoredAt(),
+                order.getStockRestoreReason() != null ? order.getStockRestoreReason().name() : null,
+                items
+        );
     }
 }

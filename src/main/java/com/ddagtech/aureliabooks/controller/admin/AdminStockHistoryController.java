@@ -4,10 +4,7 @@ import com.ddagtech.aureliabooks.dto.request.InventoryHistoryFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementResponse;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary.MovementType;
 import com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto;
-import com.ddagtech.aureliabooks.entity.Order;
-import com.ddagtech.aureliabooks.entity.OrderItem;
 import com.ddagtech.aureliabooks.entity.User;
-import com.ddagtech.aureliabooks.repository.OrderRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.InventoryHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +15,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -38,7 +32,6 @@ import java.util.List;
 public class AdminStockHistoryController {
 
     private final InventoryHistoryService inventoryHistoryService;
-    private final OrderRepository orderRepository;
     private final UserRepository userRepository;
 
     /**
@@ -90,10 +83,8 @@ public class AdminStockHistoryController {
             movementsPage = inventoryHistoryService.getInventoryHistory(safeFilter, pageable);
         }
 
-        // Populate staff/admin actors for operator filter (L-08)
-        List<User> actors = userRepository.findAll().stream()
-                .filter(u -> u.getRole() != null && !"CUSTOMER".equalsIgnoreCase(u.getRole().getRoleName()))
-                .toList();
+        // Populate staff/admin actors for operator filter (L-NEW-01: eliminate PII leak & avoid OOM)
+        List<User> actors = userRepository.findInternalStaffActors();
 
         model.addAttribute("movementsPage", movementsPage);
         model.addAttribute("movementTypes", MovementType.values());
@@ -114,46 +105,9 @@ public class AdminStockHistoryController {
     @GetMapping({"/api/orders/{id}", "/manager/orders/api/{id}"})
     @ResponseBody
     @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'SALE_STAFF')")
-    @Transactional(readOnly = true)
     public ResponseEntity<OrderDetailModalDto> getOrderApi(@PathVariable Long id) {
-        return orderRepository.findById(id)
-                .map(order -> {
-                    List<OrderDetailModalDto.OrderItemDetailDto> items = new ArrayList<>();
-                    if (order.getItems() != null) {
-                        for (OrderItem item : order.getItems()) {
-                            BigDecimal price = item.getUnitPriceSnapshot() != null ? item.getUnitPriceSnapshot() : BigDecimal.ZERO;
-                            BigDecimal subtotal = price.multiply(BigDecimal.valueOf(item.getQuantity()));
-                            String barcode = item.getProduct() != null ? item.getProduct().getBarcode() : "-";
-                            items.add(new OrderDetailModalDto.OrderItemDetailDto(
-                                    item.getProduct() != null ? item.getProduct().getId() : null,
-                                    item.getProductNameSnapshot(),
-                                    barcode,
-                                    item.getQuantity(),
-                                    price,
-                                    subtotal
-                            ));
-                        }
-                    }
-
-                    return ResponseEntity.ok(new OrderDetailModalDto(
-                            order.getId(),
-                            order.getOrderCode(),
-                            order.getCreatedAt(),
-                            order.getOrderStatus() != null ? order.getOrderStatus().name() : "-",
-                            order.getPaymentMethod() != null ? order.getPaymentMethod().name() : "-",
-                            order.getPaymentStatus() != null ? order.getPaymentStatus().name() : "-",
-                            order.getShippingRecipientName(),
-                            order.getShippingPhone(),
-                            order.getShippingFullAddress(),
-                            order.getShippingFee(),
-                            order.getFinalTotalAmount(),
-                            order.getCancelReason(),
-                            order.getStockDeductedAt(),
-                            order.getStockRestoredAt(),
-                            order.getStockRestoreReason() != null ? order.getStockRestoreReason().name() : null,
-                            items
-                    ));
-                })
+        return inventoryHistoryService.getOrderDetail(id)
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }
