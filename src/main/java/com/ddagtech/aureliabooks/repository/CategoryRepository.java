@@ -1,19 +1,36 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Category;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
+
     /**
-     * Retrieve subcategories by parent category ID for category tree navigation.
+     * Locks a category row exclusively (PESSIMISTIC_WRITE) to prevent race conditions during updates.
      *
-     * @param parentId ID of the parent category
-     * @return list of child categories
+     * @param id category ID
+     * @return locked category entity
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Category c WHERE c.id = :id")
+    Optional<Category> findByIdWithLock(@Param("id") Long id);
+
+    /**
+     * Locks all root categories exclusively (PESSIMISTIC_WRITE) to serialize root category modifications.
+     *
+     * @return list of locked root categories
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Category c WHERE c.parent IS NULL")
+    List<Category> findRootCategoriesWithLock();
+
     List<Category> findByParentId(Long parentId);
 
     /**
@@ -36,6 +53,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      * @return list of active categories
      */
     List<Category> findAllByIsActiveTrueOrderByNameAsc();
+
+    List<Category> findAllByOrderByNameAsc();
 
     /**
      * Checks if a category name exists under a specific parent category.
@@ -89,4 +108,10 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      */
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Product p WHERE p.category.id = :categoryId")
     boolean hasProducts(@Param("categoryId") Long categoryId);
+
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.category.id = :categoryId")
+    long countProductsByCategoryId(@Param("categoryId") Long categoryId);
+
+    @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parent ORDER BY c.id ASC")
+    List<Category> findAllWithParent();
 }

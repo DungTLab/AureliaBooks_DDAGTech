@@ -1,9 +1,18 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Brand;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
+@Repository
 public interface BrandRepository extends JpaRepository<Brand, Long> {
+
     /**
      * Checks if a brand with the given name exists.
      *
@@ -26,5 +35,28 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
      *
      * @return list of brands
      */
-    java.util.List<Brand> findAllByOrderByNameAsc();
+    List<Brand> findAllByOrderByNameAsc();
+
+    /**
+     * Returns only active brands ordered by name ascending.
+     *
+     * @return list of active brands
+     */
+    List<Brand> findAllByIsActiveTrueOrderByNameAsc();
+
+    Page<Brand> findAllByOrderByNameAsc(Pageable pageable);
+
+    Page<Brand> findByNameContainingIgnoreCaseOrderByNameAsc(String keyword, Pageable pageable);
+
+    /**
+     * Verifies if any stationery is currently linked to the specified brand.
+     *
+     * @param brandId brand ID
+     * @return true if at least one stationery references this brand
+     */
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM Stationery s WHERE s.brand.id = :brandId")
+    boolean hasStationeries(@Param("brandId") Long brandId);
+
+    @Query("SELECT COUNT(s) FROM Stationery s WHERE s.brand.id = :brandId")
+    long countStationeriesByBrandId(@Param("brandId") Long brandId);
 }
