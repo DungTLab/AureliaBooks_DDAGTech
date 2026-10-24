@@ -21,6 +21,7 @@ public class DailyRevenueDto {
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM");
 
     private LocalDate date;
+    private String periodLabel;
 
     @Builder.Default
     private long orderCount = 0L;
@@ -29,7 +30,11 @@ public class DailyRevenueDto {
     private BigDecimal revenue = BigDecimal.ZERO;
 
     public String getFormattedDate() {
-        return date != null ? date.format(DATE_FMT) : "";
+        return (periodLabel != null && !periodLabel.isBlank()) ? periodLabel : (date != null ? date.format(DATE_FMT) : "");
+    }
+
+    public String getDisplayLabel() {
+        return (periodLabel != null && !periodLabel.isBlank()) ? periodLabel : (date != null ? date.format(DATE_FMT) : "");
     }
 
     public String getFormattedRevenue() {

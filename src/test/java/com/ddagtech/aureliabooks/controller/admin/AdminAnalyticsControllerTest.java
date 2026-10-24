@@ -1,10 +1,7 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
-import com.ddagtech.aureliabooks.dto.analytics.RevenueAnalyticsReportDto;
-import com.ddagtech.aureliabooks.dto.analytics.RevenueFilterRequest;
-import com.ddagtech.aureliabooks.dto.analytics.RevenueSummaryKpiDto;
-import com.ddagtech.aureliabooks.dto.analytics.StockValuationItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.*;
 import com.ddagtech.aureliabooks.service.AnalyticsService;
 import com.ddagtech.aureliabooks.service.ExcelExportService;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -122,12 +120,29 @@ class AdminAnalyticsControllerTest {
 
     @Test
     @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
-    @DisplayName("Export stock valuation excel returns xlsx binary with valid attachment header")
-    void exportStockValuationExcel_success() throws Exception {
+    @DisplayName("Export period stock excel returns xlsx binary with valid attachment header (F04)")
+    void exportPeriodStockExcel_success() throws Exception {
+        when(analyticsService.getPeriodStockMovementReport(any())).thenReturn(Collections.emptyList());
+        when(analyticsService.getStockValuationReport()).thenReturn(Collections.emptyList());
+        doNothing().when(excelExportService).exportPeriodStockReport(any(), any(), any(), any(OutputStream.class));
+
+        mockMvc.perform(get("/manager/analytics/export/stock")
+                        .param("startDate", "2026-10-01")
+                        .param("endDate", "2026-10-31"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().exists("Content-Disposition"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("Bao_Cao_Ton_Kho_Bien_Dong_")));
+    }
+
+    @Test
+    @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("Export stock valuation snapshot excel returns xlsx binary with valid attachment header")
+    void exportStockValuationOnlyExcel_success() throws Exception {
         when(analyticsService.getStockValuationReport()).thenReturn(List.of(new StockValuationItemDto()));
         doNothing().when(excelExportService).exportStockValuationExcel(any(), any(OutputStream.class));
 
-        mockMvc.perform(get("/manager/analytics/export/stock"))
+        mockMvc.perform(get("/manager/analytics/export/stock-valuation"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .andExpect(header().exists("Content-Disposition"))

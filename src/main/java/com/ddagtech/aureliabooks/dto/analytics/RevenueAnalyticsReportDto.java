@@ -37,6 +37,9 @@ public class RevenueAnalyticsReportDto {
     private List<RevenueOrderSummaryDto> recentDeliveredOrders = new ArrayList<>();
 
     @Builder.Default
+    private List<RevenueOrderSummaryDto> allDeliveredOrders = new ArrayList<>();
+
+    @Builder.Default
     private List<String> chartDailyLabels = new ArrayList<>();
 
     @Builder.Default
@@ -68,5 +71,15 @@ public class RevenueAnalyticsReportDto {
 
     public boolean isHasDeliveredOrders() {
         return recentDeliveredOrders != null && !recentDeliveredOrders.isEmpty();
+    }
+
+    public List<RevenueOrderSummaryDto> getOrdersForExport() {
+        return (allDeliveredOrders != null && !allDeliveredOrders.isEmpty())
+                ? allDeliveredOrders
+                : recentDeliveredOrders;
+    }
+
+    public boolean isMonthlyGranularity() {
+        return filter != null && filter.isMonthlyGranularity();
     }
 }

@@ -41,6 +41,7 @@ public class StockValuationItemDto {
 
     private String agingTier;
     private String stockStatus;
+    private Boolean isActive;
 
     public String getFormattedOriginalCost() {
         return formatCurrency(originalCost);
@@ -63,6 +64,10 @@ public class StockValuationItemDto {
             return "Khác";
         }
         return productType == Product.ProductType.BOOK ? "Sách" : "Văn phòng phẩm";
+    }
+
+    public String getActiveStatusLabel() {
+        return Boolean.TRUE.equals(isActive) ? "Đang kinh doanh" : "Ngừng kinh doanh";
     }
 
     private static String formatCurrency(BigDecimal amount) {

@@ -34,10 +34,10 @@ class AnalyticsRepositoryImplTest {
     private AnalyticsRepositoryImpl repository;
 
     @Test
-    @DisplayName("queryRevenueSummaryKpis enforces DELIVERED status and passes date parameters")
+    @DisplayName("queryRevenueSummaryKpis enforces DELIVERED status and half-open boundary < endExclusiveDateTime (F02)")
     void queryRevenueSummaryKpis_happyPath() {
         LocalDateTime start = LocalDateTime.of(2026, 10, 1, 0, 0);
-        LocalDateTime end = LocalDateTime.of(2026, 10, 21, 23, 59, 59);
+        LocalDateTime endExclusive = LocalDateTime.of(2026, 10, 22, 0, 0);
 
         RevenueSummaryKpiDto expectedKpi = RevenueSummaryKpiDto.builder()
                 .totalOrders(15)
@@ -50,12 +50,13 @@ class AnalyticsRepositoryImplTest {
         when(jdbc.queryForObject(sqlCaptor.capture(), paramsCaptor.capture(), any(RowMapper.class)))
                 .thenReturn(expectedKpi);
 
-        RevenueSummaryKpiDto actual = repository.queryRevenueSummaryKpis(start, end);
+        RevenueSummaryKpiDto actual = repository.queryRevenueSummaryKpis(start, endExclusive);
 
         assertThat(actual.getTotalOrders()).isEqualTo(15);
         assertThat(sqlCaptor.getValue()).contains("o.order_status = 'DELIVERED'");
+        assertThat(sqlCaptor.getValue()).contains("o.created_at < :endExclusiveDateTime");
         assertThat(paramsCaptor.getValue().getValue("startDateTime")).isEqualTo(start);
-        assertThat(paramsCaptor.getValue().getValue("endDateTime")).isEqualTo(end);
+        assertThat(paramsCaptor.getValue().getValue("endExclusiveDateTime")).isEqualTo(endExclusive);
     }
 
     @Test
@@ -75,10 +76,25 @@ class AnalyticsRepositoryImplTest {
         assertThat(results).hasSize(1);
         assertThat(sqlCaptor.getValue()).contains("o.order_status = 'DELIVERED'");
         assertThat(sqlCaptor.getValue()).contains("GROUP BY");
+        assertThat(sqlCaptor.getValue()).contains("o.created_at < :endExclusiveDateTime");
     }
 
     @Test
-    @DisplayName("queryPaymentMethodBreakdown queries payment breakdown")
+    @DisplayName("queryMonthlyRevenueTrends groups by month YYYY-MM and orders ascending (F06)")
+    void queryMonthlyRevenueTrends() {
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbc.query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of(new DailyRevenueDto()));
+
+        List<DailyRevenueDto> results = repository.queryMonthlyRevenueTrends(LocalDateTime.now(), LocalDateTime.now());
+
+        assertThat(results).hasSize(1);
+        assertThat(sqlCaptor.getValue()).contains("DATE_FORMAT(o.created_at, '%Y-%m')");
+        assertThat(sqlCaptor.getValue()).contains("o.created_at < :endExclusiveDateTime");
+    }
+
+    @Test
+    @DisplayName("queryPaymentMethodBreakdown queries payment breakdown with exclusive boundary")
     void queryPaymentMethodBreakdown() {
         doAnswer(invocation -> {
             RowCallbackHandler handler = invocation.getArgument(2);
@@ -116,7 +132,7 @@ class AnalyticsRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("queryDeliveredOrders queries only DELIVERED orders sorted by created_at desc")
+    @DisplayName("queryDeliveredOrders queries only DELIVERED orders sorted by created_at desc with limit")
     void queryDeliveredOrders() {
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         when(jdbc.query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class)))
@@ -127,10 +143,26 @@ class AnalyticsRepositoryImplTest {
         assertThat(orders).hasSize(1);
         assertThat(sqlCaptor.getValue()).contains("o.order_status = 'DELIVERED'");
         assertThat(sqlCaptor.getValue()).contains("ORDER BY o.created_at DESC");
+        assertThat(sqlCaptor.getValue()).contains("LIMIT :limit");
     }
 
     @Test
-    @DisplayName("queryStockValuationReport queries active products and maps stock status")
+    @DisplayName("queryAllDeliveredOrders queries all DELIVERED orders without limit for full export (F03)")
+    void queryAllDeliveredOrders() {
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        when(jdbc.query(sqlCaptor.capture(), any(MapSqlParameterSource.class), any(RowMapper.class)))
+                .thenReturn(List.of(new RevenueOrderSummaryDto()));
+
+        List<RevenueOrderSummaryDto> orders = repository.queryAllDeliveredOrders(null, null);
+
+        assertThat(orders).hasSize(1);
+        assertThat(sqlCaptor.getValue()).contains("o.order_status = 'DELIVERED'");
+        assertThat(sqlCaptor.getValue()).contains("ORDER BY o.created_at DESC");
+        assertThat(sqlCaptor.getValue()).doesNotContain("LIMIT");
+    }
+
+    @Test
+    @DisplayName("queryStockValuationReport includes inactive products if they have remaining stock (F05)")
     void queryStockValuationReport() {
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         when(jdbc.query(sqlCaptor.capture(), any(RowMapper.class)))
@@ -139,6 +171,30 @@ class AnalyticsRepositoryImplTest {
         List<StockValuationItemDto> stock = repository.queryStockValuationReport();
 
         assertThat(stock).hasSize(1);
-        assertThat(sqlCaptor.getValue()).contains("WHERE p.is_active = TRUE");
+        assertThat(sqlCaptor.getValue()).contains("WHERE (p.is_active = TRUE OR p.stock_quantity > 0)");
+    }
+
+    @Test
+    @DisplayName("queryPeriodStockMovementReport aggregates from inventory_movements view (F04)")
+    void queryPeriodStockMovementReport() {
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<MapSqlParameterSource> paramsCaptor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+
+        when(jdbc.query(sqlCaptor.capture(), paramsCaptor.capture(), any(RowMapper.class)))
+                .thenReturn(List.of(new StockMovementReportItemDto()));
+
+        LocalDateTime fromInclusive = LocalDateTime.of(2026, 10, 1, 0, 0);
+        LocalDateTime toExclusive = LocalDateTime.of(2026, 11, 1, 0, 0);
+
+        List<StockMovementReportItemDto> items = repository.queryPeriodStockMovementReport(fromInclusive, toExclusive);
+
+        assertThat(items).hasSize(1);
+        assertThat(sqlCaptor.getValue()).contains("FROM inventory_movements");
+        assertThat(sqlCaptor.getValue()).contains("movement_type = 'IMPORT'");
+        assertThat(sqlCaptor.getValue()).contains("movement_type = 'ORDER_DEDUCT'");
+        assertThat(sqlCaptor.getValue()).contains("movement_type = 'ORDER_CANCELLED_RESTOCK'");
+        assertThat(sqlCaptor.getValue()).contains("movement_type = 'ORDER_RETURNED_RESTOCK'");
+        assertThat(paramsCaptor.getValue().getValue("fromInclusive")).isEqualTo(fromInclusive);
+        assertThat(paramsCaptor.getValue().getValue("toExclusive")).isEqualTo(toExclusive);
     }
 }

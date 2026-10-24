@@ -90,6 +90,7 @@ class AnalyticsServiceImplTest {
                 .thenReturn(Collections.emptyList());
         when(analyticsRepository.queryPaymentMethodBreakdown(any(), any())).thenReturn(payment);
         when(analyticsRepository.queryDeliveredOrders(any(), any(), anyInt())).thenReturn(List.of(order1));
+        when(analyticsRepository.queryAllDeliveredOrders(any(), any())).thenReturn(List.of(order1));
 
         RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
 
@@ -121,7 +122,79 @@ class AnalyticsServiceImplTest {
         assertThat(report.getTopBooks()).hasSize(1);
         assertThat(report.getTopStationeries()).isEmpty();
         assertThat(report.getRecentDeliveredOrders()).hasSize(1);
+        assertThat(report.getAllDeliveredOrders()).hasSize(1);
+        assertThat(report.getOrdersForExport()).hasSize(1);
         assertThat(report.getPaymentBreakdown().getElectronicSharePercent()).isEqualTo(50.0);
+    }
+
+    @Test
+    @DisplayName("getRevenueReport - Monthly granularity correctly aggregates and zero-fills across year boundaries (F06)")
+    void getRevenueReport_monthlyGranularity_zeroFillsAcrossYear() {
+        RevenueFilterRequest filter = RevenueFilterRequest.builder()
+                .startDate(LocalDate.of(2025, 11, 15))
+                .endDate(LocalDate.of(2026, 2, 10))
+                .granularity("MONTH")
+                .preset("custom")
+                .build();
+
+        RevenueSummaryKpiDto kpiFromRepo = RevenueSummaryKpiDto.builder()
+                .totalOrders(30)
+                .grossRevenue(BigDecimal.valueOf(9000000))
+                .totalShippingFee(BigDecimal.valueOf(450000))
+                .build();
+
+        // Suppose data only exists in 12/2025 and 01/2026; 11/2025 and 02/2026 are zero
+        DailyRevenueDto m12_2025 = DailyRevenueDto.builder()
+                .date(LocalDate.of(2025, 12, 1))
+                .periodLabel("12/2025")
+                .orderCount(10)
+                .revenue(BigDecimal.valueOf(3000000))
+                .build();
+
+        DailyRevenueDto m01_2026 = DailyRevenueDto.builder()
+                .date(LocalDate.of(2026, 1, 1))
+                .periodLabel("01/2026")
+                .orderCount(20)
+                .revenue(BigDecimal.valueOf(6000000))
+                .build();
+
+        when(analyticsRepository.queryRevenueSummaryKpis(any(), any())).thenReturn(kpiFromRepo);
+        when(analyticsRepository.queryMonthlyRevenueTrends(any(), any())).thenReturn(List.of(m12_2025, m01_2026));
+        when(analyticsRepository.queryTopSellingProducts(any(), anyInt(), any(), any())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryPaymentMethodBreakdown(any(), any())).thenReturn(new PaymentBreakdownDto());
+        when(analyticsRepository.queryDeliveredOrders(any(), any(), anyInt())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryAllDeliveredOrders(any(), any())).thenReturn(Collections.emptyList());
+
+        RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
+
+        assertThat(report).isNotNull();
+        assertThat(report.isMonthlyGranularity()).isTrue();
+
+        // 4 continuous months: 11/2025, 12/2025, 01/2026, 02/2026
+        assertThat(report.getDailyTrends()).hasSize(4);
+        assertThat(report.getDailyTrends().get(0).getPeriodLabel()).isEqualTo("11/2025");
+        assertThat(report.getDailyTrends().get(0).getOrderCount()).isEqualTo(0L);
+        assertThat(report.getDailyTrends().get(0).getRevenue()).isEqualByComparingTo(BigDecimal.ZERO);
+
+        assertThat(report.getDailyTrends().get(1).getPeriodLabel()).isEqualTo("12/2025");
+        assertThat(report.getDailyTrends().get(1).getOrderCount()).isEqualTo(10L);
+        assertThat(report.getDailyTrends().get(1).getRevenue()).isEqualByComparingTo(BigDecimal.valueOf(3000000));
+
+        assertThat(report.getDailyTrends().get(2).getPeriodLabel()).isEqualTo("01/2026");
+        assertThat(report.getDailyTrends().get(2).getOrderCount()).isEqualTo(20L);
+        assertThat(report.getDailyTrends().get(2).getRevenue()).isEqualByComparingTo(BigDecimal.valueOf(6000000));
+
+        assertThat(report.getDailyTrends().get(3).getPeriodLabel()).isEqualTo("02/2026");
+        assertThat(report.getDailyTrends().get(3).getOrderCount()).isEqualTo(0L);
+        assertThat(report.getDailyTrends().get(3).getRevenue()).isEqualByComparingTo(BigDecimal.ZERO);
+
+        // Chart labels must be MM/yyyy
+        assertThat(report.getChartDailyLabels()).containsExactly("11/2025", "12/2025", "01/2026", "02/2026");
+        // Sum of non-zero months matches KPI revenue
+        BigDecimal monthlySum = report.getDailyTrends().stream()
+                .map(DailyRevenueDto::getRevenue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(monthlySum).isEqualByComparingTo(report.getKpi().getGrossRevenue());
     }
 
     @Test
@@ -142,6 +215,8 @@ class AnalyticsServiceImplTest {
         when(analyticsRepository.queryPaymentMethodBreakdown(any(), any()))
                 .thenReturn(new PaymentBreakdownDto());
         when(analyticsRepository.queryDeliveredOrders(any(), any(), anyInt()))
+                .thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryAllDeliveredOrders(any(), any()))
                 .thenReturn(Collections.emptyList());
 
         RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
@@ -169,6 +244,8 @@ class AnalyticsServiceImplTest {
                 .thenReturn(new PaymentBreakdownDto());
         when(analyticsRepository.queryDeliveredOrders(any(), any(), anyInt()))
                 .thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryAllDeliveredOrders(any(), any()))
+                .thenReturn(Collections.emptyList());
 
         RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(null);
 
@@ -179,7 +256,7 @@ class AnalyticsServiceImplTest {
     }
 
     @Test
-    @DisplayName("getStockValuationReport - Returns stock items mapped from repository")
+    @DisplayName("getStockValuationReport - Returns stock items mapped from repository including inactive items (F05)")
     void getStockValuationReport_happyPath() {
         StockValuationItemDto item1 = StockValuationItemDto.builder()
                 .productId(1L)
@@ -187,6 +264,7 @@ class AnalyticsServiceImplTest {
                 .title("Sách Giáo Khoa Lớp 10")
                 .categoryName("Sách Giáo Khoa")
                 .productType(Product.ProductType.BOOK)
+                .isActive(true)
                 .stockQuantity(100)
                 .originalCost(BigDecimal.valueOf(20000))
                 .price(BigDecimal.valueOf(30000))
@@ -196,13 +274,75 @@ class AnalyticsServiceImplTest {
                 .agingTier("HEALTHY")
                 .build();
 
-        when(analyticsRepository.queryStockValuationReport()).thenReturn(List.of(item1));
+        StockValuationItemDto item2Inactive = StockValuationItemDto.builder()
+                .productId(2L)
+                .barcode("8930002")
+                .title("Sách Cũ Ngừng KD Còn Tồn")
+                .categoryName("Sách Cũ")
+                .productType(Product.ProductType.BOOK)
+                .isActive(false)
+                .stockQuantity(7)
+                .originalCost(BigDecimal.valueOf(50000))
+                .price(BigDecimal.valueOf(70000))
+                .totalCostValue(BigDecimal.valueOf(350000))
+                .totalRetailValue(BigDecimal.valueOf(490000))
+                .stockStatus("CẢNH BÁO TỒN THẤP")
+                .agingTier("SLOW_MOVING")
+                .build();
+
+        when(analyticsRepository.queryStockValuationReport()).thenReturn(List.of(item1, item2Inactive));
 
         List<StockValuationItemDto> results = analyticsService.getStockValuationReport();
 
-        assertThat(results).hasSize(1);
+        assertThat(results).hasSize(2);
         assertThat(results.get(0).getBarcode()).isEqualTo("8930001");
-        assertThat(results.get(0).getTotalCostValue()).isEqualByComparingTo(BigDecimal.valueOf(2000000));
+        assertThat(results.get(0).getActiveStatusLabel()).isEqualTo("Đang kinh doanh");
+        assertThat(results.get(1).getBarcode()).isEqualTo("8930002");
+        assertThat(results.get(1).getActiveStatusLabel()).isEqualTo("Ngừng kinh doanh");
+        assertThat(results.get(1).getTotalCostValue()).isEqualByComparingTo(BigDecimal.valueOf(350000));
         verify(analyticsRepository).queryStockValuationReport();
+    }
+
+    @Test
+    @DisplayName("getPeriodStockMovementReport - Returns movement items and verifies accounting identity (F04)")
+    void getPeriodStockMovementReport_happyPath() {
+        StockMovementFilterRequest filter = StockMovementFilterRequest.builder()
+                .startDate(LocalDate.of(2026, 10, 1))
+                .endDate(LocalDate.of(2026, 10, 31))
+                .build();
+
+        StockMovementReportItemDto item = StockMovementReportItemDto.builder()
+                .productId(16L)
+                .barcode("8936037748888")
+                .title("Bút Bi Cao Cấp Pilot G2")
+                .categoryName("Bút viết")
+                .productType(Product.ProductType.STATIONERY)
+                .isActive(true)
+                .originalCost(BigDecimal.valueOf(25000))
+                .price(BigDecimal.valueOf(40000))
+                .openingStock(10)
+                .importQty(5)
+                .orderDeductQty(3)
+                .cancelRestoreQty(1)
+                .returnRestoreQty(0)
+                .closingStock(13) // 10 + 5 + 1 - 3 = 13
+                .openingCostValue(BigDecimal.valueOf(250000))
+                .closingCostValue(BigDecimal.valueOf(325000))
+                .closingRetailValue(BigDecimal.valueOf(520000))
+                .build();
+
+        when(analyticsRepository.queryPeriodStockMovementReport(any(), any()))
+                .thenReturn(List.of(item));
+
+        List<StockMovementReportItemDto> results = analyticsService.getPeriodStockMovementReport(filter);
+
+        assertThat(results).hasSize(1);
+        StockMovementReportItemDto res = results.get(0);
+        assertThat(res.getProductId()).isEqualTo(16L);
+        // Accounting identity: closing = opening + import + restore - deduct
+        int computedClosing = res.getOpeningStock() + res.getImportQty()
+                + res.getCancelRestoreQty() + res.getReturnRestoreQty() - res.getOrderDeductQty();
+        assertThat(res.getClosingStock()).isEqualTo(computedClosing);
+        assertThat(res.getClosingCostValue()).isEqualByComparingTo(BigDecimal.valueOf(325000));
     }
 }

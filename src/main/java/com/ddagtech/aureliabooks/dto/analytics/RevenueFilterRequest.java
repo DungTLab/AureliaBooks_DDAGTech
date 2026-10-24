@@ -25,6 +25,13 @@ public class RevenueFilterRequest {
 
     private String preset;
 
+    @Builder.Default
+    private String granularity = "DAY";
+
+    public boolean isMonthlyGranularity() {
+        return "month".equalsIgnoreCase(granularity);
+    }
+
     public void resolveDates() {
         LocalDate today = LocalDate.now();
 
@@ -84,5 +91,9 @@ public class RevenueFilterRequest {
 
     public LocalDateTime getEndDateTime() {
         return endDate != null ? endDate.atTime(LocalTime.MAX) : null;
+    }
+
+    public LocalDateTime getEndExclusiveDateTime() {
+        return endDate != null ? endDate.plusDays(1).atStartOfDay() : null;
     }
 }

@@ -27,7 +27,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
     private final NamedParameterJdbcTemplate jdbc;
 
     @Override
-    public RevenueSummaryKpiDto queryRevenueSummaryKpis(LocalDateTime startDateTime, LocalDateTime endDateTime) {
+    public RevenueSummaryKpiDto queryRevenueSummaryKpis(LocalDateTime startDateTime, LocalDateTime endExclusiveDateTime) {
         String sql = """
                 SELECT 
                     COUNT(o.id) AS total_orders,
@@ -37,12 +37,12 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
-                  AND (:endDateTime IS NULL OR o.created_at <= :endDateTime)
+                  AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("startDateTime", startDateTime)
-                .addValue("endDateTime", endDateTime);
+                .addValue("endExclusiveDateTime", endExclusiveDateTime);
 
         return jdbc.queryForObject(sql, params, (rs, rowNum) -> {
             long total = rs.getLong("total_orders");
@@ -60,7 +60,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
     }
 
     @Override
-    public List<DailyRevenueDto> queryDailyRevenueTrends(LocalDateTime startDateTime, LocalDateTime endDateTime) {
+    public List<DailyRevenueDto> queryDailyRevenueTrends(LocalDateTime startDateTime, LocalDateTime endExclusiveDateTime) {
         String sql = """
                 SELECT 
                     CAST(o.created_at AS DATE) AS order_date,
@@ -69,14 +69,14 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
-                  AND (:endDateTime IS NULL OR o.created_at <= :endDateTime)
+                  AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 GROUP BY CAST(o.created_at AS DATE)
                 ORDER BY order_date ASC
                 """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("startDateTime", startDateTime)
-                .addValue("endDateTime", endDateTime);
+                .addValue("endExclusiveDateTime", endExclusiveDateTime);
 
         return jdbc.query(sql, params, (rs, rowNum) -> {
             Date sqlDate = rs.getDate("order_date");
@@ -93,7 +93,46 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
     }
 
     @Override
-    public PaymentBreakdownDto queryPaymentMethodBreakdown(LocalDateTime startDateTime, LocalDateTime endDateTime) {
+    public List<DailyRevenueDto> queryMonthlyRevenueTrends(LocalDateTime startDateTime, LocalDateTime endExclusiveDateTime) {
+        String sql = """
+                SELECT 
+                    DATE_FORMAT(o.created_at, '%Y-%m') AS order_month,
+                    COUNT(o.id) AS monthly_order_count,
+                    COALESCE(SUM(o.final_total_amount), 0.00) AS monthly_revenue
+                FROM orders o
+                WHERE o.order_status = 'DELIVERED'
+                  AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
+                  AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
+                GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
+                ORDER BY order_month ASC
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("startDateTime", startDateTime)
+                .addValue("endExclusiveDateTime", endExclusiveDateTime);
+
+        return jdbc.query(sql, params, (rs, rowNum) -> {
+            String monthStr = rs.getString("order_month"); // "YYYY-MM"
+            LocalDate date = (monthStr != null && monthStr.length() == 7)
+                    ? LocalDate.parse(monthStr + "-01")
+                    : null;
+            String periodLabel = (monthStr != null && monthStr.length() == 7)
+                    ? (monthStr.substring(5, 7) + "/" + monthStr.substring(0, 4))
+                    : "";
+            long count = rs.getLong("monthly_order_count");
+            BigDecimal rev = rs.getBigDecimal("monthly_revenue");
+
+            return DailyRevenueDto.builder()
+                    .date(date)
+                    .periodLabel(periodLabel)
+                    .orderCount(count)
+                    .revenue(rev != null ? rev : BigDecimal.ZERO)
+                    .build();
+        });
+    }
+
+    @Override
+    public PaymentBreakdownDto queryPaymentMethodBreakdown(LocalDateTime startDateTime, LocalDateTime endExclusiveDateTime) {
         String sql = """
                 SELECT 
                     o.payment_method,
@@ -102,13 +141,13 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
-                  AND (:endDateTime IS NULL OR o.created_at <= :endDateTime)
+                  AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 GROUP BY o.payment_method
                 """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("startDateTime", startDateTime)
-                .addValue("endDateTime", endDateTime);
+                .addValue("endExclusiveDateTime", endExclusiveDateTime);
 
         PaymentBreakdownDto result = new PaymentBreakdownDto();
 
@@ -145,7 +184,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
 
     @Override
     public List<TopProductSaleDto> queryTopSellingProducts(Product.ProductType productType, int limit,
-                                                           LocalDateTime startDateTime, LocalDateTime endDateTime) {
+                                                           LocalDateTime startDateTime, LocalDateTime endExclusiveDateTime) {
         String sql = """
                 SELECT 
                     p.id AS product_id,
@@ -161,7 +200,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 WHERE o.order_status = 'DELIVERED'
                   AND p.product_type = :productType
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
-                  AND (:endDateTime IS NULL OR o.created_at <= :endDateTime)
+                  AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 GROUP BY p.id, p.barcode, p.title, p.product_type, p.main_image_url
                 ORDER BY total_quantity_sold DESC, total_revenue DESC
                 LIMIT :limit
@@ -171,7 +210,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 .addValue("productType", productType.name())
                 .addValue("limit", limit > 0 ? limit : 5)
                 .addValue("startDateTime", startDateTime)
-                .addValue("endDateTime", endDateTime);
+                .addValue("endExclusiveDateTime", endExclusiveDateTime);
 
         return jdbc.query(sql, params, (rs, rowNum) -> {
             String typeStr = rs.getString("product_type");
@@ -190,7 +229,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
     }
 
     @Override
-    public List<RevenueOrderSummaryDto> queryDeliveredOrders(LocalDateTime startDateTime, LocalDateTime endDateTime, int limit) {
+    public List<RevenueOrderSummaryDto> queryDeliveredOrders(LocalDateTime startDateTime, LocalDateTime endExclusiveDateTime, int limit) {
         String sql = """
                 SELECT 
                     o.order_code,
@@ -204,15 +243,57 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
-                  AND (:endDateTime IS NULL OR o.created_at <= :endDateTime)
+                  AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 ORDER BY o.created_at DESC
                 LIMIT :limit
                 """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("startDateTime", startDateTime)
-                .addValue("endDateTime", endDateTime)
+                .addValue("endExclusiveDateTime", endExclusiveDateTime)
                 .addValue("limit", limit > 0 ? limit : 500);
+
+        return jdbc.query(sql, params, (rs, rowNum) -> {
+            Timestamp createdTs = rs.getTimestamp("created_at");
+            Timestamp deliveredTs = rs.getTimestamp("delivered_at");
+            String methodStr = rs.getString("payment_method");
+            Order.PaymentMethod method = methodStr != null ? Order.PaymentMethod.valueOf(methodStr) : null;
+
+            return RevenueOrderSummaryDto.builder()
+                    .orderCode(rs.getString("order_code"))
+                    .recipientName(rs.getString("shipping_recipient_name"))
+                    .phone(rs.getString("shipping_phone"))
+                    .paymentMethod(method)
+                    .createdAt(createdTs != null ? createdTs.toLocalDateTime() : null)
+                    .deliveredAt(deliveredTs != null ? deliveredTs.toLocalDateTime() : null)
+                    .shippingFee(rs.getBigDecimal("shipping_fee"))
+                    .finalTotalAmount(rs.getBigDecimal("final_total_amount"))
+                    .build();
+        });
+    }
+
+    @Override
+    public List<RevenueOrderSummaryDto> queryAllDeliveredOrders(LocalDateTime startDateTime, LocalDateTime endExclusiveDateTime) {
+        String sql = """
+                SELECT 
+                    o.order_code,
+                    o.shipping_recipient_name,
+                    o.shipping_phone,
+                    o.payment_method,
+                    o.created_at,
+                    o.delivered_at,
+                    o.shipping_fee,
+                    o.final_total_amount
+                FROM orders o
+                WHERE o.order_status = 'DELIVERED'
+                  AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
+                  AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
+                ORDER BY o.created_at DESC
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("startDateTime", startDateTime)
+                .addValue("endExclusiveDateTime", endExclusiveDateTime);
 
         return jdbc.query(sql, params, (rs, rowNum) -> {
             Timestamp createdTs = rs.getTimestamp("created_at");
@@ -242,6 +323,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     p.title,
                     c.name AS category_name,
                     p.product_type,
+                    p.is_active,
                     p.stock_quantity,
                     p.original_cost,
                     p.price,
@@ -250,7 +332,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     p.created_at
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.id
-                WHERE p.is_active = TRUE
+                WHERE (p.is_active = TRUE OR p.stock_quantity > 0)
                 ORDER BY total_cost_value DESC
                 """;
 
@@ -262,6 +344,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
             BigDecimal price = rs.getBigDecimal("price");
             BigDecimal totalCost = rs.getBigDecimal("total_cost_value");
             BigDecimal totalRetail = rs.getBigDecimal("total_retail_value");
+            boolean isActive = rs.getBoolean("is_active");
 
             String stockStatus;
             if (stock <= 0) {
@@ -292,6 +375,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     .title(rs.getString("title"))
                     .categoryName(rs.getString("category_name"))
                     .productType(productType)
+                    .isActive(isActive)
                     .stockQuantity(stock)
                     .originalCost(cost != null ? cost : BigDecimal.ZERO)
                     .price(price != null ? price : BigDecimal.ZERO)
@@ -299,6 +383,92 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     .totalRetailValue(totalRetail != null ? totalRetail : BigDecimal.ZERO)
                     .agingTier(agingTier)
                     .stockStatus(stockStatus)
+                    .build();
+        });
+    }
+
+    @Override
+    public List<StockMovementReportItemDto> queryPeriodStockMovementReport(LocalDateTime fromInclusive, LocalDateTime toExclusive) {
+        String sql = """
+                SELECT 
+                    p.id AS product_id,
+                    p.barcode,
+                    p.title,
+                    c.name AS category_name,
+                    p.product_type,
+                    p.is_active,
+                    p.original_cost,
+                    p.price,
+                    COALESCE(m.opening_stock, 0) AS opening_stock,
+                    COALESCE(m.import_qty, 0) AS import_qty,
+                    COALESCE(m.order_deduct_qty, 0) AS order_deduct_qty,
+                    COALESCE(m.cancel_restore_qty, 0) AS cancel_restore_qty,
+                    COALESCE(m.return_restore_qty, 0) AS return_restore_qty,
+                    (COALESCE(m.opening_stock, 0) + COALESCE(m.import_qty, 0) + COALESCE(m.cancel_restore_qty, 0) + COALESCE(m.return_restore_qty, 0) - COALESCE(m.order_deduct_qty, 0)) AS closing_stock
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                LEFT JOIN (
+                    SELECT 
+                        product_id,
+                        SUM(CASE WHEN (:fromInclusive IS NOT NULL AND occurred_at < :fromInclusive) THEN quantity_change ELSE 0 END) AS opening_stock,
+                        SUM(CASE WHEN (:fromInclusive IS NULL OR occurred_at >= :fromInclusive) AND (:toExclusive IS NULL OR occurred_at < :toExclusive) AND movement_type = 'IMPORT' THEN quantity_change ELSE 0 END) AS import_qty,
+                        SUM(CASE WHEN (:fromInclusive IS NULL OR occurred_at >= :fromInclusive) AND (:toExclusive IS NULL OR occurred_at < :toExclusive) AND movement_type = 'ORDER_DEDUCT' THEN -quantity_change ELSE 0 END) AS order_deduct_qty,
+                        SUM(CASE WHEN (:fromInclusive IS NULL OR occurred_at >= :fromInclusive) AND (:toExclusive IS NULL OR occurred_at < :toExclusive) AND movement_type = 'ORDER_CANCELLED_RESTOCK' THEN quantity_change ELSE 0 END) AS cancel_restore_qty,
+                        SUM(CASE WHEN (:fromInclusive IS NULL OR occurred_at >= :fromInclusive) AND (:toExclusive IS NULL OR occurred_at < :toExclusive) AND movement_type = 'ORDER_RETURNED_RESTOCK' THEN quantity_change ELSE 0 END) AS return_restore_qty
+                    FROM inventory_movements
+                    WHERE (:toExclusive IS NULL OR occurred_at < :toExclusive)
+                    GROUP BY product_id
+                ) m ON p.id = m.product_id
+                ORDER BY p.id ASC
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("fromInclusive", fromInclusive)
+                .addValue("toExclusive", toExclusive);
+
+        return jdbc.query(sql, params, (rs, rowNum) -> {
+            long productId = rs.getLong("product_id");
+            String barcode = rs.getString("barcode");
+            String title = rs.getString("title");
+            String catName = rs.getString("category_name");
+            String typeStr = rs.getString("product_type");
+            Product.ProductType productType = typeStr != null ? Product.ProductType.valueOf(typeStr) : null;
+            boolean isActive = rs.getBoolean("is_active");
+            BigDecimal cost = rs.getBigDecimal("original_cost");
+            BigDecimal price = rs.getBigDecimal("price");
+
+            if (cost == null) cost = BigDecimal.ZERO;
+            if (price == null) price = BigDecimal.ZERO;
+
+            int opening = rs.getInt("opening_stock");
+            int importQty = rs.getInt("import_qty");
+            int deductQty = rs.getInt("order_deduct_qty");
+            int cancelQty = rs.getInt("cancel_restore_qty");
+            int returnQty = rs.getInt("return_restore_qty");
+            int closing = rs.getInt("closing_stock");
+
+            BigDecimal openingCostVal = cost.multiply(BigDecimal.valueOf(opening));
+            BigDecimal closingCostVal = cost.multiply(BigDecimal.valueOf(closing));
+            BigDecimal closingRetailVal = price.multiply(BigDecimal.valueOf(closing));
+
+            return StockMovementReportItemDto.builder()
+                    .productId(productId)
+                    .barcode(barcode)
+                    .title(title)
+                    .categoryName(catName)
+                    .productType(productType)
+                    .isActive(isActive)
+                    .originalCost(cost)
+                    .price(price)
+                    .openingStock(opening)
+                    .importQty(importQty)
+                    .orderDeductQty(deductQty)
+                    .cancelRestoreQty(cancelQty)
+                    .returnRestoreQty(returnQty)
+                    .closingStock(closing)
+                    .openingCostValue(openingCostVal)
+                    .closingCostValue(closingCostVal)
+                    .closingRetailValue(closingRetailVal)
                     .build();
         });
     }
