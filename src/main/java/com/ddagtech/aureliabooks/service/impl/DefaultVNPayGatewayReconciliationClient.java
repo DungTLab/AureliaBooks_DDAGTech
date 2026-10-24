@@ -274,15 +274,6 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
         if (order.getVnpayCreateDate() != null && !order.getVnpayCreateDate().isBlank()) {
             return order.getVnpayCreateDate().trim();
         }
-        String recorded = VNPayUtil.resolvePayInitiationCreateDate(
-                order.getId(),
-                order.getOrderCode(),
-                expectedTxnRef
-        );
-        if (recorded != null && !recorded.isBlank()) {
-            order.setVnpayCreateDate(recorded);
-            return recorded.trim();
-        }
         return null;
     }
 

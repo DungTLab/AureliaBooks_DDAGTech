@@ -202,9 +202,8 @@ public class VNPayServiceImpl implements VNPayService {
             txnRef = order.getOrderCode();
             order.setVnpayTxnRef(txnRef);
         }
-        // Record the exact PAY vnp_CreateDate associated with the transaction reference for QueryDR reconciliation (F10)
+        // Persist the exact PAY vnp_CreateDate durably on the Order entity for QueryDR reconciliation across restarts (F10)
         order.setVnpayCreateDate(createDate);
-        VNPayUtil.recordPayInitiation(order.getId(), order.getOrderCode(), txnRef, createDate);
         orderRepository.save(order);
 
         long amountInMinorUnits = order.getFinalTotalAmount()

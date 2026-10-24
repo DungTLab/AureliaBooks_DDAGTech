@@ -35,12 +35,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
- * WebMvcTest suite for {@link PaymentController} and {@link VNPayIpnWebhookController} (UC11.1 / C08 / F04 / F08).
+ * WebMvcTest suite for {@link PaymentController} and {@link VNPayIpnWebhookController} (UC11.1 / C08 / F04 / F08 / F12).
  * Verifies:
  * - Server-to-server VNPay IPN webhook (/api/v1/payments/vnpay-ipn) is accessible without session/CSRF.
  * - /payment/** requires ROLE_CUSTOMER authentication; guests are redirected to /login and staff/admin receive 403.
  * - POST /payment/vnpay/create/{orderId} enforces CSRF protection.
- * - SCR-ST-13 (payment/result) renders context-aware status messages for confirmed PAID and late success on CANCELLED orders.
+ * - SCR-ST-13 (payment/result) renders distinct headings for confirmed PAID, 00/00 before IPN,
+ *   incomplete/unknown (00/01), verified terminal failure (24/02), late success on CANCELLED, and invalid signature (F12).
  */
 @WebMvcTest(controllers = {PaymentController.class, VNPayIpnWebhookController.class})
 @Import(SecurityConfig.class)
@@ -123,7 +124,7 @@ class VNPayPaymentControllerTest {
 
     @Test
     @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
-    @DisplayName("F08: GET /payment/vnpay-return for confirmed PAID order should render SCR-ST-13 with success heading")
+    @DisplayName("F08/F12: GET /payment/vnpay-return for confirmed PAID order should render SCR-ST-13 with success heading")
     void handleVNPayBrowserReturn_ConfirmedPaid_RendersSuccessHeading() throws Exception {
         VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
                 true,
@@ -136,7 +137,7 @@ class VNPayPaymentControllerTest {
                 "20261016103000",
                 "PENDING_CONFIRMATION",
                 "PAID",
-                "Giao dịch thanh toán VNPay thành công. Đơn hàng đang chờ nhân viên xác nhận."
+                "Giao dịch thanh toán VNPay đã được xác minh thành công. Đơn hàng của bạn đang chờ xác nhận."
         );
         when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
 
@@ -146,12 +147,103 @@ class VNPayPaymentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("payment/result"))
                 .andExpect(model().attribute("paymentResult", viewModel))
-                .andExpect(content().string(containsString("Thanh Toán Thành Công")));
+                .andExpect(content().string(containsString("Thanh Toán Thành Công")))
+                .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))));
     }
 
     @Test
     @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
-    @DisplayName("F08: GET /payment/vnpay-return for late success on CANCELLED order should render reconciliation heading instead of success")
+    @DisplayName("F08/F12: GET /payment/vnpay-return for 00/00 before IPN settles should render verification heading instead of success or failure")
+    void handleVNPayBrowserReturn_SuccessReturnBeforeIpn_RendersVerificationHeading() throws Exception {
+        VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
+                true,
+                false,
+                "ORD-20261016-002",
+                new BigDecimal("250000.00"),
+                "00",
+                "00",
+                "NCB",
+                "20261016103000",
+                "PENDING_PAYMENT",
+                "UNPAID",
+                "Đã nhận phản hồi từ VNPay. Hệ thống đang đối soát và xác minh kết quả thanh toán."
+        );
+        when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
+
+        mockMvc.perform(get("/payment/vnpay-return")
+                        .param("vnp_TxnRef", "ORD-20261016-002")
+                        .param("vnp_ResponseCode", "00")
+                        .param("vnp_TransactionStatus", "00"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("payment/result"))
+                .andExpect(content().string(containsString("Đang Xác Minh Thanh Toán")))
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))))
+                .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))));
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("F12: GET /payment/vnpay-return for incomplete/unknown status (00/01) must render verification heading, never 'Thanh Toán Không Thành Công'")
+    void handleVNPayBrowserReturn_IncompleteStatus0001_RendersVerificationHeadingNotFailure() throws Exception {
+        VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
+                true,
+                false,
+                "ORD-20261016-003",
+                new BigDecimal("250000.00"),
+                "00",
+                "01",
+                "NCB",
+                "20261016103000",
+                "PENDING_PAYMENT",
+                "UNPAID",
+                "Trạng thái giao dịch VNPay chưa hoàn tất hoặc chưa xác định. Hệ thống đang chờ đối soát."
+        );
+        when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
+
+        mockMvc.perform(get("/payment/vnpay-return")
+                        .param("vnp_TxnRef", "ORD-20261016-003")
+                        .param("vnp_ResponseCode", "00")
+                        .param("vnp_TransactionStatus", "01"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("payment/result"))
+                .andExpect(content().string(containsString("Đang Xác Minh Thanh Toán")))
+                .andExpect(content().string(containsString("Trạng thái giao dịch VNPay chưa hoàn tất hoặc chưa xác định. Hệ thống đang chờ đối soát.")))
+                .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))))
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))));
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("F12: GET /payment/vnpay-return for verified terminal failure (24/02) should render 'Thanh Toán Không Thành Công'")
+    void handleVNPayBrowserReturn_VerifiedTerminalFailure2402_RendersFailureHeading() throws Exception {
+        VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
+                true,
+                false,
+                "ORD-20261016-004",
+                new BigDecimal("250000.00"),
+                "24",
+                "02",
+                "NCB",
+                "20261016103000",
+                "CANCELLED",
+                "UNPAID",
+                "Giao dịch thanh toán VNPay không thành công hoặc đã bị hủy."
+        );
+        when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
+
+        mockMvc.perform(get("/payment/vnpay-return")
+                        .param("vnp_TxnRef", "ORD-20261016-004")
+                        .param("vnp_ResponseCode", "24")
+                        .param("vnp_TransactionStatus", "02"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("payment/result"))
+                .andExpect(content().string(containsString("Thanh Toán Không Thành Công")))
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))));
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("F08/F12: GET /payment/vnpay-return for late success on CANCELLED order should render reconciliation heading instead of success or failure")
     void handleVNPayBrowserReturn_LateSuccessAfterCancelled_RendersReconciliationHeading() throws Exception {
         VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
                 true,
@@ -164,7 +256,7 @@ class VNPayPaymentControllerTest {
                 "20261016103000",
                 "CANCELLED",
                 "UNPAID",
-                "Đơn hàng đã hết thời hạn thanh toán hoặc đã bị hủy trước khi kết quả VNPay phản hồi. Hệ thống đã ghi nhận giao dịch để đối soát và xử lý hoàn tiền."
+                "Đơn hàng đã bị hủy trước đó. Giao dịch thanh toán đến muộn đã được ghi nhận để đối soát và xử lý hoàn tiền."
         );
         when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
 
@@ -175,6 +267,36 @@ class VNPayPaymentControllerTest {
                 .andExpect(view().name("payment/result"))
                 .andExpect(model().attribute("paymentResult", viewModel))
                 .andExpect(content().string(containsString("Giao Dịch Đến Muộn — Đang Đối Soát")))
-                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))));
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))))
+                .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))));
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("F12: GET /payment/vnpay-return with invalid signature should render signature error heading")
+    void handleVNPayBrowserReturn_InvalidSignature_RendersInvalidSignatureHeading() throws Exception {
+        VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
+                false,
+                false,
+                "ORD-20261016-005",
+                new BigDecimal("250000.00"),
+                "00",
+                "00",
+                "NCB",
+                "20261016103000",
+                "UNKNOWN",
+                "UNKNOWN",
+                "Chữ ký xác thực phản hồi từ cổng thanh toán không hợp lệ."
+        );
+        when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
+
+        mockMvc.perform(get("/payment/vnpay-return")
+                        .param("vnp_TxnRef", "ORD-20261016-005")
+                        .param("vnp_SecureHash", "forged"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("payment/result"))
+                .andExpect(content().string(containsString("Không Thể Xác Thực Giao Dịch")))
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))))
+                .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))));
     }
 }

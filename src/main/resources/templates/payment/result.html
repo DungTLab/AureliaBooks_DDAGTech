@@ -14,7 +14,7 @@
                 SCR-ST-13 • Kết Quả Thanh Toán VNPay
             </span>
             <h1 class="text-2xl font-bold mt-3 text-[#191919]"
-                th:text="${paymentResult.paymentSuccess ? 'Thanh Toán Thành Công' : (paymentResult.orderStatus == 'CANCELLED' and paymentResult.responseCode == '00' and paymentResult.transactionStatus == '00' ? 'Giao Dịch Đến Muộn — Đang Đối Soát' : (paymentResult.orderStatus == 'PENDING_PAYMENT' and paymentResult.responseCode == '00' and paymentResult.transactionStatus == '00' ? 'Đang Xác Minh Thanh Toán' : 'Thanh Toán Không Thành Công'))}">
+                th:text="${paymentResult.displayTitle}">
                 Kết Quả Thanh Toán
             </h1>
             <p class="mt-2 text-sm text-[#191919]/80" th:text="${paymentResult.displayMessage}">

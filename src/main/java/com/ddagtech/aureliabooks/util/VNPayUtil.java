@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Cryptographic and query-string utility methods for VNPay Sandbox integration (UC11.1).
@@ -20,55 +19,8 @@ public final class VNPayUtil {
 
     private static final String HMAC_SHA512_ALGORITHM = "HmacSHA512";
 
-    /**
-     * Thread-safe store of initiated PAY vnp_CreateDate timestamps keyed by order identity and vnp_TxnRef.
-     * Used by JPA @PostLoad on Order to preserve exact PAY initiation timestamps across transactions
-     * without altering the 21-table physical schema.sql contract (F10).
-     */
-    private static final Map<String, String> PAY_INITIATION_CREATE_DATES = new ConcurrentHashMap<>();
-
     private VNPayUtil() {
         throw new UnsupportedOperationException("Utility class cannot be instantiated.");
-    }
-
-    /**
-     * Records the exact vnp_CreateDate (yyyyMMddHHmmss) sent during VNPay PAY initiation or retry (F10).
-     *
-     * @param orderId    database ID of the order (nullable in pure unit tests)
-     * @param orderCode  unique order code
-     * @param txnRef     vnp_TxnRef sent to VNPay
-     * @param createDate 14-digit GMT+7 timestamp sent as vnp_CreateDate
-     */
-    public static void recordPayInitiation(Long orderId, String orderCode, String txnRef, String createDate) {
-        if (txnRef == null || txnRef.isBlank() || createDate == null || createDate.isBlank()) {
-            return;
-        }
-        String cleanTxnRef = txnRef.trim();
-        String cleanCreateDate = createDate.trim();
-        if (orderId != null) {
-            PAY_INITIATION_CREATE_DATES.put(buildInitiationKey(orderId, orderCode, cleanTxnRef), cleanCreateDate);
-        }
-    }
-
-    /**
-     * Resolves a previously recorded vnp_CreateDate for a JPA-loaded Order entity.
-     */
-    public static String resolvePayInitiationCreateDate(Long orderId, String orderCode, String txnRef) {
-        if (orderId == null || txnRef == null || txnRef.isBlank()) {
-            return null;
-        }
-        return PAY_INITIATION_CREATE_DATES.get(buildInitiationKey(orderId, orderCode, txnRef.trim()));
-    }
-
-    /**
-     * Clears recorded PAY initiation timestamps (for test isolation).
-     */
-    public static void clearPayInitiationMetadata() {
-        PAY_INITIATION_CREATE_DATES.clear();
-    }
-
-    private static String buildInitiationKey(Long orderId, String orderCode, String txnRef) {
-        return orderId + "|" + (orderCode != null ? orderCode.trim() : "") + "|" + txnRef;
     }
 
     /**

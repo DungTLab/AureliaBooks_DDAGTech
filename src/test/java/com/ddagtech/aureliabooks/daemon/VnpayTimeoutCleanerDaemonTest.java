@@ -88,15 +88,9 @@ class VnpayTimeoutCleanerDaemonTest {
 
     private HttpServer stubServer;
 
-    @BeforeEach
-    void resetInitiationMetadata() {
-        VNPayUtil.clearPayInitiationMetadata();
-    }
-
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
-        VNPayUtil.clearPayInitiationMetadata();
         stopStubServer();
     }
 
@@ -782,21 +776,31 @@ class VnpayTimeoutCleanerDaemonTest {
         assertThat(retryPayUrl).contains("vnp_CreateDate=20261024101200");
         assertThat(retryPayUrl).contains("vnp_ExpireDate=20261024101500");
 
-        // Simulate a fresh JPA entity reload from DB where transient field is restored via recorded initiation metadata
-        Order reloadedFromDb = Order.builder()
-                .id(302L)
-                .user(owner)
-                .orderCode("ORD-F10-RETRY")
-                .vnpayTxnRef(order.getVnpayTxnRef())
-                .paymentMethod(Order.PaymentMethod.VNPAY)
-                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
-                .paymentStatus(Order.PaymentStatus.UNPAID)
-                .finalTotalAmount(new BigDecimal("250000.00"))
-                .stockDeductedAt(orderCreatedAt)
-                .build();
-        reloadedFromDb.setCreatedAt(orderCreatedAt);
+        // Verify that the unpaid order still exposes getVnpayPayDate() == null, while the physical DB column holds "INIT:20261024101200"
+        assertThat(order.getVnpayPayDate()).isNull();
+        java.lang.reflect.Field rawPayDateField = Order.class.getDeclaredField("vnpayPayDate");
+        rawPayDateField.setAccessible(true);
+        String persistedDbColumnValue = (String) rawPayDateField.get(order);
+        assertThat(persistedDbColumnValue).isEqualTo("INIT:20261024101200");
 
-        ReconciliationResult result = queryDrClient.reconcileExpiredOrder(reloadedFromDb);
+        // Simulate JVM B after restart loading the Order row from MySQL (only DB columns populated, no in-memory state)
+        Order reloadedInNewJvmFromDb = new Order();
+        reloadedInNewJvmFromDb.setId(302L);
+        reloadedInNewJvmFromDb.setUser(owner);
+        reloadedInNewJvmFromDb.setOrderCode("ORD-F10-RETRY");
+        reloadedInNewJvmFromDb.setVnpayTxnRef(order.getVnpayTxnRef());
+        rawPayDateField.set(reloadedInNewJvmFromDb, persistedDbColumnValue);
+        reloadedInNewJvmFromDb.setPaymentMethod(Order.PaymentMethod.VNPAY);
+        reloadedInNewJvmFromDb.setOrderStatus(Order.OrderStatus.PENDING_PAYMENT);
+        reloadedInNewJvmFromDb.setPaymentStatus(Order.PaymentStatus.UNPAID);
+        reloadedInNewJvmFromDb.setFinalTotalAmount(new BigDecimal("250000.00"));
+        reloadedInNewJvmFromDb.setStockDeductedAt(orderCreatedAt);
+        reloadedInNewJvmFromDb.setCreatedAt(orderCreatedAt);
+
+        assertThat(reloadedInNewJvmFromDb.getVnpayPayDate()).isNull();
+        assertThat(reloadedInNewJvmFromDb.getVnpayCreateDate()).isEqualTo("20261024101200");
+
+        ReconciliationResult result = queryDrClient.reconcileExpiredOrder(reloadedInNewJvmFromDb);
 
         assertThat(result.outcome()).isEqualTo(ReconciliationOutcome.VERIFIED_UNPAID_OR_FAILED);
         JsonNode sentJson = objectMapper.readTree(capturedQueryDrRequest.get());
