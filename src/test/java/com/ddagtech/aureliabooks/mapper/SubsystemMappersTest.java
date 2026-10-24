@@ -61,7 +61,7 @@ class SubsystemMappersTest {
         assertThat(product.getStockQuantity()).isEqualTo(42);
 
         StationeryForm stationeryForm = new StationeryForm(
-1L,
+                1L,
                 "8935001800018",
                 "Bút Bi Thiên Long TL-027",
                 6L,

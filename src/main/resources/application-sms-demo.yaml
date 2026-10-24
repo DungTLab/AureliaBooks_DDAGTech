@@ -1,5 +1,4 @@
-# Only use approved test accounts/data. OTP emails are not evidence of phone ownership.
+# Demo only: all phone OTPs go to the team inbox, not the phone owner.
 demo:
   sms:
-    inbox: ${DEMO_SMS_INBOX:}
-    allowed-phones: ${DEMO_SMS_ALLOWED_PHONES:}
+    inbox: ${DEMO_SMS_INBOX:aureliabook.team@gmail.com}

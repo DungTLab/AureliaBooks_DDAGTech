@@ -100,6 +100,12 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
      */
     boolean existsByParentId(Long parentId);
 
+    /**
+     * Verifies if any product is associated with the given category.
+     *
+     * @param categoryId category ID
+     * @return true if at least one product references this category
+     */
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Product p WHERE p.category.id = :categoryId")
     boolean hasProducts(@Param("categoryId") Long categoryId);
 

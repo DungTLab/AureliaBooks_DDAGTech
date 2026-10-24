@@ -13,9 +13,11 @@ import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.AddressService;
 import com.ddagtech.aureliabooks.service.CheckoutPaymentGateway;
 import com.ddagtech.aureliabooks.service.OrderPlacementService;
+import com.ddagtech.aureliabooks.util.DeliveryProvinceCatalog;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -30,13 +32,12 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.net.URI;
-
 /** Coordinate UC11: select delivery details, review server-side data, place the order, and display the result. */
 @Slf4j
 @Controller
 @RequiredArgsConstructor
 public class CheckoutController {
+
     private final OrderPlacementService orders;
     private final AddressService addresses;
     private final CustomerIdentity identity;
@@ -45,23 +46,30 @@ public class CheckoutController {
 
     /** Load the cart and addresses for display; opening this page does not create an order or reserve stock. */
     @GetMapping("/checkout")
-    public String checkout(Authentication auth, @RequestParam(required = false) Long shippingAddressId,
-                           @RequestParam(defaultValue = "COD") Order.PaymentMethod paymentMethod, Model model) {
+    public String checkout(
+        Authentication auth,
+        @RequestParam(required = false) Long shippingAddressId,
+        @RequestParam(defaultValue = "COD") Order.PaymentMethod paymentMethod,
+        Model model
+    ) {
         Long owner = identity.resolve(auth);
         CheckoutView checkout = orders.getCheckoutView(owner, shippingAddressId);
         addCheckout(model, checkout, paymentMethod);
         if (!model.containsAttribute("addressForm")) {
-            model.addAttribute("addressForm", new AddressRequest(null, null, null,
-                    null, null, null, null, false));
+            model.addAttribute("addressForm", new AddressRequest(null, null, null, null, null, false));
         }
         return "checkout/view";
     }
 
     /** Validate selections and save the review in the session; never accept totals from the form. */
     @PostMapping("/checkout/review")
-    public String prepare(Authentication auth,
-                          @Valid @ModelAttribute("selection") CheckoutSelectionRequest selection,
-                          BindingResult errors, HttpServletRequest request, RedirectAttributes flash) {
+    public String prepare(
+        Authentication auth,
+        @Valid @ModelAttribute("selection") CheckoutSelectionRequest selection,
+        BindingResult errors,
+        HttpServletRequest request,
+        RedirectAttributes flash
+    ) {
         Long owner = identity.resolve(auth);
         if (errors.hasErrors()) return invalidForm(errors, flash);
         if (selection.voucherCode() != null && !selection.voucherCode().isBlank()) {
@@ -77,32 +85,44 @@ public class CheckoutController {
             flash.addFlashAttribute("errorMessage", "Một số sản phẩm cần được cập nhật. Vui lòng kiểm tra giỏ hàng.");
             return "redirect:/cart";
         }
-        CheckoutConfirmation review = reviews.save(request.getSession(), owner, view,
-                selection.paymentMethod(), null);
+        CheckoutConfirmation review = reviews.save(request.getSession(), owner, view, selection.paymentMethod(), null);
         return "redirect:/checkout/review/" + review.checkoutToken();
     }
 
     /** Display the saved review for its token and owner without silently replacing it with current prices. */
     @GetMapping("/checkout/review/{token}")
-    public String review(Authentication auth, @PathVariable String token,
-                         HttpServletRequest request, Model model) {
+    public String review(Authentication auth, @PathVariable String token, HttpServletRequest request, Model model) {
         Long owner = identity.resolve(auth);
         CheckoutConfirmation review = reviews.find(request.getSession(false), token, owner);
-        if (review == null) throw new AppException(ErrorCode.CHECKOUT_CHANGED,
-                "Phiên xác nhận đã hết hiệu lực. Vui lòng kiểm tra lại đơn hàng.");
+        if (review == null) throw new AppException(
+            ErrorCode.CHECKOUT_CHANGED,
+            "Phiên xác nhận đã hết hiệu lực. Vui lòng kiểm tra lại đơn hàng."
+        );
         model.addAttribute("review", review);
         model.addAttribute("checkout", review.reviewedCheckout());
-        model.addAttribute("delivery", review.reviewedCheckout().addressViews().stream()
+        model.addAttribute(
+            "delivery",
+            review
+                .reviewedCheckout()
+                .addressViews()
+                .stream()
                 .filter(address -> address.id().equals(review.reviewedCheckout().selectedAddressId()))
-                .findFirst().orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND)));
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND))
+        );
         model.addAttribute("onlinePaymentAvailable", paymentAvailable());
         return "checkout/review";
     }
 
     /** Pass the request and session review to the service, which owns the transaction and duplicate protection. */
     @PostMapping("/checkout/place")
-    public String place(Authentication auth, @Valid @ModelAttribute("checkoutForm") CheckoutRequest form,
-                        BindingResult errors, HttpServletRequest request, RedirectAttributes flash) {
+    public String place(
+        Authentication auth,
+        @Valid @ModelAttribute("checkoutForm") CheckoutRequest form,
+        BindingResult errors,
+        HttpServletRequest request,
+        RedirectAttributes flash
+    ) {
         // Resolve the owner from the authenticated account rather than a browser-supplied userId.
         Long owner = identity.resolve(auth);
         if (errors.hasErrors()) return invalidForm(errors, flash);
@@ -142,9 +162,23 @@ public class CheckoutController {
 
     /** Delegate address creation to UC09, save it in the account, and select it on checkout. */
     @PostMapping("/checkout/addresses")
-    public String addAddress(Authentication auth, @Valid @ModelAttribute("addressForm") AddressRequest form,
-                             BindingResult errors, Model model, RedirectAttributes flash) {
+    public String addAddress(
+        Authentication auth,
+        @Valid @ModelAttribute("addressForm") AddressRequest form,
+        BindingResult errors,
+        Model model,
+        RedirectAttributes flash
+    ) {
         Long owner = identity.resolve(auth);
+        if (
+            !errors.hasFieldErrors("provinceCode") && DeliveryProvinceCatalog.findByCode(form.provinceCode()).isEmpty()
+        ) {
+            errors.rejectValue(
+                "provinceCode",
+                "invalidProvince",
+                "Vui lòng chọn tỉnh/thành phố trong danh sách hiện hành."
+            );
+        }
         if (errors.hasErrors()) {
             addCheckout(model, orders.getCheckoutView(owner, null), Order.PaymentMethod.COD);
             model.addAttribute("addressFormOpen", true);
@@ -157,6 +191,7 @@ public class CheckoutController {
 
     /** Share display attributes between the checkout page and address forms returned with validation errors. */
     private void addCheckout(Model model, CheckoutView view, Order.PaymentMethod method) {
+        model.addAttribute("provinces", DeliveryProvinceCatalog.all());
         model.addAttribute("checkout", view);
         model.addAttribute("selectedPaymentMethod", method);
         model.addAttribute("onlinePaymentAvailable", paymentAvailable());
@@ -165,8 +200,13 @@ public class CheckoutController {
 
     /** Require cart updates for warnings, unavailable products, or quantities exceeding available stock. */
     private boolean hasInvalidItems(CheckoutView view) {
-        return view.items().stream().anyMatch(item -> item.warningMessage() != null
-                || !item.availableForSale() || item.quantity() > item.availableStock());
+        return view
+            .items()
+            .stream()
+            .anyMatch(
+                item ->
+                    item.warningMessage() != null || !item.availableForSale() || item.quantity() > item.availableStock()
+            );
     }
 
     /** Disable VNPay in both the UI and POST handlers when the UC11.1 adapter is missing or unconfigured. */
@@ -182,12 +222,18 @@ public class CheckoutController {
             if (gateway == null || !gateway.isAvailable()) throw new IllegalStateException("Payment unavailable");
             // The adapter must return a valid HTTPS destination before the controller redirects the customer.
             URI destination = URI.create(gateway.startPayment(owner, code));
-            if (!"https".equalsIgnoreCase(destination.getScheme()) || destination.getHost() == null
-                    || destination.getUserInfo() != null) throw new IllegalStateException("Invalid payment destination");
+            if (
+                !"https".equalsIgnoreCase(destination.getScheme()) ||
+                destination.getHost() == null ||
+                destination.getUserInfo() != null
+            ) throw new IllegalStateException("Invalid payment destination");
             return "redirect:" + destination;
         } catch (RuntimeException error) {
             log.error("Unable to start payment for committed order {}", code, error);
-            flash.addFlashAttribute("errorMessage", "Đơn hàng đã được tạo nhưng chưa thể mở cổng thanh toán. Bạn có thể thử lại từ trang đơn hàng.");
+            flash.addFlashAttribute(
+                "errorMessage",
+                "Đơn hàng đã được tạo nhưng chưa thể mở cổng thanh toán. Bạn có thể thử lại từ trang đơn hàng."
+            );
             return "redirect:/orders/" + code;
         }
     }
@@ -195,22 +241,32 @@ public class CheckoutController {
     /** Return readable validation errors to checkout without invoking order placement. */
     private String invalidForm(BindingResult errors, RedirectAttributes flash) {
         var error = errors.getAllErrors().getFirst();
-        flash.addFlashAttribute("errorMessage", error.getCode() != null && error.getCode().startsWith("typeMismatch")
-                ? "Thông tin đặt hàng không hợp lệ. Vui lòng kiểm tra lại." : error.getDefaultMessage());
+        flash.addFlashAttribute(
+            "errorMessage",
+            error.getCode() != null && error.getCode().startsWith("typeMismatch")
+                ? "Thông tin đặt hàng không hợp lệ. Vui lòng kiểm tra lại."
+                : error.getDefaultMessage()
+        );
         return "redirect:/checkout";
     }
 
     /** Route business errors while protecting order ownership, handling expired sessions, and requiring a new review after changes. */
     @ExceptionHandler(AppException.class)
-    public Object businessError(AppException error, HttpServletRequest request, HttpServletResponse response,
-                                Authentication auth, RedirectAttributes flash) {
+    public Object businessError(
+        AppException error,
+        HttpServletRequest request,
+        HttpServletResponse response,
+        Authentication auth,
+        RedirectAttributes flash
+    ) {
         ErrorCode code = error.getErrorCode();
         if (code == ErrorCode.ORDER_NOT_FOUND) {
             return new ModelAndView("error/404", HttpStatus.NOT_FOUND);
         }
         flash.addFlashAttribute("errorMessage", error.getMessage());
-        if (code == ErrorCode.UNAUTHENTICATED || code == ErrorCode.ACCOUNT_LOCKED
-                || code == ErrorCode.USER_NOT_EXISTED) {
+        if (
+            code == ErrorCode.UNAUTHENTICATED || code == ErrorCode.ACCOUNT_LOCKED || code == ErrorCode.USER_NOT_EXISTED
+        ) {
             new SecurityContextLogoutHandler().logout(request, response, auth);
             return "redirect:/auth/login";
         }
@@ -218,8 +274,9 @@ public class CheckoutController {
         if (code == ErrorCode.CHECKOUT_CHANGED) {
             reviews.remove(request.getSession(false), request.getParameter("checkoutToken"));
         }
-        if (code == ErrorCode.CART_EMPTY || code == ErrorCode.INSUFFICIENT_STOCK
-                || code == ErrorCode.PRODUCT_NOT_FOUND) return "redirect:/cart";
+        if (
+            code == ErrorCode.CART_EMPTY || code == ErrorCode.INSUFFICIENT_STOCK || code == ErrorCode.PRODUCT_NOT_FOUND
+        ) return "redirect:/cart";
         return "redirect:/checkout";
     }
 
@@ -237,7 +294,10 @@ public class CheckoutController {
         if ("GET".equals(request.getMethod())) {
             return new ModelAndView("checkout/load-error", HttpStatus.SERVICE_UNAVAILABLE);
         }
-        flash.addFlashAttribute("errorMessage", "Chưa thể hoàn tất yêu cầu. Vui lòng thử lại; hệ thống sẽ kiểm tra đơn đã tạo để tránh đặt trùng.");
+        flash.addFlashAttribute(
+            "errorMessage",
+            "Chưa thể hoàn tất yêu cầu. Vui lòng thử lại; hệ thống sẽ kiểm tra đơn đã tạo để tránh đặt trùng."
+        );
         return "redirect:/checkout";
     }
 }

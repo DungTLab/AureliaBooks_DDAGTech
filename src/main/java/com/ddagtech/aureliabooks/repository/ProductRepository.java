@@ -20,7 +20,7 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
-/**
+    /**
      * Checks if a product with the specified barcode exists.
      *
      * @param barcode unique barcode
@@ -111,7 +111,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      * @param quantity  quantity to deduct
      * @return number of updated rows
      */
-@Modifying(flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query("""
         UPDATE Product p
         SET p.stockQuantity = p.stockQuantity - :quantity

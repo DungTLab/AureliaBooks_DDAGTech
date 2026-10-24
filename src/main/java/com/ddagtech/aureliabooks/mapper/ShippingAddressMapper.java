@@ -30,9 +30,8 @@ public class ShippingAddressMapper {
         }
         target.setRecipientName(req.recipientName().strip());
         target.setPhone(req.phone().strip());
-        target.setEconomicRegion(req.economicRegion());
-        target.setProvince(req.province().strip());
-        target.setDistrict(req.district().strip());
+        // Province and shipping zone are assigned by the service from trusted reference data.
+        target.setDistrict(null);
         target.setWard(req.ward().strip());
         target.setDetailedAddress(req.detailedAddress().strip());
     }
@@ -42,15 +41,15 @@ public class ShippingAddressMapper {
             return null;
         }
         return new AddressView(
-                a.getId(),
-                a.getRecipientName(),
-                a.getPhone(),
-                a.getEconomicRegion(),
-                a.getProvince(),
-                a.getDistrict(),
-                a.getWard(),
-                a.getDetailedAddress(),
-                Boolean.TRUE.equals(a.getIsDefault())
+            a.getId(),
+            a.getRecipientName(),
+            a.getPhone(),
+            a.getEconomicRegion(),
+            a.getProvince(),
+            a.getDistrict(),
+            a.getWard(),
+            a.getDetailedAddress(),
+            Boolean.TRUE.equals(a.getIsDefault())
         );
     }
 }

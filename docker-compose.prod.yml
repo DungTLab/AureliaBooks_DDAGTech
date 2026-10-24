@@ -1,0 +1,10 @@
+# No local override and no demo data with this explicit file list:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d mysql-db
+services:
+  mysql-db:
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in the deployment environment}
+      MYSQL_USER: ${DB_USER:?Set DB_USER in the deployment environment}
+      MYSQL_PASSWORD: ${DB_PASS:?Set DB_PASS in the deployment environment}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
