@@ -48,6 +48,7 @@ class InventoryHistoryIntegrationTest {
     @Mock private UserRepository userRepository;
     @Mock private AuditLogService auditLogService;
     @Mock private EntityManager entityManager;
+    @Mock private VoucherService voucherService;
 
     // Repositories used by InventoryHistoryServiceImpl
     @Mock private InventoryMovementRepository inventoryMovementRepository;
@@ -87,7 +88,8 @@ class InventoryHistoryIntegrationTest {
                 userRepository,
                 auditLogService,
                 new ObjectMapper(),
-                entityManager
+                entityManager,
+                voucherService
         );
 
         inventoryHistoryService = new InventoryHistoryServiceImpl(inventoryMovementRepository);
@@ -138,6 +140,7 @@ class InventoryHistoryIntegrationTest {
         lenient().when(goodsReceiptItemRepository.findByReceiptId(anyLong())).thenAnswer(inv -> receiptItemStore.getOrDefault(inv.getArgument(0), List.of()));
 
         lenient().when(orderRepository.findByIdWithLock(anyLong())).thenAnswer(inv -> Optional.ofNullable(orderStore.get(inv.getArgument(0))));
+        lenient().when(orderRepository.findById(anyLong())).thenAnswer(inv -> Optional.ofNullable(orderStore.get(inv.getArgument(0))));
         lenient().when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
             orderStore.put(o.getId(), o);
