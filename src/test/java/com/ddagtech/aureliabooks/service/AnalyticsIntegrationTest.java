@@ -296,4 +296,103 @@ class AnalyticsIntegrationTest {
         assertThat(report.getPaymentBreakdown().getFormattedElectronicSharePercent()).isEqualTo("40.0%");
         assertThat(report.getPaymentBreakdown().isMeetingElectronicTarget()).isTrue();
     }
+
+    @Test
+    @DisplayName("F07 Verification: BO-4 fails when electronic order count < 40%, even if revenue share is high (84.75%)")
+    void f07_bo4_lowOrderCountHighRevenue_failsTarget() {
+        RevenueFilterRequest filter = RevenueFilterRequest.builder()
+                .startDate(LocalDate.of(2026, 10, 1))
+                .endDate(LocalDate.of(2026, 10, 15))
+                .preset("custom")
+                .build();
+
+        // 1 VNPay order (5,000,000 VND) and 9 COD orders (100,000 VND each = 900,000 VND)
+        // Order share: 1 / 10 = 10.0% (fails >= 40% target)
+        // Revenue share: 5,000,000 / 5,900,000 = 84.75%
+        PaymentBreakdownDto payment = PaymentBreakdownDto.builder()
+                .codOrdersCount(9)
+                .codRevenue(BigDecimal.valueOf(900000))
+                .vnpayOrdersCount(1)
+                .vnpayRevenue(BigDecimal.valueOf(5000000))
+                .electronicSharePercent(10.0)
+                .build();
+
+        when(analyticsRepository.queryRevenueSummaryKpis(any(), any()))
+                .thenReturn(RevenueSummaryKpiDto.builder().totalOrders(10).grossRevenue(BigDecimal.valueOf(5900000)).build());
+        when(analyticsRepository.queryDailyRevenueTrends(any(), any())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryTopSellingProducts(any(), anyInt(), any(), any())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryPaymentMethodBreakdown(any(), any())).thenReturn(payment);
+        when(analyticsRepository.queryDeliveredOrders(any(), any(), anyInt())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryAllDeliveredOrders(any(), any())).thenReturn(Collections.emptyList());
+
+        RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
+
+        assertThat(report.getPaymentBreakdown().getCodOrdersCount()).isEqualTo(9L);
+        assertThat(report.getPaymentBreakdown().getVnpayOrdersCount()).isEqualTo(1L);
+        assertThat(report.getPaymentBreakdown().getElectronicSharePercent()).isEqualTo(10.0);
+        assertThat(report.getPaymentBreakdown().getFormattedElectronicSharePercent()).isEqualTo("10.0%");
+        assertThat(report.getPaymentBreakdown().isMeetingElectronicTarget()).isFalse();
+    }
+
+    @Test
+    @DisplayName("F07 Verification: BO-4 passes when electronic order count >= 40%, even if revenue share is low (1.96%)")
+    void f07_bo4_highOrderCountLowRevenue_meetsTarget() {
+        RevenueFilterRequest filter = RevenueFilterRequest.builder()
+                .startDate(LocalDate.of(2026, 10, 1))
+                .endDate(LocalDate.of(2026, 10, 15))
+                .preset("custom")
+                .build();
+
+        // 5 VNPay orders (20,000 VND each = 100,000 VND) and 5 COD orders (1,000,000 VND each = 5,000,000 VND)
+        // Order share: 5 / 10 = 50.0% (meets >= 40% target)
+        // Revenue share: 100,000 / 5,100,000 = 1.96%
+        PaymentBreakdownDto payment = PaymentBreakdownDto.builder()
+                .codOrdersCount(5)
+                .codRevenue(BigDecimal.valueOf(5000000))
+                .vnpayOrdersCount(5)
+                .vnpayRevenue(BigDecimal.valueOf(100000))
+                .electronicSharePercent(50.0)
+                .build();
+
+        when(analyticsRepository.queryRevenueSummaryKpis(any(), any()))
+                .thenReturn(RevenueSummaryKpiDto.builder().totalOrders(10).grossRevenue(BigDecimal.valueOf(5100000)).build());
+        when(analyticsRepository.queryDailyRevenueTrends(any(), any())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryTopSellingProducts(any(), anyInt(), any(), any())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryPaymentMethodBreakdown(any(), any())).thenReturn(payment);
+        when(analyticsRepository.queryDeliveredOrders(any(), any(), anyInt())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryAllDeliveredOrders(any(), any())).thenReturn(Collections.emptyList());
+
+        RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
+
+        assertThat(report.getPaymentBreakdown().getCodOrdersCount()).isEqualTo(5L);
+        assertThat(report.getPaymentBreakdown().getVnpayOrdersCount()).isEqualTo(5L);
+        assertThat(report.getPaymentBreakdown().getElectronicSharePercent()).isEqualTo(50.0);
+        assertThat(report.getPaymentBreakdown().getFormattedElectronicSharePercent()).isEqualTo("50.0%");
+        assertThat(report.getPaymentBreakdown().isMeetingElectronicTarget()).isTrue();
+    }
+
+    @Test
+    @DisplayName("F08 Verification: Revenue report only includes DELIVERED & PAID orders, excluding REFUNDED or UNPAID")
+    void f08_revenueIntegrity_excludeUnpaidAndRefundedOrders() {
+        RevenueFilterRequest filter = RevenueFilterRequest.builder()
+                .startDate(LocalDate.of(2026, 10, 1))
+                .endDate(LocalDate.of(2026, 10, 15))
+                .preset("custom")
+                .build();
+
+        // 10 DELIVERED + PAID orders total 5,900,000 VND
+        // (1 REFUNDED 100,000 VND and 1 UNPAID 200,000 VND are filtered out by repository query)
+        when(analyticsRepository.queryRevenueSummaryKpis(any(), any()))
+                .thenReturn(RevenueSummaryKpiDto.builder().totalOrders(10).grossRevenue(BigDecimal.valueOf(5900000)).build());
+        when(analyticsRepository.queryDailyRevenueTrends(any(), any())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryTopSellingProducts(any(), anyInt(), any(), any())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryPaymentMethodBreakdown(any(), any())).thenReturn(new PaymentBreakdownDto());
+        when(analyticsRepository.queryDeliveredOrders(any(), any(), anyInt())).thenReturn(Collections.emptyList());
+        when(analyticsRepository.queryAllDeliveredOrders(any(), any())).thenReturn(Collections.emptyList());
+
+        RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
+
+        assertThat(report.getKpi().getTotalOrders()).isEqualTo(10L);
+        assertThat(report.getKpi().getGrossRevenue()).isEqualByComparingTo(BigDecimal.valueOf(5900000));
+    }
 }
