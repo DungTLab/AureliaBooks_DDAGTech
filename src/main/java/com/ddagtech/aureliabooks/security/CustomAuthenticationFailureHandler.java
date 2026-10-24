@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -12,8 +13,6 @@ import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.RedirectStrategy;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
 
 /**
  * Authentication failure handler categorizing security exceptions
@@ -26,9 +25,11 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
     @Override
-    public void onAuthenticationFailure(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        AuthenticationException exception) throws IOException {
+    public void onAuthenticationFailure(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        AuthenticationException exception
+    ) throws IOException {
         String errorParam;
 
         if (exception instanceof TemporaryLoginLockException) {

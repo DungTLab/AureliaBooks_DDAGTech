@@ -18,6 +18,8 @@ import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.ddagtech.aureliabooks.service.StockMutationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,7 @@ public class StockMutationServiceImpl implements StockMutationService {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
+    private final EntityManager entityManager;
 
     /**
      * Manager posts a draft goods receipt (UC23/FND-03).
@@ -152,6 +155,10 @@ public class StockMutationServiceImpl implements StockMutationService {
         Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
+        // The caller may have loaded this order before another transaction deducted its stock.
+        // Reload the marker with a locking read rather than trusting stale persistence-context state.
+        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+
         // Idempotency / Replay protection: if already deducted, do not deduct again
         if (order.getStockDeductedAt() != null) {
             log.info("Order id={} stock was already deducted at {}. Replay ignored.", orderId, order.getStockDeductedAt());
@@ -173,6 +180,9 @@ public class StockMutationServiceImpl implements StockMutationService {
         // Aggregate required quantity per product across lines
         Map<Long, Integer> requiredQtyPerProduct = new HashMap<>();
         for (OrderItem item : items) {
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Số lượng trừ kho phải lớn hơn 0.");
+            }
             requiredQtyPerProduct.merge(item.getProduct().getId(), item.getQuantity(), Integer::sum);
         }
 
@@ -180,6 +190,12 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Long> productIds = requiredQtyPerProduct.keySet().stream().sorted().toList();
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        // A locking query does not automatically replace values already held in the persistence context.
+        // Reload current stock after acquiring the lock, even if the caller loaded the product earlier.
+        for (Product product : products) {
+            entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+        }
 
         // Pass 1: Pre-validation of stock sufficiency across ALL lines
         for (Map.Entry<Long, Integer> entry : requiredQtyPerProduct.entrySet()) {
@@ -199,11 +215,16 @@ public class StockMutationServiceImpl implements StockMutationService {
             }
         }
 
-        // Pass 2: Atomic mutation of inventory balances
-        for (Map.Entry<Long, Integer> entry : requiredQtyPerProduct.entrySet()) {
-            Product product = productMap.get(entry.getKey());
-            product.setStockQuantity(product.getStockQuantity() - entry.getValue());
-            productRepository.save(product);
+        // Pass 2: Perform conditional database updates in a stable lock order.
+        // Use a conditional UPDATE instead of setter/save; WHERE stock >= quantity provides the final guard against negative stock.
+        for (Long productId : productIds) {
+            Product product = productMap.get(productId);
+            if (productRepository.deductStockIfAvailable(productId, requiredQtyPerProduct.get(productId)) != 1) {
+                throw new AppException(ErrorCode.INSUFFICIENT_STOCK,
+                        "Không thể trừ tồn cho sản phẩm: " + product.getTitle());
+            }
+            // Bulk JPQL bypasses managed entities; refresh before subsequent flushes in the same transaction.
+            entityManager.refresh(product);
         }
 
         // Stamp posting timestamp on order

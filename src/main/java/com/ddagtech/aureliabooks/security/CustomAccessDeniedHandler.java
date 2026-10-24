@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,8 +18,6 @@ import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.InvalidCsrfTokenException;
 import org.springframework.security.web.csrf.MissingCsrfTokenException;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
 
 /**
  * Custom AccessDeniedHandler managing HTTP 403 Forbidden scenarios.
@@ -35,17 +34,24 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     private final ObjectMapper objectMapper;
 
     @Override
-    public void handle(HttpServletRequest request,
-                       HttpServletResponse response,
-                       AccessDeniedException accessDeniedException) throws IOException, ServletException {
+    public void handle(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        AccessDeniedException accessDeniedException
+    ) throws IOException, ServletException {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = (auth != null) ? auth.getName() : "Anonymous";
+        String username = auth != null ? auth.getName() : "Anonymous";
         String requestUri = request.getRequestURI();
 
-        boolean isCsrfException = (accessDeniedException instanceof CsrfException);
+        boolean isCsrfException = accessDeniedException instanceof CsrfException;
 
-        log.warn("Access Denied (403 Forbidden) [CSRF: {}] for user '{}' on URI '{}': {}",
-                isCsrfException, username, requestUri, accessDeniedException.getMessage());
+        log.warn(
+            "Access Denied (403 Forbidden) [CSRF: {}] for user '{}' on URI '{}': {}",
+            isCsrfException,
+            username,
+            requestUri,
+            accessDeniedException.getMessage()
+        );
 
         if (isCsrfException) {
             String csrfErrorMessage;
@@ -61,10 +67,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 
             if (HttpRequestUtil.isAjaxOrApi(request)) {
                 response.setContentType("application/json;charset=UTF-8");
-                ApiResponse<Object> apiResponse = ApiResponse.error(
-                        ErrorCode.UNAUTHORIZED.getCode(),
-                        csrfErrorMessage
-                );
+                ApiResponse<Object> apiResponse = ApiResponse.error(ErrorCode.UNAUTHORIZED.getCode(), csrfErrorMessage);
                 objectMapper.writeValue(response.getWriter(), apiResponse);
             } else {
                 request.setAttribute("errorMessage", csrfErrorMessage);
@@ -79,8 +82,8 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
             response.setContentType("application/json;charset=UTF-8");
 
             ApiResponse<Object> apiResponse = ApiResponse.error(
-                    ErrorCode.UNAUTHORIZED.getCode(),
-                    ErrorCode.UNAUTHORIZED.getMessage()
+                ErrorCode.UNAUTHORIZED.getCode(),
+                ErrorCode.UNAUTHORIZED.getMessage()
             );
 
             objectMapper.writeValue(response.getWriter(), apiResponse);

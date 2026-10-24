@@ -3,18 +3,14 @@ package com.ddagtech.aureliabooks.config;
 import com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationFailureHandler;
-import com.ddagtech.aureliabooks.security.CustomUserDetailsService;
 import com.ddagtech.aureliabooks.security.CustomOAuth2UserService;
+import com.ddagtech.aureliabooks.security.CustomUserDetailsService;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
-import com.ddagtech.aureliabooks.security.ThrottledAuthenticationProvider;
 import com.ddagtech.aureliabooks.security.LogoutAuditHandler;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.web.servlet.FlashMap;
-import org.springframework.web.servlet.support.SessionFlashMapManager;
 import com.ddagtech.aureliabooks.security.RoleBasedAuthenticationSuccessHandler;
-import org.springframework.beans.factory.ObjectProvider;
+import com.ddagtech.aureliabooks.security.ThrottledAuthenticationProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,8 +23,12 @@ import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.web.servlet.FlashMap;
+import org.springframework.web.servlet.support.SessionFlashMapManager;
 
 /**
  * Foundational Spring Security 6 Configuration (FND-04).
@@ -117,86 +117,107 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         CustomUserDetailsService userDetailsService = userDetailsServiceProvider.getIfAvailable();
         if (userDetailsService != null) {
-            var authProvider = new ThrottledAuthenticationProvider(userDetailsService, passwordEncoder(),
-                    loginAttempts.getIfAvailable(LoginAttemptService::new));
+            var authProvider = new ThrottledAuthenticationProvider(
+                userDetailsService,
+                passwordEncoder(),
+                loginAttempts.getIfAvailable(LoginAttemptService::new)
+            );
             http.authenticationProvider(authProvider);
         }
 
-        http
-                .authorizeHttpRequests(authorize -> authorize
-                        // 1. Public Storefront Catalog, Auth Entry, and Static Assets
-                        .requestMatchers(
-                                "/",
-                                "/home",
-                                "/products/**",
-                                "/auth/**",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/webjars/**",
-                                "/favicon.ico",
-                                "/error/**"
-                        ).permitAll()
-
-                        // 2. Back-Office Administrative Routes (Lean RBAC Governance)
-                        .requestMatchers("/admin/analytics/**").hasAnyRole("ADMIN", "MANAGER")
-                        .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/manager/stock/alerts").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                        .requestMatchers("/manager", "/manager/**").hasAnyRole("ADMIN", "MANAGER")
-                        .requestMatchers("/staff", "/staff/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                        .requestMatchers("/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                        .requestMatchers("/dashboard", "/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-
-                        // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
-                        .requestMatchers(
-                                "/cart", "/cart/**",
-                                "/checkout", "/checkout/**",
-                                "/account", "/account/**",
-                                "/orders", "/orders/**",
-                                "/profile", "/profile/**"
-                        ).hasRole("CUSTOMER")
-
-                        // 4. Default: All other routes require an authenticated session
-                        .anyRequest().authenticated()
+        http.authorizeHttpRequests(authorize ->
+            authorize
+                // 1. Public Storefront Catalog, Auth Entry, and Static Assets
+                .requestMatchers(
+                    "/",
+                    "/home",
+                    "/products/**",
+                    "/auth/**",
+                    "/css/**",
+                    "/js/**",
+                    "/images/**",
+                    "/webjars/**",
+                    "/favicon.ico",
+                    "/error/**"
                 )
-                .formLogin(login -> {
-                    login
-                            .loginPage("/auth/login")
-                            .loginProcessingUrl("/auth/login")
-                            .usernameParameter("username")
-                            .passwordParameter("password")
-                            .permitAll();
+                .permitAll()
 
-                    RoleBasedAuthenticationSuccessHandler successHandler = authenticationSuccessHandlerProvider.getIfAvailable();
-                    if (successHandler != null) {
-                        login.successHandler(successHandler);
-                    } else {
-                        login.defaultSuccessUrl("/", false);
-                    }
+                // 2. Back-Office Administrative Routes (Lean RBAC Governance)
+                .requestMatchers("/admin/analytics/**")
+                .hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/admin", "/admin/**")
+                .hasRole("ADMIN")
+                .requestMatchers("/manager/stock/alerts")
+                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers("/manager", "/manager/**")
+                .hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/staff", "/staff/**")
+                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers("/inventory", "/inventory/**")
+                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers("/dashboard", "/dashboard/**")
+                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
 
-                    CustomAuthenticationFailureHandler failureHandler = authenticationFailureHandlerProvider.getIfAvailable();
-                    if (failureHandler != null) {
-                        login.failureHandler(failureHandler);
-                    } else {
-                        login.failureUrl("/auth/login?error=true");
-                    }
-                })
-                .logout(logout -> {
-                    logout
-                            .logoutUrl("/auth/logout")
-                            .logoutSuccessUrl("/")
-                            .invalidateHttpSession(true)
-                            .clearAuthentication(true)
-                            .deleteCookies("JSESSIONID")
-                            .permitAll();
-                    var audit = logoutAudit.getIfAvailable();
-                    if (audit != null) logout.addLogoutHandler(audit);
-                })
-                .sessionManagement(session -> session
-                        .sessionFixation(fixation -> fixation.migrateSession())
-                        .maximumSessions(5)
-                        .sessionRegistry(sessionRegistry())
-                );
+                // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
+                .requestMatchers(
+                    "/cart",
+                    "/cart/**",
+                    "/checkout",
+                    "/checkout/**",
+                    "/account",
+                    "/account/**",
+                    "/orders",
+                    "/orders/**",
+                    "/profile",
+                    "/profile/**"
+                )
+                .hasRole("CUSTOMER")
+
+                // 4. Default: All other routes require an authenticated session
+                .anyRequest()
+                .authenticated()
+        )
+            .formLogin(login -> {
+                login
+                    .loginPage("/auth/login")
+                    .loginProcessingUrl("/auth/login")
+                    .usernameParameter("username")
+                    .passwordParameter("password")
+                    .permitAll();
+
+                RoleBasedAuthenticationSuccessHandler successHandler =
+                    authenticationSuccessHandlerProvider.getIfAvailable();
+                if (successHandler != null) {
+                    login.successHandler(successHandler);
+                } else {
+                    login.defaultSuccessUrl("/", false);
+                }
+
+                CustomAuthenticationFailureHandler failureHandler =
+                    authenticationFailureHandlerProvider.getIfAvailable();
+                if (failureHandler != null) {
+                    login.failureHandler(failureHandler);
+                } else {
+                    login.failureUrl("/auth/login?error=true");
+                }
+            })
+            .logout(logout -> {
+                logout
+                    .logoutUrl("/auth/logout")
+                    .logoutSuccessUrl("/")
+                    .invalidateHttpSession(true)
+                    .clearAuthentication(true)
+                    .deleteCookies("JSESSIONID")
+                    .permitAll();
+                var audit = logoutAudit.getIfAvailable();
+                if (audit != null) logout.addLogoutHandler(audit);
+            })
+            .sessionManagement(session ->
+                session
+                    .sessionFixation(fixation -> fixation.migrateSession())
+                    .maximumSessions(5)
+                    .sessionRegistry(sessionRegistry())
+            );
 
         CustomAccessDeniedHandler accessDeniedHandler = accessDeniedHandlerProvider.getIfAvailable();
         CustomAuthenticationEntryPoint authenticationEntryPoint = authenticationEntryPointProvider.getIfAvailable();
@@ -211,35 +232,71 @@ public class SecurityConfig {
             });
         }
 
-        http.headers(headers -> headers
-                .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-        );
+        http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
 
         // Enable Google only when the opt-in google profile supplies a client registration.
         if (clientRegistrations.getIfAvailable() != null) {
             http.oauth2Login(oauth -> {
-                oauth.loginPage("/auth/login")
-                        .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(new com.ddagtech.aureliabooks.security.GoogleAuthorizationRequestResolver(clientRegistrations.getObject())))
-                        .userInfoEndpoint(info -> info.userService(oauthUsers.getObject())
-                                .oidcUserService(oauthUsers.getObject()::loadOidcUser))
-                        .failureHandler((request, response, exception) -> {
-                            String message = "Không thể xác thực bằng Google. Vui lòng thử lại.";
-                            if (exception instanceof OAuth2AuthenticationException failure
-                                    && "registration_failed".equals(failure.getError().getErrorCode())) {
-                                message = failure.getMessage();
-                            }
-                            // OAuth filters execute before DispatcherServlet creates its output flash map.
-                            FlashMap flash = new FlashMap();
-                            flash.put("errorMessage", message);
-                            Object origin = request.getSession(false) == null ? null
-                                    : request.getSession(false).getAttribute("GOOGLE_AUTH_ORIGIN");
-                            String destination = "login".equals(origin) ? "/auth/login" : "/auth/register";
-                            if (request.getSession(false) != null)
-                                request.getSession(false).removeAttribute("GOOGLE_AUTH_ORIGIN");
-                            flash.setTargetRequestPath(request.getContextPath() + destination);
-                            new SessionFlashMapManager().saveOutputFlashMap(flash, request, response);
-                            response.sendRedirect(request.getContextPath() + destination);
-                        });
+                oauth
+                    .loginPage("/auth/login")
+                    .authorizationEndpoint(endpoint ->
+                        endpoint.authorizationRequestResolver(
+                            new com.ddagtech.aureliabooks.security.GoogleAuthorizationRequestResolver(
+                                clientRegistrations.getObject()
+                            )
+                        )
+                    )
+                    .userInfoEndpoint(info ->
+                        info.userService(oauthUsers.getObject()).oidcUserService(oauthUsers.getObject()::loadOidcUser)
+                    )
+                    .failureHandler((request, response, exception) -> {
+                        if (
+                            exception instanceof OAuth2AuthenticationException pending &&
+                            "google_link_required".equals(pending.getError().getErrorCode()) &&
+                            request.getSession(false) != null &&
+                            request.getSession(false).getAttribute("GOOGLE_LINK_FLOW") != null
+                        ) {
+                            response.sendRedirect(request.getContextPath() + "/auth/google-link");
+                            return;
+                        }
+                        String message = "Không thể xác thực bằng Google. Vui lòng thử lại.";
+                        if (
+                            exception instanceof OAuth2AuthenticationException failure &&
+                            "registration_failed".equals(failure.getError().getErrorCode())
+                        ) {
+                            message = failure.getMessage();
+                        }
+                        if (
+                            com.ddagtech.aureliabooks.security.GoogleAccountAction.restoreAfterFailure(
+                                request,
+                                response
+                            )
+                        ) {
+                            FlashMap reauthFlash = new FlashMap();
+                            reauthFlash.put("contactMessage", message);
+                            String target = com.ddagtech.aureliabooks.security.GoogleAccountAction.returnPath(
+                                request.getSession()
+                            );
+                            reauthFlash.setTargetRequestPath(request.getContextPath() + "/profile/contact-change");
+                            new SessionFlashMapManager().saveOutputFlashMap(reauthFlash, request, response);
+                            response.sendRedirect(request.getContextPath() + target);
+                            return;
+                        }
+                        // OAuth filters execute before DispatcherServlet creates its output flash map.
+                        FlashMap flash = new FlashMap();
+                        flash.put("errorMessage", message);
+                        Object origin =
+                            request.getSession(false) == null
+                                ? null
+                                : request.getSession(false).getAttribute("GOOGLE_AUTH_ORIGIN");
+                        String destination = "login".equals(origin) ? "/auth/login" : "/auth/register";
+                        if (request.getSession(false) != null) request
+                            .getSession(false)
+                            .removeAttribute("GOOGLE_AUTH_ORIGIN");
+                        flash.setTargetRequestPath(request.getContextPath() + destination);
+                        new SessionFlashMapManager().saveOutputFlashMap(flash, request, response);
+                        response.sendRedirect(request.getContextPath() + destination);
+                    });
                 var success = authenticationSuccessHandlerProvider.getIfAvailable();
                 if (success != null) oauth.successHandler(success);
                 else oauth.defaultSuccessUrl("/", true);
@@ -249,4 +306,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-

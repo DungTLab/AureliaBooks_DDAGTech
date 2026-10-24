@@ -21,4 +21,8 @@ public class Brand {
 
     @Column(name = "origin_country", length = 100)
     private String originCountry;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 }

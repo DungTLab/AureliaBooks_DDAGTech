@@ -8,6 +8,7 @@ import com.ddagtech.aureliabooks.repository.*;
 import com.ddagtech.aureliabooks.service.impl.InventoryHistoryServiceImpl;
 import com.ddagtech.aureliabooks.service.impl.StockMutationServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -46,6 +47,7 @@ class InventoryHistoryIntegrationTest {
     @Mock private ProductRepository productRepository;
     @Mock private UserRepository userRepository;
     @Mock private AuditLogService auditLogService;
+    @Mock private EntityManager entityManager;
 
     // Repositories used by InventoryHistoryServiceImpl
     @Mock private InventoryMovementRepository inventoryMovementRepository;
@@ -84,7 +86,8 @@ class InventoryHistoryIntegrationTest {
                 productRepository,
                 userRepository,
                 auditLogService,
-                new ObjectMapper()
+                new ObjectMapper(),
+                entityManager
         );
 
         inventoryHistoryService = new InventoryHistoryServiceImpl(inventoryMovementRepository);
@@ -114,6 +117,16 @@ class InventoryHistoryIntegrationTest {
             Product p = inv.getArgument(0);
             productStore.put(p.getId(), p);
             return p;
+        });
+        lenient().when(productRepository.deductStockIfAvailable(anyLong(), anyInt())).thenAnswer(inv -> {
+            Long pid = inv.getArgument(0);
+            Integer qty = inv.getArgument(1);
+            Product p = productStore.get(pid);
+            if (p != null && p.getStockQuantity() != null && p.getStockQuantity() >= qty) {
+                p.setStockQuantity(p.getStockQuantity() - qty);
+                return 1;
+            }
+            return 0;
         });
 
         lenient().when(goodsReceiptRepository.findByIdWithLock(anyLong())).thenAnswer(inv -> Optional.ofNullable(receiptStore.get(inv.getArgument(0))));

@@ -21,4 +21,8 @@ public class Author {
 
     @Column(name = "biography", columnDefinition = "TEXT")
     private String biography;
+
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
 }

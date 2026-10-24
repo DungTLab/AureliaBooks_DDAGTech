@@ -16,8 +16,15 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller
 @RequiredArgsConstructor
 public class AuthController {
+
     private final ObjectProvider<ClientRegistrationRepository> clients;
     private final ObjectProvider<com.ddagtech.aureliabooks.service.AccountOtpService> accountOtp;
+
+    @ModelAttribute("authPage")
+    public String authPage(jakarta.servlet.http.HttpServletRequest request) {
+        String path = request.getServletPath();
+        return path.isEmpty() ? request.getRequestURI().substring(request.getContextPath().length()) : path;
+    }
 
     @GetMapping("/auth/login")
     public String login() {
@@ -28,6 +35,7 @@ public class AuthController {
     public String googleLogin(jakarta.servlet.http.HttpServletRequest request) {
         if (!googleEnabled()) return "redirect:/auth/login?error=google";
         request.getSession().removeAttribute("GOOGLE_ACCOUNT_ACTION");
+        request.getSession().removeAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH");
         request.getSession().setAttribute("GOOGLE_AUTH_ORIGIN", "login");
         return "redirect:/oauth2/authorization/google";
     }
@@ -36,6 +44,7 @@ public class AuthController {
     public String googleRegister(jakarta.servlet.http.HttpServletRequest request) {
         if (!googleEnabled()) return "redirect:/auth/register";
         request.getSession().removeAttribute("GOOGLE_ACCOUNT_ACTION");
+        request.getSession().removeAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH");
         request.getSession().setAttribute("GOOGLE_AUTH_ORIGIN", "register");
         return "redirect:/oauth2/authorization/google";
     }
@@ -53,12 +62,31 @@ public class AuthController {
     }
 
     @PostMapping("/auth/register")
-    public String register(@Valid @ModelAttribute RegisterRequest registerRequest, BindingResult errors,
-                           RedirectAttributes redirect, jakarta.servlet.http.HttpServletRequest request) {
+    public String register(
+        @Valid @ModelAttribute RegisterRequest registerRequest,
+        BindingResult errors,
+        RedirectAttributes redirect,
+        jakarta.servlet.http.HttpServletRequest request
+    ) {
         if (errors.hasErrors()) return "auth/register";
         try {
-            var local = new RegisterRequest(null, registerRequest.password(), registerRequest.fullName(), registerRequest.phone(), registerRequest.dob(), registerRequest.confirmPassword(), registerRequest.gender(), registerRequest.agreeTerms());
-            String flow = accountOtp.getObject().registration(local, request.getSession().getId(), com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request));
+            var local = new RegisterRequest(
+                null,
+                registerRequest.password(),
+                registerRequest.fullName(),
+                registerRequest.phone(),
+                registerRequest.dob(),
+                registerRequest.confirmPassword(),
+                registerRequest.gender(),
+                registerRequest.agreeTerms()
+            );
+            String flow = accountOtp
+                .getObject()
+                .registration(
+                    local,
+                    request.getSession().getId(),
+                    com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request)
+                );
             request.getSession().setAttribute("ACCOUNT_OTP_FLOW", flow);
         } catch (IllegalArgumentException ex) {
             errors.reject("registration", ex.getMessage());
