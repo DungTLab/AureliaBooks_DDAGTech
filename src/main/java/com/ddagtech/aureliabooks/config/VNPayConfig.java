@@ -5,19 +5,22 @@ import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Locale;
+
 /**
  * Configuration properties for VNPay Sandbox integration (UC11.1 / FND-04).
- * Secrets and endpoints are externalized via environment variables or application properties.
+ * Secrets and merchant identifiers must be supplied via external configuration;
+ * no hardcoded fallback credentials are permitted in source code.
  */
 @Getter
 @Setter
 @Configuration
 public class VNPayConfig {
 
-    @Value("${vnpay.tmn-code:AURELIA01}")
+    @Value("${vnpay.tmn-code:}")
     private String tmnCode;
 
-    @Value("${vnpay.hash-secret:SECRETKEY1234567890ABCDEF12345678}")
+    @Value("${vnpay.hash-secret:}")
     private String hashSecret;
 
     @Value("${vnpay.pay-url:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}")
@@ -40,4 +43,16 @@ public class VNPayConfig {
 
     @Value("${vnpay.expire-minutes:15}")
     private int expireMinutes;
+
+    /**
+     * Checks whether mandatory VNPay merchant credentials and HTTPS gateway URL are configured.
+     *
+     * @return true if tmnCode, hashSecret, and HTTPS payUrl are present and non-blank
+     */
+    public boolean isConfigured() {
+        return tmnCode != null && !tmnCode.isBlank()
+                && hashSecret != null && !hashSecret.isBlank()
+                && payUrl != null && !payUrl.isBlank()
+                && payUrl.trim().toLowerCase(Locale.ROOT).startsWith("https://");
+    }
 }

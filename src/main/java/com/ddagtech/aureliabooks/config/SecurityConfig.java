@@ -159,12 +159,14 @@ public class SecurityConfig {
                     .requestMatchers("/dashboard", "/dashboard/**")
                     .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
 
-                    // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
+                    // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04, F04)
                     .requestMatchers(
                         "/cart",
                         "/cart/**",
                         "/checkout",
                         "/checkout/**",
+                        "/payment",
+                        "/payment/**",
                         "/account",
                         "/account/**",
                         "/orders",

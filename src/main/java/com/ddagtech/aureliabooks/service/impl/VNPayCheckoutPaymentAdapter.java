@@ -20,6 +20,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * Enforces V2.4 invariants:
  * - Starting payment does not deduct stock or mark payment successful.
  * - Redirect URL is cryptographically signed with HMAC-SHA512 and targets VNPay Sandbox.
+ * - Fails closed when merchant credentials are not configured.
  */
 @Slf4j
 @Component
@@ -54,6 +55,6 @@ public class VNPayCheckoutPaymentAdapter implements CheckoutPaymentGateway {
             clientIp = VNPayUtil.resolveClientIp(request);
         }
 
-        return vnPayService.createPaymentUrl(order.getId(), clientIp);
+        return vnPayService.createPaymentUrl(authenticatedUserId, order.getId(), clientIp);
     }
 }

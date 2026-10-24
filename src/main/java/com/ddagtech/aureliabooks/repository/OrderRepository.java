@@ -51,6 +51,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.orderStatus = com.ddagtech.aureliabooks.entity.Order$OrderStatus.PENDING_PAYMENT " +
            "AND o.paymentStatus = com.ddagtech.aureliabooks.entity.Order$PaymentStatus.UNPAID " +
            "AND o.paymentMethod = com.ddagtech.aureliabooks.entity.Order$PaymentMethod.VNPAY " +
-           "AND o.createdAt < :cutoffTime ORDER BY o.createdAt ASC")
+           "AND o.createdAt <= :cutoffTime ORDER BY o.createdAt ASC")
     List<Order> findExpiredPendingPaymentOrders(@Param("cutoffTime") LocalDateTime cutoffTime);
+
+    /**
+     * Finds only the IDs of VNPay orders stuck in PENDING_PAYMENT and UNPAID past the 15-minute TTL cutoff,
+     * avoiding premature loading of Order entities into the persistence context before acquiring row locks.
+     *
+     * @param cutoffTime expiration cutoff timestamp (now - 15 minutes)
+     * @return list of expired pending VNPay order IDs
+     */
+    @Query("SELECT o.id FROM Order o WHERE o.orderStatus = com.ddagtech.aureliabooks.entity.Order$OrderStatus.PENDING_PAYMENT " +
+           "AND o.paymentStatus = com.ddagtech.aureliabooks.entity.Order$PaymentStatus.UNPAID " +
+           "AND o.paymentMethod = com.ddagtech.aureliabooks.entity.Order$PaymentMethod.VNPAY " +
+           "AND o.createdAt <= :cutoffTime ORDER BY o.createdAt ASC")
+    List<Long> findExpiredPendingPaymentOrderIds(@Param("cutoffTime") LocalDateTime cutoffTime);
 }

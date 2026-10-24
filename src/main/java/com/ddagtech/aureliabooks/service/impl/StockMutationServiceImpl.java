@@ -257,6 +257,11 @@ public class StockMutationServiceImpl implements StockMutationService {
         Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
+        // Reload the marker with a locking read rather than trusting stale persistence-context state (F02).
+        if (entityManager != null) {
+            entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        }
+
         // Idempotency / Replay protection: if already restored, no-op
         if (order.getStockRestoredAt() != null) {
             log.info("Order id={} stock was already restored at {}. Replay ignored.", orderId, order.getStockRestoredAt());
@@ -291,6 +296,12 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Long> productIds = restoreQtyPerProduct.keySet().stream().sorted().toList();
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        if (entityManager != null) {
+            for (Product product : products) {
+                entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+            }
+        }
 
         for (Map.Entry<Long, Integer> entry : restoreQtyPerProduct.entrySet()) {
             Product product = productMap.get(entry.getKey());
@@ -345,6 +356,10 @@ public class StockMutationServiceImpl implements StockMutationService {
         Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
+        if (entityManager != null) {
+            entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        }
+
         // Idempotency / Replay protection: if already restored, no-op
         if (order.getStockRestoredAt() != null) {
             log.info("Order id={} stock was already restored at {}. Replay ignored.", orderId, order.getStockRestoredAt());
@@ -368,6 +383,12 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Long> productIds = returnQtyPerProduct.keySet().stream().sorted().toList();
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        if (entityManager != null) {
+            for (Product product : products) {
+                entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+            }
+        }
 
         for (Map.Entry<Long, Integer> entry : returnQtyPerProduct.entrySet()) {
             Product product = productMap.get(entry.getKey());

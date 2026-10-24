@@ -80,10 +80,10 @@ app:
     session-cleanup: ${APP_CRON_SESSION_CLEANUP:0 */30 * * * ?}
 
 # VNPay Sandbox Configuration (UC11.1 / FND-04)
-# Secrets and endpoints are externalized via environment variables (12-Factor App)
+# Credentials must be supplied via environment variables; gateway fails closed when omitted.
 vnpay:
-  tmn-code: ${VNPAY_TMN_CODE:AURELIA01}
-  hash-secret: ${VNPAY_HASH_SECRET:SECRETKEY1234567890ABCDEF12345678}
+  tmn-code: ${VNPAY_TMN_CODE:}
+  hash-secret: ${VNPAY_HASH_SECRET:}
   pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
   return-url: ${VNPAY_RETURN_URL:http://localhost:8080/payment/vnpay-return}
   api-url: ${VNPAY_API_URL:https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}

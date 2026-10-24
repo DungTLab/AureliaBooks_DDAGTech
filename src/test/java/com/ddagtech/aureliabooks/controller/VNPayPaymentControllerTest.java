@@ -15,23 +15,32 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
- * WebMvcTest suite for {@link PaymentController} and {@link VNPayIpnWebhookController} (UC11.1 / C08).
+ * WebMvcTest suite for {@link PaymentController} and {@link VNPayIpnWebhookController} (UC11.1 / C08 / F04 / F08).
  * Verifies:
  * - Server-to-server VNPay IPN webhook (/api/v1/payments/vnpay-ipn) is accessible without session/CSRF.
- * - Authenticated customer can initiate redirect to VNPay Sandbox and view SCR-ST-13 (payment/result).
+ * - /payment/** requires ROLE_CUSTOMER authentication; guests are redirected to /login and staff/admin receive 403.
+ * - POST /payment/vnpay/create/{orderId} enforces CSRF protection.
+ * - SCR-ST-13 (payment/result) renders context-aware status messages for confirmed PAID and late success on CANCELLED orders.
  */
 @WebMvcTest(controllers = {PaymentController.class, VNPayIpnWebhookController.class})
 @Import(SecurityConfig.class)
@@ -60,7 +69,7 @@ class VNPayPaymentControllerTest {
 
     @Test
     @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
-    @DisplayName("GET /payment/vnpay/create/{orderId} should redirect authenticated customer to VNPay Sandbox URL")
+    @DisplayName("F04: GET /payment/vnpay/create/{orderId} should redirect authenticated customer to VNPay Sandbox URL")
     void redirectToVNPayGet_AuthenticatedCustomer_RedirectsToGateway() throws Exception {
         String targetUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=ORD-001";
         when(vnPayService.createPaymentUrl(eq(100L), any())).thenReturn(targetUrl);
@@ -72,8 +81,50 @@ class VNPayPaymentControllerTest {
 
     @Test
     @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
-    @DisplayName("GET /payment/vnpay-return should render SCR-ST-13 (payment/result) with read-only paymentResult model")
-    void handleVNPayBrowserReturn_AuthenticatedCustomer_RendersResultView() throws Exception {
+    @DisplayName("F04: POST /payment/vnpay/create/{orderId} with valid CSRF token should redirect authenticated customer to VNPay Sandbox URL")
+    void redirectToVNPayPost_WithCsrf_RedirectsToGateway() throws Exception {
+        String targetUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=ORD-002";
+        when(vnPayService.createPaymentUrl(eq(102L), any())).thenReturn(targetUrl);
+
+        mockMvc.perform(post("/payment/vnpay/create/102").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(targetUrl));
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("F04: POST /payment/vnpay/create/{orderId} without CSRF token should be rejected with 403 Forbidden")
+    void redirectToVNPayPost_WithoutCsrf_Returns403Forbidden() throws Exception {
+        mockMvc.perform(post("/payment/vnpay/create/102"))
+                .andExpect(status().isForbidden());
+
+        verify(vnPayService, never()).createPaymentUrl(any(), any());
+    }
+
+    @Test
+    @DisplayName("F04: GET /payment/vnpay/create/{orderId} by unauthenticated guest should redirect to /login")
+    void redirectToVNPayGet_UnauthenticatedGuest_RedirectsToLogin() throws Exception {
+        mockMvc.perform(get("/payment/vnpay/create/100"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("**/login"));
+
+        verify(vnPayService, never()).createPaymentUrl(any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "staff@aureliabook.vn", roles = {"SALE_STAFF"})
+    @DisplayName("F04: GET /payment/vnpay/create/{orderId} by non-customer role (SALE_STAFF) should be rejected with 403 Forbidden")
+    void redirectToVNPayGet_SaleStaffRole_Returns403Forbidden() throws Exception {
+        mockMvc.perform(get("/payment/vnpay/create/100"))
+                .andExpect(status().isForbidden());
+
+        verify(vnPayService, never()).createPaymentUrl(any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("F08: GET /payment/vnpay-return for confirmed PAID order should render SCR-ST-13 with success heading")
+    void handleVNPayBrowserReturn_ConfirmedPaid_RendersSuccessHeading() throws Exception {
         VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
                 true,
                 true,
@@ -85,7 +136,7 @@ class VNPayPaymentControllerTest {
                 "20261016103000",
                 "PENDING_CONFIRMATION",
                 "PAID",
-                "Giao dịch thanh toán VNPay thành công."
+                "Giao dịch thanh toán VNPay thành công. Đơn hàng đang chờ nhân viên xác nhận."
         );
         when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
 
@@ -94,6 +145,36 @@ class VNPayPaymentControllerTest {
                         .param("vnp_ResponseCode", "00"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("payment/result"))
-                .andExpect(model().attribute("paymentResult", viewModel));
+                .andExpect(model().attribute("paymentResult", viewModel))
+                .andExpect(content().string(containsString("Thanh Toán Thành Công")));
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("F08: GET /payment/vnpay-return for late success on CANCELLED order should render reconciliation heading instead of success")
+    void handleVNPayBrowserReturn_LateSuccessAfterCancelled_RendersReconciliationHeading() throws Exception {
+        VNPayPaymentResultView viewModel = new VNPayPaymentResultView(
+                true,
+                false,
+                "ORD-20261016-060",
+                new BigDecimal("400000.00"),
+                "00",
+                "00",
+                "NCB",
+                "20261016103000",
+                "CANCELLED",
+                "UNPAID",
+                "Đơn hàng đã hết thời hạn thanh toán hoặc đã bị hủy trước khi kết quả VNPay phản hồi. Hệ thống đã ghi nhận giao dịch để đối soát và xử lý hoàn tiền."
+        );
+        when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(viewModel);
+
+        mockMvc.perform(get("/payment/vnpay-return")
+                        .param("vnp_TxnRef", "ORD-20261016-060")
+                        .param("vnp_ResponseCode", "00"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("payment/result"))
+                .andExpect(model().attribute("paymentResult", viewModel))
+                .andExpect(content().string(containsString("Giao Dịch Đến Muộn — Đang Đối Soát")))
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))));
     }
 }
