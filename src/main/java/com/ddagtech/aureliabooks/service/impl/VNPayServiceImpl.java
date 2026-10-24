@@ -194,12 +194,18 @@ public class VNPayServiceImpl implements VNPayService {
                     "VNPay payment window (15 minutes) has expired for this order.");
         }
 
+        String createDate = nowVn.format(VNPAY_TIMESTAMP_FORMATTER);
+        String expireDate = deadlineVn.format(VNPAY_TIMESTAMP_FORMATTER);
+
         String txnRef = order.getVnpayTxnRef();
         if (txnRef == null || txnRef.isBlank()) {
             txnRef = order.getOrderCode();
             order.setVnpayTxnRef(txnRef);
-            orderRepository.save(order);
         }
+        // Record the exact PAY vnp_CreateDate associated with the transaction reference for QueryDR reconciliation (F10)
+        order.setVnpayCreateDate(createDate);
+        VNPayUtil.recordPayInitiation(order.getId(), order.getOrderCode(), txnRef, createDate);
+        orderRepository.save(order);
 
         long amountInMinorUnits = order.getFinalTotalAmount()
                 .multiply(BigDecimal.valueOf(100))
@@ -218,8 +224,8 @@ public class VNPayServiceImpl implements VNPayService {
         vnpParams.put("vnp_Locale", "vn");
         vnpParams.put("vnp_ReturnUrl", vnPayConfig.getReturnUrl());
         vnpParams.put("vnp_IpAddr", (clientIp != null && !clientIp.isBlank()) ? clientIp : "127.0.0.1");
-        vnpParams.put("vnp_CreateDate", nowVn.format(VNPAY_TIMESTAMP_FORMATTER));
-        vnpParams.put("vnp_ExpireDate", deadlineVn.format(VNPAY_TIMESTAMP_FORMATTER));
+        vnpParams.put("vnp_CreateDate", createDate);
+        vnpParams.put("vnp_ExpireDate", expireDate);
 
         String hashData = VNPayUtil.buildHashData(vnpParams);
         String secureHash = VNPayUtil.hmacSHA512(vnPayConfig.getHashSecret(), hashData);

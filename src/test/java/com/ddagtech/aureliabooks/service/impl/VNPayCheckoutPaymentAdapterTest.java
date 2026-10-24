@@ -74,13 +74,13 @@ class VNPayCheckoutPaymentAdapterTest {
         when(vnPayConfig.getHashSecret()).thenReturn("DEMOSECRET123");
         when(orderRepository.findByOrderCodeAndUser_Id(testOrder.getOrderCode(), 1L))
                 .thenReturn(Optional.of(testOrder));
-        when(vnPayService.createPaymentUrl(eq(101L), any()))
+        when(vnPayService.createPaymentUrl(eq(1L), eq(101L), any()))
                 .thenReturn("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=1000000");
 
         String url = adapter.startPayment(1L, testOrder.getOrderCode());
 
         assertThat(url).startsWith("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html");
-        verify(vnPayService).createPaymentUrl(eq(101L), any());
+        verify(vnPayService).createPaymentUrl(eq(1L), eq(101L), any());
     }
 
     @Test

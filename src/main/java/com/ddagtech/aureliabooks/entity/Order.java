@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.entity;
 
+import com.ddagtech.aureliabooks.util.VNPayUtil;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -113,6 +114,24 @@ public class Order extends BaseEntity {
 
     @Column(name = "vnpay_bank_code", length = 50)
     private String vnpayBankCode;
+
+    /**
+     * Captures the exact vnp_CreateDate (yyyyMMddHHmmss) sent to VNPay when initiating or retrying PAY (F10).
+     * QueryDR reconciliation uses this exact timestamp as vnp_TransactionDate instead of guessing order.createdAt.
+     */
+    @Transient
+    private String vnpayCreateDate;
+
+    @PostLoad
+    void restoreVnpayInitiationMetadata() {
+        if (this.vnpayCreateDate == null && this.vnpayTxnRef != null) {
+            this.vnpayCreateDate = VNPayUtil.resolvePayInitiationCreateDate(
+                    this.id,
+                    this.orderCode,
+                    this.vnpayTxnRef
+            );
+        }
+    }
 
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
