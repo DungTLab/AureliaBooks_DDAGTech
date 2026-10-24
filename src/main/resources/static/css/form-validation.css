@@ -1,0 +1,19 @@
+/* Disabled actions remain visible while field errors explain what needs attention. */
+[data-form-validation] button[type="submit"]:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+.form-field-error {
+    color: #9d321c;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    margin-top: 0.4rem;
+}
+.form-field-error[hidden] {
+    display: none;
+}
+[data-form-validation] [aria-invalid="true"],
+[data-checkout-submit] [aria-invalid="true"] {
+    border-color: #c23c1a;
+}
