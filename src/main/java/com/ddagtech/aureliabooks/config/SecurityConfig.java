@@ -125,56 +125,59 @@ public class SecurityConfig {
             http.authenticationProvider(authProvider);
         }
 
-        http.authorizeHttpRequests(authorize ->
-            authorize
-                // 1. Public Storefront Catalog, Auth Entry, and Static Assets
-                .requestMatchers(
-                    "/",
-                    "/home",
-                    "/products/**",
-                    "/auth/**",
-                    "/css/**",
-                    "/js/**",
-                    "/images/**",
-                    "/webjars/**",
-                    "/favicon.ico",
-                    "/error/**"
-                )
-                .permitAll()
+        http
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/payments/vnpay-ipn"))
+            .authorizeHttpRequests(authorize ->
+                authorize
+                    // 1. Public Storefront Catalog, Auth Entry, VNPay IPN Webhook, and Static Assets
+                    .requestMatchers(
+                        "/",
+                        "/home",
+                        "/products/**",
+                        "/auth/**",
+                        "/api/v1/payments/vnpay-ipn",
+                        "/css/**",
+                        "/js/**",
+                        "/images/**",
+                        "/webjars/**",
+                        "/favicon.ico",
+                        "/error/**"
+                    )
+                    .permitAll()
 
-                // 2. Back-Office Administrative Routes (Lean RBAC Governance)
-                .requestMatchers("/admin", "/admin/**")
-                .hasRole("ADMIN")
-                .requestMatchers("/manager/stock/alerts")
-                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/manager", "/manager/**")
-                .hasAnyRole("ADMIN", "MANAGER")
-                .requestMatchers("/staff", "/staff/**")
-                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/inventory", "/inventory/**")
-                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/dashboard", "/dashboard/**")
-                .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                    // 2. Back-Office Administrative Routes (Lean RBAC Governance)
+                    .requestMatchers("/admin", "/admin/**")
+                    .hasRole("ADMIN")
+                    .requestMatchers("/manager/stock/alerts")
+                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                    .requestMatchers("/manager", "/manager/**")
+                    .hasAnyRole("ADMIN", "MANAGER")
+                    .requestMatchers("/staff", "/staff/**")
+                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                    .requestMatchers("/inventory", "/inventory/**")
+                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                    .requestMatchers("/dashboard", "/dashboard/**")
+                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
 
-                // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
-                .requestMatchers(
-                    "/cart",
-                    "/cart/**",
-                    "/checkout",
-                    "/checkout/**",
-                    "/account",
-                    "/account/**",
-                    "/orders",
-                    "/orders/**",
-                    "/profile",
-                    "/profile/**"
-                )
-                .hasRole("CUSTOMER")
+                    // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04)
+                    .requestMatchers(
+                        "/cart",
+                        "/cart/**",
+                        "/checkout",
+                        "/checkout/**",
+                        "/account",
+                        "/account/**",
+                        "/orders",
+                        "/orders/**",
+                        "/profile",
+                        "/profile/**"
+                    )
+                    .hasRole("CUSTOMER")
 
-                // 4. Default: All other routes require an authenticated session
-                .anyRequest()
-                .authenticated()
-        )
+                    // 4. Default: All other routes require an authenticated session
+                    .anyRequest()
+                    .authenticated()
+            )
             .formLogin(login -> {
                 login
                     .loginPage("/auth/login")

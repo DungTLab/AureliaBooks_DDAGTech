@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
   servlet:
     context-path: /
 
@@ -74,3 +74,20 @@ app:
     twilio-from: ${TWILIO_FROM:}
   avatar:
     directory: ${AVATAR_DIRECTORY:./uploads/avatars}
+  cron:
+    vnpay-timeout-ms: ${APP_CRON_VNPAY_TIMEOUT_MS:60000}
+    vector-preload: ${APP_CRON_VECTOR_PRELOAD:0 0 2 * * ?}
+    session-cleanup: ${APP_CRON_SESSION_CLEANUP:0 */30 * * * ?}
+
+# VNPay Sandbox Configuration (UC11.1 / FND-04)
+# Secrets and endpoints are externalized via environment variables (12-Factor App)
+vnpay:
+  tmn-code: ${VNPAY_TMN_CODE:AURELIA01}
+  hash-secret: ${VNPAY_HASH_SECRET:SECRETKEY1234567890ABCDEF12345678}
+  pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+  return-url: ${VNPAY_RETURN_URL:http://localhost:8080/payment/vnpay-return}
+  api-url: ${VNPAY_API_URL:https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+  version: ${VNPAY_VERSION:2.1.0}
+  command: ${VNPAY_COMMAND:pay}
+  order-type: ${VNPAY_ORDER_TYPE:other}
+  expire-minutes: ${VNPAY_EXPIRE_MINUTES:15}
