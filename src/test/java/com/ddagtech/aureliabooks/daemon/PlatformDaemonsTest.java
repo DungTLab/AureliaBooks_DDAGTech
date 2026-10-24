@@ -186,4 +186,78 @@ class PlatformDaemonsTest {
         assertThat(httpSession.isInvalid()).isTrue();
         assertThat(realRegistry.getSessionInformation(sessionId)).isNull();
     }
+
+    @Test
+    @DisplayName("CRON-03 (F01 Regression): purgeExpiredSessions() must purge destroyed guest session IDs even when SessionRegistry is empty")
+    void cron03_PurgeExpiredSessions_CleansDestroyedSessionIdsEvenWhenRegistryIsEmpty() {
+        SessionRegistry realRegistry = new SessionRegistryImpl();
+        SessionRegistryCleanupDaemon daemon = new SessionRegistryCleanupDaemon(realRegistry);
+
+        // Simulate 30 guest CSRF sessions created and then destroyed by servlet container
+        for (int i = 0; i < 30; i++) {
+            daemon.markHttpSessionDestroyed("guest-csrf-session-" + i);
+        }
+        assertThat(daemon.getDestroyedSessionCount()).isEqualTo(30);
+
+        // Running purgeExpiredSessions() must reclaim all 30 guest session IDs because registry has 0 principals
+        int purged = daemon.purgeExpiredSessions();
+
+        assertThat(purged).isEqualTo(0);
+        assertThat(daemon.getDestroyedSessionCount()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("CRON-03 (F01 Regression): purgeExpiredSessions() prunes unneeded guest IDs while safely purging authenticated expired sessions")
+    void cron03_PurgeExpiredSessions_PrunesGuestSessionIdsWhilePreservingLegitimateExpiredTrackedSessions() {
+        SessionRegistry realRegistry = new SessionRegistryImpl();
+        SessionRegistryCleanupDaemon daemon = new SessionRegistryCleanupDaemon(realRegistry);
+
+        // Register 1 active user session and 1 expired user session
+        String activeUserSessionId = "user-sess-active";
+        String expiredUserSessionId = "user-sess-expired";
+        realRegistry.registerNewSession(activeUserSessionId, "active.user@aureliabook.vn");
+        realRegistry.registerNewSession(expiredUserSessionId, "expired.user@aureliabook.vn");
+        realRegistry.getSessionInformation(expiredUserSessionId).expireNow();
+
+        // Simulate container destroying 5 guest sessions and reporting the expired user session destroyed
+        for (int i = 0; i < 5; i++) {
+            daemon.markHttpSessionDestroyed("guest-" + i);
+        }
+        daemon.markHttpSessionDestroyed(expiredUserSessionId);
+
+        assertThat(daemon.getDestroyedSessionCount()).isEqualTo(6);
+
+        // Run cleanup daemon pass
+        int purged = daemon.purgeExpiredSessions();
+
+        // The expired user session should be safely purged from registry and destroyedSessionIds
+        assertThat(purged).isEqualTo(1);
+        assertThat(realRegistry.getSessionInformation(expiredUserSessionId)).isNull();
+        // The active user session remains untouched
+        assertThat(realRegistry.getSessionInformation(activeUserSessionId)).isNotNull();
+        // All guest IDs and the purged expired ID should be completely evicted
+        assertThat(daemon.getDestroyedSessionCount()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("CRON-03: purgeExpiredSessions() prunes invalidated dead HttpSessions from internal activeHttpSessions map")
+    void cron03_PurgeExpiredSessions_PrunesInvalidatedHttpSessionsFromActiveMap() {
+        SessionRegistry realRegistry = new SessionRegistryImpl();
+        SessionRegistryCleanupDaemon daemon = new SessionRegistryCleanupDaemon(realRegistry);
+
+        MockHttpSession sessionValid = new MockHttpSession();
+        MockHttpSession sessionInvalidated = new MockHttpSession();
+
+        daemon.registerHttpSession(sessionValid);
+        daemon.registerHttpSession(sessionInvalidated);
+        assertThat(daemon.getActiveHttpSessionCount()).isEqualTo(2);
+
+        // Invalidate one session outside daemon
+        sessionInvalidated.invalidate();
+
+        daemon.purgeExpiredSessions();
+
+        // Only the valid session remains tracked in activeHttpSessions
+        assertThat(daemon.getActiveHttpSessionCount()).isEqualTo(1);
+    }
 }
