@@ -49,6 +49,7 @@ import static org.mockito.Mockito.*;
  */
 @ExtendWith(MockitoExtension.class)
 class StockMutationServiceTest {
+    @Mock VoucherService vouchers;
 
     @Mock
     private GoodsReceiptRepository goodsReceiptRepository;

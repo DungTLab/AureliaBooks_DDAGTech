@@ -21,6 +21,14 @@ import java.util.List;
 @Builder
 public class Order extends BaseEntity {
 
+    /**
+     * Prefix used to persist the 14-digit PAY initiation timestamp (vnp_CreateDate) durably inside
+     * the existing orders.vnpay_pay_date VARCHAR(20) column while the order is UNPAID ("INIT:" + 14 digits = 19 chars).
+     * Once payment execution is confirmed (PAID or late-success reconciliation), vnpay_pay_date is overwritten
+     * with the actual gateway vnp_PayDate.
+     */
+    public static final String PAY_INIT_DATE_PREFIX = "INIT:";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -113,6 +121,71 @@ public class Order extends BaseEntity {
 
     @Column(name = "vnpay_bank_code", length = 50)
     private String vnpayBankCode;
+
+    /**
+     * Exact vnp_CreateDate (yyyyMMddHHmmss) sent to VNPay when initiating or retrying PAY (F10).
+     * Synchronized with the database column vnpay_pay_date using {@link #PAY_INIT_DATE_PREFIX} while UNPAID
+     * so that QueryDR reconciliation across JVM restarts reads the exact timestamp from MySQL.
+     */
+    @Transient
+    private String vnpayCreateDate;
+
+    public String getVnpayPayDate() {
+        if (this.vnpayPayDate != null && this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
+            return null;
+        }
+        return this.vnpayPayDate;
+    }
+
+    public void setVnpayPayDate(String vnpayPayDate) {
+        this.vnpayPayDate = vnpayPayDate;
+        if (vnpayPayDate != null && vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
+            this.vnpayCreateDate = vnpayPayDate.substring(PAY_INIT_DATE_PREFIX.length()).trim();
+        }
+    }
+
+    public String getVnpayCreateDate() {
+        if (this.vnpayCreateDate != null && !this.vnpayCreateDate.isBlank()) {
+            return this.vnpayCreateDate.trim();
+        }
+        if (this.vnpayPayDate != null && this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
+            String extracted = this.vnpayPayDate.substring(PAY_INIT_DATE_PREFIX.length()).trim();
+            return extracted.isEmpty() ? null : extracted;
+        }
+        return null;
+    }
+
+    public void setVnpayCreateDate(String vnpayCreateDate) {
+        if (vnpayCreateDate == null || vnpayCreateDate.isBlank()) {
+            this.vnpayCreateDate = null;
+            if (this.vnpayPayDate != null && this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
+                this.vnpayPayDate = null;
+            }
+            return;
+        }
+        String clean = vnpayCreateDate.trim();
+        this.vnpayCreateDate = clean;
+        if (this.vnpayPayDate == null || this.vnpayPayDate.isBlank() || this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
+            this.vnpayPayDate = PAY_INIT_DATE_PREFIX + clean;
+        }
+    }
+
+    @PrePersist
+    @PreUpdate
+    void syncVnpayInitiationMetadataBeforeWrite() {
+        if (this.vnpayCreateDate != null && !this.vnpayCreateDate.isBlank()) {
+            if (this.vnpayPayDate == null || this.vnpayPayDate.isBlank() || this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
+                this.vnpayPayDate = PAY_INIT_DATE_PREFIX + this.vnpayCreateDate.trim();
+            }
+        }
+    }
+
+    @PostLoad
+    void restoreVnpayInitiationMetadata() {
+        if (this.vnpayPayDate != null && this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
+            this.vnpayCreateDate = this.vnpayPayDate.substring(PAY_INIT_DATE_PREFIX.length()).trim();
+        }
+    }
 
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

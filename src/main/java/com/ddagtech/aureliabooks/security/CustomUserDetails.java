@@ -1,17 +1,16 @@
 package com.ddagtech.aureliabooks.security;
 
 import com.ddagtech.aureliabooks.entity.User;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-
 import java.io.Serial;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  * Custom implementation of Spring Security {@link UserDetails}.
@@ -51,9 +50,7 @@ public class CustomUserDetails implements UserDetails {
         this.active = Boolean.TRUE.equals(user.getIsActive());
 
         if (user.getRole() != null && user.getRole().getRoleName() != null) {
-            this.authorities = Collections.singleton(
-                    new SimpleGrantedAuthority(user.getRole().getRoleName())
-            );
+            this.authorities = Collections.singleton(new SimpleGrantedAuthority(user.getRole().getRoleName()));
         } else {
             this.authorities = Collections.emptySet();
         }
@@ -101,7 +98,6 @@ public class CustomUserDetails implements UserDetails {
      * @return true if granted, false otherwise
      */
     public boolean hasRole(String role) {
-        return authorities.stream()
-                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals(role));
+        return authorities.stream().anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals(role));
     }
 }

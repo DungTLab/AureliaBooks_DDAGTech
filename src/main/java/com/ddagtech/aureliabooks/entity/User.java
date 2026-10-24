@@ -1,9 +1,8 @@
 package com.ddagtech.aureliabooks.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.LocalDate;
+import lombok.*;
 
 @Entity
 @Table(name = "users")
@@ -66,10 +65,13 @@ public class User extends BaseEntity {
     private Role role;
 
     public enum Gender {
-        MALE, FEMALE, OTHER
+        MALE,
+        FEMALE,
+        OTHER,
     }
 
     public enum AuthProvider {
-        LOCAL, GOOGLE
+        LOCAL,
+        GOOGLE,
     }
 }
