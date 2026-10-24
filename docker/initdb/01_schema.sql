@@ -66,7 +66,7 @@ CREATE TABLE users (
     CONSTRAINT chk_auth_credentials CHECK (
         (auth_provider = 'LOCAL' AND password_hash IS NOT NULL)
         OR
-        (auth_provider = 'GOOGLE' AND provider_id IS NOT NULL)
+        (auth_provider = 'GOOGLE' AND (provider_id IS NOT NULL OR (email_verified = TRUE AND email IS NOT NULL)))
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='User and staff accounts supporting Local Auth and Google OAuth2 SSO (Maps to Use Cases: UC05, UC06, UC07, UC08, UC28)';
 
@@ -77,7 +77,7 @@ CREATE TABLE shipping_addresses (
     phone VARCHAR(15) NOT NULL,
     economic_region ENUM('NORTHERN','CENTRAL_HIGHLANDS','SOUTHERN_MEKONG') NOT NULL,
     province VARCHAR(100) NOT NULL,
-    district VARCHAR(100) NOT NULL,
+    district VARCHAR(100) NULL COMMENT 'Legacy district only; new two-tier addresses leave this empty',
     ward VARCHAR(100) NOT NULL,
     detailed_address VARCHAR(255) NOT NULL,
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
@@ -169,6 +169,7 @@ CREATE TABLE publishers (
     name VARCHAR(150) NOT NULL,
     address VARCHAR(255) NULL,
     email VARCHAR(100) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uk_publishers_name UNIQUE (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Book publishers catalog (Maps to Use Cases: UC03, UC18)';
 
@@ -192,7 +193,8 @@ CREATE TABLE books (
 CREATE TABLE authors (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    biography TEXT NULL
+    biography TEXT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Book authors catalog (Maps to Use Cases: UC03, UC17)';
 
 CREATE TABLE book_authors (
@@ -207,6 +209,7 @@ CREATE TABLE brands (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     origin_country VARCHAR(100) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uk_brands_name UNIQUE (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Stationery manufacturer brands (Maps to Use Cases: UC03, UC19)';
 

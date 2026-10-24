@@ -24,4 +24,8 @@ public class Publisher {
 
     @Column(name = "email", length = 100)
     private String email;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 }

@@ -32,6 +32,7 @@ class SubsystemMappersTest {
                 .build();
 
         BookForm bookForm = new BookForm(
+                1L,
                 "8935244874389",
                 "Nhà Giả Kim",
                 2L,
@@ -60,6 +61,7 @@ class SubsystemMappersTest {
         assertThat(product.getStockQuantity()).isEqualTo(42);
 
         StationeryForm stationeryForm = new StationeryForm(
+                1L,
                 "8935001800018",
                 "Bút Bi Thiên Long TL-027",
                 6L,

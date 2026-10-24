@@ -33,6 +33,12 @@ class SprintOneShellTest {
     private com.ddagtech.aureliabooks.service.ProductService productService;
 
     @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.AdminProductService adminProductService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.MasterDataService masterDataService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.SupplierService supplierService;
 
     @org.springframework.test.context.bean.override.mockito.MockitoBean
@@ -89,18 +95,7 @@ class SprintOneShellTest {
         org.mockito.Mockito.when(categoryRepository.findByIsActiveTrueOrderByNameAsc())
                 .thenReturn(java.util.List.of());
 
-        String[][] cases = {
-                {"/manager/products", "MANAGER"}, {"/manager/products/new", "MANAGER"},
-                {"/manager/authors", "MANAGER"}, {"/manager/publishers", "MANAGER"},
-                {"/manager/brands", "MANAGER"}, {"/manager/categories", "MANAGER"}
-        };
-        for (String[] item : cases) {
-            mvc.perform(get(item[0]).with(user("shell-review").roles(item[1])))
-                    .andExpect(status().isOk())
-                    .andExpect(content().string(containsString("Trang đang được xây dựng.")));
-        }
-
-        mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")))
+mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")))
                 .andExpect(status().isOk());
         mvc.perform(get("/staff/receipts/new").with(user("shell-review").roles("SALE_STAFF")))
                 .andExpect(status().isOk());
@@ -108,6 +103,60 @@ class SprintOneShellTest {
                 .andExpect(status().isOk());
         mvc.perform(get("/manager/stock/alerts").with(user("shell-review").roles("MANAGER")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void managerProductsPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(adminProductService.listProducts(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        mvc.perform(get("/manager/products").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Trị Danh Mục Sản Phẩm")));
+    }
+
+    @Test
+    void managerAuthorsPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(masterDataService.listAuthors(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        mvc.perform(get("/manager/authors").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Lý Danh Bạ Tác Giả")));
+    }
+
+    @Test
+    void managerPublishersPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(masterDataService.listPublishers(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        mvc.perform(get("/manager/publishers").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Lý Danh Bạ Nhà Xuất Bản")));
+    }
+
+    @Test
+    void managerBrandsPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(masterDataService.listBrands(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        mvc.perform(get("/manager/brands").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Lý Danh Bạ Thương Hiệu VPP")));
+    }
+
+    @Test
+    void managerCategoriesPageRendersForManagerRole() throws Exception {
+        org.mockito.Mockito.when(masterDataService.getAllCategoriesWithParent())
+                .thenReturn(java.util.List.of());
+        mvc.perform(get("/manager/categories").with(user("manager-tester").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quản Trị Cây Danh Mục Sản Phẩm")));
     }
 
     @Test

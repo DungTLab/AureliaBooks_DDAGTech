@@ -2,10 +2,12 @@ package com.ddagtech.aureliabooks.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.Formula;
 
 import java.math.BigDecimal;
 
+@DynamicUpdate
 @Entity
 @Table(name = "products")
 @Getter

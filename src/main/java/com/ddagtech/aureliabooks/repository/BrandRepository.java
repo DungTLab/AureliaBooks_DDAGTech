@@ -1,8 +1,62 @@
 package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.Brand;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
+@Repository
 public interface BrandRepository extends JpaRepository<Brand, Long> {
-    // TODO: owner adds only queries required by their Sprint 1 use cases.
+
+    /**
+     * Checks if a brand with the given name exists.
+     *
+     * @param name brand name
+     * @return true if brand exists
+     */
+    boolean existsByNameIgnoreCase(String name);
+
+    /**
+     * Checks if another brand with the given name exists excluding current ID.
+     *
+     * @param name brand name
+     * @param id   brand ID to exclude
+     * @return true if another brand exists
+     */
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+
+    /**
+     * Returns all brands ordered by name ascending for dropdown selection.
+     *
+     * @return list of brands
+     */
+    List<Brand> findAllByOrderByNameAsc();
+
+    /**
+     * Returns only active brands ordered by name ascending.
+     *
+     * @return list of active brands
+     */
+    List<Brand> findAllByIsActiveTrueOrderByNameAsc();
+
+    Page<Brand> findAllByOrderByNameAsc(Pageable pageable);
+
+    Page<Brand> findByNameContainingIgnoreCaseOrderByNameAsc(String keyword, Pageable pageable);
+
+    /**
+     * Verifies if any stationery is currently linked to the specified brand.
+     *
+     * @param brandId brand ID
+     * @return true if at least one stationery references this brand
+     */
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM Stationery s WHERE s.brand.id = :brandId")
+    boolean hasStationeries(@Param("brandId") Long brandId);
+
+    @Query("SELECT COUNT(s) FROM Stationery s WHERE s.brand.id = :brandId")
+    long countStationeriesByBrandId(@Param("brandId") Long brandId);
 }
