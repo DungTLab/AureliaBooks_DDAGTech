@@ -1,10 +1,11 @@
 package com.ddagtech.aureliabooks.util;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.ddagtech.aureliabooks.entity.ShippingAddress.EconomicRegion;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 class DeliveryProvinceCatalogTest {
 
@@ -14,9 +15,20 @@ class DeliveryProvinceCatalogTest {
         assertEquals(34, provinces.size());
         assertEquals(34L, provinces.stream().map(DeliveryProvinceCatalog.Province::code).distinct().count());
         assertEquals(34L, provinces.stream().map(DeliveryProvinceCatalog.Province::name).distinct().count());
-        var counts = provinces.stream().collect(Collectors.groupingBy(DeliveryProvinceCatalog.Province::region, Collectors.counting()));
-        assertEquals(Map.of(EconomicRegion.NORTHERN, 15L, EconomicRegion.CENTRAL_HIGHLANDS, 11L,
-                EconomicRegion.SOUTHERN_MEKONG, 8L), counts);
+        var counts = provinces
+            .stream()
+            .collect(Collectors.groupingBy(DeliveryProvinceCatalog.Province::region, Collectors.counting()));
+        assertEquals(
+            Map.of(
+                EconomicRegion.NORTHERN,
+                15L,
+                EconomicRegion.CENTRAL_HIGHLANDS,
+                11L,
+                EconomicRegion.SOUTHERN_MEKONG,
+                8L
+            ),
+            counts
+        );
     }
 
     @Test

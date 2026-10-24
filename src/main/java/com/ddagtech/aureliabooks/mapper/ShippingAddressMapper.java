@@ -41,15 +41,15 @@ public class ShippingAddressMapper {
             return null;
         }
         return new AddressView(
-                a.getId(),
-                a.getRecipientName(),
-                a.getPhone(),
-                a.getEconomicRegion(),
-                a.getProvince(),
-                a.getDistrict(),
-                a.getWard(),
-                a.getDetailedAddress(),
-                Boolean.TRUE.equals(a.getIsDefault())
+            a.getId(),
+            a.getRecipientName(),
+            a.getPhone(),
+            a.getEconomicRegion(),
+            a.getProvince(),
+            a.getDistrict(),
+            a.getWard(),
+            a.getDetailedAddress(),
+            Boolean.TRUE.equals(a.getIsDefault())
         );
     }
 }

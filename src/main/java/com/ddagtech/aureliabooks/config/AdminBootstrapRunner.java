@@ -17,10 +17,12 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     private final String password;
     private final String phone;
 
-    public AdminBootstrapRunner(AdminBootstrapService service,
-            @Value("${app.bootstrap-admin.email:}") String email,
-            @Value("${app.bootstrap-admin.password:}") String password,
-            @Value("${app.bootstrap-admin.phone:}") String phone) {
+    public AdminBootstrapRunner(
+        AdminBootstrapService service,
+        @Value("${app.bootstrap-admin.email:}") String email,
+        @Value("${app.bootstrap-admin.password:}") String password,
+        @Value("${app.bootstrap-admin.phone:}") String phone
+    ) {
         this.service = service;
         this.email = email;
         this.password = password;

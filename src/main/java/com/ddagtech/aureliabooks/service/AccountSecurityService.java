@@ -6,9 +6,7 @@ import java.time.LocalDate;
 
 /** Application contract for AccountSecurityService; implementation lives in service.impl. */
 public interface AccountSecurityService {
-
     record Draft(String phone, String fullName, LocalDate dob, User.Gender gender, String passwordHash) {
-
         @Override
         public String toString() {
             return "Draft[redacted]";

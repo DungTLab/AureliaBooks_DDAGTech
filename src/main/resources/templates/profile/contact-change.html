@@ -1,47 +1,147 @@
-<!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Thay đổi thông tin liên hệ', ~{::#main-content})}">
-    <head><title>Thay đổi thông tin liên hệ</title></head>
+<!doctype html>
+<html
+    lang="vi"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/base :: layout('Thay đổi thông tin liên hệ', ~{::#main-content})}"
+>
+    <head>
+        <title>Thay đổi thông tin liên hệ</title>
+    </head>
     <body>
         <section id="main-content" class="max-w-2xl mx-auto px-4 py-10">
             <div class="bg-white border border-dust_grey rounded-2xl p-6 sm:p-8 space-y-6">
-                <h1 class="font-serif text-2xl font-bold" th:text="${addingContact ? 'Bổ sung thông tin liên hệ' : 'Thay đổi thông tin liên hệ'}">Thông tin liên hệ</h1>
-                <p class="text-sm text-carbon_black-500">Xác thực lại tài khoản trước khi nhập thông tin mới. Sau đó, nhập OTP gửi tới liên hệ mới để hoàn tất.</p>
-                <p th:if="${contactMessage != null}" th:text="${contactMessage}" role="status" class="rounded-xl bg-parchment p-4 text-sm"></p>
+                <h1
+                    class="font-serif text-2xl font-bold"
+                    th:text="${addingContact ? 'Bổ sung thông tin liên hệ' : 'Thay đổi thông tin liên hệ'}"
+                >
+                    Thông tin liên hệ
+                </h1>
+                <p class="text-sm text-carbon_black-500">
+                    Xác thực lại tài khoản trước khi nhập thông tin mới. Sau đó, nhập OTP gửi tới liên hệ mới để hoàn
+                    tất.
+                </p>
+                <p
+                    th:if="${contactMessage != null}"
+                    th:text="${contactMessage}"
+                    role="status"
+                    class="rounded-xl bg-parchment p-4 text-sm"
+                ></p>
                 <div class="border-b border-dust_grey pb-6 space-y-4">
                     <h2 class="font-semibold">1. Xác thực tài khoản hiện tại</h2>
-                    <p th:if="${reauthenticated}" role="status" data-reauthenticated class="text-sm font-semibold text-green-700">Đã xác thực. Bạn có thể nhập thông tin mới trong vòng 5 phút kể từ khi xác thực.</p>
-                    <form th:if="${!reauthenticated and !verificationMethods.isEmpty()}" th:action="@{/profile/contact-change/reauth}" method="post" data-contact-reauth data-valid-form class="space-y-4">
-                        <input type="hidden" name="type" th:value="${selectedType}">
+                    <p
+                        th:if="${reauthenticated}"
+                        role="status"
+                        data-reauthenticated
+                        class="text-sm font-semibold text-green-700"
+                    >
+                        Đã xác thực. Bạn có thể nhập thông tin mới trong vòng 5 phút kể từ khi xác thực.
+                    </p>
+                    <form
+                        th:if="${!reauthenticated and !verificationMethods.isEmpty()}"
+                        th:action="@{/profile/contact-change/reauth}"
+                        method="post"
+                        data-contact-reauth
+                        data-valid-form
+                        class="space-y-4"
+                    >
+                        <input type="hidden" name="type" th:value="${selectedType}" />
                         <fieldset class="flex flex-wrap gap-3">
                             <legend class="block text-sm font-semibold mb-3">Chọn phương thức xác minh</legend>
-                            <label th:each="method, item : ${verificationMethods}" class="inline-flex items-center gap-2 rounded-xl border border-dust_grey px-4 py-3 cursor-pointer">
-                                <input type="radio" name="method" th:value="${method}" th:checked="${item.first}" required>
-                                <span th:text="${method == 'PASSWORD' ? 'Mật khẩu' : (method == 'EMAIL' ? 'Email' : 'Số điện thoại')}"></span>
+                            <label
+                                th:each="method, item : ${verificationMethods}"
+                                class="inline-flex items-center gap-2 rounded-xl border border-dust_grey px-4 py-3 cursor-pointer"
+                            >
+                                <input
+                                    type="radio"
+                                    name="method"
+                                    th:value="${method}"
+                                    th:checked="${item.first}"
+                                    required
+                                />
+                                <span
+                                    th:text="${method == 'PASSWORD' ? 'Mật khẩu' : (method == 'EMAIL' ? 'Email' : 'Số điện thoại')}"
+                                ></span>
                             </label>
                         </fieldset>
-                        <div data-current-password th:classappend="${verificationMethods[0] != 'PASSWORD' ? 'hidden' : ''}">
-                            <label for="contactPassword" class="block text-sm font-semibold mb-2">Mật khẩu hiện tại</label>
+                        <div
+                            data-current-password
+                            th:classappend="${verificationMethods[0] != 'PASSWORD' ? 'hidden' : ''}"
+                        >
+                            <label for="contactPassword" class="block text-sm font-semibold mb-2"
+                                >Mật khẩu hiện tại</label>
                             <div class="relative" data-password-field>
-                                <input id="contactPassword" name="password" type="password" th:required="${verificationMethods[0] == 'PASSWORD'}" th:disabled="${verificationMethods[0] != 'PASSWORD'}" autocomplete="current-password" class="w-full border border-dust_grey rounded-xl p-3 pr-14">
-                                <button type="button" data-password-toggle aria-controls="contactPassword" aria-label="Hiện mật khẩu hiện tại" aria-pressed="false" class="absolute right-2 top-1/2 -translate-y-1/2 p-2"><i class="bi bi-eye" aria-hidden="true"></i></button>
+                                <input
+                                    id="contactPassword"
+                                    name="password"
+                                    type="password"
+                                    th:required="${verificationMethods[0] == 'PASSWORD'}"
+                                    th:disabled="${verificationMethods[0] != 'PASSWORD'}"
+                                    autocomplete="current-password"
+                                    class="w-full border border-dust_grey rounded-xl p-3 pr-14"
+                                />
+                                <button
+                                    type="button"
+                                    data-password-toggle
+                                    aria-controls="contactPassword"
+                                    aria-label="Hiện mật khẩu hiện tại"
+                                    aria-pressed="false"
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 p-2"
+                                >
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                                </button>
                             </div>
                         </div>
-                        <button type="submit" disabled data-reauth-submit class="rounded-xl border border-dust_grey px-4 py-2 font-semibold disabled:opacity-40 disabled:cursor-not-allowed">Xác thực tài khoản</button>
-                        <a th:href="@{/auth/forgot-password}" data-reauth-forgot-password th:classappend="${verificationMethods[0] != 'PASSWORD' ? 'hidden' : ''}" class="text-sm underline">Quên mật khẩu?</a>
+                        <button
+                            type="submit"
+                            disabled
+                            data-reauth-submit
+                            class="rounded-xl border border-dust_grey px-4 py-2 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            Xác thực tài khoản
+                        </button>
+                        <a
+                            th:href="@{/auth/forgot-password}"
+                            data-reauth-forgot-password
+                            th:classappend="${verificationMethods[0] != 'PASSWORD' ? 'hidden' : ''}"
+                            class="text-sm underline"
+                            >Quên mật khẩu?</a>
                     </form>
-                    <p th:if="${!reauthenticated and verificationMethods.isEmpty()}" class="text-sm text-red-700">Tài khoản chưa có phương thức xác minh khả dụng. Vui lòng liên hệ hỗ trợ.</p>
+                    <p th:if="${!reauthenticated and verificationMethods.isEmpty()}" class="text-sm text-red-700">
+                        Tài khoản chưa có phương thức xác minh khả dụng. Vui lòng liên hệ hỗ trợ.
+                    </p>
                 </div>
                 <form th:action="@{/profile/contact-change/start}" method="post" data-valid-form class="space-y-4">
                     <h2 class="font-semibold">2. Nhập và xác minh thông tin mới</h2>
-                    <input type="hidden" name="type" th:value="${selectedType}">
+                    <input type="hidden" name="type" th:value="${selectedType}" />
                     <fieldset th:disabled="${!reauthenticated}" class="space-y-4 disabled:opacity-50">
                         <div>
-                            <label for="contactValue" class="block text-sm font-semibold mb-2" th:text="${selectedType == 'EMAIL' ? (addingContact ? 'Email cần bổ sung' : 'Email mới') : (addingContact ? 'Số điện thoại cần bổ sung' : 'Số điện thoại mới')}"></label>
-                            <input id="contactValue" name="value" th:type="${selectedType == 'EMAIL' ? 'email' : 'tel'}" th:maxlength="${selectedType == 'EMAIL' ? 100 : 10}" th:pattern="${selectedType == 'PHONE' ? '0[0-9]{9}' : null}" th:autocomplete="${selectedType == 'EMAIL' ? 'email' : 'tel'}" required class="w-full border border-dust_grey rounded-xl p-3 disabled:bg-parchment-100">
+                            <label
+                                for="contactValue"
+                                class="block text-sm font-semibold mb-2"
+                                th:text="${selectedType == 'EMAIL' ? (addingContact ? 'Email cần bổ sung' : 'Email mới') : (addingContact ? 'Số điện thoại cần bổ sung' : 'Số điện thoại mới')}"
+                            ></label>
+                            <input
+                                id="contactValue"
+                                name="value"
+                                th:type="${selectedType == 'EMAIL' ? 'email' : 'tel'}"
+                                th:maxlength="${selectedType == 'EMAIL' ? 100 : 10}"
+                                th:pattern="${selectedType == 'PHONE' ? '0[0-9]{9}' : null}"
+                                th:autocomplete="${selectedType == 'EMAIL' ? 'email' : 'tel'}"
+                                required
+                                class="w-full border border-dust_grey rounded-xl p-3 disabled:bg-parchment-100"
+                            />
                         </div>
-                        <button type="submit" disabled class="rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold disabled:opacity-40 disabled:cursor-not-allowed">Gửi mã xác thực</button>
+                        <button
+                            type="submit"
+                            disabled
+                            class="rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            Gửi mã xác thực
+                        </button>
                     </fieldset>
-                    <p th:unless="${reauthenticated}" class="text-xs text-carbon_black-500">Hoàn tất bước 1 để nhập thông tin và gửi mã.</p>
+                    <p th:unless="${reauthenticated}" class="text-xs text-carbon_black-500">
+                        Hoàn tất bước 1 để nhập thông tin và gửi mã.
+                    </p>
                 </form>
                 <a th:href="@{/profile}" class="inline-block text-sm underline">Quay về hồ sơ</a>
             </div>

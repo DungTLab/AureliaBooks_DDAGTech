@@ -22,8 +22,7 @@ public class GoogleAccountAction {
 
     private final AccountSecurityService security;
 
-    public record Intent(Long owner, String purpose, Instant expires) {
-    }
+    public record Intent(Long owner, String purpose, Instant expires) {}
 
     public static void begin(HttpSession session, Long owner, String purpose) {
         session.removeAttribute("CONTACT_REAUTH_OWNER");
@@ -71,14 +70,18 @@ public class GoogleAccountAction {
     }
 
     public static String returnPath(HttpSession session) {
-        return "/profile/contact-change?type="
-                + ("PHONE".equals(session.getAttribute("GOOGLE_REAUTH_TYPE")) ? "PHONE" : "EMAIL");
+        return (
+            "/profile/contact-change?type=" +
+            ("PHONE".equals(session.getAttribute("GOOGLE_REAUTH_TYPE")) ? "PHONE" : "EMAIL")
+        );
     }
 
     /** The OAuth filter clears its context on failure; restore only the server-stored pre-reauthentication login. */
     public static boolean restoreAfterFailure(HttpServletRequest request, HttpServletResponse response) {
         var session = request.getSession(false);
-        if (session == null || !(session.getAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH") instanceof Authentication original)) {
+        if (
+            session == null || !(session.getAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH") instanceof Authentication original)
+        ) {
             return false;
         }
         session.removeAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH");

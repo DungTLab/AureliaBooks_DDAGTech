@@ -18,14 +18,18 @@ import org.springframework.stereotype.Service;
 @Service
 @Profile("sms-demo")
 public class DemoSmsOtpDelivery implements ContactOtpDelivery {
+
     private final ObjectProvider<JavaMailSender> mail;
     private final ContactOtpDelivery emailDelivery;
     private final String from;
     private final String inbox;
 
-    public DemoSmsOtpDelivery(ObjectProvider<JavaMailSender> mail, Environment environment,
-                              @Value("${app.contact-verification.mail-from:no-reply@aureliabook.local}") String from,
-                              @Value("${demo.sms.inbox:}") String inbox) {
+    public DemoSmsOtpDelivery(
+        ObjectProvider<JavaMailSender> mail,
+        Environment environment,
+        @Value("${app.contact-verification.mail-from:no-reply@aureliabook.local}") String from,
+        @Value("${demo.sms.inbox:}") String inbox
+    ) {
         if (environment.acceptsProfiles(Profiles.of("prod", "production"))) {
             throw new IllegalStateException("sms-demo must not run with prod or production");
         }
@@ -59,8 +63,12 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
         message.setFrom(from);
         message.setTo(inbox);
         message.setSubject("[SMS DEMO] " + OtpMailContent.SUBJECT);
-        message.setText(OtpMailContent.body(code) + "\nThông tin bản demo: yêu cầu cho số ******"
-                + recipient.substring(6) + ". Không xác minh quyền sở hữu SĐT thật.\n");
+        message.setText(
+            OtpMailContent.body(code) +
+                "\nThông tin bản demo: yêu cầu cho số ******" +
+                recipient.substring(6) +
+                ". Không xác minh quyền sở hữu SĐT thật.\n"
+        );
         sender.send(message);
     }
 }

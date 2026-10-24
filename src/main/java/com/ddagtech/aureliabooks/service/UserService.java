@@ -10,6 +10,7 @@ public interface UserService {
     ProfileView viewProfile(Long authenticatedUserId);
     void updateProfile(Long authenticatedUserId, ProfileUpdateRequest request);
     void changePassword(Long authenticatedUserId, PasswordChangeRequest request, String clientIp);
+    /** Creates the first password; the caller must first validate a session-bound PASSWORD_SETUP OTP grant. */
     void setupPassword(Long authenticatedUserId, PasswordSetupRequest request, String clientIp);
     void updateAvatar(Long authenticatedUserId, org.springframework.web.multipart.MultipartFile file);
 }

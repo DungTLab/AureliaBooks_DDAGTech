@@ -2,6 +2,8 @@ package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.User;
 import jakarta.persistence.LockModeType;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,9 +12,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-import java.util.Optional;
-
 /**
  * Spring Data JPA Repository for {@link User} entity.
  * Provides optimized database query methods with fetch joins to prevent N+1 queries.
@@ -20,16 +19,20 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByRole_RoleName(String roleName);
+
     // TODO: owner adds only queries required by their Sprint 1 use cases.
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id =:userId")
     Optional<User> findForCartUpdate(@Param("userId") Long userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.id = :id")
     Optional<User> findOwnerForUpdate(@Param("id") Long id);
+
     @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.providerId = :subject")
     Optional<User> findByProviderId(@Param("subject") String subject);
+
     default Optional<User> findByGoogleIdentity(User.AuthProvider provider, String subject) {
         return provider == User.AuthProvider.GOOGLE ? findByProviderId(subject) : Optional.empty();
     }
@@ -119,19 +122,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @param pageable pagination and sorting parameters
      * @return page of matching internal user entities with loaded roles
      */
-    @Query(value = "SELECT u FROM User u JOIN FETCH u.role r WHERE " +
-           "(:roleName IS NULL OR r.roleName = :roleName) " +
-           "AND (:active IS NULL OR u.isActive = :active) " +
-           "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))",
-           countQuery = "SELECT COUNT(u) FROM User u JOIN u.role r WHERE " +
-           "(:roleName IS NULL OR r.roleName = :roleName) " +
-           "AND (:active IS NULL OR u.isActive = :active) " +
-           "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))")
+    @Query(
+        value = "SELECT u FROM User u JOIN FETCH u.role r WHERE " +
+            "(:roleName IS NULL OR r.roleName = :roleName) " +
+            "AND (:active IS NULL OR u.isActive = :active) " +
+            "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))",
+        countQuery = "SELECT COUNT(u) FROM User u JOIN u.role r WHERE " +
+            "(:roleName IS NULL OR r.roleName = :roleName) " +
+            "AND (:active IS NULL OR u.isActive = :active) " +
+            "AND (:keyword IS NULL OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR u.phone LIKE CONCAT('%', :keyword, '%'))"
+    )
     Page<User> findInternalStaff(
-            @Param("roleName") String roleName,
-            @Param("active") Boolean active,
-            @Param("keyword") String keyword,
-            Pageable pageable
+        @Param("roleName") String roleName,
+        @Param("active") Boolean active,
+        @Param("keyword") String keyword,
+        Pageable pageable
     );
 }
-

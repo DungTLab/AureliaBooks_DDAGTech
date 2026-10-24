@@ -2,8 +2,13 @@ package com.ddagtech.aureliabooks.service;
 
 /** Application contract for ContactChangeService; implementation lives in service.impl. */
 public interface ContactChangeService {
-
-    record Result(boolean completed, String message, boolean loginRequired, boolean challengeIssued, boolean reauthenticated) {
+    record Result(
+        boolean completed,
+        String message,
+        boolean loginRequired,
+        boolean challengeIssued,
+        boolean reauthenticated
+    ) {
         public Result(boolean completed, String message, boolean loginRequired, boolean challengeIssued) {
             this(completed, message, loginRequired, challengeIssued, false);
         }
@@ -17,8 +22,7 @@ public interface ContactChangeService {
         }
     }
 
-    record View(String type, String phase, String recipient, long expiresIn, long resendIn, int attemptsLeft) {
-    }
+    record View(String type, String phase, String recipient, long expiresIn, long resendIn, int attemptsLeft) {}
 
     java.util.List<String> reauthenticationMethods(Long owner);
 

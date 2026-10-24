@@ -1,11 +1,11 @@
 package com.ddagtech.aureliabooks.controller;
 
-import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.security.AuthenticatedSessionUpdater;
+import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.ContactChangeService;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
-import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,8 +23,12 @@ public class ContactChangeController {
     private final com.ddagtech.aureliabooks.service.AccountSecurityService security;
 
     @GetMapping
-    public String view(Authentication auth, HttpServletRequest request, Model model,
-                       @RequestParam(defaultValue = "EMAIL") String type) {
+    public String view(
+        Authentication auth,
+        HttpServletRequest request,
+        Model model,
+        @RequestParam(defaultValue = "EMAIL") String type
+    ) {
         Long owner = identity.resolve(auth);
         var customer = security.contactSettings(owner);
         model.addAttribute("passwordRequired", customer.passwordRequired());
@@ -50,18 +54,29 @@ public class ContactChangeController {
     }
 
     @PostMapping("/reauth")
-    public String reauthenticate(Authentication auth, HttpServletRequest request,
-            @RequestParam(defaultValue = "EMAIL") String type,
-            @RequestParam(required = false) String password,
-            @RequestParam(defaultValue = "PASSWORD") String method, RedirectAttributes flash) {
+    public String reauthenticate(
+        Authentication auth,
+        HttpServletRequest request,
+        @RequestParam(defaultValue = "EMAIL") String type,
+        @RequestParam(required = false) String password,
+        @RequestParam(defaultValue = "PASSWORD") String method,
+        RedirectAttributes flash
+    ) {
         String selectedType = "PHONE".equals(type) ? "PHONE" : "EMAIL";
         try {
             Long owner = identity.resolve(auth);
             if (!"PASSWORD".equals(method)) {
-                var result = changes.startReauthentication(owner, request.getSession().getId(), selectedType, method, HttpRequestUtil.getClientIp(request));
+                var result = changes.startReauthentication(
+                    owner,
+                    request.getSession().getId(),
+                    selectedType,
+                    method,
+                    HttpRequestUtil.getClientIp(request)
+                );
                 flash.addFlashAttribute("contactMessage", result.message());
-                return result.challengeIssued() ? "redirect:/profile/contact-change/verification"
-                        : "redirect:/profile/contact-change?type=" + selectedType;
+                return result.challengeIssued()
+                    ? "redirect:/profile/contact-change/verification"
+                    : "redirect:/profile/contact-change?type=" + selectedType;
             }
             security.reauthenticate(owner, password, false);
             var session = request.getSession();
@@ -75,15 +90,22 @@ public class ContactChangeController {
     }
 
     private boolean authorized(HttpSession session, Long owner, String type) {
-        return owner.equals(session.getAttribute("CONTACT_REAUTH_OWNER"))
-                && type.equals(session.getAttribute("CONTACT_REAUTH_TYPE"))
-                && session.getAttribute("CONTACT_REAUTH_UNTIL") instanceof java.time.Instant expires
-                && java.time.Instant.now().isBefore(expires);
+        return (
+            owner.equals(session.getAttribute("CONTACT_REAUTH_OWNER")) &&
+            type.equals(session.getAttribute("CONTACT_REAUTH_TYPE")) &&
+            session.getAttribute("CONTACT_REAUTH_UNTIL") instanceof java.time.Instant expires &&
+            java.time.Instant.now().isBefore(expires)
+        );
     }
 
     @PostMapping("/start")
-    public String start(Authentication auth, HttpServletRequest request,
-                        @RequestParam String type, @RequestParam String value, RedirectAttributes flash) {
+    public String start(
+        Authentication auth,
+        HttpServletRequest request,
+        @RequestParam String type,
+        @RequestParam String value,
+        RedirectAttributes flash
+    ) {
         try {
             Long owner = identity.resolve(auth);
             var s = request.getSession();
@@ -103,24 +125,39 @@ public class ContactChangeController {
 
     @PostMapping("/resend")
     public String resend(Authentication auth, HttpServletRequest request, RedirectAttributes flash) {
-        var result = changes.resend(identity.resolve(auth), request.getSession().getId(), HttpRequestUtil.getClientIp(request));
+        var result = changes.resend(
+            identity.resolve(auth),
+            request.getSession().getId(),
+            HttpRequestUtil.getClientIp(request)
+        );
         flash.addFlashAttribute("contactMessage", result.message());
         return "redirect:/profile/contact-change/verification";
     }
 
     @PostMapping("/verify")
-    public String verify(Authentication auth, HttpServletRequest request, HttpServletResponse response,
-                         @RequestParam String code, RedirectAttributes flash) {
+    public String verify(
+        Authentication auth,
+        HttpServletRequest request,
+        HttpServletResponse response,
+        @RequestParam String code,
+        RedirectAttributes flash
+    ) {
         Long owner = identity.resolve(auth);
         var flow = changes.view(owner, request.getSession().getId());
-        var result = changes.verify(owner, request.getSession().getId(), code.strip(), HttpRequestUtil.getClientIp(request));
+        var result = changes.verify(
+            owner,
+            request.getSession().getId(),
+            code.strip(),
+            HttpRequestUtil.getClientIp(request)
+        );
         if (result.reauthenticated() && flow != null) {
             var session = request.getSession();
             session.setAttribute("CONTACT_REAUTH_OWNER", owner);
             session.setAttribute("CONTACT_REAUTH_TYPE", flow.type());
             session.setAttribute("CONTACT_REAUTH_UNTIL", java.time.Instant.now().plusSeconds(300));
-            return "PASSWORD_SETUP".equals(flow.type()) ? "redirect:/profile/password/setup"
-                    : "redirect:/profile/contact-change?type=" + flow.type();
+            return "PASSWORD_SETUP".equals(flow.type())
+                ? "redirect:/profile/password/setup"
+                : "redirect:/profile/contact-change?type=" + flow.type();
         }
         if (result.completed()) {
             flash.addFlashAttribute("successMessage", result.message());

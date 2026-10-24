@@ -1,63 +1,243 @@
-<!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Thanh toán', ~{::#main-content})}">
-<head><title>Thanh toán</title></head><body>
-<section id="main-content" class="checkout-page">
-    <link rel="stylesheet" th:href="@{/css/checkout.css}">
-    <script th:src="@{/js/profile-forms.js}" defer></script>
-    <script th:src="@{/js/checkout.js}" defer></script>
-    <nav class="checkout-breadcrumb" aria-label="Đường dẫn"><a th:href="@{/}">Trang chủ</a><span>/</span><a th:href="@{/cart}">Giỏ hàng</a><span>/</span><span aria-current="page">Thanh toán</span></nav>
-    <div class="checkout-heading"><div><p class="checkout-eyebrow">Một bước gần hơn với cuốn sách mới</p><h1>Hoàn tất đơn hàng</h1><p>Chọn nơi nhận hàng và phương thức thanh toán của bạn.</p></div><a th:href="@{/cart}" class="checkout-text-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> Trở lại giỏ hàng</a></div>
-    <div th:replace="~{checkout/fragments :: steps(1)}"></div>
-    <div th:if="${errorMessage != null}" class="checkout-notice is-error" role="alert" th:text="${errorMessage}"></div>
-    <div th:unless="${itemsReady}" class="checkout-notice is-error" role="alert"><strong>Một số sản phẩm cần được cập nhật</strong><p>Vui lòng điều chỉnh số lượng hoặc xóa sản phẩm không còn bán trước khi đặt hàng.</p><a th:href="@{/cart}" class="checkout-text-link">Kiểm tra giỏ hàng</a></div>
+<!doctype html>
+<html
+    lang="vi"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/base :: layout('Thanh toán', ~{::#main-content})}"
+>
+    <head>
+        <title>Thanh toán</title>
+    </head>
+    <body>
+        <section id="main-content" class="checkout-page">
+            <link rel="stylesheet" th:href="@{/css/checkout.css}" />
+            <script th:src="@{/js/profile-forms.js}" defer></script>
+            <script th:src="@{/js/checkout.js}" defer></script>
+            <nav class="checkout-breadcrumb" aria-label="Đường dẫn">
+                <a th:href="@{/}">Trang chủ</a><span>/</span><a th:href="@{/cart}">Giỏ hàng</a><span>/</span><span aria-current="page">Thanh toán</span>
+            </nav>
+            <div class="checkout-heading">
+                <div>
+                    <p class="checkout-eyebrow">Một bước gần hơn với cuốn sách mới</p>
+                    <h1>Hoàn tất đơn hàng</h1>
+                    <p>Chọn nơi nhận hàng và phương thức thanh toán của bạn.</p>
+                </div>
+                <a th:href="@{/cart}" class="checkout-text-link"
+                    ><i class="bi bi-arrow-left" aria-hidden="true"></i> Trở lại giỏ hàng</a>
+            </div>
+            <div th:replace="~{checkout/fragments :: steps(1)}"></div>
+            <div
+                th:if="${errorMessage != null}"
+                class="checkout-notice is-error"
+                role="alert"
+                th:text="${errorMessage}"
+            ></div>
+            <div th:unless="${itemsReady}" class="checkout-notice is-error" role="alert">
+                <strong>Một số sản phẩm cần được cập nhật</strong>
+                <p>Vui lòng điều chỉnh số lượng hoặc xóa sản phẩm không còn bán trước khi đặt hàng.</p>
+                <a th:href="@{/cart}" class="checkout-text-link">Kiểm tra giỏ hàng</a>
+            </div>
 
-    <!-- External radio inputs and buttons use form="checkoutSelection"; Thymeleaf adds CSRF protection to the POST form. -->
-    <form id="checkoutSelection" th:action="@{/checkout/review}" method="post" data-checkout-submit></form>
-    <div class="checkout-grid">
-        <div class="checkout-main">
-            <section class="checkout-card" aria-labelledby="delivery-heading">
-                <div class="checkout-card-heading"><h2 id="delivery-heading"><span class="checkout-section-number">01</span> Địa chỉ giao hàng</h2><a th:href="@{/profile/addresses}" class="checkout-text-link">Sổ địa chỉ</a></div>
-                <p th:if="${checkout.addressViews.isEmpty()}" class="checkout-empty">Bạn chưa có địa chỉ giao hàng. Thêm địa chỉ bên dưới để bắt đầu.</p>
-                <!-- Submit the saved address ID; the backend checks ownership and reads the delivery phone from this address. -->
-                <fieldset th:unless="${checkout.addressViews.isEmpty()}" class="checkout-addresses"><legend class="checkout-sr-only">Chọn địa chỉ nhận hàng</legend>
-                    <label th:each="address : ${checkout.addressViews}" class="checkout-address">
-                        <input type="radio" name="shippingAddressId" form="checkoutSelection" th:value="${address.id}" th:checked="${address.id == checkout.selectedAddressId}" required data-checkout-address>
-                        <span class="checkout-address-body"><span class="checkout-address-heading"><strong th:text="${address.recipientName}"></strong><span th:if="${address.isDefault}" class="checkout-badge">Mặc định</span></span><span th:text="${address.phone}" class="checkout-muted"></span><span th:text="${address.fullAddress()}"></span><span class="checkout-region" th:switch="${address.economicRegion.name()}"><span th:case="'NORTHERN'">Miền Bắc · 50.000 đ</span><span th:case="'CENTRAL_HIGHLANDS'">Miền Trung / Tây Nguyên · 40.000 đ</span><span th:case="'SOUTHERN_MEKONG'">Miền Nam / Đồng bằng sông Cửu Long · 30.000 đ</span></span></span>
-                    </label>
-                </fieldset>
-                <noscript><p class="checkout-help">Phí giao hàng sẽ được tính lại theo địa chỉ bạn chọn ở bước xác nhận.</p></noscript>
-                <!-- Create and save addresses through UC09; AddressService enforces limits and default-address rules. -->
-                <details th:if="${checkout.addressViews.size() < 5}" class="checkout-new-address" th:attr="open=${addressFormOpen == true or checkout.addressViews.isEmpty() ? 'open' : null}">
-                    <summary><i class="bi bi-plus-circle" aria-hidden="true"></i> Thêm địa chỉ giao hàng</summary>
-                    <p class="checkout-help">Địa chỉ mới sẽ được lưu vào sổ địa chỉ của bạn.</p>
-                    <form data-valid-form th:action="@{/checkout/addresses}" th:object="${addressForm}" method="post" class="checkout-address-form">
-                        <div th:if="${#fields.hasAnyErrors()}" class="checkout-notice is-error" role="alert"><p th:each="error : ${#fields.allErrors()}" th:text="${error}"></p></div>
-                        <div class="checkout-form-grid">
-                            <div><label for="recipientName">Người nhận</label><input id="recipientName" th:field="*{recipientName}" autocomplete="shipping name" required maxlength="100"></div>
-                            <div><label for="deliveryPhone">Số điện thoại</label><input id="deliveryPhone" th:field="*{phone}" type="tel" autocomplete="shipping tel-national" required pattern="0[0-9]{9}" maxlength="10" placeholder="0912345678"></div>
-                            <div><label for="provinceCode">Tỉnh / thành phố</label><select id="provinceCode" th:field="*{provinceCode}" autocomplete="shipping address-level1" required><option value="">Chọn tỉnh / thành phố</option><option th:each="province : ${provinces}" th:value="${province.code}" th:text="${province.name}"></option></select></div>
-                            <div><label for="ward">Phường / Xã / Đặc khu</label><input id="ward" th:field="*{ward}" autocomplete="shipping address-level2" required maxlength="100"></div>
-                            <div><label for="detailedAddress">Địa chỉ chi tiết</label><input id="detailedAddress" th:field="*{detailedAddress}" autocomplete="shipping address-line1" required maxlength="255"></div>
+            <!-- External radio inputs and buttons use form="checkoutSelection"; Thymeleaf adds CSRF protection to the POST form. -->
+            <form id="checkoutSelection" th:action="@{/checkout/review}" method="post" data-checkout-submit></form>
+            <div class="checkout-grid">
+                <div class="checkout-main">
+                    <section class="checkout-card" aria-labelledby="delivery-heading">
+                        <div class="checkout-card-heading">
+                            <h2 id="delivery-heading">
+                                <span class="checkout-section-number">01</span> Địa chỉ giao hàng
+                            </h2>
+                            <a th:href="@{/profile/addresses}" class="checkout-text-link">Sổ địa chỉ</a>
                         </div>
-                        <p class="checkout-help">Vùng giao hàng được tự động xác định theo tỉnh/thành phố.</p>
-                        <label class="checkout-checkbox"><input type="checkbox" th:field="*{isDefault}"> Đặt làm địa chỉ mặc định</label>
-                        <button type="submit" disabled class="checkout-button is-secondary disabled:opacity-40 disabled:cursor-not-allowed">Lưu và chọn địa chỉ này</button>
-                    </form>
-                </details>
-                <p th:if="${checkout.addressViews.size() >= 5}" class="checkout-help">Bạn đã có 5 địa chỉ. Có thể sửa địa chỉ trong sổ địa chỉ.</p>
-            </section>
+                        <p th:if="${checkout.addressViews.isEmpty()}" class="checkout-empty">
+                            Bạn chưa có địa chỉ giao hàng. Thêm địa chỉ bên dưới để bắt đầu.
+                        </p>
+                        <!-- Submit the saved address ID; the backend checks ownership and reads the delivery phone from this address. -->
+                        <fieldset th:unless="${checkout.addressViews.isEmpty()}" class="checkout-addresses">
+                            <legend class="checkout-sr-only">Chọn địa chỉ nhận hàng</legend>
+                            <label th:each="address : ${checkout.addressViews}" class="checkout-address">
+                                <input
+                                    type="radio"
+                                    name="shippingAddressId"
+                                    form="checkoutSelection"
+                                    th:value="${address.id}"
+                                    th:checked="${address.id == checkout.selectedAddressId}"
+                                    required
+                                    data-checkout-address
+                                />
+                                <span class="checkout-address-body"
+                                    ><span class="checkout-address-heading"
+                                        ><strong th:text="${address.recipientName}"></strong><span th:if="${address.isDefault}" class="checkout-badge">Mặc định</span></span><span th:text="${address.phone}" class="checkout-muted"></span><span th:text="${address.fullAddress()}"></span><span class="checkout-region" th:switch="${address.economicRegion.name()}"
+                                        ><span th:case="'NORTHERN'">Miền Bắc · 50.000 đ</span><span th:case="'CENTRAL_HIGHLANDS'">Miền Trung / Tây Nguyên · 40.000 đ</span><span th:case="'SOUTHERN_MEKONG'"
+                                            >Miền Nam / Đồng bằng sông Cửu Long · 30.000 đ</span></span></span>
+                            </label>
+                        </fieldset>
+                        <noscript
+                            ><p class="checkout-help">
+                                Phí giao hàng sẽ được tính lại theo địa chỉ bạn chọn ở bước xác nhận.
+                            </p></noscript>
+                        <!-- Create and save addresses through UC09; AddressService enforces limits and default-address rules. -->
+                        <details
+                            th:if="${checkout.addressViews.size() < 5}"
+                            class="checkout-new-address"
+                            th:attr="open=${addressFormOpen == true or checkout.addressViews.isEmpty() ? 'open' : null}"
+                        >
+                            <summary>
+                                <i class="bi bi-plus-circle" aria-hidden="true"></i> Thêm địa chỉ giao hàng
+                            </summary>
+                            <p class="checkout-help">Địa chỉ mới sẽ được lưu vào sổ địa chỉ của bạn.</p>
+                            <form
+                                data-valid-form
+                                th:action="@{/checkout/addresses}"
+                                th:object="${addressForm}"
+                                method="post"
+                                class="checkout-address-form"
+                            >
+                                <div th:if="${#fields.hasAnyErrors()}" class="checkout-notice is-error" role="alert">
+                                    <p th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
+                                </div>
+                                <div class="checkout-form-grid">
+                                    <div>
+                                        <label for="recipientName">Người nhận</label><input
+                                            id="recipientName"
+                                            th:field="*{recipientName}"
+                                            autocomplete="shipping name"
+                                            required
+                                            maxlength="100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label for="deliveryPhone">Số điện thoại</label><input
+                                            id="deliveryPhone"
+                                            th:field="*{phone}"
+                                            type="tel"
+                                            autocomplete="shipping tel-national"
+                                            required
+                                            pattern="0[0-9]{9}"
+                                            maxlength="10"
+                                            placeholder="0912345678"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label for="provinceCode">Tỉnh / thành phố</label><select
+                                            id="provinceCode"
+                                            th:field="*{provinceCode}"
+                                            autocomplete="shipping address-level1"
+                                            required
+                                        >
+                                            <option value="">Chọn tỉnh / thành phố</option>
+                                            <option
+                                                th:each="province : ${provinces}"
+                                                th:value="${province.code}"
+                                                th:text="${province.name}"
+                                            ></option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="ward">Phường / Xã / Đặc khu</label><input
+                                            id="ward"
+                                            th:field="*{ward}"
+                                            autocomplete="shipping address-level2"
+                                            required
+                                            maxlength="100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label for="detailedAddress">Địa chỉ chi tiết</label><input
+                                            id="detailedAddress"
+                                            th:field="*{detailedAddress}"
+                                            autocomplete="shipping address-line1"
+                                            required
+                                            maxlength="255"
+                                        />
+                                    </div>
+                                </div>
+                                <p class="checkout-help">Vùng giao hàng được tự động xác định theo tỉnh/thành phố.</p>
+                                <label class="checkout-checkbox"
+                                    ><input type="checkbox" th:field="*{isDefault}" /> Đặt làm địa chỉ mặc định</label>
+                                <button
+                                    type="submit"
+                                    disabled
+                                    class="checkout-button is-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Lưu và chọn địa chỉ này
+                                </button>
+                            </form>
+                        </details>
+                        <p th:if="${checkout.addressViews.size() >= 5}" class="checkout-help">
+                            Bạn đã có 5 địa chỉ. Có thể sửa địa chỉ trong sổ địa chỉ.
+                        </p>
+                    </section>
 
-            <section class="checkout-card" aria-labelledby="payment-heading">
-                <div class="checkout-card-heading"><h2 id="payment-heading"><span class="checkout-section-number">02</span> Phương thức thanh toán</h2></div>
-                <fieldset class="checkout-payments"><legend class="checkout-sr-only">Chọn cách thanh toán</legend>
-                    <label class="checkout-payment"><input type="radio" name="paymentMethod" value="COD" form="checkoutSelection" th:checked="${selectedPaymentMethod.name() == 'COD'}" required><i class="bi bi-cash-stack" aria-hidden="true"></i><span><strong>Thanh toán khi nhận hàng</strong><small>Thanh toán cho người giao hàng khi nhận đủ sản phẩm.</small></span></label>
-                    <label class="checkout-payment" th:classappend="${!onlinePaymentAvailable} ? 'is-disabled'"><input type="radio" name="paymentMethod" value="VNPAY" form="checkoutSelection" th:checked="${selectedPaymentMethod.name() == 'VNPAY' and onlinePaymentAvailable}" th:disabled="${!onlinePaymentAvailable}"><i class="bi bi-qr-code" aria-hidden="true"></i><span><strong>VNPay</strong><small th:if="${onlinePaymentAvailable}">Thanh toán an toàn qua cổng VNPay.</small><small th:unless="${onlinePaymentAvailable}">Thanh toán trực tuyến tạm thời chưa khả dụng.</small></span></label>
-                </fieldset>
-            </section>
+                    <section class="checkout-card" aria-labelledby="payment-heading">
+                        <div class="checkout-card-heading">
+                            <h2 id="payment-heading">
+                                <span class="checkout-section-number">02</span> Phương thức thanh toán
+                            </h2>
+                        </div>
+                        <fieldset class="checkout-payments">
+                            <legend class="checkout-sr-only">Chọn cách thanh toán</legend>
+                            <label class="checkout-payment"
+                                ><input
+                                    type="radio"
+                                    name="paymentMethod"
+                                    value="COD"
+                                    form="checkoutSelection"
+                                    th:checked="${selectedPaymentMethod.name() == 'COD'}"
+                                    required
+                                /><i class="bi bi-cash-stack" aria-hidden="true"></i><span
+                                    ><strong>Thanh toán khi nhận hàng</strong><small>Thanh toán cho người giao hàng khi nhận đủ sản phẩm.</small></span></label>
+                            <label class="checkout-payment" th:classappend="${!onlinePaymentAvailable} ? 'is-disabled'"
+                                ><input
+                                    type="radio"
+                                    name="paymentMethod"
+                                    value="VNPAY"
+                                    form="checkoutSelection"
+                                    th:checked="${selectedPaymentMethod.name() == 'VNPAY' and onlinePaymentAvailable}"
+                                    th:disabled="${!onlinePaymentAvailable}"
+                                /><i class="bi bi-qr-code" aria-hidden="true"></i><span
+                                    ><strong>VNPay</strong><small th:if="${onlinePaymentAvailable}">Thanh toán an toàn qua cổng VNPay.</small><small th:unless="${onlinePaymentAvailable}"
+                                        >Thanh toán trực tuyến tạm thời chưa khả dụng.</small></span></label>
+                        </fieldset>
+                    </section>
 
-            <section class="checkout-card" aria-labelledby="items-heading"><div class="checkout-card-heading"><h2 id="items-heading"><span class="checkout-section-number">03</span> Sản phẩm trong đơn</h2><span class="checkout-muted" th:text="${checkout.items.size() + ' loại sản phẩm'}"></span></div><div th:replace="~{checkout/fragments :: items(${checkout.items})}"></div></section>
-        </div>
-        <!-- Display CheckoutView totals; do not show zero shipping when no address has been selected. -->
-        <aside class="checkout-card checkout-summary" aria-labelledby="summary-heading"><p class="checkout-eyebrow">Đơn hàng của bạn</p><h2 id="summary-heading">Tóm tắt thanh toán</h2><div th:replace="~{checkout/fragments :: totals(${checkout.merchandiseSubtotal}, ${checkout.productDiscount}, ${checkout.shippingFee}, ${checkout.finalTotalAmount})}"></div><p class="checkout-help">Mã giảm giá hiện chưa khả dụng.</p><button type="submit" form="checkoutSelection" class="checkout-button" th:disabled="${!itemsReady or checkout.selectedAddressId == null}">Kiểm tra đơn hàng <i class="bi bi-arrow-right" aria-hidden="true"></i></button><p class="checkout-security"><i class="bi bi-shield-check" aria-hidden="true"></i> Bạn sẽ xem lại đầy đủ thông tin trước khi đặt hàng.</p><div class="checkout-tariffs"><strong>Cước giao hàng theo vùng</strong><p>Miền Bắc <span>50.000 đ</span></p><p>Miền Trung / Tây Nguyên <span>40.000 đ</span></p><p>Miền Nam / ĐBSCL <span>30.000 đ</span></p></div></aside>
-    </div>
-</section></body></html>
+                    <section class="checkout-card" aria-labelledby="items-heading">
+                        <div class="checkout-card-heading">
+                            <h2 id="items-heading">
+                                <span class="checkout-section-number">03</span> Sản phẩm trong đơn
+                            </h2>
+                            <span class="checkout-muted" th:text="${checkout.items.size() + ' loại sản phẩm'}"></span>
+                        </div>
+                        <div th:replace="~{checkout/fragments :: items(${checkout.items})}"></div>
+                    </section>
+                </div>
+                <!-- Display CheckoutView totals; do not show zero shipping when no address has been selected. -->
+                <aside class="checkout-card checkout-summary" aria-labelledby="summary-heading">
+                    <p class="checkout-eyebrow">Đơn hàng của bạn</p>
+                    <h2 id="summary-heading">Tóm tắt thanh toán</h2>
+                    <div
+                        th:replace="~{checkout/fragments :: totals(${checkout.merchandiseSubtotal}, ${checkout.productDiscount}, ${checkout.shippingFee}, ${checkout.finalTotalAmount})}"
+                    ></div>
+                    <p class="checkout-help">Mã giảm giá hiện chưa khả dụng.</p>
+                    <button
+                        type="submit"
+                        form="checkoutSelection"
+                        class="checkout-button"
+                        th:disabled="${!itemsReady or checkout.selectedAddressId == null}"
+                    >
+                        Kiểm tra đơn hàng <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                    </button>
+                    <p class="checkout-security">
+                        <i class="bi bi-shield-check" aria-hidden="true"></i> Bạn sẽ xem lại đầy đủ thông tin trước khi
+                        đặt hàng.
+                    </p>
+                    <div class="checkout-tariffs">
+                        <strong>Cước giao hàng theo vùng</strong>
+                        <p>Miền Bắc <span>50.000 đ</span></p>
+                        <p>Miền Trung / Tây Nguyên <span>40.000 đ</span></p>
+                        <p>Miền Nam / ĐBSCL <span>30.000 đ</span></p>
+                    </div>
+                </aside>
+            </div>
+        </section>
+    </body>
+</html>

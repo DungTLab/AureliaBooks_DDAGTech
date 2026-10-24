@@ -21,8 +21,13 @@ public class GoogleSignInServiceImpl implements GoogleSignInService {
 
     @Override
     public Outcome resolve(Identity identity, String session, String ip) {
-        if (!identity.verified() || identity.subject() == null || identity.subject().isBlank()
-                || identity.subject().length() > 100 || identity.email() == null) {
+        if (
+            !identity.verified() ||
+            identity.subject() == null ||
+            identity.subject().isBlank() ||
+            identity.subject().length() > 100 ||
+            identity.email() == null
+        ) {
             throw new IllegalArgumentException("Google chưa xác thực thông tin tài khoản.");
         }
         String email = identity.email().strip().toLowerCase(Locale.ROOT);
@@ -42,17 +47,25 @@ public class GoogleSignInServiceImpl implements GoogleSignInService {
             throw new IllegalArgumentException("Tài khoản đã liên kết với Google khác.");
         }
         String domain = email.substring(email.indexOf('@') + 1);
-        boolean authoritative = domain.equals("gmail.com") || identity.hostedDomain() != null
-                && !identity.hostedDomain().isBlank() && domain.equalsIgnoreCase(identity.hostedDomain());
+        boolean authoritative =
+            domain.equals("gmail.com") ||
+            (identity.hostedDomain() != null &&
+                !identity.hostedDomain().isBlank() &&
+                domain.equalsIgnoreCase(identity.hostedDomain()));
         if (authoritative && user.isEmailVerified()) {
-            User linked = attempts.authenticate(user.getId(), () -> security.completeGoogleLink(user.getId(),
-                    identity.subject(), email, "AUTO", user.getEmail(), ip));
+            User linked = attempts.authenticate(user.getId(), () ->
+                security.completeGoogleLink(user.getId(), identity.subject(), email, "AUTO", user.getEmail(), ip)
+            );
             return new Outcome(linked, null, true);
         }
         return new Outcome(null, otp.prepareGoogleLink(user.getId(), identity.subject(), email, session), false);
     }
 
     private Outcome registered(Identity identity, String email) {
-        return new Outcome(registration.registerGoogle(identity.subject(), email, true, identity.name(), identity.picture()), null, false);
+        return new Outcome(
+            registration.registerGoogle(identity.subject(), email, true, identity.name(), identity.picture()),
+            null,
+            false
+        );
     }
 }

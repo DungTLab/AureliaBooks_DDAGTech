@@ -13,12 +13,17 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class AuthenticatedSessionUpdater {
+
     private final AccountSecurityService security;
     private final SessionRegistry sessions;
 
     public void refresh(Long owner, HttpServletRequest request, HttpServletResponse response) {
         var principal = new CustomUserDetails(security.customer(owner));
-        var authentication = UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities());
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(
+            principal,
+            null,
+            principal.getAuthorities()
+        );
         var context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);

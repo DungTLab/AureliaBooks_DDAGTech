@@ -1,254 +1,520 @@
 package com.ddagtech.aureliabooks.controller;
 
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.dto.response.*;
 import com.ddagtech.aureliabooks.entity.ShippingAddress;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.*;
+import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import java.util.List;
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.hamcrest.Matchers.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProfileController.class)
-@Import({SecurityConfig.class, com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler.class,
-        com.ddagtech.aureliabooks.service.impl.AccountPresentationServiceImpl.class})
+@Import({
+    SecurityConfig.class,
+    com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler.class,
+    com.ddagtech.aureliabooks.service.impl.AccountPresentationServiceImpl.class,
+})
 class ProfileControllerTest {
-    @Autowired MockMvc mvc;
-    @MockitoBean UserService users;
-    @MockitoBean AddressService addresses;
-    @MockitoBean CustomerIdentity identity;
-    @MockitoBean AvatarStorage avatars;
-    @MockitoBean com.ddagtech.aureliabooks.repository.UserRepository navbarUsers;
-    @BeforeEach void setup() {
+
+    @Autowired
+    MockMvc mvc;
+
+    @MockitoBean
+    UserService users;
+
+    @MockitoBean
+    AddressService addresses;
+
+    @MockitoBean
+    CustomerIdentity identity;
+
+    @MockitoBean
+    AvatarStorage avatars;
+
+    @MockitoBean
+    com.ddagtech.aureliabooks.repository.UserRepository navbarUsers;
+
+    @BeforeEach
+    void setup() {
         when(identity.resolve(any())).thenReturn(7L);
-        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"an@example.com","Nguyễn An","0912345678",
-                java.time.LocalDate.of(2000,1,1),"MALE",null,false,true,false));
-        when(addresses.list(7L)).thenReturn(List.of(new AddressView(9L,"Nguyễn An","0912345678",
-                ShippingAddress.EconomicRegion.NORTHERN,"Hà Nội","Ba Đình","Đội Cấn","12 Đội Cấn",true)));
+        when(users.viewProfile(7L)).thenReturn(
+            new ProfileView(
+                7L,
+                "an@example.com",
+                "Nguyễn An",
+                "0912345678",
+                java.time.LocalDate.of(2000, 1, 1),
+                "MALE",
+                null,
+                false,
+                true,
+                false
+            )
+        );
+        when(addresses.list(7L)).thenReturn(
+            List.of(
+                new AddressView(
+                    9L,
+                    "Nguyễn An",
+                    "0912345678",
+                    ShippingAddress.EconomicRegion.NORTHERN,
+                    "Hà Nội",
+                    "Ba Đình",
+                    "Đội Cấn",
+                    "12 Đội Cấn",
+                    true
+                )
+            )
+        );
     }
-    @Test void legacyInvalidBirthdayRendersEditableForGoogleAndCanBeCorrected() throws Exception {
-        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"an@example.com","Nguyễn An",null,
-                java.time.LocalDate.of(1111,11,11),"OTHER",null,true,false,true));
-        var result = mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("data-birthdate")))
-                .andExpect(content().string(containsString("/profile/password/setup"))).andReturn();
-        String directory=System.getProperty("uc08.capture.dir");
-        if(directory!=null) java.nio.file.Files.writeString(java.nio.file.Path.of(directory,"profile-birthday.html"),result.getResponse().getContentAsString());
-        mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
-                .param("fullName","Nguyễn An").param("gender","OTHER").param("dob","11/11/1111"))
-                .andExpect(redirectedUrl("/profile")).andExpect(flash().attributeExists("errorMessage"));
-        verify(users,never()).updateProfile(any(),any());
+
+    @Test
+    void legacyInvalidBirthdayRendersEditableForGoogleAndCanBeCorrected() throws Exception {
+        when(users.viewProfile(7L)).thenReturn(
+            new ProfileView(
+                7L,
+                "an@example.com",
+                "Nguyễn An",
+                null,
+                java.time.LocalDate.of(1111, 11, 11),
+                "OTHER",
+                null,
+                true,
+                false,
+                true
+            )
+        );
+        var result = mvc
+            .perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-birthdate")))
+            .andExpect(content().string(containsString("/profile/password/setup")))
+            .andReturn();
+        String directory = System.getProperty("uc08.capture.dir");
+        if (directory != null) java.nio.file.Files.writeString(
+            java.nio.file.Path.of(directory, "profile-birthday.html"),
+            result.getResponse().getContentAsString()
+        );
+        mvc.perform(
+            post("/profile")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("fullName", "Nguyễn An")
+                .param("gender", "OTHER")
+                .param("dob", "11/11/1111")
+        )
+            .andExpect(redirectedUrl("/profile"))
+            .andExpect(flash().attributeExists("errorMessage"));
+        verify(users, never()).updateProfile(any(), any());
     }
-    @Test void profileAndAddressFormsRenderWithCsrfAndImmutableFields() throws Exception {
-        var profile=mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
-            .andExpect(status().isOk()).andExpect(content().string(containsString("Thông tin cá nhân")))
+
+    @Test
+    void profileAndAddressFormsRenderWithCsrfAndImmutableFields() throws Exception {
+        var profile = mvc
+            .perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Thông tin cá nhân")))
             .andExpect(content().string(containsString("name=\"_csrf\"")))
             .andExpect(content().string(not(containsString("/profile/google/link"))))
             .andExpect(content().string(not(containsString("name=\"dob\""))))
-            .andExpect(content().string(not(containsString("name=\"phone\"")))).andReturn();
-        var book=mvc.perform(get("/profile/addresses").with(user("customer").roles("CUSTOMER")))
-            .andExpect(status().isOk()).andExpect(content().string(containsString("12 Đội Cấn")))
-            .andExpect(content().string(containsString("name=\"_csrf\""))).andReturn();
-        String directory=System.getProperty("uc08.capture.dir");
-        if(directory!=null) {
-            var dir=java.nio.file.Path.of(directory);java.nio.file.Files.createDirectories(dir);
-            java.nio.file.Files.writeString(dir.resolve("profile.html"),profile.getResponse().getContentAsString());
-            java.nio.file.Files.writeString(dir.resolve("addresses.html"),book.getResponse().getContentAsString());
+            .andExpect(content().string(not(containsString("name=\"phone\""))))
+            .andReturn();
+        var book = mvc
+            .perform(get("/profile/addresses").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("12 Đội Cấn")))
+            .andExpect(content().string(containsString("name=\"_csrf\"")))
+            .andReturn();
+        String directory = System.getProperty("uc08.capture.dir");
+        if (directory != null) {
+            var dir = java.nio.file.Path.of(directory);
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Files.writeString(dir.resolve("profile.html"), profile.getResponse().getContentAsString());
+            java.nio.file.Files.writeString(dir.resolve("addresses.html"), book.getResponse().getContentAsString());
         }
     }
-    @Test void googleMissingPhoneHasVerifiedChangeLinkAndNoPasswordForm() throws Exception {
-        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"google@example.com","Nguyễn An",null,null,"OTHER",null,true,false,true));
-        mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER"))).andExpect(status().isOk())
+
+    @Test
+    void googleMissingPhoneHasVerifiedChangeLinkAndNoPasswordForm() throws Exception {
+        when(users.viewProfile(7L)).thenReturn(
+            new ProfileView(7L, "google@example.com", "Nguyễn An", null, null, "OTHER", null, true, false, true)
+        );
+        mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
             .andExpect(content().string(not(containsString("name=\"phone\""))))
             .andExpect(content().string(containsString("/profile/contact-change?type=PHONE")))
             .andExpect(content().string(containsString("name=\"dob\"")))
             .andExpect(content().string(containsString("ngày sinh sẽ khóa sau khi lưu")))
             .andExpect(content().string(not(containsString("name=\"currentPassword\""))));
     }
-    @Test void profileAcceptsDayMonthYearAndRendersEditableDateWithExplicitFormat() throws Exception {
-        mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
-                        .param("fullName", "Nguyễn An").param("gender", "OTHER").param("dob", "31/12/2000"))
-                .andExpect(redirectedUrl("/profile"));
-        verify(users).updateProfile(eq(7L), argThat(request -> java.time.LocalDate.of(2000, 12, 31).equals(request.dob())));
-        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L, "an@example.com", "Nguyễn An", "0912345678",
-                null, "OTHER", null, false, true, true));
-        var result = mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("placeholder=\"dd/mm/yyyy\""))).andReturn();
+
+    @Test
+    void profileAcceptsDayMonthYearAndRendersEditableDateWithExplicitFormat() throws Exception {
+        mvc.perform(
+            post("/profile")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("fullName", "Nguyễn An")
+                .param("gender", "OTHER")
+                .param("dob", "31/12/2000")
+        ).andExpect(redirectedUrl("/profile"));
+        verify(users).updateProfile(
+            eq(7L),
+            argThat(request -> java.time.LocalDate.of(2000, 12, 31).equals(request.dob()))
+        );
+        when(users.viewProfile(7L)).thenReturn(
+            new ProfileView(7L, "an@example.com", "Nguyễn An", "0912345678", null, "OTHER", null, false, true, true)
+        );
+        var result = mvc
+            .perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("placeholder=\"dd/mm/yyyy\"")))
+            .andReturn();
         String capture = System.getProperty("birthdate.capture.dir");
-        if (capture != null) java.nio.file.Files.writeString(java.nio.file.Path.of(capture, "profile.html"), result.getResponse().getContentAsString());
+        if (capture != null) java.nio.file.Files.writeString(
+            java.nio.file.Path.of(capture, "profile.html"),
+            result.getResponse().getContentAsString()
+        );
     }
 
-    @Test void impossibleDayMonthYearNeverUpdatesProfile() throws Exception {
-        mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
-                        .param("fullName", "Nguyễn An").param("gender", "OTHER").param("dob", "31/02/2000"))
-                .andExpect(redirectedUrl("/profile"));
+    @Test
+    void impossibleDayMonthYearNeverUpdatesProfile() throws Exception {
+        mvc.perform(
+            post("/profile")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("fullName", "Nguyễn An")
+                .param("gender", "OTHER")
+                .param("dob", "31/02/2000")
+        ).andExpect(redirectedUrl("/profile"));
         verify(users, never()).updateProfile(any(), any());
     }
-    @Test void completedGoogleDobIsReadonly() throws Exception {
-        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"google@example.com","Nguyễn An",null,
-                java.time.LocalDate.of(2000,1,1),"OTHER",null,true,false,false));
+
+    @Test
+    void completedGoogleDobIsReadonly() throws Exception {
+        when(users.viewProfile(7L)).thenReturn(
+            new ProfileView(
+                7L,
+                "google@example.com",
+                "Nguyễn An",
+                null,
+                java.time.LocalDate.of(2000, 1, 1),
+                "OTHER",
+                null,
+                true,
+                false,
+                false
+            )
+        );
         mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("01/01/2000")))
-                .andExpect(content().string(not(containsString("name=\"dob\""))));
-    }
-    @Test void todayAndFutureDobAreRejectedBeforeService() throws Exception {
-        for (var dob : List.of(java.time.LocalDate.now(), java.time.LocalDate.now().plusDays(1))) {
-            mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
-                    .param("fullName","Nguyễn An").param("gender","OTHER").param("dob",dob.toString()))
-                    .andExpect(redirectedUrl("/profile"))
-                    .andExpect(flash().attribute("errorMessage","Ngày sinh phải là ngày trong quá khứ."));
-        }
-        verify(users,never()).updateProfile(any(),any());
-    }
-    @Test void guestAndStaffCannotOpenCustomerProfile() throws Exception {
-        mvc.perform(get("/profile")).andExpect(status().is3xxRedirection());
-        mvc.perform(get("/profile").with(user("staff").roles("SALE_STAFF"))).andExpect(redirectedUrl("/error/403"));
-        verifyNoInteractions(users,identity);
-    }
-    @Test void everyMutationWithoutCsrfRejectedBeforeService() throws Exception {
-        for(String route:List.of("/profile","/profile/password","/profile/avatar","/profile/addresses",
-                "/profile/addresses/9/default","/profile/addresses/9/delete"))
-            mvc.perform(post(route).with(user("customer").roles("CUSTOMER"))).andExpect(status().isForbidden());
-        verifyNoInteractions(users,addresses,identity);
-    }
-    @Test void ownerIdAlwaysComesFromPrincipalNotForm() throws Exception {
-        mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
-            .param("fullName","Nguyễn An").param("gender","MALE").param("userId","999"))
-            .andExpect(redirectedUrl("/profile")).andExpect(flash().attributeExists("successMessage"));
-        verify(users).updateProfile(eq(7L),any());
-        mvc.perform(post("/profile/addresses/9/delete").with(user("customer").roles("CUSTOMER")).with(csrf()).param("userId","999"))
-            .andExpect(redirectedUrl("/profile/addresses"));verify(addresses).delete(7L,9L);
-    }
-    @Test void invalidPasswordIsNotStoredInFlash() throws Exception {
-        mvc.perform(post("/profile/password").with(user("customer").roles("CUSTOMER")).with(csrf())
-            .param("currentPassword","secret").param("newPassword","weak").param("confirmPassword","weak"))
-            .andExpect(redirectedUrl("/profile")).andExpect(flash().attributeExists("errorMessage"))
-            .andExpect(flash().attributeCount(1));verify(users,never()).changePassword(any(),any(), anyString());
-    }
-    @Test void foreignAvatarNotReturned() throws Exception {
-        mvc.perform(get("/profile/avatar/00000000-0000-0000-0000-000000000000.png")
-            .with(user("customer").roles("CUSTOMER"))).andExpect(status().isNotFound());verifyNoInteractions(avatars);
-    }
-    @Test void editAddressIsLimitedToCurrentOwnersList() throws Exception {
-        mvc.perform(get("/profile/addresses?edit=99").with(user("customer").roles("CUSTOMER")))
-            .andExpect(redirectedUrl("/profile/addresses")).andExpect(flash().attributeExists("errorMessage"));
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("01/01/2000")))
+            .andExpect(content().string(not(containsString("name=\"dob\""))));
     }
 
-    @Test void twoTierAddressFormHasProvinceSelectAndNoEditableZoneOrDistrict() throws Exception {
-        var result = mvc.perform(get("/profile/addresses?edit=9").with(user("customer").roles("CUSTOMER")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("<select id=\"address-provinceCode\"")))
-                .andExpect(content().string(containsString("Phường / Xã / Đặc khu")))
-                .andExpect(content().string(not(containsString("name=\"economicRegion\""))))
-                .andExpect(content().string(not(containsString("name=\"district\""))))
-                .andExpect(content().string(containsString("Ba Đình")))
-                .andReturn();
+    @Test
+    void todayAndFutureDobAreRejectedBeforeService() throws Exception {
+        for (var dob : List.of(java.time.LocalDate.now(), java.time.LocalDate.now().plusDays(1))) {
+            mvc.perform(
+                post("/profile")
+                    .with(user("customer").roles("CUSTOMER"))
+                    .with(csrf())
+                    .param("fullName", "Nguyễn An")
+                    .param("gender", "OTHER")
+                    .param("dob", dob.toString())
+            )
+                .andExpect(redirectedUrl("/profile"))
+                .andExpect(flash().attribute("errorMessage", "Ngày sinh phải là ngày trong quá khứ."));
+        }
+        verify(users, never()).updateProfile(any(), any());
+    }
+
+    @Test
+    void guestAndStaffCannotOpenCustomerProfile() throws Exception {
+        mvc.perform(get("/profile")).andExpect(status().is3xxRedirection());
+        mvc.perform(get("/profile").with(user("staff").roles("SALE_STAFF"))).andExpect(redirectedUrl("/error/403"));
+        verifyNoInteractions(users, identity);
+    }
+
+    @Test
+    void everyMutationWithoutCsrfRejectedBeforeService() throws Exception {
+        for (String route : List.of(
+            "/profile",
+            "/profile/password",
+            "/profile/avatar",
+            "/profile/addresses",
+            "/profile/addresses/9/default",
+            "/profile/addresses/9/delete"
+        ))
+            mvc.perform(post(route).with(user("customer").roles("CUSTOMER"))).andExpect(status().isForbidden());
+        verifyNoInteractions(users, addresses, identity);
+    }
+
+    @Test
+    void ownerIdAlwaysComesFromPrincipalNotForm() throws Exception {
+        mvc.perform(
+            post("/profile")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("fullName", "Nguyễn An")
+                .param("gender", "MALE")
+                .param("userId", "999")
+        )
+            .andExpect(redirectedUrl("/profile"))
+            .andExpect(flash().attributeExists("successMessage"));
+        verify(users).updateProfile(eq(7L), any());
+        mvc.perform(
+            post("/profile/addresses/9/delete")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("userId", "999")
+        ).andExpect(redirectedUrl("/profile/addresses"));
+        verify(addresses).delete(7L, 9L);
+    }
+
+    @Test
+    void invalidPasswordIsNotStoredInFlash() throws Exception {
+        mvc.perform(
+            post("/profile/password")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("currentPassword", "secret")
+                .param("newPassword", "weak")
+                .param("confirmPassword", "weak")
+        )
+            .andExpect(redirectedUrl("/profile"))
+            .andExpect(flash().attributeExists("errorMessage"))
+            .andExpect(flash().attributeCount(1));
+        verify(users, never()).changePassword(any(), any(), anyString());
+    }
+
+    @Test
+    void foreignAvatarNotReturned() throws Exception {
+        mvc.perform(
+            get("/profile/avatar/00000000-0000-0000-0000-000000000000.png").with(user("customer").roles("CUSTOMER"))
+        ).andExpect(status().isNotFound());
+        verifyNoInteractions(avatars);
+    }
+
+    @Test
+    void editAddressIsLimitedToCurrentOwnersList() throws Exception {
+        mvc.perform(get("/profile/addresses?edit=99").with(user("customer").roles("CUSTOMER")))
+            .andExpect(redirectedUrl("/profile/addresses"))
+            .andExpect(flash().attributeExists("errorMessage"));
+    }
+
+    @Test
+    void twoTierAddressFormHasProvinceSelectAndNoEditableZoneOrDistrict() throws Exception {
+        var result = mvc
+            .perform(get("/profile/addresses?edit=9").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(matchesPattern("(?s).*<select\\s+id=\"address-provinceCode\".*")))
+            .andExpect(content().string(containsString("Phường / Xã / Đặc khu")))
+            .andExpect(content().string(not(containsString("name=\"economicRegion\""))))
+            .andExpect(content().string(not(containsString("name=\"district\""))))
+            .andExpect(content().string(containsString("Ba Đình")))
+            .andReturn();
         String html = result.getResponse().getContentAsString();
-        var select = java.util.regex.Pattern.compile("(?s)<select[^>]*name=\"provinceCode\"[^>]*>.*?</select>").matcher(html);
+        var select = java.util.regex.Pattern.compile("(?s)<select[^>]*name=\"provinceCode\"[^>]*>.*?</select>").matcher(
+            html
+        );
         assertTrue(select.find());
         assertEquals(35L, java.util.regex.Pattern.compile("<option\\b").matcher(select.group()).results().count());
-        assertTrue(java.util.regex.Pattern.compile("<option(?=[^>]*value=\"01\")(?=[^>]*selected)[^>]*>")
-                .matcher(select.group()).find());
+        assertTrue(
+            java.util.regex.Pattern.compile("<option(?=[^>]*value=\"01\")(?=[^>]*selected)[^>]*>")
+                .matcher(select.group())
+                .find()
+        );
         String directory = System.getProperty("uc08.capture.dir");
         if (directory != null) {
             java.nio.file.Files.createDirectories(java.nio.file.Path.of(directory));
-            java.nio.file.Files.writeString(java.nio.file.Path.of(directory).resolve("address-edit.html"),
-                    result.getResponse().getContentAsString());
+            java.nio.file.Files.writeString(
+                java.nio.file.Path.of(directory).resolve("address-edit.html"),
+                result.getResponse().getContentAsString()
+            );
         }
     }
 
-    @Test void addressPostCannotSupplyItsOwnRegionOrDistrict() throws Exception {
-        mvc.perform(post("/profile/addresses").with(user("customer").roles("CUSTOMER")).with(csrf())
-                .param("recipientName", "Nguyễn An").param("phone", "0912345678").param("provinceCode", "79")
-                .param("ward", "Phường Sài Gòn").param("detailedAddress", "12 Đường Hoa")
-                .param("economicRegion", "NORTHERN").param("district", "Quận giả").param("userId", "999"))
-                .andExpect(redirectedUrl("/profile/addresses"))
-                .andExpect(flash().attributeExists("successMessage"));
-        verify(addresses).create(eq(7L), argThat(request -> "79".equals(request.provinceCode())
-                && "Phường Sài Gòn".equals(request.ward())));
+    @Test
+    void addressPostCannotSupplyItsOwnRegionOrDistrict() throws Exception {
+        mvc.perform(
+            post("/profile/addresses")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("recipientName", "Nguyễn An")
+                .param("phone", "0912345678")
+                .param("provinceCode", "79")
+                .param("ward", "Phường Sài Gòn")
+                .param("detailedAddress", "12 Đường Hoa")
+                .param("economicRegion", "NORTHERN")
+                .param("district", "Quận giả")
+                .param("userId", "999")
+        )
+            .andExpect(redirectedUrl("/profile/addresses"))
+            .andExpect(flash().attributeExists("successMessage"));
+        verify(addresses).create(
+            eq(7L),
+            argThat(request -> "79".equals(request.provinceCode()) && "Phường Sài Gòn".equals(request.ward()))
+        );
     }
 
-    @Test void unknownProvinceAndMissingWardPreserveFormWithoutCallingService() throws Exception {
+    @Test
+    void unknownProvinceAndMissingWardPreserveFormWithoutCallingService() throws Exception {
         for (String code : List.of("99", "01")) {
-            mvc.perform(post("/profile/addresses").with(user("customer").roles("CUSTOMER")).with(csrf())
-                    .param("recipientName", "Nguyễn An").param("phone", "0912345678").param("provinceCode", code)
-                    .param("ward", "01".equals(code) ? "" : "Phường Sài Gòn").param("detailedAddress", "12 Đường Hoa"))
-                    .andExpect(redirectedUrl("/profile/addresses"))
-                    .andExpect(flash().attributeExists("errorMessage", "addressForm"));
+            mvc.perform(
+                post("/profile/addresses")
+                    .with(user("customer").roles("CUSTOMER"))
+                    .with(csrf())
+                    .param("recipientName", "Nguyễn An")
+                    .param("phone", "0912345678")
+                    .param("provinceCode", code)
+                    .param("ward", "01".equals(code) ? "" : "Phường Sài Gòn")
+                    .param("detailedAddress", "12 Đường Hoa")
+            )
+                .andExpect(redirectedUrl("/profile/addresses"))
+                .andExpect(flash().attributeExists("errorMessage", "addressForm"));
         }
         verifyNoInteractions(addresses);
     }
 
-    @Test void newAddressRendersWithoutNullOrFakeDistrict() throws Exception {
-        when(addresses.list(7L)).thenReturn(List.of(new AddressView(9L, "Nguyễn An", "0912345678",
-                ShippingAddress.EconomicRegion.SOUTHERN_MEKONG, "Thành phố Hồ Chí Minh", null,
-                "Phường Sài Gòn", "12 Đường Hoa", true)));
+    @Test
+    void newAddressRendersWithoutNullOrFakeDistrict() throws Exception {
+        when(addresses.list(7L)).thenReturn(
+            List.of(
+                new AddressView(
+                    9L,
+                    "Nguyễn An",
+                    "0912345678",
+                    ShippingAddress.EconomicRegion.SOUTHERN_MEKONG,
+                    "Thành phố Hồ Chí Minh",
+                    null,
+                    "Phường Sài Gòn",
+                    "12 Đường Hoa",
+                    true
+                )
+            )
+        );
         mvc.perform(get("/profile/addresses").with(user("customer").roles("CUSTOMER")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("12 Đường Hoa, Phường Sài Gòn, Thành phố Hồ Chí Minh")))
-                .andExpect(content().string(not(containsString(", null,"))));
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("12 Đường Hoa, Phường Sài Gòn, Thành phố Hồ Chí Minh")))
+            .andExpect(content().string(not(containsString(", null,"))));
     }
-    @Test void successfulPasswordChangeInvalidatesSession() throws Exception {
-        var session=new org.springframework.mock.web.MockHttpSession();
-        mvc.perform(post("/profile/password").session(session).with(user("customer").roles("CUSTOMER")).with(csrf())
-            .param("currentPassword","OldPass1!").param("newPassword","NewPass1!").param("confirmPassword","NewPass1!"))
-            .andExpect(redirectedUrl("/auth/login?passwordChanged")).andExpect(cookie().maxAge("JSESSIONID",0));
-        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());verify(users).changePassword(eq(7L),any(), anyString());
+
+    @Test
+    void successfulPasswordChangeInvalidatesSession() throws Exception {
+        var session = new org.springframework.mock.web.MockHttpSession();
+        mvc.perform(
+            post("/profile/password")
+                .session(session)
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("currentPassword", "OldPass1!")
+                .param("newPassword", "NewPass1!")
+                .param("confirmPassword", "NewPass1!")
+        )
+            .andExpect(redirectedUrl("/auth/login?passwordChanged"))
+            .andExpect(cookie().maxAge("JSESSIONID", 0));
+        org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());
+        verify(users).changePassword(eq(7L), any(), anyString());
     }
-    @Test void inactivePrincipalIsLoggedOutInsteadOfRedirectLoop() throws Exception {
-        when(identity.resolve(any())).thenThrow(new com.ddagtech.aureliabooks.exception.AppException(
-                com.ddagtech.aureliabooks.constant.ErrorCode.ACCOUNT_LOCKED));
-        var session=new org.springframework.mock.web.MockHttpSession();
-        mvc.perform(get("/profile").session(session).with(user("customer").roles("CUSTOMER")))
-                .andExpect(redirectedUrl("/auth/login"));
+
+    @Test
+    void inactivePrincipalIsLoggedOutInsteadOfRedirectLoop() throws Exception {
+        when(identity.resolve(any())).thenThrow(
+            new com.ddagtech.aureliabooks.exception.AppException(
+                com.ddagtech.aureliabooks.constant.ErrorCode.ACCOUNT_LOCKED
+            )
+        );
+        var session = new org.springframework.mock.web.MockHttpSession();
+        mvc.perform(get("/profile").session(session).with(user("customer").roles("CUSTOMER"))).andExpect(
+            redirectedUrl("/auth/login")
+        );
         org.junit.jupiter.api.Assertions.assertTrue(session.isInvalid());
     }
-    @Test void navbarReadsLatestAvatarInsteadOfSessionSnapshot() throws Exception {
-        var role=new com.ddagtech.aureliabooks.entity.Role();role.setRoleName("ROLE_CUSTOMER");
-        var account=com.ddagtech.aureliabooks.entity.User.builder().id(7L).isActive(true).role(role)
-                .email("an@example.com").fullName("Tên cũ").avatarUrl("/profile/avatar/old.png").build();
-        var principal=new com.ddagtech.aureliabooks.security.CustomUserDetails(account);
+
+    @Test
+    void navbarReadsLatestAvatarInsteadOfSessionSnapshot() throws Exception {
+        var role = new com.ddagtech.aureliabooks.entity.Role();
+        role.setRoleName("ROLE_CUSTOMER");
+        var account = com.ddagtech.aureliabooks.entity.User.builder()
+            .id(7L)
+            .isActive(true)
+            .role(role)
+            .email("an@example.com")
+            .fullName("Tên cũ")
+            .avatarUrl("/profile/avatar/old.png")
+            .build();
+        var principal = new com.ddagtech.aureliabooks.security.CustomUserDetails(account);
         when(navbarUsers.findById(7L)).thenReturn(java.util.Optional.of(account));
-        account.setAvatarUrl("/profile/avatar/new.png");account.setFullName("Nguyễn An mới");
-        var rendered=mvc.perform(get("/profile").with(user(principal))).andExpect(status().isOk())
-                .andExpect(content().string(containsString("src=\"/profile/avatar/new.png\"")))
-                .andExpect(content().string(containsString("Nguyễn An mới")))
-                .andExpect(content().string(not(containsString("src=\"/profile/avatar/old.png\"")))).andReturn();
-        String directory=System.getProperty("uc08.capture.dir");
-        if(directory!=null) {
-            var dir=java.nio.file.Path.of(directory);java.nio.file.Files.createDirectories(dir);
-            java.nio.file.Files.writeString(dir.resolve("profile-with-avatar.html"),rendered.getResponse().getContentAsString());
+        account.setAvatarUrl("/profile/avatar/new.png");
+        account.setFullName("Nguyễn An mới");
+        var rendered = mvc
+            .perform(get("/profile").with(user(principal)))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("src=\"/profile/avatar/new.png\"")))
+            .andExpect(content().string(containsString("Nguyễn An mới")))
+            .andExpect(content().string(not(containsString("src=\"/profile/avatar/old.png\""))))
+            .andReturn();
+        String directory = System.getProperty("uc08.capture.dir");
+        if (directory != null) {
+            var dir = java.nio.file.Path.of(directory);
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Files.writeString(
+                dir.resolve("profile-with-avatar.html"),
+                rendered.getResponse().getContentAsString()
+            );
         }
     }
-    @Test void navbarResolvesGoogleAvatarBySubject() throws Exception {
-        var account=com.ddagtech.aureliabooks.entity.User.builder().id(7L).isActive(true)
-                .fullName("Nguyễn An Google").avatarUrl("/profile/avatar/google.png").build();
-        when(navbarUsers.findByGoogleIdentity(com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE,"nav-subject"))
-                .thenReturn(java.util.Optional.of(account));
-        mvc.perform(get("/profile").with(oidcLogin().idToken(t->t.subject("nav-subject"))
-                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CUSTOMER"))))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("src=\"/profile/avatar/google.png\"")));
-        verify(navbarUsers).findByGoogleIdentity(com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE,"nav-subject");
+
+    @Test
+    void navbarResolvesGoogleAvatarBySubject() throws Exception {
+        var account = com.ddagtech.aureliabooks.entity.User.builder()
+            .id(7L)
+            .isActive(true)
+            .fullName("Nguyễn An Google")
+            .avatarUrl("/profile/avatar/google.png")
+            .build();
+        when(
+            navbarUsers.findByGoogleIdentity(com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE, "nav-subject")
+        ).thenReturn(java.util.Optional.of(account));
+        mvc.perform(
+            get("/profile").with(
+                oidcLogin()
+                    .idToken(t -> t.subject("nav-subject"))
+                    .authorities(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CUSTOMER")
+                    )
+            )
+        )
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("src=\"/profile/avatar/google.png\"")));
+        verify(navbarUsers).findByGoogleIdentity(
+            com.ddagtech.aureliabooks.entity.User.AuthProvider.GOOGLE,
+            "nav-subject"
+        );
     }
+
     @Test
     void missingEmailHasAdditionActionInsteadOfReadonlyInput() throws Exception {
-        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L, null, "Nguyễn An",
-                "0912345678", null, "OTHER", null, false, true, true));
+        when(users.viewProfile(7L)).thenReturn(
+            new ProfileView(7L, null, "Nguyễn An", "0912345678", null, "OTHER", null, false, true, true)
+        );
         mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("id=\"email\""))))
-                .andExpect(content().string(containsString("Bổ sung email")));
+            .andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("id=\"email\""))))
+            .andExpect(content().string(containsString("Bổ sung email")));
     }
 }

@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintValidatorContext;
 import java.time.LocalDate;
 
 public class BirthDateValidator implements ConstraintValidator<BirthDate, LocalDate> {
+
     public static final LocalDate MINIMUM = LocalDate.of(1900, 1, 1);
 
     public static boolean isValidDate(LocalDate value, LocalDate today) {
@@ -16,8 +17,9 @@ public class BirthDateValidator implements ConstraintValidator<BirthDate, LocalD
         LocalDate today = LocalDate.now(context.getClockProvider().getClock());
         if (value != null && !value.isBefore(today)) {
             context.disableDefaultConstraintViolation();
-            context.buildConstraintViolationWithTemplate("Ngày sinh phải là ngày trong quá khứ.")
-                    .addConstraintViolation();
+            context
+                .buildConstraintViolationWithTemplate("Ngày sinh phải là ngày trong quá khứ.")
+                .addConstraintViolation();
             return false;
         }
         return isValidDate(value, today);

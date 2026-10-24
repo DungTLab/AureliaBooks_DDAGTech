@@ -21,6 +21,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 @RequestMapping("/profile/password/setup")
 public class PasswordSetupController {
+
     private final CustomerIdentity identity;
     private final UserService users;
     private final ContactChangeService changes;
@@ -29,29 +30,50 @@ public class PasswordSetupController {
     public String view(Authentication auth, HttpServletRequest request, Model model) {
         Long owner = identity.resolve(auth);
         if (users.viewProfile(owner).canChangePassword()) return "redirect:/profile";
-        model.addAttribute("methods", changes.reauthenticationMethods(owner).stream()
-                .filter(method -> !"PASSWORD".equals(method)).toList());
+        model.addAttribute(
+            "methods",
+            changes
+                .reauthenticationMethods(owner)
+                .stream()
+                .filter(method -> !"PASSWORD".equals(method))
+                .toList()
+        );
         model.addAttribute("authorized", authorized(request.getSession(), owner));
         return "profile/password-setup";
     }
 
     @PostMapping("/start")
-    public String start(Authentication auth, HttpServletRequest request, @RequestParam String channel,
-                        RedirectAttributes flash) {
+    public String start(
+        Authentication auth,
+        HttpServletRequest request,
+        @RequestParam String channel,
+        RedirectAttributes flash
+    ) {
         Long owner = identity.resolve(auth);
         if (users.viewProfile(owner).canChangePassword()) return "redirect:/profile";
         clear(request.getSession());
-        var result = changes.startReauthentication(owner, request.getSession().getId(), "PASSWORD_SETUP",
-                channel, HttpRequestUtil.getClientIp(request));
+        var result = changes.startReauthentication(
+            owner,
+            request.getSession().getId(),
+            "PASSWORD_SETUP",
+            channel,
+            HttpRequestUtil.getClientIp(request)
+        );
         flash.addFlashAttribute("contactMessage", result.message());
-        return result.challengeIssued() ? "redirect:/profile/contact-change/verification"
-                : "redirect:/profile/password/setup";
+        return result.challengeIssued()
+            ? "redirect:/profile/contact-change/verification"
+            : "redirect:/profile/password/setup";
     }
 
     @PostMapping
-    public String save(Authentication auth, HttpServletRequest request, HttpServletResponse response,
-                       @Valid @ModelAttribute PasswordSetupRequest form, BindingResult errors,
-                       RedirectAttributes flash) {
+    public String save(
+        Authentication auth,
+        HttpServletRequest request,
+        HttpServletResponse response,
+        @Valid @ModelAttribute PasswordSetupRequest form,
+        BindingResult errors,
+        RedirectAttributes flash
+    ) {
         Long owner = identity.resolve(auth);
         if (!authorized(request.getSession(), owner)) {
             flash.addFlashAttribute("errorMessage", "Vui lòng xác minh OTP trước khi đặt mật khẩu.");
@@ -68,10 +90,12 @@ public class PasswordSetupController {
     }
 
     private boolean authorized(HttpSession session, Long owner) {
-        return owner.equals(session.getAttribute("CONTACT_REAUTH_OWNER"))
-                && "PASSWORD_SETUP".equals(session.getAttribute("CONTACT_REAUTH_TYPE"))
-                && session.getAttribute("CONTACT_REAUTH_UNTIL") instanceof Instant expires
-                && Instant.now().isBefore(expires);
+        return (
+            owner.equals(session.getAttribute("CONTACT_REAUTH_OWNER")) &&
+            "PASSWORD_SETUP".equals(session.getAttribute("CONTACT_REAUTH_TYPE")) &&
+            session.getAttribute("CONTACT_REAUTH_UNTIL") instanceof Instant expires &&
+            Instant.now().isBefore(expires)
+        );
     }
 
     private void clear(HttpSession session) {

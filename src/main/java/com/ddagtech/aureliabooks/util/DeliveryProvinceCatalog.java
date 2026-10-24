@@ -14,33 +14,35 @@ public final class DeliveryProvinceCatalog {
 
     private static final List<Province> PROVINCES = load();
 
-    private DeliveryProvinceCatalog() {
-    }
+    private DeliveryProvinceCatalog() {}
 
-    public record Province(String code, String name, EconomicRegion region) {
-    }
+    public record Province(String code, String name, EconomicRegion region) {}
 
     public static List<Province> all() {
         return PROVINCES;
     }
 
     public static Optional<Province> findByCode(String code) {
-        return PROVINCES.stream().filter(province -> province.code().equals(code)).findFirst();
+        return PROVINCES.stream()
+            .filter(province -> province.code().equals(code))
+            .findFirst();
     }
 
     /** Match existing names only; never guess a merged province from an old name. */
     public static String codeForStoredName(String name) {
         String normalized = normalizeName(name);
-        return PROVINCES.stream().filter(province -> normalizeName(province.name()).equals(normalized))
-                .map(Province::code).findFirst().orElse("");
+        return PROVINCES.stream()
+            .filter(province -> normalizeName(province.name()).equals(normalized))
+            .map(Province::code)
+            .findFirst()
+            .orElse("");
     }
 
     private static String normalizeName(String name) {
         if (name == null) {
             return "";
         }
-        return name.strip().toLowerCase(Locale.ROOT)
-                .replaceFirst("^(thành phố|tỉnh|tp\\.?)\\s+", "");
+        return name.strip().toLowerCase(Locale.ROOT).replaceFirst("^(thành phố|tỉnh|tp\\.?)\\s+", "");
     }
 
     private static List<Province> load() {

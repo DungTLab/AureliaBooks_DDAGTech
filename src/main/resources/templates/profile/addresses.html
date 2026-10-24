@@ -1,110 +1,174 @@
-<!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Tài khoản của tôi', ~{::#main-content})}">
-<head>
-    <title>Tài khoản của tôi</title>
-</head>
-<body>
-<section id="main-content" class="max-w-6xl mx-auto px-4 py-10">
-    <nav class="flex gap-5 mb-8" aria-label="Tài khoản">
-        <a th:href="@{/profile}" class="font-semibold hover:text-blazing_flame">Thông tin cá nhân</a>
-        <a th:href="@{/profile/addresses}" class="font-semibold hover:text-blazing_flame">Sổ địa chỉ</a>
-    </nav>
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-3xl font-bold">Sổ địa chỉ</h1>
-            <p class="mt-2 text-carbon_black-500">Tối đa 5 địa chỉ đang hoạt động. Địa chỉ mặc định được dùng khi đặt
-                hàng.</p>
-        </div>
-        <button th:if="${addresses.size() < 5}" type="button"
-                onclick="document.getElementById('addressDialog').showModal()"
-                class="inline-flex items-center self-center text-sm bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-4 py-2.5 rounded-xl">
-            Thêm địa chỉ
-        </button>
-    </div>
-    <p th:if="${addresses.isEmpty()}" class="bg-white border rounded-2xl p-6">Bạn chưa có địa chỉ giao hàng.</p>
-    <div class="grid md:grid-cols-2 gap-5">
-        <article th:each="a : ${addresses}" class="bg-white border border-dust_grey rounded-2xl p-6">
-            <h2 class="font-bold text-lg" th:text="${a.recipientName}"></h2>
-            <p th:text="${a.phone}"></p>
-            <p th:text="${a.detailedAddress + ', ' + a.ward + (a.district != null and !#strings.isEmpty(a.district) ? ', ' + a.district : '') + ', ' + a.province}"
-               class="mt-2 break-words"></p>
-            <p th:switch="${a.economicRegion.name()}" class="text-sm mt-2">
-                Vùng giao hàng:
-                <span th:case="'NORTHERN'">Miền Bắc</span>
-                <span th:case="'CENTRAL_HIGHLANDS'">Miền Trung / Tây Nguyên</span>
-                <span th:case="'SOUTHERN_MEKONG'">Miền Nam / Đồng bằng sông Cửu Long</span>
-            </p>
-            <span th:if="${a.isDefault}" class="text-blazing_flame font-semibold block mt-2">Mặc định</span>
-            <div class="flex flex-wrap gap-4 mt-4">
-                <a th:href="@{/profile/addresses(edit=${a.id})}" class="text-blazing_flame font-semibold">Sửa</a>
-                <form th:unless="${a.isDefault}" th:action="@{/profile/addresses/{id}/default(id=${a.id})}"
-                      method="post">
-                    <button type="submit" class="font-semibold">Đặt mặc định</button>
-                </form>
-                <form th:action="@{/profile/addresses/{id}/delete(id=${a.id})}" method="post"
-                      onsubmit="return confirm('Bạn muốn xóa địa chỉ này?')">
-                    <button type="submit" class="text-red-700 font-semibold">Xóa</button>
-                </form>
-            </div>
-        </article>
-    </div>
-    <dialog id="addressDialog"
-            class="rounded-2xl border border-dust_grey p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto backdrop:bg-black/40">
-        <h2 class="text-xl font-bold mb-4" th:text="${editId == null ? 'Thêm địa chỉ' : 'Sửa địa chỉ'}"></h2>
-        <form data-valid-form th:action="@{/profile/addresses}" th:object="${addressForm}" method="post" class="space-y-4">
-            <input th:if="${editId != null}" type="hidden" name="addressId" th:value="${editId}">
-            <div class="grid sm:grid-cols-2 gap-4">
+<!doctype html>
+<html
+    lang="vi"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/base :: layout('Tài khoản của tôi', ~{::#main-content})}"
+>
+    <head>
+        <title>Tài khoản của tôi</title>
+    </head>
+    <body>
+        <section id="main-content" class="max-w-6xl mx-auto px-4 py-10">
+            <nav class="flex gap-5 mb-8" aria-label="Tài khoản">
+                <a th:href="@{/profile}" class="font-semibold hover:text-blazing_flame">Thông tin cá nhân</a>
+                <a th:href="@{/profile/addresses}" class="font-semibold hover:text-blazing_flame">Sổ địa chỉ</a>
+            </nav>
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
-                    <label for="address-recipientName" class="block font-semibold mb-2">Người nhận</label>
-                    <input id="address-recipientName" th:field="*{recipientName}" required maxlength="100"
-                           autocomplete="name"
-                           class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                    <h1 class="text-3xl font-bold">Sổ địa chỉ</h1>
+                    <p class="mt-2 text-carbon_black-500">
+                        Tối đa 5 địa chỉ đang hoạt động. Địa chỉ mặc định được dùng khi đặt hàng.
+                    </p>
                 </div>
-                <div>
-                    <label for="address-phone" class="block font-semibold mb-2">Số điện thoại</label>
-                    <input id="address-phone" th:field="*{phone}" required maxlength="10" inputmode="tel"
-                           autocomplete="tel" pattern="0[0-9]{9}"
-                           class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                </div>
-                <div class="sm:col-span-2">
-                    <label for="address-provinceCode" class="block font-semibold mb-2">Tỉnh / Thành phố</label>
-                    <select id="address-provinceCode" th:field="*{provinceCode}" required autocomplete="address-level1"
-                            class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                        <option value="">Chọn tỉnh / thành phố</option>
-                        <option th:each="province : ${provinces}" th:value="${province.code}"
-                                th:text="${province.name}"></option>
-                    </select>
-                    <p th:if="${editId != null and #strings.isEmpty(addressForm.provinceCode)}"
-                       class="text-sm text-amber-800 mt-2">Vui lòng chọn tỉnh/thành phố hiện hành cho địa chỉ cũ
-                        này.</p>
-                </div>
-                <div class="sm:col-span-2">
-                    <label for="address-ward" class="block font-semibold mb-2">Phường / Xã / Đặc khu</label>
-                    <input id="address-ward" th:field="*{ward}" required maxlength="100"
-                           placeholder="Nhập tên phường, xã hoặc đặc khu hiện hành"
-                           class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                </div>
-                <div class="sm:col-span-2">
-                    <label for="address-detailedAddress" class="block font-semibold mb-2">Địa chỉ chi tiết</label>
-                    <input id="address-detailedAddress" th:field="*{detailedAddress}" required maxlength="255"
-                           placeholder="Số nhà, đường, thôn, tòa nhà…" autocomplete="street-address"
-                           class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                </div>
-            </div>
-            <label class="flex gap-2 items-center"><input type="checkbox" th:field="*{isDefault}"> Đặt làm địa chỉ mặc
-                định</label>
-            <div class="flex gap-4">
-                <button type="submit" disabled
-                        class="disabled:opacity-40 disabled:cursor-not-allowed bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-5 py-3 rounded-xl">
-                    Lưu địa chỉ
+                <button
+                    th:if="${addresses.size() < 5}"
+                    type="button"
+                    onclick="document.getElementById('addressDialog').showModal()"
+                    class="inline-flex items-center self-center text-sm bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-4 py-2.5 rounded-xl"
+                >
+                    Thêm địa chỉ
                 </button>
-                <button type="button" onclick="document.getElementById('addressDialog').close()">Hủy</button>
             </div>
-        </form>
-    </dialog>
-    <script th:if="${editId != null or errorMessage != null}">document.getElementById('addressDialog').showModal();</script>
-<script th:src="@{/js/profile-forms.js}" defer></script>
-</section>
-</body>
+            <p th:if="${addresses.isEmpty()}" class="bg-white border rounded-2xl p-6">Bạn chưa có địa chỉ giao hàng.</p>
+            <div class="grid md:grid-cols-2 gap-5">
+                <article th:each="a : ${addresses}" class="bg-white border border-dust_grey rounded-2xl p-6">
+                    <h2 class="font-bold text-lg" th:text="${a.recipientName}"></h2>
+                    <p th:text="${a.phone}"></p>
+                    <p
+                        th:text="${a.detailedAddress + ', ' + a.ward + (a.district != null and !#strings.isEmpty(a.district) ? ', ' + a.district : '') + ', ' + a.province}"
+                        class="mt-2 break-words"
+                    ></p>
+                    <p th:switch="${a.economicRegion.name()}" class="text-sm mt-2">
+                        Vùng giao hàng:
+                        <span th:case="'NORTHERN'">Miền Bắc</span>
+                        <span th:case="'CENTRAL_HIGHLANDS'">Miền Trung / Tây Nguyên</span>
+                        <span th:case="'SOUTHERN_MEKONG'">Miền Nam / Đồng bằng sông Cửu Long</span>
+                    </p>
+                    <span th:if="${a.isDefault}" class="text-blazing_flame font-semibold block mt-2">Mặc định</span>
+                    <div class="flex flex-wrap gap-4 mt-4">
+                        <a th:href="@{/profile/addresses(edit=${a.id})}" class="text-blazing_flame font-semibold"
+                            >Sửa</a>
+                        <form
+                            th:unless="${a.isDefault}"
+                            th:action="@{/profile/addresses/{id}/default(id=${a.id})}"
+                            method="post"
+                        >
+                            <button type="submit" class="font-semibold">Đặt mặc định</button>
+                        </form>
+                        <form
+                            th:action="@{/profile/addresses/{id}/delete(id=${a.id})}"
+                            method="post"
+                            onsubmit="return confirm('Bạn muốn xóa địa chỉ này?');"
+                        >
+                            <button type="submit" class="text-red-700 font-semibold">Xóa</button>
+                        </form>
+                    </div>
+                </article>
+            </div>
+            <dialog
+                id="addressDialog"
+                class="rounded-2xl border border-dust_grey p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto backdrop:bg-black/40"
+            >
+                <h2 class="text-xl font-bold mb-4" th:text="${editId == null ? 'Thêm địa chỉ' : 'Sửa địa chỉ'}"></h2>
+                <form
+                    data-valid-form
+                    th:action="@{/profile/addresses}"
+                    th:object="${addressForm}"
+                    method="post"
+                    class="space-y-4"
+                >
+                    <input th:if="${editId != null}" type="hidden" name="addressId" th:value="${editId}" />
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="address-recipientName" class="block font-semibold mb-2">Người nhận</label>
+                            <input
+                                id="address-recipientName"
+                                th:field="*{recipientName}"
+                                required
+                                maxlength="100"
+                                autocomplete="name"
+                                class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                            />
+                        </div>
+                        <div>
+                            <label for="address-phone" class="block font-semibold mb-2">Số điện thoại</label>
+                            <input
+                                id="address-phone"
+                                th:field="*{phone}"
+                                required
+                                maxlength="10"
+                                inputmode="tel"
+                                autocomplete="tel"
+                                pattern="0[0-9]{9}"
+                                class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                            />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="address-provinceCode" class="block font-semibold mb-2">Tỉnh / Thành phố</label>
+                            <select
+                                id="address-provinceCode"
+                                th:field="*{provinceCode}"
+                                required
+                                autocomplete="address-level1"
+                                class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                            >
+                                <option value="">Chọn tỉnh / thành phố</option>
+                                <option
+                                    th:each="province : ${provinces}"
+                                    th:value="${province.code}"
+                                    th:text="${province.name}"
+                                ></option>
+                            </select>
+                            <p
+                                th:if="${editId != null and #strings.isEmpty(addressForm.provinceCode)}"
+                                class="text-sm text-amber-800 mt-2"
+                            >
+                                Vui lòng chọn tỉnh/thành phố hiện hành cho địa chỉ cũ này.
+                            </p>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="address-ward" class="block font-semibold mb-2">Phường / Xã / Đặc khu</label>
+                            <input
+                                id="address-ward"
+                                th:field="*{ward}"
+                                required
+                                maxlength="100"
+                                placeholder="Nhập tên phường, xã hoặc đặc khu hiện hành"
+                                class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                            />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="address-detailedAddress" class="block font-semibold mb-2"
+                                >Địa chỉ chi tiết</label>
+                            <input
+                                id="address-detailedAddress"
+                                th:field="*{detailedAddress}"
+                                required
+                                maxlength="255"
+                                placeholder="Số nhà, đường, thôn, tòa nhà…"
+                                autocomplete="street-address"
+                                class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                            />
+                        </div>
+                    </div>
+                    <label class="flex gap-2 items-center"
+                        ><input type="checkbox" th:field="*{isDefault}" /> Đặt làm địa chỉ mặc định</label>
+                    <div class="flex gap-4">
+                        <button
+                            type="submit"
+                            disabled
+                            class="disabled:opacity-40 disabled:cursor-not-allowed bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-5 py-3 rounded-xl"
+                        >
+                            Lưu địa chỉ
+                        </button>
+                        <button type="button" onclick="document.getElementById('addressDialog').close()">Hủy</button>
+                    </div>
+                </form>
+            </dialog>
+            <script th:if="${editId != null or errorMessage != null}">
+                document.getElementById("addressDialog").showModal();
+            </script>
+            <script th:src="@{/js/profile-forms.js}" defer></script>
+        </section>
+    </body>
 </html>

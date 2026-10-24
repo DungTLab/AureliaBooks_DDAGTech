@@ -28,16 +28,25 @@ public class GoogleLinkSessionAuthenticator {
     public GoogleLinkSessionAuthenticator(SessionRegistry registry, RoleBasedAuthenticationSuccessHandler success) {
         var concurrent = new ConcurrentSessionControlAuthenticationStrategy(registry);
         concurrent.setMaximumSessions(5);
-        this.sessions = new CompositeSessionAuthenticationStrategy(List.of(concurrent,
-                new ChangeSessionIdAuthenticationStrategy(), new RegisterSessionAuthenticationStrategy(registry),
-                new CsrfAuthenticationStrategy(new HttpSessionCsrfTokenRepository())));
+        this.sessions = new CompositeSessionAuthenticationStrategy(
+            List.of(
+                concurrent,
+                new ChangeSessionIdAuthenticationStrategy(),
+                new RegisterSessionAuthenticationStrategy(registry),
+                new CsrfAuthenticationStrategy(new HttpSessionCsrfTokenRepository())
+            )
+        );
         this.success = success;
     }
 
     public void login(User user, HttpServletRequest request, HttpServletResponse response) throws IOException {
         CustomerIdentity.requireCustomer(user);
         var principal = new CustomUserDetails(user);
-        var authentication = UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities());
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(
+            principal,
+            null,
+            principal.getAuthorities()
+        );
         sessions.onAuthentication(authentication, request, response);
         var context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);

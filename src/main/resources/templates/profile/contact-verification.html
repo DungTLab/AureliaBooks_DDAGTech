@@ -1,27 +1,95 @@
-<!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Xác thực thông tin mới', ~{::#main-content})}">
-<head><title>Xác thực thông tin mới</title></head>
-<body><section id="main-content" class="max-w-2xl mx-auto px-4 py-10" data-otp-timer th:attr="data-expires-seconds=${change.expiresIn},data-resend-seconds=${change.resendIn}">
-    <div class="bg-white border border-dust_grey rounded-2xl p-6 sm:p-8 space-y-6">
-        <p class="text-sm text-carbon_black-500">Xác thực bằng mã OTP</p>
-        <h1 class="font-serif text-2xl font-bold" th:text="${change.phase == 'CURRENT' ? 'Xác thực tài khoản hiện tại' : 'Xác thực thông tin mới'}">Xác thực</h1>
-        <p class="text-sm text-carbon_black-500">Nhập mã đã được gửi tới thông tin liên hệ được hiển thị bên dưới để tiếp tục.</p>
-        <p th:if="${contactMessage != null}" th:text="${contactMessage}" role="status" class="rounded-xl bg-parchment p-4 text-sm"></p>
-        <div class="space-y-4">
-            <p class="text-sm">Đích nhận: <strong th:text="${change.recipient}"></strong>. Mã còn hiệu lực <span data-otp-expiry th:text="${change.expiresIn}"></span> giây; còn <span th:text="${change.attemptsLeft}"></span> lượt nhập.</p>
-            <form data-valid-form data-otp-code-form th:action="@{/profile/contact-change/verify}" method="post" class="space-y-3">
-                <label for="contactOtp" class="block text-sm font-semibold">Mã xác thực 6 chữ số</label>
-                <input id="contactOtp" name="code" type="text" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" class="w-full border border-dust_grey rounded-xl p-3">
-                <button type="submit" disabled class="disabled:opacity-40 disabled:cursor-not-allowed rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold">Xác nhận</button>
-            </form>
-            <form th:action="@{/profile/contact-change/resend}" method="post"><button data-otp-resend type="submit" th:disabled="${change.resendIn > 0}" class="border border-dust_grey rounded-xl px-4 py-2 disabled:opacity-50">Gửi lại mã</button>
-                <span data-otp-cooldown class="text-xs text-carbon_black-500">Có thể gửi lại sau <span data-otp-resend-seconds th:text="${change.resendIn}"></span> giây.</span></form>
-        </div>
-        <div class="flex flex-wrap gap-4 text-sm">
-            <a th:if="${change.type != 'PASSWORD_SETUP'}" th:href="@{/profile/contact-change(type=${change.type})}" class="underline">Nhập lại thông tin</a>
-            <a th:if="${change.type == 'PASSWORD_SETUP'}" th:href="@{/profile/password/setup}" class="underline">Quay về đặt mật khẩu</a>
-            <a th:href="@{/profile}" class="underline">Quay về hồ sơ</a>
-        </div>
-    </div>
-<script th:src="@{/js/profile-forms.js}" defer></script>
-</section></body></html>
+<!doctype html>
+<html
+    lang="vi"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/base :: layout('Xác thực thông tin mới', ~{::#main-content})}"
+>
+    <head>
+        <title>Xác thực thông tin mới</title>
+    </head>
+    <body>
+        <section
+            id="main-content"
+            class="max-w-2xl mx-auto px-4 py-10"
+            data-otp-timer
+            th:attr="data-expires-seconds=${change.expiresIn},data-resend-seconds=${change.resendIn}"
+        >
+            <div class="bg-white border border-dust_grey rounded-2xl p-6 sm:p-8 space-y-6">
+                <p class="text-sm text-carbon_black-500">Xác thực bằng mã OTP</p>
+                <h1
+                    class="font-serif text-2xl font-bold"
+                    th:text="${change.phase == 'CURRENT' ? 'Xác thực tài khoản hiện tại' : 'Xác thực thông tin mới'}"
+                >
+                    Xác thực
+                </h1>
+                <p class="text-sm text-carbon_black-500">
+                    Nhập mã đã được gửi tới thông tin liên hệ được hiển thị bên dưới để tiếp tục.
+                </p>
+                <p
+                    th:if="${contactMessage != null}"
+                    th:text="${contactMessage}"
+                    role="status"
+                    class="rounded-xl bg-parchment p-4 text-sm"
+                ></p>
+                <div class="space-y-4">
+                    <p class="text-sm">
+                        Đích nhận: <strong th:text="${change.recipient}"></strong>. Mã còn hiệu lực
+                        <span data-otp-expiry th:text="${change.expiresIn}"></span> giây; còn
+                        <span th:text="${change.attemptsLeft}"></span> lượt nhập.
+                    </p>
+                    <form
+                        data-valid-form
+                        data-otp-code-form
+                        th:action="@{/profile/contact-change/verify}"
+                        method="post"
+                        class="space-y-3"
+                    >
+                        <label for="contactOtp" class="block text-sm font-semibold">Mã xác thực 6 chữ số</label>
+                        <input
+                            id="contactOtp"
+                            name="code"
+                            type="text"
+                            required
+                            inputmode="numeric"
+                            pattern="[0-9]{6}"
+                            maxlength="6"
+                            autocomplete="one-time-code"
+                            class="w-full border border-dust_grey rounded-xl p-3"
+                        />
+                        <button
+                            type="submit"
+                            disabled
+                            class="disabled:opacity-40 disabled:cursor-not-allowed rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold"
+                        >
+                            Xác nhận
+                        </button>
+                    </form>
+                    <form th:action="@{/profile/contact-change/resend}" method="post">
+                        <button
+                            data-otp-resend
+                            type="submit"
+                            th:disabled="${change.resendIn > 0}"
+                            class="border border-dust_grey rounded-xl px-4 py-2 disabled:opacity-50"
+                        >
+                            Gửi lại mã
+                        </button>
+                        <span data-otp-cooldown class="text-xs text-carbon_black-500"
+                            >Có thể gửi lại sau
+                            <span data-otp-resend-seconds th:text="${change.resendIn}"></span> giây.</span>
+                    </form>
+                </div>
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <a
+                        th:if="${change.type != 'PASSWORD_SETUP'}"
+                        th:href="@{/profile/contact-change(type=${change.type})}"
+                        class="underline"
+                        >Nhập lại thông tin</a>
+                    <a th:if="${change.type == 'PASSWORD_SETUP'}" th:href="@{/profile/password/setup}" class="underline"
+                        >Quay về đặt mật khẩu</a>
+                    <a th:href="@{/profile}" class="underline">Quay về hồ sơ</a>
+                </div>
+            </div>
+            <script th:src="@{/js/profile-forms.js}" defer></script>
+        </section>
+    </body>
+</html>

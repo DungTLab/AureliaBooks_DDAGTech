@@ -1,5 +1,8 @@
 package com.ddagtech.aureliabooks.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.repository.UserRepository;
@@ -9,22 +12,27 @@ import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class ContactChangeSessionTest {
+
     UserRepository users;
     AuditLogService audit;
     SessionRegistryImpl sessions;
     ContactChangeWriter writer;
     User owner;
 
-    @BeforeEach void setup() {
+    @BeforeEach
+    void setup() {
         users = mock(UserRepository.class);
         audit = mock(AuditLogService.class);
         sessions = new SessionRegistryImpl();
-        owner = User.builder().id(7L).email("old@example.com").phone("0912345678").isActive(true)
-                .role(Role.builder().roleName("ROLE_CUSTOMER").build()).build();
+        owner = User.builder()
+            .id(7L)
+            .email("old@example.com")
+            .phone("0912345678")
+            .isActive(true)
+            .role(Role.builder().roleName("ROLE_CUSTOMER").build())
+            .build();
         when(users.findOwnerForUpdate(7L)).thenReturn(Optional.of(owner));
         sessions.registerNewSession("current", new CustomUserDetails(owner));
         sessions.registerNewSession("other-device", new CustomUserDetails(owner));
@@ -32,13 +40,19 @@ class ContactChangeSessionTest {
         TransactionSynchronizationManager.initSynchronization();
     }
 
-    @AfterEach void cleanup() { TransactionSynchronizationManager.clearSynchronization(); }
-
-    void commit() {
-        TransactionSynchronizationManager.getSynchronizations().forEach(synchronization -> synchronization.afterCommit());
+    @AfterEach
+    void cleanup() {
+        TransactionSynchronizationManager.clearSynchronization();
     }
 
-    @Test void firstEmailAdditionDoesNotExpireEitherSession() {
+    void commit() {
+        TransactionSynchronizationManager.getSynchronizations().forEach(synchronization ->
+            synchronization.afterCommit()
+        );
+    }
+
+    @Test
+    void firstEmailAdditionDoesNotExpireEitherSession() {
         owner.setEmail(null);
         writer.apply(7L, null, owner.getPhone(), "EMAIL", "new@example.com", "ip");
         commit();
@@ -48,7 +62,8 @@ class ContactChangeSessionTest {
         verify(audit).record(7L, "PROFILE_EMAIL_CHANGED", "users", 7L, "{\"field\":\"EMAIL\",\"verified\":true}", "ip");
     }
 
-    @Test void firstPhoneAdditionPreservesGoogleIdentityAndSessions() {
+    @Test
+    void firstPhoneAdditionPreservesGoogleIdentityAndSessions() {
         owner.setPhone(null);
         owner.setProviderId("existing-google-sub");
         writer.apply(7L, owner.getEmail(), null, "PHONE", "0987654321", "ip");
@@ -58,7 +73,8 @@ class ContactChangeSessionTest {
         assertTrue(owner.isPhoneVerified());
     }
 
-    @Test void replacingEmailStillExpiresSessionsOnlyAfterCommit() {
+    @Test
+    void replacingEmailStillExpiresSessionsOnlyAfterCommit() {
         writer.apply(7L, owner.getEmail(), owner.getPhone(), "EMAIL", "new@example.com", "ip");
         assertFalse(sessions.getSessionInformation("current").isExpired());
         commit();
@@ -66,13 +82,15 @@ class ContactChangeSessionTest {
         assertTrue(sessions.getSessionInformation("other-device").isExpired());
     }
 
-    @Test void replacingPhoneStillExpiresSessionsAfterCommit() {
+    @Test
+    void replacingPhoneStillExpiresSessionsAfterCommit() {
         writer.apply(7L, owner.getEmail(), owner.getPhone(), "PHONE", "0987654321", "ip");
         commit();
         assertTrue(sessions.getSessionInformation("current").isExpired());
     }
 
-    @Test void verifyingExistingContactPreservesBothSessions() {
+    @Test
+    void verifyingExistingContactPreservesBothSessions() {
         writer.apply(7L, owner.getEmail(), owner.getPhone(), "EMAIL", owner.getEmail(), "ip");
         commit();
         assertTrue(owner.isEmailVerified());
@@ -80,13 +98,14 @@ class ContactChangeSessionTest {
         assertFalse(sessions.getSessionInformation("other-device").isExpired());
     }
 
-    @Test void replacementKeepsCurrentSessionButExpiresOtherDevicesAndUnlinksGoogle() {
+    @Test
+    void replacementKeepsCurrentSessionButExpiresOtherDevicesAndUnlinksGoogle() {
         owner.setProviderId("old-google");
-        writer.apply(7L,owner.getEmail(),owner.getPhone(),"EMAIL","new@example.com","ip","current");
+        writer.apply(7L, owner.getEmail(), owner.getPhone(), "EMAIL", "new@example.com", "ip", "current");
         commit();
         assertFalse(sessions.getSessionInformation("current").isExpired());
         assertTrue(sessions.getSessionInformation("other-device").isExpired());
         assertNull(owner.getProviderId());
-        verify(audit).record(7L,"GOOGLE_UNLINKED","users",7L,"{\"reason\":\"EMAIL_CHANGED\"}","ip");
+        verify(audit).record(7L, "GOOGLE_UNLINKED", "users", 7L, "{\"reason\":\"EMAIL_CHANGED\"}", "ip");
     }
 }

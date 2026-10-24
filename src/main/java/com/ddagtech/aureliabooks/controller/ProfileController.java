@@ -17,13 +17,14 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequiredArgsConstructor
 public class ProfileController {
+
     private final UserService users;
     private final AddressService addresses;
     private final CustomerIdentity identity;
@@ -33,15 +34,21 @@ public class ProfileController {
     public String profile(Authentication auth, Model model) {
         var profile = users.viewProfile(identity.resolve(auth));
         model.addAttribute("profile", profile);
-        if (!model.containsAttribute("profileForm")) model.addAttribute("profileForm",
-                new ProfileUpdateRequest(profile.fullName(), null, null, User.Gender.valueOf(profile.gender())));
+        if (!model.containsAttribute("profileForm")) model.addAttribute(
+            "profileForm",
+            new ProfileUpdateRequest(profile.fullName(), null, null, User.Gender.valueOf(profile.gender()))
+        );
         model.addAttribute("passwordForm", new PasswordChangeRequest(null, null, null));
         return "profile/view";
     }
 
     @PostMapping("/profile")
-    public String update(Authentication auth, @Valid @ModelAttribute("profileForm") ProfileUpdateRequest form,
-                         BindingResult errors, RedirectAttributes flash) {
+    public String update(
+        Authentication auth,
+        @Valid @ModelAttribute("profileForm") ProfileUpdateRequest form,
+        BindingResult errors,
+        RedirectAttributes flash
+    ) {
         Long owner = identity.resolve(auth);
         if (errors.hasErrors()) {
             feedback(errors, flash);
@@ -58,8 +65,14 @@ public class ProfileController {
     }
 
     @PostMapping("/profile/password")
-    public String password(Authentication auth, @Valid @ModelAttribute("passwordForm") PasswordChangeRequest form,
-                           BindingResult errors, RedirectAttributes flash, HttpServletRequest request, HttpServletResponse response) {
+    public String password(
+        Authentication auth,
+        @Valid @ModelAttribute("passwordForm") PasswordChangeRequest form,
+        BindingResult errors,
+        RedirectAttributes flash,
+        HttpServletRequest request,
+        HttpServletResponse response
+    ) {
         Long owner = identity.resolve(auth);
         if (errors.hasErrors()) {
             feedback(errors, flash);
@@ -86,8 +99,11 @@ public class ProfileController {
     public ResponseEntity<byte[]> avatarFile(Authentication auth, @PathVariable String filename) {
         var profile = users.viewProfile(identity.resolve(auth));
         if (!("/profile/avatar/" + filename).equals(profile.avatarUrl())) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(MediaType.IMAGE_PNG)
-                .header("X-Content-Type-Options", "nosniff").body(avatars.read(filename));
+        return ResponseEntity.ok()
+            .cacheControl(CacheControl.noStore())
+            .contentType(MediaType.IMAGE_PNG)
+            .header("X-Content-Type-Options", "nosniff")
+            .body(avatars.read(filename));
     }
 
     @GetMapping("/profile/addresses")
@@ -96,23 +112,50 @@ public class ProfileController {
         model.addAttribute("addresses", list);
         model.addAttribute("provinces", DeliveryProvinceCatalog.all());
         if (!model.containsAttribute("addressForm")) {
-            var selected = list.stream().filter(a -> a.id().equals(edit)).findFirst();
-            if (edit != null && selected.isEmpty())
-                throw new AppException(com.ddagtech.aureliabooks.constant.ErrorCode.ADDRESS_NOT_FOUND);
-            model.addAttribute("addressForm", selected.map(a -> new AddressRequest(a.recipientName(), a.phone(),
-                            DeliveryProvinceCatalog.codeForStoredName(a.province()), a.ward(), a.detailedAddress(), a.isDefault()))
-                    .orElse(new AddressRequest(null, null, null, null, null, false)));
+            var selected = list
+                .stream()
+                .filter(a -> a.id().equals(edit))
+                .findFirst();
+            if (edit != null && selected.isEmpty()) throw new AppException(
+                com.ddagtech.aureliabooks.constant.ErrorCode.ADDRESS_NOT_FOUND
+            );
+            model.addAttribute(
+                "addressForm",
+                selected
+                    .map(a ->
+                        new AddressRequest(
+                            a.recipientName(),
+                            a.phone(),
+                            DeliveryProvinceCatalog.codeForStoredName(a.province()),
+                            a.ward(),
+                            a.detailedAddress(),
+                            a.isDefault()
+                        )
+                    )
+                    .orElse(new AddressRequest(null, null, null, null, null, false))
+            );
         }
         model.addAttribute("editId", edit);
         return "profile/addresses";
     }
 
     @PostMapping("/profile/addresses")
-    public String saveAddress(Authentication auth, @RequestParam(required = false) Long addressId,
-                              @Valid @ModelAttribute("addressForm") AddressRequest form, BindingResult errors, RedirectAttributes flash) {
+    public String saveAddress(
+        Authentication auth,
+        @RequestParam(required = false) Long addressId,
+        @Valid @ModelAttribute("addressForm") AddressRequest form,
+        BindingResult errors,
+        RedirectAttributes flash
+    ) {
         Long owner = identity.resolve(auth);
-        if (!errors.hasFieldErrors("provinceCode") && DeliveryProvinceCatalog.findByCode(form.provinceCode()).isEmpty()) {
-            errors.rejectValue("provinceCode", "invalidProvince", "Vui lòng chọn tỉnh/thành phố trong danh sách hiện hành.");
+        if (
+            !errors.hasFieldErrors("provinceCode") && DeliveryProvinceCatalog.findByCode(form.provinceCode()).isEmpty()
+        ) {
+            errors.rejectValue(
+                "provinceCode",
+                "invalidProvince",
+                "Vui lòng chọn tỉnh/thành phố trong danh sách hiện hành."
+            );
         }
         if (errors.hasErrors()) {
             feedback(errors, flash);
@@ -140,16 +183,28 @@ public class ProfileController {
     }
 
     @ExceptionHandler(AppException.class)
-    public String businessError(AppException e, HttpServletRequest request, HttpServletResponse response, RedirectAttributes flash) {
+    public String businessError(
+        AppException e,
+        HttpServletRequest request,
+        HttpServletResponse response,
+        RedirectAttributes flash
+    ) {
         flash.addFlashAttribute("errorMessage", e.getMessage());
         if (e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
-        if (e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.UNAUTHENTICATED
-                || e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.ACCOUNT_LOCKED) {
-            new SecurityContextLogoutHandler().logout(request, response,
-                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication());
+        if (
+            e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.UNAUTHENTICATED ||
+            e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.ACCOUNT_LOCKED
+        ) {
+            new SecurityContextLogoutHandler().logout(
+                request,
+                response,
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()
+            );
             return "redirect:/auth/login";
         }
-        return request.getRequestURI().startsWith("/profile/addresses") ? "redirect:/profile/addresses" : "redirect:/profile";
+        return request.getRequestURI().startsWith("/profile/addresses")
+            ? "redirect:/profile/addresses"
+            : "redirect:/profile";
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -160,7 +215,11 @@ public class ProfileController {
 
     private void feedback(BindingResult errors, RedirectAttributes flash) {
         var first = errors.getAllErrors().get(0);
-        flash.addFlashAttribute("errorMessage", first.getCode() != null && first.getCode().startsWith("typeMismatch")
-                ? "Thông tin nhập không hợp lệ. Vui lòng kiểm tra lại." : first.getDefaultMessage());
+        flash.addFlashAttribute(
+            "errorMessage",
+            first.getCode() != null && first.getCode().startsWith("typeMismatch")
+                ? "Thông tin nhập không hợp lệ. Vui lòng kiểm tra lại."
+                : first.getDefaultMessage()
+        );
     }
 }

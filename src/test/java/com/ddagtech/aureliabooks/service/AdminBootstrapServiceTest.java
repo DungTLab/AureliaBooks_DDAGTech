@@ -1,5 +1,9 @@
 package com.ddagtech.aureliabooks.service;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import com.ddagtech.aureliabooks.dto.request.BootstrapAdminRequest;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
@@ -14,9 +18,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 class AdminBootstrapServiceTest {
 
@@ -31,8 +32,9 @@ class AdminBootstrapServiceTest {
     void prepare() {
         validation = Validation.buildDefaultValidatorFactory();
         service = new AdminBootstrapServiceImpl(roles, users, passwords, validation.getValidator(), audit);
-        when(roles.findByRoleNameForUpdate("ROLE_ADMIN"))
-                .thenReturn(Optional.of(Role.builder().id(92L).roleName("ROLE_ADMIN").build()));
+        when(roles.findByRoleNameForUpdate("ROLE_ADMIN")).thenReturn(
+            Optional.of(Role.builder().id(92L).roleName("ROLE_ADMIN").build())
+        );
     }
 
     @AfterEach
@@ -65,24 +67,32 @@ class AdminBootstrapServiceTest {
     @Test
     void refusesToPromoteEmailOrPhoneCollision() {
         when(users.existsByEmail(anyString())).thenReturn(true);
-        assertThatThrownBy(() -> service.initialize(new BootstrapAdminRequest("owner@example.test", "Bootstrap391@", null)))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("conflicts");
+        assertThatThrownBy(() ->
+            service.initialize(new BootstrapAdminRequest("owner@example.test", "Bootstrap391@", null))
+        )
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("conflicts");
         when(users.existsByEmail(anyString())).thenReturn(false);
         when(users.existsByPhone("0912345678")).thenReturn(true);
-        assertThatThrownBy(() -> service.initialize(new BootstrapAdminRequest("owner@example.test", "Bootstrap391@", "0912345678")))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("conflicts");
+        assertThatThrownBy(() ->
+            service.initialize(new BootstrapAdminRequest("owner@example.test", "Bootstrap391@", "0912345678"))
+        )
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("conflicts");
         verify(users, never()).saveAndFlush(any());
     }
 
     @Test
     void rejectsInvalidCredentialsWithoutEchoingSecrets() {
-        for (var request : new BootstrapAdminRequest[]{
+        for (var request : new BootstrapAdminRequest[] {
             new BootstrapAdminRequest("not-email", "Bootstrap391@", null),
             new BootstrapAdminRequest("owner@example.test", "weak", null),
             new BootstrapAdminRequest("owner@example.test", "A1@" + "x".repeat(70), null),
-            new BootstrapAdminRequest("owner@example.test", "Bootstrap391@", "123")}) {
-            assertThatThrownBy(() -> service.initialize(request)).isInstanceOf(IllegalStateException.class)
-                    .hasMessageNotContaining(request.password());
+            new BootstrapAdminRequest("owner@example.test", "Bootstrap391@", "123"),
+        }) {
+            assertThatThrownBy(() -> service.initialize(request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageNotContaining(request.password());
         }
         verify(users, never()).saveAndFlush(any());
         assertThat(new BootstrapAdminRequest("owner@example.test", "secret", null).toString()).doesNotContain("secret");
@@ -91,7 +101,9 @@ class AdminBootstrapServiceTest {
     @Test
     void failsClearlyWhenFoundationalAdminRoleMissing() {
         when(roles.findByRoleNameForUpdate("ROLE_ADMIN")).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.initialize(null)).isInstanceOf(IllegalStateException.class).hasMessageContaining("ROLE_ADMIN");
+        assertThatThrownBy(() -> service.initialize(null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("ROLE_ADMIN");
         verifyNoInteractions(users);
     }
 }

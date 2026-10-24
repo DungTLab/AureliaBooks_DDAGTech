@@ -1,24 +1,29 @@
 package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.security.*;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.security.core.Authentication;
-import lombok.RequiredArgsConstructor;
-import jakarta.servlet.http.HttpServletRequest;
 
 @Controller
 @RequiredArgsConstructor
 public class GoogleProfileController {
+
     private final CustomerIdentity identity;
     private final ObjectProvider<ClientRegistrationRepository> clients;
 
     @PostMapping("/profile/google/reauth")
-    public String reauth(Authentication auth, HttpServletRequest request, RedirectAttributes flash,
-            @RequestParam(defaultValue = "EMAIL") String type) {
+    public String reauth(
+        Authentication auth,
+        HttpServletRequest request,
+        RedirectAttributes flash,
+        @RequestParam(defaultValue = "EMAIL") String type
+    ) {
         request.getSession().setAttribute("GOOGLE_REAUTH_TYPE", "PHONE".equals(type) ? "PHONE" : "EMAIL");
         return begin(request, identity.resolve(auth), "REAUTH", flash);
     }

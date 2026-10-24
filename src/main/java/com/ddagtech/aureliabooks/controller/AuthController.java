@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Controller
 @RequiredArgsConstructor
 public class AuthController {
+
     private final ObjectProvider<ClientRegistrationRepository> clients;
     private final ObjectProvider<com.ddagtech.aureliabooks.service.AccountOtpService> accountOtp;
 
@@ -61,12 +62,31 @@ public class AuthController {
     }
 
     @PostMapping("/auth/register")
-    public String register(@Valid @ModelAttribute RegisterRequest registerRequest, BindingResult errors,
-                           RedirectAttributes redirect, jakarta.servlet.http.HttpServletRequest request) {
+    public String register(
+        @Valid @ModelAttribute RegisterRequest registerRequest,
+        BindingResult errors,
+        RedirectAttributes redirect,
+        jakarta.servlet.http.HttpServletRequest request
+    ) {
         if (errors.hasErrors()) return "auth/register";
         try {
-            var local = new RegisterRequest(null, registerRequest.password(), registerRequest.fullName(), registerRequest.phone(), registerRequest.dob(), registerRequest.confirmPassword(), registerRequest.gender(), registerRequest.agreeTerms());
-            String flow = accountOtp.getObject().registration(local, request.getSession().getId(), com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request));
+            var local = new RegisterRequest(
+                null,
+                registerRequest.password(),
+                registerRequest.fullName(),
+                registerRequest.phone(),
+                registerRequest.dob(),
+                registerRequest.confirmPassword(),
+                registerRequest.gender(),
+                registerRequest.agreeTerms()
+            );
+            String flow = accountOtp
+                .getObject()
+                .registration(
+                    local,
+                    request.getSession().getId(),
+                    com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request)
+                );
             request.getSession().setAttribute("ACCOUNT_OTP_FLOW", flow);
         } catch (IllegalArgumentException ex) {
             errors.reject("registration", ex.getMessage());

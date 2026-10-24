@@ -33,15 +33,27 @@ public class GoogleLinkController {
             return "auth/google-link";
         } catch (RuntimeException ex) {
             session.removeAttribute("GOOGLE_LINK_FLOW");
-            flash.addFlashAttribute("errorMessage", "Không thể tiếp tục liên kết. Vui lòng đăng nhập bằng phương thức hiện có.");
+            flash.addFlashAttribute(
+                "errorMessage",
+                "Không thể tiếp tục liên kết. Vui lòng đăng nhập bằng phương thức hiện có."
+            );
             return "redirect:/auth/login";
         }
     }
 
     @PostMapping("/auth/google-link/send")
-    public String send(HttpServletRequest request, @RequestParam(required = false) String channel, RedirectAttributes flash) {
+    public String send(
+        HttpServletRequest request,
+        @RequestParam(required = false) String channel,
+        RedirectAttributes flash
+    ) {
         try {
-            otp.sendGoogleLink(flow(request), request.getSession().getId(), channel, HttpRequestUtil.getClientIp(request));
+            otp.sendGoogleLink(
+                flow(request),
+                request.getSession().getId(),
+                channel,
+                HttpRequestUtil.getClientIp(request)
+            );
             flash.addFlashAttribute("linkMessage", "Đã gửi mã. Vui lòng kiểm tra kênh xác minh của bạn.");
         } catch (RuntimeException ex) {
             flash.addFlashAttribute("linkMessage", message(ex));
@@ -50,9 +62,15 @@ public class GoogleLinkController {
     }
 
     @PostMapping("/auth/google-link/verify")
-    public void verify(HttpServletRequest request, HttpServletResponse response, @RequestParam String code) throws IOException {
+    public void verify(HttpServletRequest request, HttpServletResponse response, @RequestParam String code)
+        throws IOException {
         try {
-            var user = otp.verifyGoogleLink(flow(request), request.getSession().getId(), code, HttpRequestUtil.getClientIp(request));
+            var user = otp.verifyGoogleLink(
+                flow(request),
+                request.getSession().getId(),
+                code,
+                HttpRequestUtil.getClientIp(request)
+            );
             authenticator.login(user, request, response);
         } catch (RuntimeException ex) {
             // Use the MVC redirect path so the flash message is saved by DispatcherServlet.
@@ -71,7 +89,9 @@ public class GoogleLinkController {
     }
 
     private String message(RuntimeException ex) {
-        return ex instanceof IllegalArgumentException ? ex.getMessage() : "Không thể xác minh liên kết. Vui lòng thử lại hoặc đăng nhập bằng mật khẩu.";
+        return ex instanceof IllegalArgumentException
+            ? ex.getMessage()
+            : "Không thể xác minh liên kết. Vui lòng thử lại hoặc đăng nhập bằng mật khẩu.";
     }
 
     static class GoogleLinkVerificationException extends RuntimeException {
