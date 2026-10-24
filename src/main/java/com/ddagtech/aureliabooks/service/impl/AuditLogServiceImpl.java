@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -159,18 +158,23 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Override
     @Transactional(readOnly = true)
     public List<String> getDistinctActions() {
-        return auditLogRepository.findDistinctActions();
+        return auditLogRepository.findDistinctActions().stream()
+                .filter(action -> !"MANUAL_STOCK_ADJUST".equalsIgnoreCase(action))
+                .toList();
     }
 
     /**
      * Retrieves unique target table names present in the audit ledger for dynamic filter rendering.
+     * Excludes deprecated physical table names removed in V2.4 (such as stock_logs).
      *
      * @return sorted list of unique target table strings
      */
     @Override
     @Transactional(readOnly = true)
     public List<String> getDistinctTargetTables() {
-        return auditLogRepository.findDistinctTargetTables();
+        return auditLogRepository.findDistinctTargetTables().stream()
+                .filter(table -> !"stock_logs".equalsIgnoreCase(table))
+                .toList();
     }
 
     /**
@@ -213,9 +217,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     private void redactSensitiveNodes(JsonNode node) {
         if (node.isObject()) {
             ObjectNode objectNode = (ObjectNode) node;
-            Iterator<Map.Entry<String, JsonNode>> fields = objectNode.fields();
-            while (fields.hasNext()) {
-                Map.Entry<String, JsonNode> field = fields.next();
+            for (Map.Entry<String, JsonNode> field : objectNode.properties()) {
                 String fieldName = field.getKey().toLowerCase();
                 if (fieldName.contains("password") || fieldName.contains("token")
                         || fieldName.contains("otp") || fieldName.contains("secret")
