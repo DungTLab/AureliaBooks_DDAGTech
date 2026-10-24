@@ -1,8 +1,17 @@
 package com.ddagtech.aureliabooks.repository;
 
+import com.ddagtech.aureliabooks.dto.response.StockMetricSummary;
 import com.ddagtech.aureliabooks.entity.Product;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
@@ -11,7 +20,97 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
-    /** Deduct stock conditionally in the database; accept exactly one updated row, otherwise roll back the entire order. */
+    /**
+     * Checks if a product with the specified barcode exists.
+     *
+     * @param barcode unique barcode
+     * @return true if barcode exists
+     */
+    boolean existsByBarcodeIgnoreCase(String barcode);
+
+    /**
+     * Checks if a product with the specified barcode exists (exact case).
+     *
+     * @param barcode barcode string
+     * @return true if barcode exists
+     */
+    boolean existsByBarcode(String barcode);
+
+    /**
+     * Checks if another product with the specified barcode exists excluding the current ID.
+     *
+     * @param barcode barcode string
+     * @param id      product ID to exclude
+     * @return true if another product has this barcode
+     */
+    boolean existsByBarcodeIgnoreCaseAndIdNot(String barcode, Long id);
+
+    /**
+     * Finds all products with category eagerly loaded via EntityGraph.
+     * Prevents LazyInitializationException under open-in-view: false and avoids N+1 queries.
+     *
+     * @param pageable pagination request
+     * @return page of products with categories loaded
+     */
+    @Override
+    @EntityGraph(attributePaths = {"category"})
+    Page<Product> findAll(Pageable pageable);
+
+    /**
+     * Finds a product by ID with its category eagerly loaded.
+     *
+     * @param id product ID
+     * @return optional product with category
+     */
+    @Override
+    @EntityGraph(attributePaths = {"category"})
+    Optional<Product> findById(Long id);
+
+    /**
+     * Finds products by product type with pagination and category eagerly loaded.
+     *
+     * @param productType BOOK or STATIONERY
+     * @param pageable    pagination request
+     * @return page of products with categories loaded
+     */
+    @EntityGraph(attributePaths = {"category"})
+    Page<Product> findByProductType(Product.ProductType productType, Pageable pageable);
+
+    /**
+     * Searches products by keyword across title or barcode with pagination and category eagerly loaded.
+     *
+     * @param title    title keyword
+     * @param barcode  barcode keyword
+     * @param pageable pagination request
+     * @return page of products with categories loaded
+     */
+    @EntityGraph(attributePaths = {"category"})
+    Page<Product> findByTitleContainingIgnoreCaseOrBarcodeContainingIgnoreCase(String title, String barcode, Pageable pageable);
+
+    /**
+     * Searches products by keyword and product type with pagination and category eagerly loaded.
+     *
+     * @param productType BOOK or STATIONERY
+     * @param title       title keyword
+     * @param barcode     barcode keyword
+     * @param pageable    pagination request
+     * @return page of products with categories loaded
+     */
+    @EntityGraph(attributePaths = {"category"})
+    @Query("SELECT p FROM Product p WHERE p.productType = :productType AND (LOWER(p.title) LIKE LOWER(CONCAT('%', :title, '%')) OR LOWER(p.barcode) LIKE LOWER(CONCAT('%', :barcode, '%')))")
+    Page<Product> findByProductTypeAndKeyword(
+            @Param("productType") Product.ProductType productType,
+            @Param("title") String title,
+            @Param("barcode") String barcode,
+            Pageable pageable);
+
+    /**
+     * Deduct stock conditionally in the database; accept exactly one updated row, otherwise roll back the entire order.
+     *
+     * @param productId product ID
+     * @param quantity  quantity to deduct
+     * @return number of updated rows
+     */
     @Modifying(flushAutomatically = true)
     @Query("""
         UPDATE Product p
@@ -21,17 +120,48 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
           AND :quantity > 0
           AND p.stockQuantity >= :quantity
     """)
-    int deductStockIfAvailable(@Param("productId") Long productId,@Param("quantity") int quantity);
+    int deductStockIfAvailable(@Param("productId") Long productId, @Param("quantity") int quantity);
 
+    /**
+     * Retrieves a product with a pessimistic write lock for inventory mutation.
+     *
+     * @param id product ID
+     * @return locked product optional
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdWithLock(@Param("id") Long id);
 
+    /**
+     * Retrieves a product with a pessimistic write lock for inventory update.
+     * Alias used across stock ledger engine services.
+     *
+     * @param id product ID
+     * @return locked product optional
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdForUpdate(@Param("id") Long id);
+
+    /**
+     * Retrieves multiple products with pessimistic write locks ordered by ID ascending to avoid deadlocks.
+     *
+     * @param ids collection of product IDs
+     * @return list of locked products
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id IN :ids ORDER BY p.id ASC")
     List<Product> findAllByIdInWithLock(@Param("ids") Collection<Long> ids);
 
-    org.springframework.data.domain.Page<Product> findByStockQuantityLessThanEqual(Integer maxStock, org.springframework.data.domain.Pageable pageable);
+    /**
+     * Finds a product by its barcode.
+     *
+     * @param barcode product barcode
+     * @return optional product
+     */
+    Optional<Product> findByBarcode(String barcode);
+
+    Page<Product> findByStockQuantityLessThanEqual(Integer maxStock, Pageable pageable);
 
     long countByStockQuantityEquals(Integer stockQuantity);
 
@@ -44,7 +174,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     @Override
     @EntityGraph(attributePaths = {"category"})
-    org.springframework.data.domain.Page<Product> findAll(org.springframework.data.jpa.domain.Specification<Product> spec, org.springframework.data.domain.Pageable pageable);
+    Page<Product> findAll(Specification<Product> spec, Pageable pageable);
 
     @Query("""
         SELECT new com.ddagtech.aureliabooks.dto.response.StockMetricSummary(
@@ -56,7 +186,5 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
         FROM Product p
         WHERE p.isActive = true
     """)
-    com.ddagtech.aureliabooks.dto.response.StockMetricSummary getActiveStockMetrics();
-
-    boolean existsByBarcode(String barcode);
+    StockMetricSummary getActiveStockMetrics();
 }

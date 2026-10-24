@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(${isEdit ? 'Chỉnh Sửa Sách' : 'Thêm Sách Mới'} + ' | AureliaBook', ~{::#main-content})}">
+<head>
+    <title th:text="${isEdit ? 'Chỉnh Sửa Sách' : 'Thêm Sách Mới'}">Quản Lý Sách</title>
+</head>
+<body>
+<div id="main-content" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header Navigation -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
+        <div>
+            <nav class="flex text-xs text-carbon_black-400 gap-1.5 mb-1">
+                <a th:href="@{/manager/products?type=BOOK}" class="hover:text-blazing_flame transition-colors">Danh mục sản phẩm</a>
+                <span>/</span>
+                <span class="text-carbon_black font-semibold" th:text="${isEdit ? 'Chỉnh sửa sách' : 'Thêm sách mới'}">Biểu mẫu</span>
+            </nav>
+            <h1 class="font-serif text-2xl font-bold text-carbon_black"
+                th:text="${isEdit ? 'Chỉnh Sửa Thông Tin Sách' : 'Thêm Sách Mới'}">
+                Thêm Sách Mới
+            </h1>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Nhập thông tin chi tiết và xuất bản của sách</p>
+        </div>
+        <a th:href="@{/manager/products?type=BOOK}"
+           class="inline-flex items-center gap-1.5 px-4 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span>Quay lại danh sách</span>
+        </a>
+    </div>
+
+    <!-- Inventory Notice -->
+    <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start gap-3">
+        <i class="bi bi-info-circle-fill text-base text-blue-600 mt-0.5"></i>
+        <div>
+            <span class="font-bold">Lưu ý về số lượng tồn kho:</span>
+            Số lượng tồn kho khả dụng được quản lý đồng bộ thông qua <span class="font-semibold">Phiếu Nhập Kho</span> và các giao dịch bán hàng, không chỉnh sửa trực tiếp tại biểu mẫu này.
+        </div>
+    </div>
+
+    <!-- Error Summary if any -->
+    <div th:if="${errorMessage}" class="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+        <i class="bi bi-exclamation-triangle-fill text-rose-600 text-base"></i>
+        <span th:text="${errorMessage}">Đã xảy ra lỗi khi lưu thông tin.</span>
+    </div>
+
+    <!-- Main Book Form -->
+    <form th:action="${isEdit ? '/manager/books/' + bookForm.id() + '/edit' : '/manager/books'}"
+          th:object="${bookForm}" method="post" class="space-y-6">
+
+        <!-- 1. Thông Tin Chung (Base Product) -->
+        <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
+            <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
+                <i class="bi bi-box-seam text-blazing_flame"></i>
+                <span>1. Thông Tin Sản Phẩm Cơ Bản (Bảng Products)</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Barcode -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Mã Vạch Barcode <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="text" th:field="*{barcode}" required maxlength="50"
+                           placeholder="Ví dụ: 8935244889012"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                           th:classappend="${#fields.hasErrors('barcode')} ? 'border-rose-500' : 'border-dust_grey'">
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('barcode')}" th:errors="*{barcode}">Lỗi mã vạch</p>
+                </div>
+
+                <!-- Title -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Tựa Sách <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="text" th:field="*{title}" required maxlength="255"
+                           placeholder="Ví dụ: Cây Cam Ngọt Của Tôi"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                           th:classappend="${#fields.hasErrors('title')} ? 'border-rose-500' : 'border-dust_grey'">
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('title')}" th:errors="*{title}">Lỗi tựa sách</p>
+                </div>
+
+                <!-- Category -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Danh Mục Sách <span class="text-blazing_flame">*</span>
+                    </label>
+                    <select th:field="*{categoryId}" required
+                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                            th:classappend="${#fields.hasErrors('categoryId')} ? 'border-rose-500' : 'border-dust_grey'">
+                        <option value="">-- Chọn danh mục sách --</option>
+                        <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.name}">Văn Học</option>
+                    </select>
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('categoryId')}" th:errors="*{categoryId}">Lỗi danh mục</p>
+                </div>
+
+                <!-- Weight -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Khối Lượng (Gram)
+                    </label>
+                    <input type="number" th:field="*{weightGrams}" min="0"
+                           placeholder="Mặc định: 200"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Price -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Giá Bán Niêm Yết (VNĐ) <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="number" step="1" th:field="*{price}" required min="0"
+                           placeholder="Ví dụ: 120000"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                           th:classappend="${#fields.hasErrors('price')} ? 'border-rose-500' : 'border-dust_grey'">
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('price')}" th:errors="*{price}">Lỗi giá bán</p>
+                </div>
+
+                <!-- Original Cost -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Giá Vốn Gốc (VNĐ) <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="number" step="1" th:field="*{originalCost}" required min="0"
+                           placeholder="Ví dụ: 80000"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                           th:classappend="${#fields.hasErrors('originalCost')} ? 'border-rose-500' : 'border-dust_grey'">
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('originalCost')}" th:errors="*{originalCost}">Lỗi giá vốn</p>
+                </div>
+
+                <!-- Main Image URL -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Đường Dẫn Ảnh Bìa (Image URL)
+                    </label>
+                    <input type="url" th:field="*{mainImageUrl}" maxlength="500"
+                           placeholder="https://example.com/images/book-cover.jpg"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Tags -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Từ Khóa Phân Loại (Tags)
+                    </label>
+                    <input type="text" th:field="*{tags}" maxlength="255"
+                           placeholder="Ví dụ: tieu-thuyet, van-hoc-kinh-dien, best-seller"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Description -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Mô Tả Giới Thiệu Sách
+                    </label>
+                    <textarea th:field="*{description}" rows="4"
+                              placeholder="Nội dung tóm tắt cuốn sách, lời giới thiệu tác phẩm..."
+                              class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Thông Tin Chi Tiết Sách (Specific Book Entity) -->
+        <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
+            <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
+                <i class="bi bi-book-half text-blazing_flame"></i>
+                <span>2. Thuộc Tính Riêng Của Sách (Bảng Books)</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- ISBN -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Mã Tiêu Chuẩn Quốc Tế ISBN <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="text" th:field="*{isbn}" required maxlength="20"
+                           placeholder="Ví dụ: 978-604-56-7890-1"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                           th:classappend="${#fields.hasErrors('isbn')} ? 'border-rose-500' : 'border-dust_grey'">
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('isbn')}" th:errors="*{isbn}">Lỗi ISBN</p>
+                </div>
+
+                <!-- Publisher -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Nhà Xuất Bản <span class="text-blazing_flame">*</span>
+                    </label>
+                    <select th:field="*{publisherId}" required
+                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                            th:classappend="${#fields.hasErrors('publisherId')} ? 'border-rose-500' : 'border-dust_grey'">
+                        <option value="">-- Chọn nhà xuất bản --</option>
+                        <option th:each="pub : ${publishers}" th:value="${pub.id}" th:text="${pub.name}">NXB Trẻ</option>
+                    </select>
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('publisherId')}" th:errors="*{publisherId}">Lỗi nhà xuất bản</p>
+                </div>
+
+                <!-- Authors Selection (Multi-select) -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Danh Sách Tác Giả <span class="text-blazing_flame">*</span>
+                    </label>
+                    <div class="p-4 bg-alabaster_grey/40 border rounded-xl max-h-48 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2"
+                         th:classappend="${#fields.hasErrors('authorIds')} ? 'border-rose-500' : 'border-dust_grey'">
+                        <label th:each="author : ${authors}" class="flex items-center gap-2 text-xs font-medium text-carbon_black cursor-pointer hover:text-blazing_flame">
+                            <input type="checkbox" name="authorIds" th:value="${author.id}"
+                                   th:checked="${bookForm.authorIds() != null and bookForm.authorIds().contains(author.id)}"
+                                   class="rounded text-blazing_flame focus:ring-blazing_flame">
+                            <span th:text="${author.name}">Nguyễn Nhật Ánh</span>
+                        </label>
+                    </div>
+                    <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('authorIds')}" th:errors="*{authorIds}">Vui lòng chọn ít nhất 1 tác giả</p>
+                </div>
+
+                <!-- Series Name (Group label only, no bundle) -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Tên Bộ Truyện / Series (Nhãn Gom Nhóm UI)
+                    </label>
+                    <input type="text" th:field="*{seriesName}" maxlength="150"
+                           placeholder="Ví dụ: Harry Potter, Conan, Thám Tử Lừng Danh"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                    <span class="text-[11px] text-carbon_black-400">Chỉ dùng nhóm hiển thị, sách bán lẻ từng tập độc lập (không bán combo).</span>
+                </div>
+
+                <!-- Volume Number -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Số Thứ Tự Tập (Volume)
+                    </label>
+                    <input type="number" th:field="*{volumeNumber}" min="1"
+                           placeholder="Ví dụ: 1, 2, 3..."
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Publication Year -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Năm Xuất Bản
+                    </label>
+                    <input type="number" th:field="*{publicationYear}" min="1900" max="2100"
+                           placeholder="Ví dụ: 2024"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Edition -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Tái Bản (Edition)
+                    </label>
+                    <input type="text" th:field="*{edition}" maxlength="50"
+                           placeholder="Ví dụ: Tái bản lần 3"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Page Count -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Số Trang
+                    </label>
+                    <input type="number" th:field="*{pageCount}" min="1"
+                           placeholder="Ví dụ: 320"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Language -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Ngôn Ngữ
+                    </label>
+                    <input type="text" th:field="*{language}" maxlength="50"
+                           placeholder="Mặc định: Tiếng Việt"
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                </div>
+
+                <!-- Cover Type -->
+                <div>
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Loại Bìa Sách
+                    </label>
+                    <select th:field="*{coverType}"
+                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                        <option value="PAPERBACK">Bìa mềm (Paperback)</option>
+                        <option value="HARDCOVER">Bìa cứng (Hardcover)</option>
+                    </select>
+                </div>
+
+                <!-- Is Textbook -->
+                <div class="flex items-center gap-2 mt-4">
+                    <input type="checkbox" id="isTextbookCheck" th:field="*{isTextbook}"
+                           class="w-4 h-4 rounded text-blazing_flame focus:ring-blazing_flame">
+                    <label for="isTextbookCheck" class="text-xs font-bold text-carbon_black cursor-pointer">
+                        Đây là sách giáo khoa / giáo trình học đường
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Bar -->
+        <div class="flex items-center justify-end gap-3 pt-4">
+            <a th:href="@{/manager/products?type=BOOK}"
+               class="px-5 py-2.5 border border-dust_grey bg-white hover:bg-alabaster_grey rounded-xl text-sm font-semibold text-carbon_black transition-colors">
+                Hủy Bỏ
+            </a>
+            <button type="submit"
+                    class="px-6 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-sm font-bold shadow-flame transition-all">
+                <i class="bi bi-check-lg mr-1.5"></i>
+                <span th:text="${isEdit ? 'Lưu Thay Đổi Sách' : 'Hoàn Tất Thêm Sách'}">Lưu Thông Tin</span>
+            </button>
+        </div>
+    </form>
+
+</div>
+</body>
+</html>

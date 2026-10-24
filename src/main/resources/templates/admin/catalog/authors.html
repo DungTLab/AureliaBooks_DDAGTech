@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Quản Lý Tác Giả | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Quản Lý Tác Giả</title>
+</head>
+<body>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header Section -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
+        <div>
+            <nav class="flex text-xs text-carbon_black-400 gap-1.5 mb-1">
+                <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Bàn làm việc</a>
+                <span>/</span>
+                <span>Danh mục gốc</span>
+                <span>/</span>
+                <span class="text-carbon_black font-semibold">Tác giả</span>
+            </nav>
+            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Lý Danh Bạ Tác Giả</h1>
+            <p class="text-xs text-carbon_black-500 mt-0.5">Danh sách tác giả, tiểu sử và thông tin các đầu sách liên kết</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a th:href="@{/manager/products}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+                <i class="bi bi-arrow-left"></i>
+                <span>Sản Phẩm</span>
+            </a>
+            <a th:href="@{/dashboard}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+                <i class="bi bi-house"></i>
+                <span>Bàn Làm Việc</span>
+            </a>
+            <button type="button" onclick="openAuthorModal(null, '', '')"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-sm rounded-xl shadow-flame transition-all">
+                <i class="bi bi-plus-lg"></i>
+                <span>Thêm Tác Giả Mới</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Search Toolbar -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 p-4 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <form th:action="@{/manager/authors}" method="get" class="w-full sm:max-w-md flex gap-2">
+            <div class="relative flex-1">
+                <input type="text" name="keyword" th:value="${keyword}"
+                       placeholder="Tìm kiếm theo tên tác giả..."
+                       class="w-full pl-9 pr-4 py-2 text-sm bg-alabaster_grey/40 border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:bg-white transition-all">
+                <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs"></i>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-carbon_black text-white rounded-xl text-sm font-semibold hover:bg-carbon_black-600 transition-colors">
+                Tìm
+            </button>
+            <a th:if="${keyword != null and !keyword.isEmpty()}" th:href="@{/manager/authors}"
+               class="px-3 py-2 border border-dust_grey rounded-xl text-sm font-semibold hover:bg-alabaster_grey transition-colors text-carbon_black-600">
+                Đặt lại
+            </a>
+        </form>
+        <div class="text-xs text-carbon_black-500 font-medium self-end sm:self-center">
+            Tổng số: <span class="font-bold text-carbon_black" th:text="${authorsPage.totalElements}">0</span> tác giả
+        </div>
+    </div>
+
+    <!-- Authors Table -->
+    <div class="bg-white rounded-2xl border border-dust_grey/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-dust_grey/60 text-left text-sm">
+                <thead class="bg-alabaster_grey/50 text-carbon_black-600 text-xs uppercase font-bold tracking-wider">
+                    <tr>
+                        <th class="px-6 py-3.5 w-16">ID</th>
+                        <th class="px-6 py-3.5">Họ và Tên Tác Giả</th>
+                        <th class="px-6 py-3.5">Tiểu Sử Tóm Tắt</th>
+                        <th class="px-6 py-3.5 text-center w-32">Số Sách</th>
+                        <th class="px-6 py-3.5 text-center w-32">Trạng Thái</th>
+                        <th class="px-6 py-3.5 text-right w-36">Thao Tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/40">
+                    <tr th:each="author : ${authorsPage.content}" class="hover:bg-alabaster_grey/20 transition-colors">
+                        <td class="px-6 py-4 font-mono text-xs text-carbon_black-400" th:text="${author.id}">1</td>
+                        <td class="px-6 py-4">
+                            <span class="font-bold text-carbon_black text-sm" th:text="${author.name}">Nguyễn Nhật Ánh</span>
+                        </td>
+                        <td class="px-6 py-4 max-w-md">
+                            <p class="text-xs text-carbon_black-600 line-clamp-2"
+                               th:text="${author.biography != null and !author.biography.isEmpty() ? author.biography : 'Chưa có thông tin tiểu sử.'}">
+                                Tiểu sử
+                            </p>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                                  th:classappend="${bookCounts.get(author.id) > 0 ? 'bg-sky-100 text-sky-800' : 'bg-gray-100 text-gray-600'}"
+                                  th:text="${bookCounts.get(author.id) + ' cuốn'}">
+                                0 cuốn
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <form th:action="@{/manager/authors/{id}/toggle-status(id=${author.id})}" method="post" class="inline">
+                                <button type="submit"
+                                        th:title="${author.isActive ? 'Nhấn để tạm ẩn tác giả' : 'Nhấn để kích hoạt tác giả'}"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all"
+                                        th:classappend="${author.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                                    <i class="bi" th:classappend="${author.isActive ? 'bi-check-circle-fill text-emerald-600' : 'bi-dash-circle-fill text-gray-400'}"></i>
+                                    <span th:text="${author.isActive ? 'Hoạt động' : 'Tạm ẩn'}">Hoạt động</span>
+                                </button>
+                            </form>
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap">
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button"
+                                        th:data-id="${author.id}"
+                                        th:data-name="${author.name}"
+                                        th:data-biography="${author.biography != null ? author.biography : ''}"
+                                        onclick="openAuthorModal(this.getAttribute('data-id'), this.getAttribute('data-name'), this.getAttribute('data-biography'))"
+                                        class="p-2 text-carbon_black-600 hover:text-blazing_flame hover:bg-parchment-200 rounded-lg transition-colors"
+                                        title="Chỉnh sửa">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <form th:action="@{/manager/authors/{id}/delete(id=${author.id})}" method="post" class="inline"
+                                      onsubmit="return confirm('Bạn có chắc chắn muốn xóa tác giả này không? Hệ thống sẽ chặn xóa nếu đang có sách liên kết.');">
+                                    <button type="submit"
+                                            class="p-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors"
+                                            title="Xóa tác giả">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr th:if="${authorsPage.content.isEmpty()}">
+                        <td colspan="6" class="px-6 py-12 text-center text-carbon_black-400">
+                            <i class="bi bi-person-x text-3xl mb-2 block"></i>
+                            <p class="text-sm font-medium">Không tìm thấy tác giả nào phù hợp.</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bar -->
+        <div th:if="${authorsPage.totalPages > 1}" class="px-6 py-4 bg-alabaster_grey/30 border-t border-dust_grey/60 flex items-center justify-between">
+            <span class="text-xs text-carbon_black-500">
+                Trang <span class="font-bold" th:text="${authorsPage.number + 1}">1</span> / <span th:text="${authorsPage.totalPages}">1</span>
+            </span>
+            <div class="flex gap-1.5">
+                <a th:if="${!authorsPage.first}"
+                   th:href="@{/manager/authors(page=${authorsPage.number - 1}, keyword=${keyword})}"
+                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
+                    Trước
+                </a>
+                <a th:if="${!authorsPage.last}"
+                   th:href="@{/manager/authors(page=${authorsPage.number + 1}, keyword=${keyword})}"
+                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
+                    Sau
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Create / Edit Author) -->
+    <div id="authorModal"
+         th:object="${authorForm}"
+         th:classappend="${#fields.hasErrors() ? '' : 'hidden'}"
+         class="fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl border border-dust_grey shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-down">
+            <div class="px-6 py-4 bg-alabaster_grey/40 border-b border-dust_grey/60 flex items-center justify-between">
+                <h3 id="modalTitle" class="font-serif font-bold text-lg text-carbon_black"
+                    th:text="${editAuthorId != null ? 'Chỉnh Sửa Thông Tin Tác Giả' : 'Thêm Tác Giả Mới'}">Thêm Tác Giả Mới</h3>
+                <button type="button" onclick="closeAuthorModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <form id="authorForm" th:action="${editAuthorId != null ? '/manager/authors/' + editAuthorId + '/edit' : '/manager/authors'}" method="post" class="p-6 space-y-4">
+                <div>
+                    <label for="authorNameInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Tên Tác Giả <span class="text-blazing_flame">*</span>
+                    </label>
+                    <input type="text" id="authorNameInput" th:field="*{name}" required maxlength="100"
+                           placeholder="Ví dụ: Nguyễn Nhật Ánh, Haruki Murakami..."
+                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"
+                           th:classappend="${#fields.hasErrors('name')} ? 'border-[#d3380d] focus:ring-[#d3380d] focus:border-[#d3380d]' : ''">
+                    <p th:if="${#fields.hasErrors('name')}" th:errors="*{name}" class="field-error mt-1 text-xs text-[#d3380d] font-semibold"></p>
+                </div>
+                <div>
+                    <label for="authorBioInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                        Tiểu Sử Tóm Tắt
+                    </label>
+                    <textarea id="authorBioInput" th:field="*{biography}" rows="4" maxlength="5000"
+                              placeholder="Thông tin tiểu sử tóm tắt, năm sinh, sự nghiệp văn học..."
+                              class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame"
+                              th:classappend="${#fields.hasErrors('biography')} ? 'border-[#d3380d] focus:ring-[#d3380d] focus:border-[#d3380d]' : ''"></textarea>
+                    <p th:if="${#fields.hasErrors('biography')}" th:errors="*{biography}" class="field-error mt-1 text-xs text-[#d3380d] font-semibold"></p>
+                </div>
+                <div class="pt-3 flex items-center justify-end gap-3 border-t border-dust_grey/60">
+                    <button type="button" onclick="closeAuthorModal()"
+                            class="px-4 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey rounded-xl text-sm font-semibold text-carbon_black transition-colors">
+                        Hủy
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-sm font-bold shadow-flame transition-colors">
+                        Lưu Thông Tin
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openAuthorModal(id, name, biography) {
+            const modal = document.getElementById('authorModal');
+            const title = document.getElementById('modalTitle');
+            const form = document.getElementById('authorForm');
+            const nameInput = document.getElementById('authorNameInput') || document.getElementById('name') || (form ? form.querySelector('[name="name"]') : null);
+            const bioInput = document.getElementById('authorBioInput') || document.getElementById('biography') || (form ? form.querySelector('[name="biography"]') : null);
+
+            // Clear previous validation error elements if any
+            document.querySelectorAll('#authorModal .field-error').forEach(el => el.remove());
+            if (nameInput) nameInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
+            if (bioInput) bioInput.classList.remove('border-[#d3380d]', 'focus:ring-[#d3380d]', 'focus:border-[#d3380d]');
+
+            if (id) {
+                if (title) title.textContent = 'Chỉnh Sửa Thông Tin Tác Giả';
+                if (form) form.action = '/manager/authors/' + id + '/edit';
+                if (nameInput) nameInput.value = name || '';
+                if (bioInput) bioInput.value = biography || '';
+            } else {
+                if (title) title.textContent = 'Thêm Tác Giả Mới';
+                if (form) form.action = '/manager/authors';
+                if (nameInput) nameInput.value = '';
+                if (bioInput) bioInput.value = '';
+            }
+
+            if (modal) modal.classList.remove('hidden');
+            if (nameInput) nameInput.focus();
+        }
+
+        function closeAuthorModal() {
+            const modal = document.getElementById('authorModal');
+            if (modal) modal.classList.add('hidden');
+        }
+    </script>
+</div>
+</body>
+</html>

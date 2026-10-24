@@ -74,9 +74,7 @@
                                 />
                                 <span class="checkout-address-body"
                                     ><span class="checkout-address-heading"
-                                        ><strong th:text="${address.recipientName}"></strong><span th:if="${address.isDefault}" class="checkout-badge">Mặc định</span></span><span th:text="${address.phone}" class="checkout-muted"></span><span
-                                        th:text="${address.detailedAddress + ', ' + address.ward + ', ' + address.district + ', ' + address.province}"
-                                    ></span><span class="checkout-region" th:switch="${address.economicRegion.name()}"
+                                        ><strong th:text="${address.recipientName}"></strong><span th:if="${address.isDefault}" class="checkout-badge">Mặc định</span></span><span th:text="${address.phone}" class="checkout-muted"></span><span th:text="${address.fullAddress()}"></span><span class="checkout-region" th:switch="${address.economicRegion.name()}"
                                         ><span th:case="'NORTHERN'">Miền Bắc · 50.000 đ</span><span th:case="'CENTRAL_HIGHLANDS'">Miền Trung / Tây Nguyên · 40.000 đ</span><span th:case="'SOUTHERN_MEKONG'"
                                             >Miền Nam / Đồng bằng sông Cửu Long · 30.000 đ</span></span></span>
                             </label>
@@ -96,11 +94,11 @@
                             </summary>
                             <p class="checkout-help">Địa chỉ mới sẽ được lưu vào sổ địa chỉ của bạn.</p>
                             <form
+                                data-checkout-submit
                                 th:action="@{/checkout/addresses}"
                                 th:object="${addressForm}"
                                 method="post"
                                 class="checkout-address-form"
-                                data-checkout-submit
                             >
                                 <div th:if="${#fields.hasAnyErrors()}" class="checkout-notice is-error" role="alert">
                                     <p th:each="error : ${#fields.allErrors()}" th:text="${error}"></p>
@@ -128,34 +126,31 @@
                                         />
                                     </div>
                                     <div>
-                                        <label for="province">Tỉnh / thành phố</label><input
-                                            id="province"
-                                            th:field="*{province}"
+                                        <label for="provinceCode">Tỉnh / thành phố</label><select
+                                            id="provinceCode"
+                                            th:field="*{provinceCode}"
                                             autocomplete="shipping address-level1"
                                             required
-                                            maxlength="100"
-                                        />
+                                        >
+                                            <option value="">Chọn tỉnh / thành phố</option>
+                                            <option
+                                                th:each="province : ${provinces}"
+                                                th:value="${province.code}"
+                                                th:text="${province.name}"
+                                            ></option>
+                                        </select>
                                     </div>
                                     <div>
-                                        <label for="district">Quận / huyện</label><input
-                                            id="district"
-                                            th:field="*{district}"
+                                        <label for="ward">Phường / Xã / Đặc khu</label><input
+                                            id="ward"
+                                            th:field="*{ward}"
                                             autocomplete="shipping address-level2"
                                             required
                                             maxlength="100"
                                         />
                                     </div>
                                     <div>
-                                        <label for="ward">Phường / xã</label><input
-                                            id="ward"
-                                            th:field="*{ward}"
-                                            autocomplete="shipping address-level3"
-                                            required
-                                            maxlength="100"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label for="detailedAddress">Số nhà, tên đường</label><input
+                                        <label for="detailedAddress">Địa chỉ chi tiết</label><input
                                             id="detailedAddress"
                                             th:field="*{detailedAddress}"
                                             autocomplete="shipping address-line1"
@@ -164,20 +159,16 @@
                                         />
                                     </div>
                                 </div>
-                                <label for="economicRegion">Vùng giao hàng</label><select id="economicRegion" th:field="*{economicRegion}" required>
-                                    <option value="">Chọn vùng giao hàng</option>
-                                    <option value="NORTHERN">Miền Bắc — 50.000 đ</option>
-                                    <option value="CENTRAL_HIGHLANDS">Miền Trung / Tây Nguyên — 40.000 đ</option>
-                                    <option value="SOUTHERN_MEKONG">
-                                        Miền Nam / Đồng bằng sông Cửu Long — 30.000 đ
-                                    </option>
-                                </select>
+                                <p class="checkout-help">Vùng giao hàng được tự động xác định theo tỉnh/thành phố.</p>
                                 <label class="checkout-checkbox"
                                     ><input type="checkbox" th:field="*{isDefault}" /> Đặt làm địa chỉ mặc định</label>
                                 <p data-form-feedback aria-live="polite" class="checkout-help">
                                     Điền đầy đủ thông tin địa chỉ để tiếp tục.
                                 </p>
-                                <button type="submit" class="checkout-button is-secondary">
+                                <button
+                                    type="submit"
+                                    class="checkout-button is-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
                                     Lưu và chọn địa chỉ này
                                 </button>
                             </form>

@@ -37,10 +37,7 @@
                         </div>
                         <strong th:text="${delivery.recipientName}"></strong>
                         <p th:text="${delivery.phone}" class="checkout-muted"></p>
-                        <p
-                            th:text="${delivery.detailedAddress + ', ' + delivery.ward + ', ' + delivery.district + ', ' + delivery.province}"
-                            class="checkout-delivery-text"
-                        ></p>
+                        <p th:text="${delivery.fullAddress()}" class="checkout-delivery-text"></p>
                     </section>
                     <section class="checkout-card">
                         <div class="checkout-card-heading">

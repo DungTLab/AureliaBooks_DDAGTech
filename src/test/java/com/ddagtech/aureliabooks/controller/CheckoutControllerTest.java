@@ -406,9 +406,7 @@ class CheckoutControllerTest {
                 .with(csrf())
                 .param("recipientName", "Khách mới")
                 .param("phone", "0912345678")
-                .param("economicRegion", "NORTHERN")
-                .param("province", "Hà Nội")
-                .param("district", "Ba Đình")
+                .param("provinceCode", "01")
                 .param("ward", "Đội Cấn")
                 .param("detailedAddress", "12 Đội Cấn")
                 .param("userId", "999")
@@ -547,5 +545,23 @@ class CheckoutControllerTest {
 
     private static BigDecimal money(String value) {
         return new BigDecimal(value);
+    }
+
+    @Test
+    void inlineAddressRejectsUnknownProvinceWithoutSaving() throws Exception {
+        mvc.perform(
+            post("/checkout/addresses")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("recipientName", "Khách mới")
+                .param("phone", "0912345678")
+                .param("provinceCode", "99")
+                .param("ward", "Phường Mới")
+                .param("detailedAddress", "12 Đường Hoa")
+        )
+            .andExpect(status().isOk())
+            .andExpect(model().attributeHasFieldErrors("addressForm", "provinceCode"))
+            .andExpect(model().attributeExists("provinces"));
+        verifyNoInteractions(addresses);
     }
 }

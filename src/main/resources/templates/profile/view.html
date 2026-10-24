@@ -1,14 +1,29 @@
-<!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Hồ sơ của tôi', ~{::#main-content})}">
+<!doctype html>
+<html
+    lang="vi"
+    xmlns:th="http://www.thymeleaf.org"
+    th:replace="~{layout/base :: layout('Hồ sơ của tôi', ~{::#main-content})}"
+>
     <head>
         <title>Hồ sơ của tôi</title>
     </head>
     <body>
         <section id="main-content" class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-            <a th:href="@{/}" class="inline-flex items-center gap-2 text-sm text-carbon_black-500 hover:text-blazing_flame mb-6">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-4 h-4" aria-hidden="true">
-                    <path d="m15 18-6-6 6-6"/>
-                </svg> Trang chủ
+            <a
+                th:href="@{/}"
+                class="inline-flex items-center gap-2 text-sm text-carbon_black-500 hover:text-blazing_flame mb-6"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    class="w-4 h-4"
+                    aria-hidden="true"
+                >
+                    <path d="m15 18-6-6 6-6" />
+                </svg>
+                Trang chủ
             </a>
             <div class="mb-8">
                 <p class="text-sm font-semibold text-blazing_flame mb-2">TÀI KHOẢN CỦA TÔI</p>
@@ -18,36 +33,100 @@
             <div class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                 <aside class="lg:col-span-4 min-w-0 space-y-5">
                     <div class="bg-white rounded-2xl border border-dust_grey shadow-soft overflow-hidden">
-                        <div class="h-16 bg-parchment-200 border-b border-dust_grey/50">
-                        </div>
+                        <div class="h-16 bg-parchment-200 border-b border-dust_grey/50"></div>
                         <div class="px-6 pb-6">
-                            <div class="w-28 h-28 -mt-10 relative rounded-full border-4 border-white bg-parchment-100 shadow-sm overflow-hidden">
-                                <img id="profileAvatar" th:src="${profile.avatarUrl}" alt="Ảnh đại diện của bạn" width="112" height="112" th:classappend="${profile.avatarUrl == null ? 'hidden' : ''}" class="w-full h-full object-cover" referrerpolicy="no-referrer" onerror="this.style.display='none';document.getElementById('avatarPlaceholder').style.display='flex'">
-                                <div id="avatarPlaceholder" th:style="${profile.avatarUrl != null ? 'display:none' : null}" class="w-full h-full flex items-center justify-center text-blazing_flame">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" class="w-12 h-12" aria-hidden="true">
-                                        <circle cx="12" cy="8" r="3.5"/>
-                                        <path d="M5 21v-2a7 7 0 0 1 14 0v2"/>
+                            <div
+                                class="w-28 h-28 -mt-10 relative rounded-full border-4 border-white bg-parchment-100 shadow-sm overflow-hidden"
+                            >
+                                <img
+                                    id="profileAvatar"
+                                    th:src="${profile.avatarUrl}"
+                                    alt="Ảnh đại diện của bạn"
+                                    width="112"
+                                    height="112"
+                                    th:classappend="${profile.avatarUrl == null ? 'hidden' : ''}"
+                                    class="w-full h-full object-cover"
+                                    referrerpolicy="no-referrer"
+                                    onerror="
+                                        this.style.display = 'none';
+                                        document.getElementById('avatarPlaceholder').style.display = 'flex';
+                                    "
+                                />
+                                <div
+                                    id="avatarPlaceholder"
+                                    th:style="${profile.avatarUrl != null ? 'display:none' : null}"
+                                    class="w-full h-full flex items-center justify-center text-blazing_flame"
+                                >
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.4"
+                                        class="w-12 h-12"
+                                        aria-hidden="true"
+                                    >
+                                        <circle cx="12" cy="8" r="3.5" />
+                                        <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
                                     </svg>
                                 </div>
                             </div>
-                            <h2 class="mt-4 text-xl font-bold break-words" th:text="${profile.fullName}">
-                            </h2>
-                            <p class="mt-1 text-sm text-carbon_black-500 break-words" th:text="${profile.email}">
-                            </p>
-                            <span class="inline-block mt-3 text-xs font-semibold text-blazing_flame bg-blazing_flame-50 rounded-full px-3 py-1">Thành viên AureliaBook</span>
-                            <form id="avatarForm" th:action="@{/profile/avatar}" method="post" enctype="multipart/form-data" class="mt-6 pt-5 border-t border-dust_grey/60">
+                            <h2 class="mt-4 text-xl font-bold break-words" th:text="${profile.fullName}"></h2>
+                            <p class="mt-1 text-sm text-carbon_black-500 break-words" th:text="${profile.email}"></p>
+                            <span
+                                class="inline-block mt-3 text-xs font-semibold text-blazing_flame bg-blazing_flame-50 rounded-full px-3 py-1"
+                                >Thành viên AureliaBook</span>
+                            <form
+                                id="avatarForm"
+                                th:action="@{/profile/avatar}"
+                                method="post"
+                                enctype="multipart/form-data"
+                                class="mt-6 pt-5 border-t border-dust_grey/60"
+                            >
                                 <label for="avatar" class="sr-only">Chọn ảnh đại diện mới</label>
-                                <input type="file" id="avatar" name="avatar" accept="image/png,image/jpeg" required class="sr-only">
-                                <button id="chooseAvatar" type="button" class="w-full rounded-xl border border-dust_grey px-4 py-2.5 font-semibold text-sm hover:border-blazing_flame hover:text-blazing_flame transition-colors">Chọn ảnh mới</button>
-                                <p id="avatarFeedback" class="text-sm text-carbon_black-500 mt-3 break-words" aria-live="polite">PNG hoặc JPEG, tối đa 2 MB.</p>
-                                <button id="saveAvatar" type="submit" disabled class="mt-4 w-full rounded-xl bg-blazing_flame text-white font-semibold py-2.5 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blazing_flame-600 transition-colors">Lưu ảnh đại diện</button>
+                                <input
+                                    type="file"
+                                    id="avatar"
+                                    name="avatar"
+                                    accept="image/png,image/jpeg"
+                                    required
+                                    class="sr-only"
+                                />
+                                <button
+                                    id="chooseAvatar"
+                                    type="button"
+                                    class="w-full rounded-xl border border-dust_grey px-4 py-2.5 font-semibold text-sm hover:border-blazing_flame hover:text-blazing_flame transition-colors"
+                                >
+                                    Chọn ảnh mới
+                                </button>
+                                <p
+                                    id="avatarFeedback"
+                                    class="text-sm text-carbon_black-500 mt-3 break-words"
+                                    aria-live="polite"
+                                >
+                                    PNG hoặc JPEG, tối đa 2 MB.
+                                </p>
+                                <button
+                                    id="saveAvatar"
+                                    type="submit"
+                                    disabled
+                                    class="mt-4 w-full rounded-xl bg-blazing_flame text-white font-semibold py-2.5 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blazing_flame-600 transition-colors"
+                                >
+                                    Lưu ảnh đại diện
+                                </button>
                             </form>
                         </div>
                     </div>
                     <nav class="bg-white rounded-2xl border border-dust_grey p-2" aria-label="Tài khoản">
-                        <a th:href="@{/profile}" aria-current="page" class="flex items-center justify-between rounded-xl px-4 py-3 bg-blazing_flame-50 text-blazing_flame font-semibold text-sm">Thông tin cá nhân <span aria-hidden="true">→</span>
+                        <a
+                            th:href="@{/profile}"
+                            aria-current="page"
+                            class="flex items-center justify-between rounded-xl px-4 py-3 bg-blazing_flame-50 text-blazing_flame font-semibold text-sm"
+                            >Thông tin cá nhân <span aria-hidden="true">→</span>
                         </a>
-                        <a th:href="@{/profile/addresses}" class="flex items-center justify-between rounded-xl px-4 py-3 text-carbon_black-600 hover:bg-parchment-100 font-semibold text-sm">Sổ địa chỉ <span aria-hidden="true">→</span>
+                        <a
+                            th:href="@{/profile/addresses}"
+                            class="flex items-center justify-between rounded-xl px-4 py-3 text-carbon_black-600 hover:bg-parchment-100 font-semibold text-sm"
+                            >Sổ địa chỉ <span aria-hidden="true">→</span>
                         </a>
                     </nav>
                 </aside>
@@ -57,128 +136,307 @@
                             <h2 class="text-xl font-bold">Thông tin cá nhân</h2>
                             <p class="mt-1 text-sm text-carbon_black-500">Cập nhật họ tên và giới tính của bạn.</p>
                         </div>
-                        <form th:action="@{/profile}" th:object="${profileForm}" method="post" class="p-6 sm:p-8">
+                        <form
+                            id="profileInfoForm"
+                            th:action="@{/profile}"
+                            th:object="${profileForm}"
+                            method="post"
+                            class="p-6 sm:p-8"
+                        >
                             <div class="grid sm:grid-cols-2 gap-5 sm:gap-6">
                                 <div>
-                                    <label for="fullName" class="block text-sm font-semibold mb-2">Họ và tên <span aria-hidden="true" class="text-blazing_flame">*</span>
+                                    <label for="fullName" class="block text-sm font-semibold mb-2"
+                                        >Họ và tên <span aria-hidden="true" class="text-blazing_flame">*</span>
                                     </label>
-                                    <input id="fullName" th:field="*{fullName}" required minlength="2" maxlength="100" autocomplete="name" class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                                    <input
+                                        id="fullName"
+                                        th:field="*{fullName}"
+                                        required
+                                        minlength="2"
+                                        maxlength="100"
+                                        autocomplete="name"
+                                        class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                    />
                                 </div>
                                 <div>
                                     <label for="gender" class="block text-sm font-semibold mb-2">Giới tính</label>
-                                    <select id="gender" th:field="*{gender}" class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame">
+                                    <select
+                                        id="gender"
+                                        th:field="*{gender}"
+                                        class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                    >
                                         <option value="MALE">Nam</option>
                                         <option value="FEMALE">Nữ</option>
                                         <option value="OTHER">Khác / Không cung cấp</option>
                                     </select>
                                 </div>
                                 <div class="sm:col-span-2">
-                                    <label th:if="${!#strings.isEmpty(profile.email)}" for="email" class="flex justify-between text-sm font-semibold mb-2">Email <a th:href="@{/profile/contact-change(type='EMAIL')}" class="font-normal text-xs text-blazing_flame underline">Xác thực để đổi</a>
+                                    <label
+                                        th:if="${!#strings.isEmpty(profile.email)}"
+                                        for="email"
+                                        class="flex justify-between text-sm font-semibold mb-2"
+                                        >Email
+                                        <a
+                                            th:href="@{/profile/contact-change(type='EMAIL')}"
+                                            class="font-normal text-xs text-blazing_flame underline"
+                                            >Xác thực để đổi</a>
                                     </label>
-                                    <input th:if="${!#strings.isEmpty(profile.email)}" id="email" type="email" th:value="${profile.email}" readonly class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500">
+                                    <input
+                                        th:if="${!#strings.isEmpty(profile.email)}"
+                                        id="email"
+                                        type="email"
+                                        th:value="${profile.email}"
+                                        readonly
+                                        class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500"
+                                    />
                                     <div th:if="${#strings.isEmpty(profile.email)}" class="space-y-2">
                                         <p class="text-sm font-semibold">Email</p>
                                         <p class="text-sm text-carbon_black-500">Chưa cung cấp.</p>
-                                        <a th:href="@{/profile/contact-change(type='EMAIL')}" class="inline-block rounded-xl border border-dust_grey px-4 py-3 text-sm font-semibold text-blazing_flame">Bổ sung email</a>
+                                        <a
+                                            th:href="@{/profile/contact-change(type='EMAIL')}"
+                                            class="inline-block rounded-xl border border-dust_grey px-4 py-3 text-sm font-semibold text-blazing_flame"
+                                            >Bổ sung email</a>
                                     </div>
                                 </div>
                                 <div>
-                                    <label th:if="${!#strings.isEmpty(profile.phone)}" for="phone" class="flex justify-between text-sm font-semibold mb-2">Số điện thoại <a th:href="@{/profile/contact-change(type='PHONE')}" class="font-normal text-xs text-blazing_flame underline">Xác thực để đổi</a>
+                                    <label
+                                        th:if="${!#strings.isEmpty(profile.phone)}"
+                                        for="phone"
+                                        class="flex justify-between text-sm font-semibold mb-2"
+                                        >Số điện thoại
+                                        <a
+                                            th:href="@{/profile/contact-change(type='PHONE')}"
+                                            class="font-normal text-xs text-blazing_flame underline"
+                                            >Xác thực để đổi</a>
                                     </label>
-                                    <input th:if="${!#strings.isEmpty(profile.phone)}" id="phone" th:value="${profile.phone}" readonly class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500" placeholder="Chưa cung cấp">
+                                    <input
+                                        th:if="${!#strings.isEmpty(profile.phone)}"
+                                        id="phone"
+                                        th:value="${profile.phone}"
+                                        readonly
+                                        class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500"
+                                        placeholder="Chưa cung cấp"
+                                    />
                                     <div th:if="${#strings.isEmpty(profile.phone)}" class="space-y-2">
                                         <p class="text-sm font-semibold">Số điện thoại</p>
                                         <p class="text-sm text-carbon_black-500">Chưa cung cấp.</p>
-                                        <a th:href="@{/profile/contact-change(type='PHONE')}" class="inline-block rounded-xl border border-dust_grey px-4 py-3 text-sm font-semibold text-blazing_flame">Bổ sung số điện thoại</a>
+                                        <a
+                                            th:href="@{/profile/contact-change(type='PHONE')}"
+                                            class="inline-block rounded-xl border border-dust_grey px-4 py-3 text-sm font-semibold text-blazing_flame"
+                                            >Bổ sung số điện thoại</a>
                                     </div>
                                 </div>
                                 <div>
-                                    <label for="dob" class="flex justify-between text-sm font-semibold mb-2">Ngày sinh <span th:unless="${profile.canCompleteDob}" class="font-normal text-xs text-carbon_black-400">Đã khóa</span>
+                                    <label for="dob" class="flex justify-between text-sm font-semibold mb-2"
+                                        >Ngày sinh
+                                        <span
+                                            th:unless="${profile.canCompleteDob}"
+                                            class="font-normal text-xs text-carbon_black-400"
+                                            >Đã khóa</span>
                                     </label>
-                                    <input th:if="${profile.canCompleteDob}" id="dob" type="date" th:field="*{dob}" autocomplete="bday" th:max="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}" aria-describedby="dobHint" class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                                    <input th:unless="${profile.canCompleteDob}" id="dob" th:value="${profile.dob == null ? null : #temporals.format(profile.dob, 'dd/MM/yyyy')}" readonly placeholder="Chưa cung cấp" class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500">
-                                    <p th:if="${profile.canCompleteDob}" id="dobHint" class="text-xs text-carbon_black-500 mt-2">Không bắt buộc. Bạn chỉ được bổ sung một lần; ngày sinh sẽ khóa sau khi lưu.</p>
+                                    <input
+                                        th:if="${profile.canCompleteDob}"
+                                        id="dob"
+                                        type="text"
+                                        th:field="*{dob}"
+                                        autocomplete="bday"
+                                        inputmode="numeric"
+                                        placeholder="dd/mm/yyyy"
+                                        pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}"
+                                        maxlength="10"
+                                        data-birthdate
+                                        th:data-max-date="${#temporals.format(#temporals.createToday().minusDays(1), 'yyyy-MM-dd')}"
+                                        aria-describedby="dobHint"
+                                        class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                    />
+                                    <input
+                                        th:unless="${profile.canCompleteDob}"
+                                        id="dob"
+                                        th:value="${profile.dob == null ? null : #temporals.format(profile.dob, 'dd/MM/yyyy')}"
+                                        readonly
+                                        placeholder="Chưa cung cấp"
+                                        class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500"
+                                    />
+                                    <p
+                                        th:if="${profile.canCompleteDob}"
+                                        id="dobHint"
+                                        class="text-xs text-carbon_black-500 mt-2"
+                                    >
+                                        Không bắt buộc. Bạn chỉ được bổ sung một lần; ngày sinh sẽ khóa sau khi lưu.
+                                    </p>
+                                    <p
+                                        th:if="${profile.canCompleteDob and profile.dob != null}"
+                                        class="text-xs text-red-700 mt-2"
+                                    >
+                                        Ngày sinh đã lưu không hợp lệ. Vui lòng nhập lại từ 01/01/1900 và trước hôm nay.
+                                    </p>
                                 </div>
                             </div>
-                            <div class="mt-7 pt-5 border-t border-dust_grey/60 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-                                <p class="text-xs text-carbon_black-500">Đổi email/SĐT cần xác thực lại và OTP tới thông tin mới. Ngày sinh chỉ khóa sau khi đã lưu.</p>
-                                <button class="shrink-0 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors" type="submit">Lưu thay đổi</button>
-                            </div>
-                        </form>
-                    </div>
-                    <div th:if="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey p-6 space-y-3">
-                        <h2 class="font-semibold">Liên kết Google</h2>
-                        <p class="text-sm">Liên kết để đăng nhập Google vào chính tài khoản này. Thêm email liên hệ không tự liên kết Google.</p>
-                        <form th:action="@{/profile/google/link}" method="post" class="space-y-3">
-                            <label for="linkPassword" class="block text-sm font-semibold">Mật khẩu hiện tại</label>
-                            <div class="relative" data-password-field>
-                                <input id="linkPassword" name="password" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl p-3 pr-14">
-                                <button type="button" data-password-toggle aria-controls="linkPassword" aria-label="Hiện mật khẩu hiện tại" aria-pressed="false" class="absolute right-2 top-1/2 -translate-y-1/2 p-2">
-                                    <i class="bi bi-eye" aria-hidden="true">
-                                    </i>
+                            <div
+                                class="mt-7 pt-5 border-t border-dust_grey/60 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between"
+                            >
+                                <p class="text-xs text-carbon_black-500">
+                                    Đổi email/SĐT cần xác thực lại và OTP tới thông tin mới.
+                                </p>
+                                <button
+                                    data-profile-save
+                                    class="shrink-0 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blazing_flame"
+                                    type="submit"
+                                >
+                                    Lưu thay đổi
                                 </button>
                             </div>
-                            <button class="border border-dust_grey rounded-xl p-3 font-semibold">Liên kết Google</button>
                         </form>
                     </div>
-                    <details th:if="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey shadow-soft group">
-                        <summary class="cursor-pointer px-6 sm:px-8 py-5 list-none flex items-center justify-between gap-4">
+                    <details
+                        th:if="${profile.canChangePassword}"
+                        class="bg-white rounded-2xl border border-dust_grey shadow-soft group"
+                    >
+                        <summary
+                            class="cursor-pointer px-6 sm:px-8 py-5 list-none flex items-center justify-between gap-4"
+                        >
                             <span>
                                 <span class="block text-lg font-bold">Đổi mật khẩu</span>
-                                <span class="block mt-1 text-sm text-carbon_black-500">Xác minh mật khẩu hiện tại để đặt mật khẩu mới.</span>
+                                <span class="block mt-1 text-sm text-carbon_black-500"
+                                    >Xác minh mật khẩu hiện tại để đặt mật khẩu mới.</span>
                             </span>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="w-5 h-5 shrink-0 text-carbon_black-400 group-open:rotate-180 transition-transform" aria-hidden="true">
-                                <path d="m6 9 6 6 6-6"/>
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.7"
+                                class="w-5 h-5 shrink-0 text-carbon_black-400 group-open:rotate-180 transition-transform"
+                                aria-hidden="true"
+                            >
+                                <path d="m6 9 6 6 6-6" />
                             </svg>
                         </summary>
-                        <form th:action="@{/profile/password}" method="post" class="px-6 sm:px-8 pb-6 sm:pb-8 border-t border-dust_grey/60">
-                            <p class="text-sm text-carbon_black-500 mt-5 mb-5">Từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Sau khi đổi mật khẩu, bạn cần đăng nhập lại. <a th:href="@{/auth/forgot-password}" class="text-blazing_flame underline">Quên mật khẩu?</a>
+                        <form
+                            data-valid-form
+                            data-password-change
+                            th:action="@{/profile/password}"
+                            method="post"
+                            class="px-6 sm:px-8 pb-6 sm:pb-8 border-t border-dust_grey/60"
+                        >
+                            <p class="text-sm text-carbon_black-500 mt-5 mb-5">
+                                Từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt. Sau khi đổi mật khẩu, bạn cần đăng nhập
+                                lại.
+                                <a th:href="@{/auth/forgot-password}" class="text-blazing_flame underline"
+                                    >Quên mật khẩu?</a>
                             </p>
                             <div class="space-y-4">
                                 <div>
-                                    <label for="currentPassword" class="block text-sm font-semibold mb-2">Mật khẩu hiện tại</label>
+                                    <label for="currentPassword" class="block text-sm font-semibold mb-2"
+                                        >Mật khẩu hiện tại</label>
                                     <div class="relative" data-password-field>
-                                        <input type="password" id="currentPassword" name="currentPassword" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl pl-3 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                                        <button type="button" data-password-toggle data-password-label="mật khẩu hiện tại" aria-controls="currentPassword" aria-label="Hiện mật khẩu hiện tại" aria-pressed="false" title="Hiện mật khẩu hiện tại" class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                                            <i class="bi bi-eye text-lg" aria-hidden="true">
-                                            </i>
+                                        <input
+                                            type="password"
+                                            id="currentPassword"
+                                            name="currentPassword"
+                                            required
+                                            autocomplete="current-password"
+                                            class="w-full border border-dust_grey rounded-xl pl-3 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                        />
+                                        <button
+                                            type="button"
+                                            data-password-toggle
+                                            data-password-label="mật khẩu hiện tại"
+                                            aria-controls="currentPassword"
+                                            aria-label="Hiện mật khẩu hiện tại"
+                                            aria-pressed="false"
+                                            title="Hiện mật khẩu hiện tại"
+                                            class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                        >
+                                            <i class="bi bi-eye text-lg" aria-hidden="true"> </i>
                                         </button>
                                     </div>
                                 </div>
                                 <div class="grid sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label for="newPassword" class="block text-sm font-semibold mb-2">Mật khẩu mới</label>
+                                        <label for="newPassword" class="block text-sm font-semibold mb-2"
+                                            >Mật khẩu mới</label>
                                         <div class="relative" data-password-field>
-                                            <input type="password" id="newPassword" name="newPassword" required minlength="8" autocomplete="new-password" class="w-full border border-dust_grey rounded-xl pl-3 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                                            <button type="button" data-password-toggle data-password-label="mật khẩu mới" aria-controls="newPassword" aria-label="Hiện mật khẩu mới" aria-pressed="false" title="Hiện mật khẩu mới" class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                                                <i class="bi bi-eye text-lg" aria-hidden="true">
-                                                </i>
+                                            <input
+                                                type="password"
+                                                id="newPassword"
+                                                name="newPassword"
+                                                required
+                                                minlength="8"
+                                                autocomplete="new-password"
+                                                class="w-full border border-dust_grey rounded-xl pl-3 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                            />
+                                            <button
+                                                type="button"
+                                                data-password-toggle
+                                                data-password-label="mật khẩu mới"
+                                                aria-controls="newPassword"
+                                                aria-label="Hiện mật khẩu mới"
+                                                aria-pressed="false"
+                                                title="Hiện mật khẩu mới"
+                                                class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                            >
+                                                <i class="bi bi-eye text-lg" aria-hidden="true"> </i>
                                             </button>
                                         </div>
                                     </div>
                                     <div>
-                                        <label for="confirmPassword" class="block text-sm font-semibold mb-2">Xác nhận mật khẩu mới</label>
+                                        <label for="confirmPassword" class="block text-sm font-semibold mb-2"
+                                            >Xác nhận mật khẩu mới</label>
                                         <div class="relative" data-password-field>
-                                            <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password" class="w-full border border-dust_grey rounded-xl pl-3 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                                            <button type="button" data-password-toggle data-password-label="mật khẩu xác nhận" aria-controls="confirmPassword" aria-label="Hiện mật khẩu xác nhận" aria-pressed="false" title="Hiện mật khẩu xác nhận" class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                                                <i class="bi bi-eye text-lg" aria-hidden="true">
-                                                </i>
+                                            <input
+                                                type="password"
+                                                id="confirmPassword"
+                                                name="confirmPassword"
+                                                required
+                                                autocomplete="new-password"
+                                                class="w-full border border-dust_grey rounded-xl pl-3 pr-14 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                            />
+                                            <button
+                                                type="button"
+                                                data-password-toggle
+                                                data-password-label="mật khẩu xác nhận"
+                                                aria-controls="confirmPassword"
+                                                aria-label="Hiện mật khẩu xác nhận"
+                                                aria-pressed="false"
+                                                title="Hiện mật khẩu xác nhận"
+                                                class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 inline-flex items-center justify-center rounded-lg text-carbon_black-500 hover:text-blazing_flame focus:outline-none focus:ring-2 focus:ring-blazing_flame"
+                                            >
+                                                <i class="bi bi-eye text-lg" aria-hidden="true"> </i>
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <button type="submit" class="mt-6 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">Đổi mật khẩu</button>
+                            <p data-form-feedback aria-live="polite" class="text-sm text-carbon_black-500 mt-4">
+                                Hoàn tất các trường bắt buộc để đổi mật khẩu.
+                            </p>
+                            <button
+                                type="submit"
+                                disabled
+                                class="disabled:opacity-40 disabled:cursor-not-allowed mt-6 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+                            >
+                                Đổi mật khẩu
+                            </button>
                         </form>
                     </details>
-                    <div th:unless="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey p-6 sm:p-8">
+                    <div
+                        th:unless="${profile.canChangePassword}"
+                        class="bg-white rounded-2xl border border-dust_grey p-6 sm:p-8"
+                    >
                         <h2 class="font-bold text-lg">Đăng nhập bằng Google</h2>
-                        <p class="mt-2 text-sm text-carbon_black-500">Tài khoản của bạn đang sử dụng Google và chưa có mật khẩu riêng.</p>
+                        <p class="mt-2 text-sm text-carbon_black-500">
+                            Tài khoản của bạn đang sử dụng Google và chưa có mật khẩu riêng.
+                        </p>
+                        <a
+                            th:href="@{/profile/password/setup}"
+                            class="inline-block mt-4 rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold"
+                            >Đặt mật khẩu</a>
                     </div>
                 </div>
             </div>
-            <script th:src="@{/js/profile-avatar.js}" defer>
-            </script>
+            <script th:src="@{/js/profile-avatar.js}" defer></script>
+            <script th:src="@{/js/profile-info.js}" defer></script>
+            <script th:src="@{/js/profile-forms.js}" defer></script>
         </section>
     </body>
 </html>

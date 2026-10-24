@@ -100,6 +100,23 @@ class CartStorefrontTest {
         assertThat(count).isEqualTo(2);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"ADMIN", "MANAGER", "SALE_STAFF", "CUSTOMER"})
+    void mergedNavbarKeepsCustomerLinksScopedAndAccountMenuUnique(String role) throws Exception {
+        String html = mvc.perform(get("/products/1").with(user("member").roles(role)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String header = html.substring(html.indexOf("<header"), html.indexOf("</header>") + 9);
+        boolean customer = "CUSTOMER".equals(role);
+        assertThat(header.contains("href=\"/cart\"")).isEqualTo(customer);
+        assertThat(header.contains("href=\"/profile/addresses\"")).isEqualTo(customer);
+        assertThat(header.contains("href=\"/orders/my-orders\"")).isEqualTo(customer);
+        assertThat(Pattern.compile("id=\"userMenuBtn\"").matcher(header).results().count()).isEqualTo(1L);
+        String capture = System.getProperty("uc08.capture.dir");
+        if (capture != null) {
+            java.nio.file.Files.writeString(java.nio.file.Path.of(capture, "navbar-" + role.toLowerCase() + ".html"), html);
+        }
+    }
+
     private ProductDetailResponse product(int stock) {
         return new ProductDetailResponse(
                 1L, "CART-QA", "Sách kiểm thử", new BigDecimal("25000"),
