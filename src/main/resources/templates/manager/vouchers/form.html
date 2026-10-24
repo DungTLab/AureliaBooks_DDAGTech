@@ -1,83 +1,193 @@
-<!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout(~{::title}, ~{::#content})}">
-<head><title>Tạo mã giảm giá - AureliaBook</title></head>
-<body>
-<div id="content" class="max-w-3xl mx-auto px-4 py-8 sm:py-12">
-    <a th:href="@{/manager/vouchers}" class="text-sm text-blazing_flame hover:underline">← Danh sách mã giảm giá</a>
-    <h1 class="text-3xl font-bold mt-5 mb-2">Tạo mã giảm giá</h1>
-    <p class="text-carbon_black-500 mb-8">Thiết lập ưu đãi tiền hàng hoặc phí vận chuyển cho khách hàng.</p>
-    <form th:action="@{/manager/vouchers}" method="post" th:object="${voucherForm}"
-          data-voucher-form class="bg-white rounded-2xl border border-dust_grey p-5 sm:p-8 space-y-5">
-        <div th:if="${#fields.hasErrors('*')}" role="alert" class="rounded-xl bg-red-50 text-red-700 p-4">
-            <p class="font-semibold mb-2">Vui lòng kiểm tra lại thông tin:</p>
-            <ul class="list-disc pl-5"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::#content})}">
+    <head>
+        <title>Tạo mã giảm giá - AureliaBook</title>
+    </head>
+    <body>
+        <div id="content" class="max-w-3xl mx-auto px-4 py-8 sm:py-12">
+            <a th:href="@{/manager/vouchers}" class="text-sm text-blazing_flame hover:underline"
+                >← Danh sách mã giảm giá</a>
+            <h1 class="text-3xl font-bold mt-5 mb-2">Tạo mã giảm giá</h1>
+            <p class="text-carbon_black-500 mb-8">Thiết lập ưu đãi tiền hàng hoặc phí vận chuyển cho khách hàng.</p>
+            <form
+                th:action="@{/manager/vouchers}"
+                method="post"
+                th:object="${voucherForm}"
+                data-voucher-form
+                data-form-validation
+                class="bg-white rounded-2xl border border-dust_grey p-5 sm:p-8 space-y-5"
+            >
+                <div th:if="${#fields.hasErrors('*')}" role="alert" class="rounded-xl bg-red-50 text-red-700 p-4">
+                    <p class="font-semibold mb-2">Vui lòng kiểm tra lại thông tin:</p>
+                    <ul class="list-disc pl-5">
+                        <li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li>
+                    </ul>
+                </div>
+                <div>
+                    <label for="code" class="block text-sm font-semibold mb-2">Mã giảm giá *</label>
+                    <input
+                        id="code"
+                        th:field="*{code}"
+                        required
+                        maxlength="30"
+                        autocomplete="off"
+                        pattern="[A-Za-z0-9]{1,30}"
+                        class="w-full rounded-xl border border-dust_grey p-3 uppercase"
+                        aria-describedby="codeHelp"
+                    />
+                    <p id="codeHelp" class="text-xs text-carbon_black-500 mt-2">
+                        Chỉ gồm chữ cái không dấu và chữ số, tối đa 30 ký tự. Mã không trùng với mã đã tạo.
+                    </p>
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-semibold mb-2">Mô tả ưu đãi *</label>
+                    <textarea
+                        id="description"
+                        th:field="*{description}"
+                        required
+                        maxlength="255"
+                        rows="3"
+                        class="w-full rounded-xl border border-dust_grey p-3"
+                    ></textarea>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="scope" class="block text-sm font-semibold mb-2">Phạm vi *</label>
+                        <select
+                            id="scope"
+                            th:field="*{scope}"
+                            required
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                        >
+                            <option value="PRODUCT">Giảm tiền hàng</option>
+                            <option value="SHIPPING">Giảm phí vận chuyển</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="type" class="block text-sm font-semibold mb-2">Loại giảm giá *</label>
+                        <select
+                            id="type"
+                            th:field="*{type}"
+                            data-voucher-type
+                            required
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                        >
+                            <option value="PERCENTAGE">Theo phần trăm (%)</option>
+                            <option value="FIXED_AMOUNT">Số tiền cố định</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-5">
+                    <div data-percentage-field>
+                        <label for="discountPercentage" class="block text-sm font-semibold mb-2"
+                            >Phần trăm giảm (%)</label>
+                        <input
+                            id="discountPercentage"
+                            th:field="*{discountPercentage}"
+                            type="number"
+                            min="0.01"
+                            max="100"
+                            step="0.01"
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                        />
+                    </div>
+                    <div data-fixed-field>
+                        <label for="discountAmount" class="block text-sm font-semibold mb-2">Số tiền giảm (đ)</label>
+                        <input
+                            id="discountAmount"
+                            th:field="*{discountAmount}"
+                            type="number"
+                            min="0.01"
+                            max="9999999999.99"
+                            step="0.01"
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                        />
+                    </div>
+                    <div data-cap-field>
+                        <label for="maxDiscountAmount" class="block text-sm font-semibold mb-2"
+                            >Mức giảm tối đa (đ)</label>
+                        <input
+                            id="maxDiscountAmount"
+                            th:field="*{maxDiscountAmount}"
+                            type="number"
+                            min="0.01"
+                            max="9999999999.99"
+                            step="0.01"
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                            aria-describedby="capHelp"
+                        />
+                        <p id="capHelp" class="text-xs text-carbon_black-500 mt-2">
+                            Bắt buộc khi giảm theo phần trăm.
+                        </p>
+                    </div>
+                    <div>
+                        <label for="minOrderValue" class="block text-sm font-semibold mb-2"
+                            >Giá trị tiền hàng tối thiểu (đ) *</label>
+                        <input
+                            id="minOrderValue"
+                            th:field="*{minOrderValue}"
+                            required
+                            type="number"
+                            min="0"
+                            max="9999999999.99"
+                            step="0.01"
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                        />
+                        <p class="text-xs text-carbon_black-500 mt-2">Không gồm phí vận chuyển.</p>
+                    </div>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="startDate" class="block text-sm font-semibold mb-2">Bắt đầu *</label>
+                        <input
+                            id="startDate"
+                            th:field="*{startDate}"
+                            required
+                            type="datetime-local"
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                        />
+                    </div>
+                    <div>
+                        <label for="endDate" class="block text-sm font-semibold mb-2">Kết thúc *</label>
+                        <input
+                            id="endDate"
+                            th:field="*{endDate}"
+                            required
+                            type="datetime-local"
+                            class="w-full rounded-xl border border-dust_grey p-3"
+                        />
+                    </div>
+                </div>
+                <p class="text-xs text-carbon_black-500">
+                    Thời gian theo giờ Việt Nam. Mã ngừng áp dụng tại thời điểm kết thúc.
+                </p>
+                <div>
+                    <label for="usageLimit" class="block text-sm font-semibold mb-2">Số lượt sử dụng ban đầu *</label>
+                    <input
+                        id="usageLimit"
+                        th:field="*{usageLimit}"
+                        required
+                        type="number"
+                        min="1"
+                        max="2147483647"
+                        class="w-full rounded-xl border border-dust_grey p-3"
+                    />
+                </div>
+                <p data-form-feedback role="status" aria-live="polite" class="text-sm text-carbon_black-500">
+                    Hoàn tất các trường bắt buộc để tạo mã giảm giá.
+                </p>
+                <div class="border-t border-dust_grey pt-5 flex flex-col sm:flex-row gap-3">
+                    <button
+                        type="submit"
+                        class="rounded-xl bg-blazing_flame hover:bg-blazing_flame-600 text-white px-6 py-3 font-semibold"
+                    >
+                        Tạo mã giảm giá
+                    </button>
+                    <a th:href="@{/manager/vouchers}" class="rounded-xl border border-dust_grey px-6 py-3 text-center"
+                        >Hủy</a>
+                </div>
+            </form>
+            <script th:src="@{/js/voucher-form.js}" defer></script>
         </div>
-        <div>
-            <label for="code" class="block text-sm font-semibold mb-2">Mã giảm giá *</label>
-            <input id="code" th:field="*{code}" required maxlength="30" autocomplete="off" pattern="[A-Za-z0-9]{1,30}"
-                   class="w-full rounded-xl border border-dust_grey p-3 uppercase" aria-describedby="codeHelp">
-            <p id="codeHelp" class="text-xs text-carbon_black-500 mt-2">Chỉ gồm chữ cái không dấu và chữ số, tối đa 30 ký tự. Mã không trùng với mã đã tạo.</p>
-        </div>
-        <div>
-            <label for="description" class="block text-sm font-semibold mb-2">Mô tả ưu đãi *</label>
-            <textarea id="description" th:field="*{description}" required maxlength="255" rows="3" class="w-full rounded-xl border border-dust_grey p-3"></textarea>
-        </div>
-        <div class="grid sm:grid-cols-2 gap-5">
-            <div>
-                <label for="scope" class="block text-sm font-semibold mb-2">Phạm vi *</label>
-                <select id="scope" th:field="*{scope}" required class="w-full rounded-xl border border-dust_grey p-3">
-                    <option value="PRODUCT">Giảm tiền hàng</option><option value="SHIPPING">Giảm phí vận chuyển</option>
-                </select>
-            </div>
-            <div>
-                <label for="type" class="block text-sm font-semibold mb-2">Loại giảm giá *</label>
-                <select id="type" th:field="*{type}" data-voucher-type required class="w-full rounded-xl border border-dust_grey p-3">
-                    <option value="PERCENTAGE">Theo phần trăm (%)</option><option value="FIXED_AMOUNT">Số tiền cố định</option>
-                </select>
-            </div>
-        </div>
-        <div class="grid sm:grid-cols-2 gap-5">
-            <div data-percentage-field>
-                <label for="discountPercentage" class="block text-sm font-semibold mb-2">Phần trăm giảm (%)</label>
-                <input id="discountPercentage" th:field="*{discountPercentage}" type="number" min="0.01" max="100" step="0.01" class="w-full rounded-xl border border-dust_grey p-3">
-            </div>
-            <div data-fixed-field>
-                <label for="discountAmount" class="block text-sm font-semibold mb-2">Số tiền giảm (đ)</label>
-                <input id="discountAmount" th:field="*{discountAmount}" type="number" min="0.01" max="9999999999.99" step="0.01" class="w-full rounded-xl border border-dust_grey p-3">
-            </div>
-            <div>
-                <label for="maxDiscountAmount" class="block text-sm font-semibold mb-2">Mức giảm tối đa (đ)</label>
-                <input id="maxDiscountAmount" th:field="*{maxDiscountAmount}" type="number" min="0.01" max="9999999999.99" step="0.01" class="w-full rounded-xl border border-dust_grey p-3" aria-describedby="capHelp">
-                <p id="capHelp" class="text-xs text-carbon_black-500 mt-2">Bắt buộc với giảm phần trăm; có thể để trống với số tiền cố định.</p>
-            </div>
-            <div>
-                <label for="minOrderValue" class="block text-sm font-semibold mb-2">Giá trị tiền hàng tối thiểu (đ) *</label>
-                <input id="minOrderValue" th:field="*{minOrderValue}" required type="number" min="0" max="9999999999.99" step="0.01" class="w-full rounded-xl border border-dust_grey p-3">
-                <p class="text-xs text-carbon_black-500 mt-2">Không gồm phí vận chuyển.</p>
-            </div>
-        </div>
-        <div class="grid sm:grid-cols-2 gap-5">
-            <div>
-                <label for="startDate" class="block text-sm font-semibold mb-2">Bắt đầu *</label>
-                <input id="startDate" th:field="*{startDate}" required type="datetime-local" class="w-full rounded-xl border border-dust_grey p-3">
-            </div>
-            <div>
-                <label for="endDate" class="block text-sm font-semibold mb-2">Kết thúc *</label>
-                <input id="endDate" th:field="*{endDate}" required type="datetime-local" class="w-full rounded-xl border border-dust_grey p-3">
-            </div>
-        </div>
-        <p class="text-xs text-carbon_black-500">Thời gian theo giờ Việt Nam. Mã ngừng áp dụng tại thời điểm kết thúc.</p>
-        <div>
-            <label for="usageLimit" class="block text-sm font-semibold mb-2">Số lượt sử dụng ban đầu *</label>
-            <input id="usageLimit" th:field="*{usageLimit}" required type="number" min="1" max="2147483647" class="w-full rounded-xl border border-dust_grey p-3">
-        </div>
-        <div class="border-t border-dust_grey pt-5 flex flex-col sm:flex-row gap-3">
-            <button type="submit" class="rounded-xl bg-blazing_flame hover:bg-blazing_flame-600 text-white px-6 py-3 font-semibold">Tạo mã giảm giá</button>
-            <a th:href="@{/manager/vouchers}" class="rounded-xl border border-dust_grey px-6 py-3 text-center">Hủy</a>
-        </div>
-    </form>
-    <script th:src="@{/js/voucher-form.js}" defer></script>
-</div>
-</body>
+    </body>
 </html>

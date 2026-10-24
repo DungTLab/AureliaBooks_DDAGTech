@@ -1,21 +1,60 @@
-<!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org"><body>
-<section th:fragment="voucher" class="mt-5 space-y-3" aria-labelledby="voucher-heading">
-    <h3 id="voucher-heading" class="font-semibold">Mã giảm giá</h3>
-    <form id="voucherPreview" th:action="@{/checkout}" method="get" class="space-y-3">
-        <input type="hidden" name="shippingAddressId" th:value="${checkout.selectedAddressId}">
-        <input type="hidden" name="paymentMethod" th:value="${selectedPaymentMethod}">
-        <label for="checkoutVoucherCode" class="block text-sm">Nhập mã khuyến mãi</label>
-        <input id="checkoutVoucherCode" name="voucherCode" maxlength="30" autocomplete="off"
-               th:value="${voucherCode}" class="w-full min-w-0 rounded-xl border border-dust_grey px-3 py-2 uppercase">
-        <button type="submit" class="checkout-button is-secondary" th:disabled="${checkout.selectedAddressId == null}">Áp dụng</button>
-    </form>
-    <p th:if="${appliedVoucherCode != null and !appliedVoucherCode.isEmpty()}" role="status" class="text-sm text-green-800"
-       th:text="${'Đã áp dụng ' + appliedVoucherCode + '. Ưu đãi được kiểm tra lại khi đặt hàng.'}"></p>
-    <p th:if="${checkout.shippingDiscount != null and checkout.shippingDiscount.signum() > 0}" class="text-sm text-green-800"
-       th:text="${'Phí giao hàng đã giảm ' + #numbers.formatDecimal(checkout.shippingDiscount, 0, 'POINT', 0, 'COMMA') + ' đ.'}"></p>
-    <a th:if="${appliedVoucherCode != null and !appliedVoucherCode.isEmpty()}"
-       th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${selectedPaymentMethod})}" class="checkout-text-link">Bỏ mã</a>
-    <p class="checkout-help">Mỗi đơn dùng một mã. Lượt sử dụng chỉ được ghi nhận khi đặt hàng thành công.</p>
-    <script th:src="@{/js/checkout-voucher.js}" defer></script>
-</section></body></html>
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+    <body>
+        <section th:fragment="voucher" class="mt-5 space-y-3" aria-labelledby="voucher-heading">
+            <h3 id="voucher-heading" class="font-semibold">Mã giảm giá</h3>
+            <form
+                id="voucherPreview"
+                th:action="@{/checkout}"
+                method="get"
+                data-form-validation
+                data-required-values="shippingAddressId"
+                th:data-server-blocked="${checkout.selectedAddressId == null}"
+                class="space-y-3"
+            >
+                <input type="hidden" name="shippingAddressId" th:value="${checkout.selectedAddressId}" />
+                <input type="hidden" name="paymentMethod" th:value="${selectedPaymentMethod}" />
+                <label for="checkoutVoucherCode" class="block text-sm">Nhập mã khuyến mãi</label>
+                <input
+                    id="checkoutVoucherCode"
+                    name="voucherCode"
+                    required
+                    pattern="[A-Za-z0-9]{1,30}"
+                    maxlength="30"
+                    autocomplete="off"
+                    aria-describedby="checkoutVoucherHelp"
+                    th:value="${voucherCode}"
+                    class="w-full min-w-0 rounded-xl border border-dust_grey px-3 py-2 uppercase"
+                />
+                <button
+                    type="submit"
+                    class="checkout-button is-secondary"
+                    th:disabled="${checkout.selectedAddressId == null}"
+                >
+                    Áp dụng
+                </button>
+            </form>
+            <p id="checkoutVoucherHelp" class="checkout-help">
+                Nhập mã gồm tối đa 30 chữ cái không dấu hoặc chữ số để áp dụng.
+            </p>
+            <p
+                th:if="${appliedVoucherCode != null and !appliedVoucherCode.isEmpty()}"
+                role="status"
+                class="text-sm text-green-800"
+                th:text="${'Đã áp dụng ' + appliedVoucherCode + '. Ưu đãi được kiểm tra lại khi đặt hàng.'}"
+            ></p>
+            <p
+                th:if="${checkout.shippingDiscount != null and checkout.shippingDiscount.signum() > 0}"
+                class="text-sm text-green-800"
+                th:text="${'Phí giao hàng đã giảm ' + #numbers.formatDecimal(checkout.shippingDiscount, 0, 'POINT', 0, 'COMMA') + ' đ.'}"
+            ></p>
+            <a
+                th:if="${appliedVoucherCode != null and !appliedVoucherCode.isEmpty()}"
+                th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${selectedPaymentMethod})}"
+                class="checkout-text-link"
+                >Bỏ mã</a>
+            <p class="checkout-help">Mỗi đơn dùng một mã. Lượt sử dụng chỉ được ghi nhận khi đặt hàng thành công.</p>
+            <script th:src="@{/js/checkout-voucher.js}" defer></script>
+        </section>
+    </body>
+</html>
