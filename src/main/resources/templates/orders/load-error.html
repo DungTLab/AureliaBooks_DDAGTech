@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Không thể tải đơn hàng', ~{::#main-content})}">
+<head><title>Không thể tải đơn hàng</title></head><body><section id="main-content" class="checkout-page">
+<link rel="stylesheet" th:href="@{/css/checkout.css}"><h1>Không thể tải đơn hàng</h1><p role="alert" th:text="${errorMessage}"></p><a th:href="@{/orders/my-orders}">Về lịch sử đơn hàng</a>
+</section></body></html>

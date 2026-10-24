@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Chi tiết đơn hàng', ~{::#main-content})}">
+<head><title>Chi tiết đơn hàng</title></head><body>
+<section id="main-content" class="checkout-page" th:with="order=${detail.order}">
+    <link rel="stylesheet" th:href="@{/css/checkout.css}"><link rel="stylesheet" th:href="@{/css/orders.css}">
+    <a th:href="@{/orders/my-orders}" class="checkout-back-link">← Lịch sử đơn hàng</a>
+    <h1>Chi tiết đơn hàng</h1><p class="checkout-order-code" th:text="${order.orderCode}"></p>
+    <p th:if="${errorMessage != null}" class="checkout-notice is-error" role="alert" th:text="${errorMessage}"></p>
+    <p th:if="${successMessage != null}" class="checkout-notice" role="status" th:text="${successMessage}"></p>
+    <div class="checkout-grid"><div class="checkout-main">
+        <section class="checkout-card"><h2>Theo dõi đơn hàng</h2><p th:text="${order.orderStatusLabel()}"></p>
+            <p th:if="${detail.trackingNumber != null}">Mã vận đơn: <strong th:text="${detail.trackingNumber}"></strong></p>
+            <ol class="order-timeline"><li th:each="step : ${detail.timeline}" th:classappend="${step.occurredAt != null} ? 'is-complete'" th:attr="aria-current=${step.current ? 'step' : null}">
+                <strong th:text="${step.label}"></strong><time th:if="${step.occurredAt != null}" th:text="${#temporals.format(step.occurredAt, 'dd/MM/yyyy HH:mm')}"></time><span th:unless="${step.occurredAt != null}">Chưa ghi nhận thời gian</span>
+            </li></ol>
+            <p th:if="${detail.cancelReason != null}">Lý do hủy: <span th:text="${detail.cancelReason}"></span></p>
+        </section>
+        <section class="checkout-card"><h2>Thông tin nhận hàng</h2><strong th:text="${order.recipientName}"></strong><p th:text="${order.phone}"></p><p th:text="${order.fullAddress}"></p></section>
+        <section class="checkout-card"><h2>Sản phẩm trong đơn</h2><div th:replace="~{checkout/fragments :: items(${order.items})}"></div></section>
+    </div><aside class="checkout-main">
+        <section class="checkout-card"><h2>Thanh toán</h2><p th:text="${order.paymentMethod.name() == 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'VNPay'}"></p><p th:text="${order.paymentStatusLabel()}"></p><div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.discount}, ${order.shippingFee}, ${order.finalTotalAmount})}"></div><a th:href="@{/orders/{code}(code=${order.orderCode})}" class="checkout-back-link">Xem / in xác nhận đơn</a></section>
+        <section class="checkout-card"><h2>Hủy đơn hàng</h2><p class="checkout-help">Bạn có thể hủy đơn trước khi bàn giao vận chuyển.</p>
+            <p th:if="${detail.cancellationNotice != null}" class="checkout-notice" th:text="${detail.cancellationNotice}"></p>
+            <form th:if="${detail.canCancel}" th:action="@{/orders/my-orders/{code}/cancel(code=${order.orderCode})}" method="post">
+                <label for="cancel-reason">Lý do hủy</label><textarea class="order-cancel-reason" id="cancel-reason" name="reason" required maxlength="255" rows="3"></textarea>
+                <button class="checkout-button is-secondary" type="submit">Xác nhận hủy đơn</button>
+            </form><p th:unless="${detail.canCancel}" class="checkout-muted">Đơn hàng hiện không thể tự hủy.</p>
+        </section>
+    </aside></div>
+</section></body></html>

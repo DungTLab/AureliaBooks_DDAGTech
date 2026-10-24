@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout(~{::title}, ~{::#content})}">
+    <head>
+        <title>Quản lý mã giảm giá - AureliaBook</title>
+    </head>
+    <body>
+        <div id="content" class="max-w-7xl mx-auto px-4 py-8 sm:py-12">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div>
+                    <p class="text-blazing_flame font-semibold text-sm mb-2">Quản lý khuyến mãi</p>
+                    <h1 class="text-3xl font-bold text-carbon_black">Mã giảm giá</h1>
+                    <p class="text-carbon_black-500 mt-2">Theo dõi ưu đãi và lượt sử dụng còn lại của từng mã.</p>
+                </div>
+                <a
+                    th:href="@{/manager/vouchers/new}"
+                    class="inline-flex justify-center px-5 py-3 bg-blazing_flame text-white font-semibold rounded-xl hover:bg-blazing_flame-600"
+                    >Tạo mã giảm giá</a>
+            </div>
+            <form
+                th:action="@{/manager/vouchers}"
+                method="get"
+                data-form-validation
+                class="bg-white border border-dust_grey rounded-2xl p-5 mb-6 grid sm:grid-cols-3 gap-4 items-end"
+            >
+                <div>
+                    <label for="voucherKeyword" class="block text-sm font-semibold mb-2">Tìm theo mã</label>
+                    <input
+                        id="voucherKeyword"
+                        name="keyword"
+                        th:value="${keyword}"
+                        maxlength="30"
+                        placeholder="Nhập mã giảm giá"
+                        class="w-full rounded-xl border border-dust_grey p-3"
+                    />
+                </div>
+                <div>
+                    <label for="voucherActive" class="block text-sm font-semibold mb-2">Trạng thái bật/tắt</label>
+                    <select id="voucherActive" name="active" class="w-full rounded-xl border border-dust_grey p-3">
+                        <option value="">Tất cả</option>
+                        <option value="true" th:selected="${active == true}">Đã bật</option>
+                        <option value="false" th:selected="${active == false}">Đã tắt</option>
+                    </select>
+                </div>
+                <button type="submit" class="rounded-xl bg-carbon_black text-white p-3 font-semibold">
+                    Lọc mã giảm giá
+                </button>
+            </form>
+            <div class="bg-white border border-dust_grey rounded-2xl overflow-hidden">
+                <div th:if="${vouchers.empty}" class="p-10 text-center text-carbon_black-500">
+                    Chưa có mã giảm giá phù hợp.
+                </div>
+                <div th:unless="${vouchers.empty}" class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-parchment-100 text-carbon_black-600">
+                            <tr>
+                                <th scope="col" class="p-4">Mã / Ưu đãi</th>
+                                <th scope="col" class="p-4">Điều kiện</th>
+                                <th scope="col" class="p-4">Thời gian áp dụng</th>
+                                <th scope="col" class="p-4">Lượt sử dụng</th>
+                                <th scope="col" class="p-4">Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-dust_grey">
+                            <tr th:each="v : ${vouchers.content}">
+                                <td class="p-4 min-w-[190px]">
+                                    <p class="font-bold text-blazing_flame" th:text="${v.code}"></p>
+                                    <p th:text="${v.description}" class="my-2 text-carbon_black"></p>
+                                    <span
+                                        th:if="${v.type.name() == 'PERCENTAGE'}"
+                                        th:text="${#numbers.formatDecimal(v.discountPercentage, 0, 'POINT', 2, 'COMMA')} + '%'"
+                                    ></span>
+                                    <span
+                                        th:unless="${v.type.name() == 'PERCENTAGE'}"
+                                        th:text="${#numbers.formatDecimal(v.discountAmount, 0, 'POINT', 2, 'COMMA')} + ' đ'"
+                                    ></span>
+                                    <p
+                                        class="text-xs text-carbon_black-500"
+                                        th:text="${v.scope.name() == 'PRODUCT' ? 'Giảm tiền hàng' : 'Giảm phí vận chuyển'}"
+                                    ></p>
+                                </td>
+                                <td class="p-4 min-w-[180px]">
+                                    <p
+                                        th:text="'Đơn từ ' + ${#numbers.formatDecimal(v.minOrderValue, 0, 'POINT', 2, 'COMMA')} + ' đ'"
+                                    ></p>
+                                    <p
+                                        th:if="${v.maxDiscountAmount != null}"
+                                        th:text="'Giảm tối đa ' + ${#numbers.formatDecimal(v.maxDiscountAmount, 0, 'POINT', 2, 'COMMA')} + ' đ'"
+                                    ></p>
+                                </td>
+                                <td class="p-4 whitespace-nowrap text-carbon_black-500">
+                                    <p th:text="${#temporals.format(v.startDate, 'dd/MM/yyyy HH:mm')}"></p>
+                                    <p th:text="'đến ' + ${#temporals.format(v.endDate, 'dd/MM/yyyy HH:mm')}"></p>
+                                </td>
+                                <td class="p-4 whitespace-nowrap">
+                                    <p><strong th:text="${v.remainingUses}"></strong> lượt còn lại</p>
+                                    <p
+                                        class="text-xs text-carbon_black-500"
+                                        th:text="${v.redemptions} + ' lượt đang ghi nhận'"
+                                    ></p>
+                                </td>
+                                <td class="p-4 min-w-[125px]">
+                                    <p class="mb-3 font-medium" th:text="${v.active ? 'Đã bật' : 'Đã tắt'}"></p>
+                                    <form
+                                        th:action="@{/manager/vouchers/{id}/status(id=${v.id})}"
+                                        method="post"
+                                        data-form-validation
+                                    >
+                                        <input type="hidden" name="active" th:value="${!v.active}" />
+                                        <button
+                                            type="submit"
+                                            class="rounded-lg border border-dust_grey px-4 py-2 hover:bg-parchment-100"
+                                            th:aria-label="${(v.active ? 'Tắt mã ' : 'Bật mã ') + v.code}"
+                                            th:text="${v.active ? 'Tắt mã' : 'Bật mã'}"
+                                        ></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <nav
+                th:if="${vouchers.totalPages > 1}"
+                aria-label="Phân trang mã giảm giá"
+                class="flex justify-between items-center mt-6 gap-4"
+            >
+                <a
+                    th:if="${vouchers.hasPrevious()}"
+                    th:href="@{/manager/vouchers(page=${vouchers.number - 1},keyword=${keyword},active=${active})}"
+                    class="rounded-lg bg-white border border-dust_grey px-4 py-2"
+                    >Trang trước</a>
+                <span th:text="'Trang ' + ${vouchers.number + 1} + ' / ' + ${vouchers.totalPages}"></span>
+                <a
+                    th:if="${vouchers.hasNext()}"
+                    th:href="@{/manager/vouchers(page=${vouchers.number + 1},keyword=${keyword},active=${active})}"
+                    class="rounded-lg bg-white border border-dust_grey px-4 py-2"
+                    >Trang sau</a>
+            </nav>
+        </div>
+    </body>
+</html>

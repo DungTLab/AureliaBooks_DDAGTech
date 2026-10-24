@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Không thể xử lý đơn', ~{::#main-content})}">
+<head><title>Không thể xử lý đơn</title></head><body><section id="main-content" class="checkout-page">
+    <link rel="stylesheet" th:href="@{/css/checkout.css}"><div class="checkout-card"><h1>Không thể xử lý đơn</h1><p role="alert" th:text="${errorMessage}"></p><a th:href="@{/staff/orders}" class="checkout-back-link">Về hàng đợi để tải lại đơn hàng</a></div>
+</section></body></html>

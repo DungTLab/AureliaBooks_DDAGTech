@@ -1,0 +1,45 @@
+.staff-orders-page { max-width:1440px; }
+.staff-order-filters { display:flex; flex-wrap:wrap; align-items:end; gap:16px; margin:24px 0; }
+.staff-order-filters label { flex:1 1 170px; }
+.staff-order-filters select,.staff-order-filters input,.staff-transition-form input:not([type=hidden]) { display:block; width:100%; min-height:42px; border:1px solid #d6cfc3; border-radius:8px; padding:8px 10px; background:white; margin-top:6px; }
+.staff-filter-actions,.staff-detail-actions { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.staff-order-table-wrap { overflow-x:auto; }
+.staff-order-table,.staff-checklist-table { border-collapse:collapse; width:100%; text-align:left; }
+.staff-order-table { min-width:1000px; table-layout:fixed; }
+.staff-order-table th:first-child { width:28%; }
+.staff-order-table th:nth-child(2) { width:15%; }
+.staff-order-table th:nth-child(3) { width:16%; }
+.staff-order-table th:nth-child(4) { width:14%; }
+.staff-order-table th:nth-child(5) { width:13%; }
+.staff-order-table th:nth-child(6) { width:14%; }
+.staff-order-table td,.staff-order-table th,.staff-checklist-table td,.staff-checklist-table th { padding:16px 12px; border-bottom:1px solid #e7e1d6; vertical-align:middle; }
+.staff-order-table th,.staff-checklist-table th { font-size:13px; color:#6b6257; background:#faf8f4; }
+.staff-order-table time,.staff-payment-label,.staff-checklist-table small { display:block; font-size:12px; color:#71695f; margin-top:5px; }
+.staff-order-table .order-status-badge { display:inline-block; }
+.staff-money { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.staff-order-table .checkout-button { padding:10px; white-space:nowrap; }
+.staff-transition-form { margin-top:20px; }
+.staff-refund-form { display:grid; gap:14px; margin-top:16px; }
+.staff-refund-form input:not([type=checkbox]), .staff-refund-form textarea { display:block; width:100%; padding:10px; border:1px solid #d6cfc3; border-radius:8px; margin-top:6px; }
+.staff-confirm-check { display:flex; align-items:start; gap:10px; margin-top:14px; font-size:14px; }
+.staff-transition-form input[type=checkbox],.staff-refund-form input[type=checkbox] { width:18px; height:18px; min-height:0; flex:none; margin-top:3px; }
+.staff-refund-needed { color:#a32f13; display:block; margin-top:6px; }
+.staff-order-history { padding-left:20px; margin-top:14px; }
+.staff-order-history li { margin-bottom:16px; }
+.staff-order-history time { display:block; color:#71695f; font-size:12px; }
+.staff-transition-form button { margin-top:12px; }
+.staff-cancel-panel { border-top:1px solid #e7e1d6; margin-top:24px; padding-top:16px; }
+.staff-cancel-panel summary { cursor:pointer; color:#a32f13; font-weight:600; }
+.staff-pack-checkbox { width:20px; height:20px; accent-color:#d94a26; }
+.staff-pack-quantity { font-weight:700; text-align:center; }
+.staff-print-signature { margin-top:32px; font-size:13px; }
+@media(max-width:600px) { .staff-detail-actions { align-items:start; flex-direction:column; } }
+@media print {
+    body:has(.staff-packaging) header,body:has(.staff-packaging) footer,body:has(.staff-packaging) #toastContainer,.staff-packaging .staff-screen-only { display:none!important; }
+    .staff-packaging { max-width:none; padding:0; color:#000; }
+    .staff-packaging .checkout-grid { display:block; }
+    .staff-packaging .checkout-card { box-shadow:none; border:1px solid #aaa; margin:12px 0; break-inside:avoid; }
+    .staff-packaging .staff-order-table-wrap { overflow:visible; }
+    .staff-packaging table { font-size:12px; }
+    .staff-packaging tr { break-inside:avoid; }
+}

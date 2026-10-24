@@ -49,6 +49,8 @@ class OrderPlacementServiceTest {
     @Mock ShippingAddressRepository addresses;
     @Mock EntityManager entities;
     @Mock AuditLogService audit;
+    @Mock VoucherService vouchers;
+    @Mock OrderVoucherRepository orderVouchers;
 
     private OrderPlacementService service;
     private User owner;
@@ -66,7 +68,7 @@ class OrderPlacementServiceTest {
     @BeforeEach void setUp() {
         service = new OrderPlacementServiceImpl(cartService, addressService, validation.getValidator(),
                 users, orders, carts, stockMutations, addresses, entities, cartMapper, addressMapper,
-                new OrderMapper(), audit, new ObjectMapper());
+                new OrderMapper(), audit, new ObjectMapper(), vouchers, orderVouchers);
         owner = User.builder().id(1L).role(Role.builder().roleName("ROLE_CUSTOMER").build())
                 .fullName("Khách hàng").phone("0912345678").phoneVerified(true).build();
         address = new ShippingAddress();
@@ -223,10 +225,10 @@ class OrderPlacementServiceTest {
         verifyNoInteractions(stockMutations);
     }
 
-    @Test void rejectsVoucherWithoutImplementingVoucherLogic() {
+    @Test void rejectsUnreviewedVoucherSelection() {
         request.setVoucherCode("SALE10");
-        assertError(ErrorCode.INVALID_INPUT_DATA, null);
-        verifyNoInteractions(users, orders, stockMutations);
+        assertError(ErrorCode.CHECKOUT_CHANGED, null);
+        verifyNoInteractions(stockMutations, vouchers);
     }
 
     @Test void rejectsForeignAddressAndMismatchedConfirmation() {

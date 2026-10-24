@@ -10,7 +10,6 @@
     <body>
         <section id="main-content" class="checkout-page">
             <link rel="stylesheet" th:href="@{/css/checkout.css}" />
-            <script th:src="@{/js/profile-forms.js}" defer></script>
             <script th:src="@{/js/checkout.js}" defer></script>
             <nav class="checkout-breadcrumb" aria-label="Đường dẫn">
                 <a th:href="@{/}">Trang chủ</a><span>/</span><a th:href="@{/cart}">Giỏ hàng</a><span>/</span><span aria-current="page">Thanh toán</span>
@@ -38,7 +37,16 @@
             </div>
 
             <!-- External radio inputs and buttons use form="checkoutSelection"; Thymeleaf adds CSRF protection to the POST form. -->
-            <form id="checkoutSelection" th:action="@{/checkout/review}" method="post" data-checkout-submit></form>
+            <form
+                id="checkoutSelection"
+                th:action="@{/checkout/review}"
+                method="post"
+                data-checkout-submit
+                data-required-values="shippingAddressId paymentMethod"
+                th:data-server-blocked="${!itemsReady}"
+            >
+                <input type="hidden" name="voucherCode" th:value="${appliedVoucherCode}" />
+            </form>
             <div class="checkout-grid">
                 <div class="checkout-main">
                     <section class="checkout-card" aria-labelledby="delivery-heading">
@@ -86,7 +94,7 @@
                             </summary>
                             <p class="checkout-help">Địa chỉ mới sẽ được lưu vào sổ địa chỉ của bạn.</p>
                             <form
-                                data-valid-form
+                                data-checkout-submit
                                 th:action="@{/checkout/addresses}"
                                 th:object="${addressForm}"
                                 method="post"
@@ -154,9 +162,11 @@
                                 <p class="checkout-help">Vùng giao hàng được tự động xác định theo tỉnh/thành phố.</p>
                                 <label class="checkout-checkbox"
                                     ><input type="checkbox" th:field="*{isDefault}" /> Đặt làm địa chỉ mặc định</label>
+                                <p data-form-feedback aria-live="polite" class="checkout-help">
+                                    Điền đầy đủ thông tin địa chỉ để tiếp tục.
+                                </p>
                                 <button
                                     type="submit"
-                                    disabled
                                     class="checkout-button is-secondary disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Lưu và chọn địa chỉ này
@@ -217,7 +227,7 @@
                     <div
                         th:replace="~{checkout/fragments :: totals(${checkout.merchandiseSubtotal}, ${checkout.productDiscount}, ${checkout.shippingFee}, ${checkout.finalTotalAmount})}"
                     ></div>
-                    <p class="checkout-help">Mã giảm giá hiện chưa khả dụng.</p>
+                    <div th:replace="~{fragments/voucher :: voucher}"></div>
                     <button
                         type="submit"
                         form="checkoutSelection"
