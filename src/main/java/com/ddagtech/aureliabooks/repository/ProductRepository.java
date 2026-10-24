@@ -187,4 +187,13 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
         WHERE p.isActive = true
     """)
     StockMetricSummary getActiveStockMetrics();
+
+    /**
+     * Retrieves all active products that have a non-null semantic embedding JSON vector
+     * for preloading into the in-memory vector store (CRON-02 / FE-6).
+     *
+     * @return list of active products with embeddings
+     */
+    @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.embedding IS NOT NULL")
+    List<Product> findActiveProductsWithEmbedding();
 }
