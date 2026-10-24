@@ -82,3 +82,4 @@ public record BookForm(
         if (isbn != null) isbn = isbn.strip();
     }
 }
+
