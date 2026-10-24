@@ -37,6 +37,19 @@ class ProfileControllerTest {
         when(addresses.list(7L)).thenReturn(List.of(new AddressView(9L,"Nguyễn An","0912345678",
                 ShippingAddress.EconomicRegion.NORTHERN,"Hà Nội","Ba Đình","Đội Cấn","12 Đội Cấn",true)));
     }
+    @Test void legacyInvalidBirthdayRendersEditableForGoogleAndCanBeCorrected() throws Exception {
+        when(users.viewProfile(7L)).thenReturn(new ProfileView(7L,"an@example.com","Nguyễn An",null,
+                java.time.LocalDate.of(1111,11,11),"OTHER",null,true,false,true));
+        var result = mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("data-birthdate")))
+                .andExpect(content().string(containsString("/profile/password/setup"))).andReturn();
+        String directory=System.getProperty("uc08.capture.dir");
+        if(directory!=null) java.nio.file.Files.writeString(java.nio.file.Path.of(directory,"profile-birthday.html"),result.getResponse().getContentAsString());
+        mvc.perform(post("/profile").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("fullName","Nguyễn An").param("gender","OTHER").param("dob","11/11/1111"))
+                .andExpect(redirectedUrl("/profile")).andExpect(flash().attributeExists("errorMessage"));
+        verify(users,never()).updateProfile(any(),any());
+    }
     @Test void profileAndAddressFormsRenderWithCsrfAndImmutableFields() throws Exception {
         var profile=mvc.perform(get("/profile").with(user("customer").roles("CUSTOMER")))
             .andExpect(status().isOk()).andExpect(content().string(containsString("Thông tin cá nhân")))

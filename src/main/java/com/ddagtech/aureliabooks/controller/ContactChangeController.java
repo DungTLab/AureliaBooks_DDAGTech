@@ -119,7 +119,8 @@ public class ContactChangeController {
             session.setAttribute("CONTACT_REAUTH_OWNER", owner);
             session.setAttribute("CONTACT_REAUTH_TYPE", flow.type());
             session.setAttribute("CONTACT_REAUTH_UNTIL", java.time.Instant.now().plusSeconds(300));
-            return "redirect:/profile/contact-change?type=" + flow.type();
+            return "PASSWORD_SETUP".equals(flow.type()) ? "redirect:/profile/password/setup"
+                    : "redirect:/profile/contact-change?type=" + flow.type();
         }
         if (result.completed()) {
             flash.addFlashAttribute("successMessage", result.message());

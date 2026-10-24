@@ -101,6 +101,7 @@
                                            aria-describedby="dobHint" class="w-full border border-dust_grey rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                                     <input th:unless="${profile.canCompleteDob}" id="dob" th:value="${profile.dob == null ? null : #temporals.format(profile.dob, 'dd/MM/yyyy')}" readonly placeholder="Chưa cung cấp" class="w-full border border-dust_grey rounded-xl px-3 py-3 bg-parchment-100 text-carbon_black-500">
                                     <p th:if="${profile.canCompleteDob}" id="dobHint" class="text-xs text-carbon_black-500 mt-2">Không bắt buộc. Bạn chỉ được bổ sung một lần; ngày sinh sẽ khóa sau khi lưu.</p>
+                                    <p th:if="${profile.canCompleteDob and profile.dob != null}" class="text-xs text-red-700 mt-2">Ngày sinh đã lưu không hợp lệ. Vui lòng nhập lại từ 01/01/1900 và trước hôm nay.</p>
                                 </div>
                             </div>
                             <div class="mt-7 pt-5 border-t border-dust_grey/60 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
@@ -163,6 +164,7 @@
                     <div th:unless="${profile.canChangePassword}" class="bg-white rounded-2xl border border-dust_grey p-6 sm:p-8">
                         <h2 class="font-bold text-lg">Đăng nhập bằng Google</h2>
                         <p class="mt-2 text-sm text-carbon_black-500">Tài khoản của bạn đang sử dụng Google và chưa có mật khẩu riêng.</p>
+                        <a th:href="@{/profile/password/setup}" class="inline-block mt-4 rounded-xl bg-blazing_flame text-white px-5 py-3 font-semibold">Đặt mật khẩu</a>
                     </div>
                 </div>
             </div>

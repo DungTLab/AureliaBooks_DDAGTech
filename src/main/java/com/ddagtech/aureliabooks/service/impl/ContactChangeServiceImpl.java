@@ -53,7 +53,7 @@ public class ContactChangeServiceImpl implements ContactChangeService {
     @Override
     public Result startReauthentication(Long owner, String session, String type, String channel, String ip) {
         synchronized (lock(owner)) {
-            if (type == null || channel == null || !Set.of("EMAIL", "PHONE").contains(type) || !Set.of("EMAIL", "SMS").contains(channel)
+            if (type == null || channel == null || !Set.of("EMAIL", "PHONE", "PASSWORD_SETUP").contains(type) || !Set.of("EMAIL", "SMS").contains(channel)
                     || !reauthenticationMethods(owner).contains(channel)) {
                 return fail("Phương thức xác minh không khả dụng.");
             }

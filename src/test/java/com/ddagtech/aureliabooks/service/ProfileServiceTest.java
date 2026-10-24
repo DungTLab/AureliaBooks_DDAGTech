@@ -37,6 +37,35 @@ class ProfileServiceTest {
         assertThrows(AppException.class,()->service.updateProfile(1L,new ProfileUpdateRequest("Nguyễn An",null,LocalDate.of(2006,1,1),User.Gender.MALE)));
         assertEquals("0912345678",user.getPhone());
     }
+    @Test void invalidLegacyBirthdayCanBeCorrectedOnceAndThenLocks() {
+        user.setDob(LocalDate.of(1111, 11, 11));
+        when(users.findById(1L)).thenReturn(Optional.of(user));
+        assertTrue(service.viewProfile(1L).canCompleteDob());
+        assertThrows(AppException.class, () -> service.updateProfile(1L,
+                new ProfileUpdateRequest("Nguyễn An", null, LocalDate.of(1112, 1, 1), User.Gender.MALE)));
+        service.updateProfile(1L, new ProfileUpdateRequest("Nguyễn An", null, LocalDate.of(2000, 2, 29), User.Gender.MALE));
+        assertFalse(service.viewProfile(1L).canCompleteDob());
+        assertThrows(AppException.class, () -> service.updateProfile(1L,
+                new ProfileUpdateRequest("Nguyễn An", null, LocalDate.of(2001, 1, 1), User.Gender.MALE)));
+    }
+
+    @Test void googleInitialPasswordRetainsGoogleIdentityAndExpiresSessionsAfterCommit() {
+        user.setAuthProvider(User.AuthProvider.GOOGLE);
+        user.setProviderId("google-subject");
+        user.setPasswordHash(null);
+        when(sessions.getAllPrincipals()).thenReturn(java.util.List.of());
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.setupPassword(1L, new com.ddagtech.aureliabooks.dto.request.PasswordSetupRequest("NewPass1!", "NewPass1!"), "127.0.0.1");
+            assertTrue(new BCryptPasswordEncoder().matches("NewPass1!", user.getPasswordHash()));
+            assertEquals("google-subject", user.getProviderId());
+            assertEquals(User.AuthProvider.GOOGLE, user.getAuthProvider());
+            verify(auditLogService).record(eq(1L), eq("PASSWORD_CREATED"), eq("users"), eq(1L), anyString(), anyString());
+            assertEquals(1, TransactionSynchronizationManager.getSynchronizations().size());
+            assertThrows(AppException.class, () -> service.setupPassword(1L,
+                    new com.ddagtech.aureliabooks.dto.request.PasswordSetupRequest("OtherPass1!", "OtherPass1!"), "127.0.0.1"));
+        } finally { TransactionSynchronizationManager.clearSynchronization(); }
+    }
     @Test void localAccountMayCompleteMissingDobThenItLocks() {
         user.setDob(null);
         when(users.findById(1L)).thenReturn(Optional.of(user));

@@ -23,7 +23,7 @@ public record RegisterRequest(
         @NotBlank(message = "Vui lòng nhập số điện thoại.")
         @Pattern(regexp = "0[0-9]{9}", message = "Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.") String phone,
         @org.springframework.format.annotation.DateTimeFormat(pattern = "dd/MM/yyyy", fallbackPatterns = "yyyy-MM-dd")
-        @Past(message = "Ngày sinh phải là ngày trong quá khứ.") LocalDate dob,
+        @com.ddagtech.aureliabooks.validation.BirthDate LocalDate dob,
         @NotBlank(message = "Vui lòng xác nhận mật khẩu.") String confirmPassword,
         User.Gender gender,
         @AssertTrue(message = "Vui lòng đồng ý với điều khoản sử dụng.") boolean agreeTerms) {

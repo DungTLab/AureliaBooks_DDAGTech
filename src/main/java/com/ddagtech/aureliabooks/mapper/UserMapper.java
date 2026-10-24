@@ -33,7 +33,8 @@ public class UserMapper {
                 user.getAvatarUrl(),
                 canCompletePhone,
                 user.getPasswordHash() != null,
-                user.getDob() == null
+                user.getDob() == null || !com.ddagtech.aureliabooks.validation.BirthDateValidator
+                        .isValidDate(user.getDob(), java.time.LocalDate.now())
         );
     }
 

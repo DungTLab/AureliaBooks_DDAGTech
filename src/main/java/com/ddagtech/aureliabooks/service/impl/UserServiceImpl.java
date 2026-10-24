@@ -77,6 +77,24 @@ public class UserServiceImpl implements UserService {
                 .forEach(p -> sessions.getAllSessions(p, false).forEach(s -> s.expireNow())));
     }
     @Transactional
+    public void setupPassword(Long id, PasswordSetupRequest request, String clientIp) {
+        validate(request);
+        User u = owner(id);
+        if (u.getAuthProvider() != User.AuthProvider.GOOGLE || u.getPasswordHash() != null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tài khoản đã có mật khẩu. Vui lòng dùng chức năng đổi mật khẩu.");
+        }
+        u.setPasswordHash(passwords.encode(request.newPassword()));
+        users.saveAndFlush(u);
+        auditLogService.record(id, "PASSWORD_CREATED", "users", id,
+                "{\"reason\":\"VERIFIED_GOOGLE_CUSTOMER\"}", clientIp);
+        afterCommit(() -> sessions.getAllPrincipals().stream()
+                .filter(p -> p instanceof CustomUserDetails local && id.equals(local.getId())
+                        || u.getProviderId() != null && p instanceof OidcUser google
+                        && u.getProviderId().equals(google.getSubject()))
+                .forEach(p -> sessions.getAllSessions(p, false).forEach(s -> s.expireNow())));
+    }
+
+    @Transactional
     public void updateAvatar(Long id, MultipartFile file) {
         User u = owner(id);
         String oldUrl = u.getAvatarUrl();
@@ -94,7 +112,8 @@ public class UserServiceImpl implements UserService {
         CustomerIdentity.requireCustomer(u); return u;
     }
     private boolean canCompleteDob(User u) {
-        return u.getDob() == null;
+        return u.getDob() == null || !com.ddagtech.aureliabooks.validation.BirthDateValidator
+                .isValidDate(u.getDob(), java.time.LocalDate.now());
     }
     private void validate(Object request) {
         var violations = validator.validate(request);

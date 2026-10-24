@@ -66,6 +66,41 @@ class ContactFirstAdditionMySqlTest {
     }
 
     @Test void firstEmailAdditionPreservesAuthenticatedProfileAccess() throws Exception { verifyEmail(false); }
+
+    @Test void googleCustomerCreatesFirstPasswordOnlyAfterOtpThenCanLoginLocallyAndWithGoogle() throws Exception {
+        String marker = UUID.randomUUID().toString().replace("-", "");
+        String email = marker + "@gmail.com", subject = "setup-" + marker;
+        jdbc.update("INSERT INTO users(email,email_verified,full_name,auth_provider,provider_id,role_id) VALUES(?,TRUE,'Google Password QA','GOOGLE',?,(SELECT id FROM roles WHERE role_name='ROLE_CUSTOMER'))", email, subject);
+        Long owner = jdbc.queryForObject("SELECT id FROM users WHERE email=?", Long.class, email);
+        var session = new MockHttpSession();
+        var oidc = oidcLogin().idToken(token -> token.subject(subject).claim("email", email).claim("email_verified", true))
+                .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_CUSTOMER"));
+        mvc.perform(post("/profile/password/setup").session(session).with(oidc).with(csrf())
+                .param("newPassword", "NewPass1!").param("confirmPassword", "NewPass1!"))
+                .andExpect(redirectedUrl("/profile/password/setup"));
+        assertNull(jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?", String.class, owner));
+        mvc.perform(post("/profile/password/setup/start").session(session).with(oidc).with(csrf()).param("channel", "EMAIL"))
+                .andExpect(redirectedUrl("/profile/contact-change/verification"));
+        String issued = code;
+        assertNotNull(issued);
+        mvc.perform(post("/profile/contact-change/verify").session(session).with(oidc).with(csrf()).param("code", issued.equals("000000") ? "111111" : "000000"))
+                .andExpect(redirectedUrl("/profile/contact-change/verification"));
+        mvc.perform(post("/profile/contact-change/verify").session(session).with(oidc).with(csrf()).param("code", issued))
+                .andExpect(redirectedUrl("/profile/password/setup"));
+        mvc.perform(post("/profile/password/setup").session(session).with(oidc).with(csrf())
+                .param("newPassword", "weak").param("confirmPassword", "weak"))
+                .andExpect(redirectedUrl("/profile/password/setup"));
+        assertNull(jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?", String.class, owner));
+        mvc.perform(post("/profile/password/setup").session(session).with(oidc).with(csrf())
+                .param("newPassword", "NewPass1!").param("confirmPassword", "NewPass1!"))
+                .andExpect(redirectedUrl("/auth/login?passwordChanged")).andExpect(unauthenticated());
+        assertTrue(passwords.matches("NewPass1!", jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?", String.class, owner)));
+        mvc.perform(post("/auth/login").with(csrf()).param("username", email).param("password", "NewPass1!"))
+                .andExpect(authenticated());
+        assertEquals(owner, googleSignIn.resolve(new GoogleSignInService.Identity(subject, email, true, null,
+                "Google Password QA", null), "setup-new-login", "127.0.0.1").user().getId());
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE user_id=? AND action='PASSWORD_CREATED'", Integer.class, owner));
+    }
     @Test void replacingExistingEmailKeepsCurrentSession() throws Exception { verifyEmail(true); }
 
     @Test void googleOnlyEmailChangeKeepsSessionDetachesOldSubjectAndLinksNewGoogleToSameAccount() throws Exception {

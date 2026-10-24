@@ -2,7 +2,15 @@
     'use strict';
 
     document.querySelectorAll('input[data-birthdate]').forEach(input => {
-        function validate() {
+        let feedback = document.getElementById(`${input.id}-feedback`);
+        if (!feedback) {
+            feedback = document.createElement('p');
+            feedback.id = `${input.id}-feedback`;
+            feedback.className = 'text-sm text-red-700 mt-2 invisible min-h-[1.25rem]';
+            input.insertAdjacentElement('afterend', feedback);
+            input.setAttribute('aria-describedby', `${input.getAttribute('aria-describedby') || ''} ${feedback.id}`.trim());
+        }
+        function validateValue() {
             const value = input.value;
             if (!value) { input.setCustomValidity(''); return; }
             const parts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
@@ -17,7 +25,16 @@
                 && date.getUTCMonth() === Number(month) - 1 && date.getUTCDate() === Number(day);
             const iso = `${year}-${month}-${day}`;
             input.setCustomValidity(!valid ? 'Ngày sinh không hợp lệ.'
+                : iso < '1900-01-01' ? 'Ngày sinh phải từ 01/01/1900.'
                 : iso > input.dataset.maxDate ? 'Ngày sinh phải là ngày trong quá khứ.' : '');
+        }
+
+        function validate() {
+            validateValue();
+            const invalid = !!input.value && !input.validity.valid;
+            feedback.textContent = input.validationMessage;
+            feedback.classList.toggle('invisible', !invalid);
+            input.setAttribute('aria-invalid', String(invalid));
         }
 
         input.addEventListener('input', () => {

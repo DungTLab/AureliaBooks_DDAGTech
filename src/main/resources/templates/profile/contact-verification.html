@@ -18,7 +18,8 @@
                 <span data-otp-cooldown class="text-xs text-carbon_black-500">Có thể gửi lại sau <span data-otp-resend-seconds th:text="${change.resendIn}"></span> giây.</span></form>
         </div>
         <div class="flex flex-wrap gap-4 text-sm">
-            <a th:href="@{/profile/contact-change(type=${change.type})}" class="underline">Nhập lại thông tin</a>
+            <a th:if="${change.type != 'PASSWORD_SETUP'}" th:href="@{/profile/contact-change(type=${change.type})}" class="underline">Nhập lại thông tin</a>
+            <a th:if="${change.type == 'PASSWORD_SETUP'}" th:href="@{/profile/password/setup}" class="underline">Quay về đặt mật khẩu</a>
             <a th:href="@{/profile}" class="underline">Quay về hồ sơ</a>
         </div>
     </div>
