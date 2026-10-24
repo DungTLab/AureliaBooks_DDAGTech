@@ -20,7 +20,8 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker/initdb:/docker-entrypoint-initdb.d
+      - ./docker/initdb/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./docker/initdb/02_seed_roles.sql:/docker-entrypoint-initdb.d/02_seed_roles.sql:ro
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]

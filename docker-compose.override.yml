@@ -1,0 +1,7 @@
+# Automatically loaded by `docker compose up` for local/demo only.
+# Production must explicitly use docker-compose.yml + docker-compose.prod.yml.
+services:
+  mysql-db:
+    volumes:
+      - ./docker/demo/02_seed_catalog.sql:/docker-entrypoint-initdb.d/02_seed_catalog.sql:ro
+      - ./docker/demo/03_seed_users.sql:/docker-entrypoint-initdb.d/03_seed_users.sql:ro

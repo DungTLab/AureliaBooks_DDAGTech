@@ -17,25 +17,35 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class LogoutAuditHandler implements LogoutHandler {
+
     private final AuditLogService audit;
     private final UserRepository users;
 
-    @Override public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+    @Override
+    public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         if (authentication == null || authentication instanceof AnonymousAuthenticationToken) return;
         try {
-            Long id=null;
-            String method="LOCAL";
-            if (authentication.getPrincipal() instanceof CustomUserDetails local) id=local.getId();
+            Long id = null;
+            String method = "LOCAL";
+            if (authentication.getPrincipal() instanceof CustomUserDetails local) id = local.getId();
             else if (authentication.getPrincipal() instanceof OAuth2User google) {
-                method="GOOGLE";
-                id=users.findByGoogleIdentity(User.AuthProvider.GOOGLE,google.getAttribute("sub"))
-                        .map(User::getId).orElse(null);
+                method = "GOOGLE";
+                id = users
+                    .findByGoogleIdentity(User.AuthProvider.GOOGLE, google.getAttribute("sub"))
+                    .map(User::getId)
+                    .orElse(null);
             }
-            if (id != null) audit.record(id,"LOGOUT","users",id,
-                    "{\"method\":\""+method+"\"}",request.getRemoteAddr());
+            if (id != null) audit.record(
+                id,
+                "LOGOUT",
+                "users",
+                id,
+                "{\"method\":\"" + method + "\"}",
+                request.getRemoteAddr()
+            );
         } catch (RuntimeException failure) {
             // Audit failure must not prevent SecurityContext/session cleanup.
-            log.error("Could not record logout audit",failure);
+            log.error("Could not record logout audit", failure);
         }
     }
 }
