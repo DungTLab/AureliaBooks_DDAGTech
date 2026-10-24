@@ -192,7 +192,8 @@ CREATE TABLE books (
 CREATE TABLE authors (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    biography TEXT NULL
+    biography TEXT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Book authors catalog (Maps to Use Cases: UC03, UC17)';
 
 CREATE TABLE book_authors (

@@ -86,7 +86,12 @@
 
                 <!-- Cart Icon with Live Item Badge (UC10) -->
                 <a th:href="@{/cart}"
+
+                   sec:authorize="!hasAnyRole('MANAGER', 'ADMIN', 'SALE_STAFF')"
+
+
                    class="relative inline-flex items-center justify-center p-2 sm:p-2.5 rounded-xl text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors"
+
                    title="Giỏ hàng của bạn">
                     <i class="bi bi-bag text-2xl"></i>
                     <span id="cartBadge"
@@ -143,11 +148,11 @@
                                class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
                                 <i class="bi bi-person text-blazing_flame"></i> Hồ sơ cá nhân
                             </a>
-                            <a th:href="@{/profile/addresses}"
+                            <a sec:authorize="hasRole('CUSTOMER')" th:href="@{/profile/addresses}"
                                class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
                                 <i class="bi bi-geo-alt text-blazing_flame"></i> Sổ địa chỉ
                             </a>
-                            <a th:href="@{/orders/my-orders}"
+                            <a sec:authorize="hasRole('CUSTOMER')" th:href="@{/orders/my-orders}"
                                class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors">
                                 <i class="bi bi-bag-check text-blazing_flame"></i> Đơn mua của tôi
                             </a>
@@ -625,6 +630,7 @@
             <i class="bi bi-pencil me-2 text-blazing_flame"></i>Văn Phòng Phẩm
         </a>
         <a th:href="@{/cart}"
+           sec:authorize="!hasAnyRole('MANAGER', 'ADMIN', 'SALE_STAFF')"
            class="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-bold text-carbon_black hover:text-blazing_flame hover:bg-parchment-200 transition-colors">
             <span><i class="bi bi-bag me-2 text-blazing_flame"></i>Giỏ Hàng</span>
             <span class="bg-blazing_flame text-white text-xs font-bold px-2 py-0.5 rounded-full"
