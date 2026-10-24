@@ -436,7 +436,7 @@ class CheckoutControllerTest {
     /** Export Thymeleaf HTML to target for layout inspection using fixture data only. */
     @Test
     void capturesRenderedScreensForVisualQa() throws Exception {
-        Path directory = Path.of("target/uc11-preview");
+        Path directory = Path.of(System.getProperty("voucher.ui.capture", "target/uc11-preview"));
         Files.createDirectories(directory);
         var session = new MockHttpSession();
         var review = reviews.save(session, 7L, checkout, Order.PaymentMethod.COD, null);
@@ -453,6 +453,80 @@ class CheckoutControllerTest {
                 .getContentAsString();
             Files.writeString(directory.resolve(page[0]), html);
         }
+    }
+
+    @Test
+    void rendersServerBlockingFlagsForMissingAddressAndUnavailablePayment() throws Exception {
+        CheckoutView noAddress = new CheckoutView(
+            checkout.items(),
+            List.of(),
+            null,
+            checkout.merchandiseSubtotal(),
+            BigDecimal.ZERO,
+            null,
+            BigDecimal.ZERO,
+            null,
+            null
+        );
+        when(orders.getCheckoutView(eq(7L), any())).thenReturn(noAddress);
+        var result = mvc
+            .perform(get("/checkout").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-required-values=\"shippingAddressId paymentMethod\"")))
+            .andExpect(content().string(containsString("data-server-blocked=\"true\"")))
+            .andReturn();
+        Path directory = Path.of(System.getProperty("voucher.ui.capture", "target/uc11-preview"));
+        Files.createDirectories(directory);
+        Files.writeString(directory.resolve("checkout-no-address.html"), result.getResponse().getContentAsString());
+        var session = new MockHttpSession();
+        var review = reviews.save(session, 7L, checkout, Order.PaymentMethod.VNPAY, null);
+        var blocked = mvc
+            .perform(
+                get("/checkout/review/" + review.checkoutToken())
+                    .session(session)
+                    .with(user("customer").roles("CUSTOMER"))
+            )
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-server-blocked=\"true\"")))
+            .andReturn();
+        Files.writeString(
+            directory.resolve("review-vnpay-unavailable.html"),
+            blocked.getResponse().getContentAsString()
+        );
+        var badItems = new CheckoutView(
+            List.of(
+                new CartItemView(
+                    1L,
+                    20L,
+                    "Unavailable",
+                    null,
+                    money("100000"),
+                    2,
+                    money("200000"),
+                    0,
+                    false,
+                    "Không đủ tồn kho"
+                )
+            ),
+            checkout.addressViews(),
+            10L,
+            checkout.merchandiseSubtotal(),
+            checkout.productDiscount(),
+            checkout.baseShippingFee(),
+            checkout.shippingDiscount(),
+            checkout.shippingFee(),
+            checkout.finalTotalAmount()
+        );
+        when(orders.getCheckoutView(eq(7L), any())).thenReturn(badItems);
+        var unavailable = mvc
+            .perform(get("/checkout").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(model().attribute("itemsReady", false))
+            .andReturn();
+        Files.writeString(
+            directory.resolve("checkout-unavailable.html"),
+            unavailable.getResponse().getContentAsString()
+        );
     }
 
     private AddressView address(long id, EconomicRegion region, String province) {
