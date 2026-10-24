@@ -51,9 +51,9 @@
         </div>
 
         <div class="mt-6 flex flex-col sm:flex-row gap-3">
-            <a th:href="@{/orders}"
+            <a th:href="${paymentResult.orderCode != null and !#strings.isEmpty(paymentResult.orderCode)} ? @{/orders/{code}(code=${paymentResult.orderCode})} : @{/}"
                class="flex-1 text-center py-2.5 px-4 rounded-lg bg-[#f15025] text-white font-semibold hover:opacity-95 transition">
-                Xem Lịch Sử Đơn Hàng
+                Xem Chi Tiết Đơn Hàng
             </a>
             <a th:href="@{/}"
                class="flex-1 text-center py-2.5 px-4 rounded-lg border border-[#ced0ce] bg-white text-[#191919] font-medium hover:bg-[#e6e8e6] transition">

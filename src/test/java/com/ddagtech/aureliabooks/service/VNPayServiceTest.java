@@ -8,9 +8,11 @@ import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.OrderRepository;
+import com.ddagtech.aureliabooks.service.impl.NoOpOrderVoucherReleaseAdapter;
 import com.ddagtech.aureliabooks.service.impl.VNPayServiceImpl;
 import com.ddagtech.aureliabooks.util.VNPayUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,9 +21,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -31,13 +35,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit test suite for {@link VNPayServiceImpl} (UC11.1 - Pay via VNPay).
- * Verifies V2.3 invariants:
+ * Verifies V2.4 invariants:
  * - Available inventory is already deducted at checkout (UC11) before VNPay initiation.
  * - IPN payment success transitions order to PENDING_CONFIRMATION and PAID without deducting stock again (BR-04-02).
  * - IPN payment failure or cancellation cancels order, restores deducted stock once, and releases voucher.
@@ -209,7 +214,7 @@ class VNPayServiceTest {
         assertThat(order.getVnpayPayDate()).isEqualTo("20261016103000");
         assertThat(order.getStockDeductedAt()).isEqualTo(initialDeductionTime);
 
-        // Critical V2.3 Invariant: stock is NEVER deducted again upon IPN callback
+        // Critical V2.4 Invariant: stock is NEVER deducted again upon IPN callback
         verify(stockMutationService, never()).deductOrder(anyLong());
         verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
         verify(orderRepository).save(order);
@@ -335,6 +340,38 @@ class VNPayServiceTest {
         verify(orderRepository, never()).save(any());
         verify(stockMutationService, never()).deductOrder(anyLong());
         verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("VNPayUtil.resolveClientIp() should normalize IPv6 loopback addresses to 127.0.0.1")
+    void resolveClientIp_NormalizesIpv6Loopback() {
+        HttpServletRequest reqIpv6Full = mock(HttpServletRequest.class);
+        when(reqIpv6Full.getRemoteAddr()).thenReturn("0:0:0:0:0:0:0:1");
+        assertThat(VNPayUtil.resolveClientIp(reqIpv6Full)).isEqualTo("127.0.0.1");
+
+        HttpServletRequest reqIpv6Short = mock(HttpServletRequest.class);
+        when(reqIpv6Short.getRemoteAddr()).thenReturn("::1");
+        assertThat(VNPayUtil.resolveClientIp(reqIpv6Short)).isEqualTo("127.0.0.1");
+    }
+
+    @Test
+    @DisplayName("NoOpOrderVoucherReleaseAdapter should delete order_vouchers and restore vouchers.usage_limit by 1")
+    void releaseOrderVoucherIfPresent_DeletesRedemptionAndIncrementsUsageLimit() {
+        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+        NoOpOrderVoucherReleaseAdapter adapter = new NoOpOrderVoucherReleaseAdapter(jdbcTemplate);
+
+        when(jdbcTemplate.queryForList(
+                eq("SELECT voucher_id FROM order_vouchers WHERE order_id = ?"),
+                eq(Long.class),
+                eq(40L)
+        )).thenReturn(List.of(99L));
+        when(jdbcTemplate.update(eq("DELETE FROM order_vouchers WHERE order_id = ?"), eq(40L)))
+                .thenReturn(1);
+
+        adapter.releaseOrderVoucherIfPresent(40L);
+
+        verify(jdbcTemplate).update("DELETE FROM order_vouchers WHERE order_id = ?", 40L);
+        verify(jdbcTemplate).update("UPDATE vouchers SET usage_limit = usage_limit + 1 WHERE id = ?", 99L);
     }
 
     private Map<String, String> signedParams(String txnRef, String amountMinor, String responseCode, String txStatus) {

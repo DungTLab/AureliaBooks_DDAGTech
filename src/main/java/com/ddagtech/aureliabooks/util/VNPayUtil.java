@@ -24,7 +24,7 @@ public final class VNPayUtil {
     }
 
     /**
-     * Computes an lowercase hexadecimal HMAC-SHA512 signature for the given data payload.
+     * Computes a lowercase hexadecimal HMAC-SHA512 signature for the given data payload.
      *
      * @param key  secret key assigned by VNPay
      * @param data canonicalized query string payload
@@ -149,7 +149,8 @@ public final class VNPayUtil {
     }
 
     /**
-     * Extracts the client IPv4/IPv6 address from the HTTP servlet request.
+     * Extracts the client IPv4 address from the HTTP servlet request, normalizing IPv6 loopback
+     * addresses (::1 / 0:0:0:0:0:0:0:1) to 127.0.0.1 for VNPay Sandbox compatibility.
      *
      * @param request incoming HTTP servlet request
      * @return resolved IP address string
@@ -158,11 +159,21 @@ public final class VNPayUtil {
         if (request == null) {
             return "127.0.0.1";
         }
+        String candidateIp = null;
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
+            candidateIp = forwardedFor.split(",")[0].trim();
+        } else {
+            String remoteAddr = request.getRemoteAddr();
+            if (remoteAddr != null && !remoteAddr.isBlank()) {
+                candidateIp = remoteAddr.trim();
+            }
         }
-        String remoteAddr = request.getRemoteAddr();
-        return (remoteAddr != null && !remoteAddr.isBlank()) ? remoteAddr : "127.0.0.1";
+        if (candidateIp == null || candidateIp.isEmpty()
+                || "0:0:0:0:0:0:0:1".equals(candidateIp)
+                || "::1".equals(candidateIp)) {
+            return "127.0.0.1";
+        }
+        return candidateIp;
     }
 }

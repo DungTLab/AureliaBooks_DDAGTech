@@ -9,8 +9,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Default JDBC-backed implementation of {@link OrderVoucherReleasePort} (III.3.3.a SQL #8).
- * Safely decrements vouchers.used_count and removes order_vouchers mapping within the active transaction.
+ * Default JDBC-backed implementation of {@link OrderVoucherReleasePort} (V2.4 §5.2, §5.3).
+ * Safely deletes the order_vouchers redemption row and restores vouchers.usage_limit by 1
+ * within the active cancellation transaction.
  */
 @Slf4j
 @Component
@@ -30,18 +31,24 @@ public class NoOpOrderVoucherReleaseAdapter implements OrderVoucherReleasePort {
                     Long.class,
                     orderId
             );
-            for (Long voucherId : voucherIds) {
-                jdbcTemplate.update(
-                        "UPDATE vouchers SET used_count = GREATEST(used_count - 1, 0) WHERE id = ?",
-                        voucherId
-                );
+            if (voucherIds.isEmpty()) {
+                return;
             }
-            if (!voucherIds.isEmpty()) {
-                jdbcTemplate.update("DELETE FROM order_vouchers WHERE order_id = ?", orderId);
-                log.info("Released voucher(s) {} for cancelled order id={}", voucherIds, orderId);
+            int deletedRows = jdbcTemplate.update(
+                    "DELETE FROM order_vouchers WHERE order_id = ?",
+                    orderId
+            );
+            if (deletedRows > 0) {
+                for (Long voucherId : voucherIds) {
+                    jdbcTemplate.update(
+                            "UPDATE vouchers SET usage_limit = usage_limit + 1 WHERE id = ?",
+                            voucherId
+                    );
+                }
+                log.info("Released voucher(s) {} and restored usage_limit for cancelled order id={}", voucherIds, orderId);
             }
         } catch (Exception ex) {
-            log.debug("No order_vouchers table or voucher entry found for order id={}: {}", orderId, ex.getMessage());
+            log.debug("No order_vouchers entry released for order id={}: {}", orderId, ex.getMessage());
         }
     }
 }
