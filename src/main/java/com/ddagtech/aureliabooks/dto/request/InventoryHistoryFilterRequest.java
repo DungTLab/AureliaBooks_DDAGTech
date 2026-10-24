@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.dto.request;
 
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary.MovementType;
+import jakarta.validation.constraints.AssertTrue;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
@@ -100,6 +101,7 @@ public record InventoryHistoryFilterRequest(
      *
      * @return true if dates are empty or start date is chronologically on or before end date
      */
+    @AssertTrue(message = "Từ ngày không được lớn hơn Đến ngày.")
     public boolean isDateRangeValid() {
         if (startDate == null || endDate == null) {
             return true;
@@ -113,6 +115,7 @@ public record InventoryHistoryFilterRequest(
      *
      * @return true if dates are null or not after current local date
      */
+    @AssertTrue(message = "Ngày lọc không được vượt quá ngày hiện tại.")
     public boolean isNotFutureDate() {
         LocalDate today = LocalDate.now();
         if (startDate != null && startDate.isAfter(today)) {

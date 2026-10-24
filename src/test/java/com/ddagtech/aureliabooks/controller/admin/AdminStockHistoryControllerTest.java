@@ -3,7 +3,11 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementResponse;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary.MovementType;
+import com.ddagtech.aureliabooks.repository.OrderRepository;
+import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.InventoryHistoryService;
+import com.ddagtech.aureliabooks.entity.Order;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,6 +39,12 @@ class AdminStockHistoryControllerTest {
 
     @MockitoBean
     private InventoryHistoryService inventoryHistoryService;
+
+    @MockitoBean
+    private OrderRepository orderRepository;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Nested
     @DisplayName("Authorization & RBAC Security Tests")
@@ -152,6 +162,52 @@ class AdminStockHistoryControllerTest {
                     .andExpect(model().attributeHasFieldErrors("filter", "startDate"));
 
             verifyNoInteractions(inventoryHistoryService);
+        }
+        @Test
+        @DisplayName("Catches future date error and returns 200 with binding error (L-05)")
+        void list_withFutureDate_rendersViewWithBindingError() throws Exception {
+            String futureDate = java.time.LocalDate.now().plusDays(5).toString();
+            mockMvc.perform(get("/manager/stock/history")
+                            .with(user("manager").roles("MANAGER"))
+                            .param("endDate", futureDate))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("admin/stock/history"))
+                    .andExpect(model().attributeHasFieldErrors("filter", "endDate"));
+
+            verifyNoInteractions(inventoryHistoryService);
+        }
+
+        @Test
+        @DisplayName("GET /api/orders/{id} returns 200 with order details modal DTO (L-02)")
+        void getOrderApi_whenFound_returnsOk() throws Exception {
+            Order mockOrder = Order.builder()
+                    .id(10L)
+                    .orderCode("ORD-20261015-001")
+                    .shippingRecipientName("Nguyen Van A")
+                    .shippingPhone("0987654321")
+                    .shippingFullAddress("123 Hoa Lac, Ha Noi")
+                    .shippingFee(java.math.BigDecimal.valueOf(30000))
+                    .finalTotalAmount(java.math.BigDecimal.valueOf(150000))
+                    .items(java.util.List.of())
+                    .build();
+
+            when(orderRepository.findById(10L)).thenReturn(Optional.of(mockOrder));
+
+            mockMvc.perform(get("/api/orders/10")
+                            .with(user("manager").roles("MANAGER")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.orderCode").value("ORD-20261015-001"))
+                    .andExpect(jsonPath("$.recipientName").value("Nguyen Van A"));
+        }
+
+        @Test
+        @DisplayName("GET /api/orders/{id} returns 404 when not found (L-02)")
+        void getOrderApi_whenNotFound_returns404() throws Exception {
+            when(orderRepository.findById(999L)).thenReturn(Optional.empty());
+
+            mockMvc.perform(get("/api/orders/999")
+                            .with(user("manager").roles("MANAGER")))
+                    .andExpect(status().isNotFound());
         }
     }
 }

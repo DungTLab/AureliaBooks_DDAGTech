@@ -103,10 +103,10 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
               AND (:toExclusive IS NULL OR im.occurred_at < :toExclusive)
               AND (
                    :keywordPattern IS NULL
-                   OR LOWER(p.title) LIKE :keywordPattern
-                   OR LOWER(p.barcode) LIKE :keywordPattern
-                   OR LOWER(b.isbn) LIKE :keywordPattern
-                   OR LOWER(im.reference_code) LIKE :keywordPattern
+                   OR LOWER(p.title) LIKE :keywordPattern ESCAPE '\\\\'
+                   OR p.barcode LIKE :keywordPattern ESCAPE '\\\\'
+                   OR b.isbn LIKE :keywordPattern ESCAPE '\\\\'
+                   OR im.reference_code LIKE :keywordPattern ESCAPE '\\\\'
               )
             """;
 
@@ -149,7 +149,7 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
         boolean isSystemActor = actorId != null && actorId == -1L;
 
         String kw = (filter != null && filter.keyword() != null && !filter.keyword().isBlank())
-                ? "%" + filter.keyword().trim().toLowerCase() + "%"
+                ? escapeLikePattern(filter.keyword())
                 : null;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -192,7 +192,7 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
                        u.email AS actor_email,
                        CASE
                            WHEN im.source_table = 'goods_receipts' THEN gr.note
-                           WHEN im.source_table = 'orders' THEN o.cancel_reason
+                           WHEN im.source_table = 'orders' AND im.movement_type = 'ORDER_CANCELLED_RESTOCK' THEN o.cancel_reason
                            ELSE NULL
                        END AS note
                 FROM inventory_movements im
@@ -209,4 +209,22 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
         List<InventoryMovementResponse> content = jdbc.query(dataSql, params, RESPONSE_ROW_MAPPER);
         return new PageImpl<>(content, pageable, total);
     }
+
+    /**
+     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters to prevent wildcard pollution [L-04].
+     *
+     * @param raw keyword input
+     * @return lowercase escaped LIKE pattern with leading and trailing wildcard
+     */
+    static String escapeLikePattern(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String sanitized = raw.trim()
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + sanitized.toLowerCase() + "%";
+    }
+
 }
