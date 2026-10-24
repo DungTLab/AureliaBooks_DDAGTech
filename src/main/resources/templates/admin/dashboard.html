@@ -10,6 +10,10 @@
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý tài khoản</a>
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/audit-logs}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhật ký kiểm toán</a>
         <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/products}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý sản phẩm</a>
+        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/authors}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Tác giả</a>
+        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/publishers}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhà xuất bản</a>
+        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/brands}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Thương hiệu VPP</a>
+        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/categories}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Cây danh mục</a>
         <a th:href="@{/staff/receipts/new}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhập kho</a>
     </div>
 </section>

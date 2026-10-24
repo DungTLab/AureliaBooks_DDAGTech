@@ -169,6 +169,7 @@ CREATE TABLE publishers (
     name VARCHAR(150) NOT NULL,
     address VARCHAR(255) NULL,
     email VARCHAR(100) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uk_publishers_name UNIQUE (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Book publishers catalog (Maps to Use Cases: UC03, UC18)';
 
@@ -208,6 +209,7 @@ CREATE TABLE brands (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     origin_country VARCHAR(100) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uk_brands_name UNIQUE (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Stationery manufacturer brands (Maps to Use Cases: UC03, UC19)';
 
