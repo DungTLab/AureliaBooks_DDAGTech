@@ -36,15 +36,21 @@ Hệ thống lưu người thao tác/lý do, thời điểm hủy, hoàn tồn n
 
 Đơn VNPay chưa rõ kết quả giao dịch cần đối soát trước khi hủy. Đơn đã thanh toán khi hủy vẫn giữ trạng thái thanh toán; hoàn tiền cần xử lý theo luồng riêng.
 
-## 5. Xác nhận khoản hoàn tiền đã thực hiện
+## 5. Xác nhận nhận lại hàng hoàn và hoàn kho (POP-DB-02)
 
-Sale Staff/Admin mở đơn hủy đã PAID hoặc đơn giao thành công có ghi nhận trả hàng thành công. Form **Xác nhận hoàn tiền** chỉ hiện khi đơn đủ điều kiện và chưa có xác nhận hoàn trước đó.
+Sale Staff/Admin mở đơn hàng đang giao (SHIPPING) giao thất bại hoặc đơn đã giao (DELIVERED) khách hoàn trả toàn bộ. Khối **Xác nhận nhận lại hàng hoàn** chỉ hiển thị khi đơn đang ở trạng thái phù hợp, đã trừ tồn và chưa từng hoàn tồn.
+
+Nhân viên kiểm đếm hàng thực tế, nhập lý do hoàn hàng (bắt buộc) và ghi chú kiểm hàng (nếu có), tích xác nhận đã nhận lại đủ 100% số lượng các mặt hàng trong đơn, sau đó bấm **Xác nhận nhận hàng & Hoàn tồn kho**. Hệ thống tự động hoàn tồn kho đúng một lần, ghi nhận thời điểm, nhân viên xác nhận và giữ nguyên trạng thái đơn hàng. Theo Baseline V2.4, nghiệp vụ này được tích hợp trực tiếp tại đây thay thế cho UC24 trước đây.
+
+## 6. Xác nhận khoản hoàn tiền đã thực hiện
+
+Sale Staff/Admin mở đơn hủy đã PAID hoặc đơn SHIPPING/DELIVERED đã có xác nhận nhận lại toàn bộ hàng hoàn thành công (RETURNED). Form **Xác nhận hoàn tiền** chỉ hiện khi đơn đủ điều kiện và chưa có xác nhận hoàn trước đó.
 
 Nhập đúng toàn bộ tổng tiền của đơn, phương thức hoàn, ngày hoàn tất (không ở tương lai), mã giao dịch hoặc thông tin chứng minh. Tích xác nhận đã hoàn tiền thực tế bên ngoài hệ thống, rồi bấm **Ghi nhận hoàn tiền** và xác nhận. Không dùng chức năng này để thực hiện chuyển tiền.
 
-Thành công: payment status chuyển thành REFUNDED, trạng thái đơn và tồn kho giữ nguyên. Lịch sử hiển thị nhân viên, thời điểm ghi nhận, số tiền, phương thức, ngày hoàn tất và chứng từ. Thông tin thiếu, sai số tiền, hoàn một phần hoặc hoàn trùng đều bị từ chối. Chức năng này không tiếp nhận/duyệt trả hàng; việc trả hàng và nhập lại kho thuộc UC24.
+Thành công: payment status chuyển thành REFUNDED, trạng thái đơn và tồn kho giữ nguyên. Lịch sử hiển thị nhân viên, thời điểm ghi nhận, số tiền, phương thức, ngày hoàn tất và chứng từ. Thông tin thiếu, sai số tiền, hoàn một phần hoặc hoàn trùng đều bị từ chối. Thao tác hoàn tiền độc lập với hoàn kho và không cộng lại tồn kho.
 
-## 6. Kiểm tra audit
+## 7. Kiểm tra audit
 
 Trong công cụ audit hiện có, lọc action `ORDER_STATUS_CHANGED` hoặc `ORDER_REFUND_CONFIRMED`, bảng `orders` và ID đơn để xem nhân viên, trạng thái đơn/thanh toán trước/sau, lý do, vận đơn hoặc chứng từ hoàn tiền. Khi thực sự hoàn kho do hủy còn có action `ORDER_CANCELLED_RESTOCK`. Các thông tin này cũng có trong phần lịch sử tại chi tiết đơn.
 

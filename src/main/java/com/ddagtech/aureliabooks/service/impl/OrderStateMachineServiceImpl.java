@@ -66,11 +66,15 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
                 .filter(target -> target != Order.OrderStatus.CANCELLED
                         || (order.getShippedAt() == null && order.getDeliveredAt() == null
                             && order.getPaymentStatus() != Order.PaymentStatus.REFUNDED)).toList();
+        boolean canConfirmReturn = !isManager(actor)
+                && (order.getOrderStatus() == Order.OrderStatus.SHIPPING || order.getOrderStatus() == Order.OrderStatus.DELIVERED)
+                && order.getStockDeductedAt() != null && order.getStockRestoredAt() == null;
         boolean refundBasis = refundBasis(order);
         return new PackagingChecklistDTO(order.getId(), mapper.toConfirmation(order),
                 order.getTrackingNumber(), order.getCancelReason(), mapper.toTimeline(order), targets,
                 order.getUser().getFullName(), order.getUser().getEmail(), history(order),
-                !isManager(actor) && refundBasis && !hasRefund(orderId), refundBasis);
+                !isManager(actor) && refundBasis && !hasRefund(orderId), refundBasis,
+                canConfirmReturn, order.getStockRestoredAt(), order.getStockRestoreReason());
     }
 
     @Override
@@ -89,7 +93,9 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         var target = request.targetStatus();
         if (isManager(actor) && target != Order.OrderStatus.CANCELLED) throw new AppException(ErrorCode.UNAUTHORIZED);
         statuses.validateTransition(previous, target);
-        if (order.getStockDeductedAt() == null || order.getStockRestoredAt() != null)
+        if (order.getStockRestoredAt() != null)
+            throw new AppException(ErrorCode.INVALID_ORDER_STATE_TRANSITION, "Đơn hàng đã được hoàn tồn kho, không thể chuyển trạng thái tiếp tục xử lý.");
+        if (order.getStockDeductedAt() == null)
             throw new AppException(ErrorCode.ORDER_STOCK_NOT_DEDUCTED);
         var previousPayment = order.getPaymentStatus();
         if (target == Order.OrderStatus.CANCELLED) {
@@ -140,6 +146,37 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void confirmReturnRestock(Long orderId, ReturnConfirmationRequest request, Long staffId) {
+        User actor = requireStaff(staffId);
+        if (isManager(actor)) throw new AppException(ErrorCode.UNAUTHORIZED);
+        if (request == null || !validator.validate(request).isEmpty() || !Boolean.TRUE.equals(request.fullReturnVerified()))
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Bắt buộc kiểm đếm nhận lại đầy đủ 100% số lượng mọi dòng sản phẩm và nhập lý do hoàn.");
+        if (orderId == null) throw new AppException(ErrorCode.ORDER_NOT_FOUND);
+        Order order = orders.findByIdWithLock(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        ensureOperational(order);
+
+        if (order.getOrderStatus() != Order.OrderStatus.SHIPPING && order.getOrderStatus() != Order.OrderStatus.DELIVERED)
+            throw new AppException(ErrorCode.INVALID_ORDER_STATE_TRANSITION, "Chỉ có thể xác nhận nhận hàng hoàn khi đơn đang giao (SHIPPING) hoặc đã giao (DELIVERED).");
+
+        if (order.getStockRestoredAt() != null)
+            throw new AppException(ErrorCode.ORDER_STOCK_ALREADY_RESTORED);
+
+        // Call stock engine to restore quantities exactly once, stamp stock_restored_at, stock_restore_reason = RETURNED, and record ORDER_RETURN_CONFIRMED
+        stock.restoreReturnedOrder(orderId, staffId);
+
+        var details = new LinkedHashMap<String, Object>();
+        details.put("orderCode", order.getOrderCode());
+        details.put("orderStatus", order.getOrderStatus().name());
+        details.put("paymentStatus", order.getPaymentStatus().name());
+        details.put("returnReason", request.returnReason().strip());
+        details.put("inspectionNote", blank(request.inspectionNote()) ? null : request.inspectionNote().strip());
+        record(staffId, "ORDER_RETURN_INSPECTION_CONFIRMED", orderId, details);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void confirmExternalRefund(Long orderId, RefundConfirmationRequest request, Long staffId) {
         User actor = requireStaff(staffId);
         if (isManager(actor)) throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -180,7 +217,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         return order.getPaymentStatus() == Order.PaymentStatus.PAID
                 && order.getFinalTotalAmount() != null && order.getFinalTotalAmount().signum() > 0
                 && (order.getOrderStatus() == Order.OrderStatus.CANCELLED
-                    || (order.getOrderStatus() == Order.OrderStatus.DELIVERED
+                    || ((order.getOrderStatus() == Order.OrderStatus.SHIPPING || order.getOrderStatus() == Order.OrderStatus.DELIVERED)
                         && order.getStockRestoreReason() == Order.StockRestoreReason.RETURNED
                         && order.getStockRestoredAt() != null && order.getStockRestoredBy() != null));
     }
@@ -204,6 +241,13 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
                     description = data.path("from").asText() + " → " + data.path("to").asText()
                             + "; thanh toán: " + data.path("paymentFrom").asText() + " → " + data.path("paymentTo").asText();
                     if (data.hasNonNull("reason")) description += "; lý do: " + data.path("reason").asText();
+                } else if (entry.getAction().equals("ORDER_RETURN_CONFIRMED")) {
+                    description = "Đã nhận lại toàn bộ hàng hoàn về kho; lý do: " + data.path("reason").asText();
+                } else if (entry.getAction().equals("ORDER_RETURN_INSPECTION_CONFIRMED")) {
+                    description = "Xác nhận kiểm hàng hoàn: " + data.path("returnReason").asText();
+                    if (data.hasNonNull("inspectionNote") && !data.path("inspectionNote").asText().isBlank()) {
+                        description += "; ghi chú: " + data.path("inspectionNote").asText();
+                    }
                 }
             } catch (JsonProcessingException exception) {
                 // Legacy malformed payloads still display the recorded action, actor and timestamp.

@@ -29,6 +29,11 @@
             <div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.discount}, ${order.shippingFee}, ${order.finalTotalAmount})}"></div>
             <p th:if="${order.paymentMethod.name() == 'COD' and order.paymentStatus.name() == 'UNPAID' and order.orderStatus.name() != 'CANCELLED'}" class="checkout-notice">Thu hộ khi giao: <strong><span th:text="${#numbers.formatDecimal(order.finalTotalAmount, 0, 'POINT', 0, 'COMMA')}"></span> đ</strong></p>
             <p th:if="${checklist.cancelReason != null}">Lý do hủy: <span th:text="${checklist.cancelReason}"></span></p>
+            <p th:if="${checklist.stockRestoredAt != null and checklist.stockRestoreReason != null}" class="checkout-notice">
+                Kho: <strong>Đã hoàn tồn kho</strong>
+                (<span th:text="${checklist.stockRestoreReason.name() == 'RETURNED' ? 'Trả hàng hoàn kho' : 'Hủy đơn hoàn kho'}"></span> vào
+                <span th:text="${#temporals.format(checklist.stockRestoredAt, 'dd/MM/yyyy HH:mm')}"></span>)
+            </p>
         </section>
         <section class="checkout-card staff-screen-only"><h2>Cập nhật trạng thái</h2>
             <p th:if="${checklist.allowedTargets.empty}" class="checkout-help">Đơn hiện không có thao tác chuyển trạng thái phù hợp.</p>
@@ -46,6 +51,14 @@
                     <button class="checkout-button is-secondary" type="submit">Xác nhận hủy và hoàn kho</button>
                 </form>
             </details>
+        </section>
+        <section th:if="${checklist.canConfirmReturn}" class="checkout-card staff-screen-only"><h2>Xác nhận nhận lại hàng hoàn</h2><p class="checkout-help">Nhận lại toàn bộ hàng theo đơn từ đơn vị vận chuyển hoặc khách hàng. Thao tác này sẽ tự động hoàn tồn kho đúng một lần và giữ nguyên trạng thái đơn hàng.</p>
+            <form th:action="@{/staff/orders/{id}/return-restock(id=${checklist.orderId})}" method="post" class="staff-refund-form" data-confirm-action="Xác nhận đã nhận lại đầy đủ toàn bộ hàng hoàn và hoàn kho?">
+                <label for="staff-return-reason">Lý do hoàn hàng (bắt buộc)</label><input id="staff-return-reason" name="returnReason" maxlength="255" required placeholder="Giao không thành công / Khách đổi ý trả nguyên đơn">
+                <label for="staff-return-note">Ghi chú kiểm hàng thực tế</label><textarea id="staff-return-note" name="inspectionNote" maxlength="1000" rows="3" placeholder="Tình trạng kiện hàng / sản phẩm khi nhận lại"></textarea>
+                <label class="staff-confirm-check"><input type="checkbox" name="fullReturnVerified" value="true" required> Tôi xác nhận đã kiểm đếm và nhận lại đầy đủ 100% số lượng tất cả mặt hàng trong đơn.</label>
+                <button type="submit" class="checkout-button is-secondary">Xác nhận nhận hàng & Hoàn tồn kho</button>
+            </form>
         </section>
         <section th:if="${checklist.canConfirmRefund}" class="checkout-card staff-screen-only"><h2>Xác nhận hoàn tiền</h2><p class="checkout-help">Chỉ ghi nhận hoàn toàn bộ số tiền đã thực hiện bên ngoài hệ thống. Thao tác này không chuyển tiền và không hoàn kho.</p>
             <form th:action="@{/staff/orders/{id}/refund(id=${checklist.orderId})}" method="post" class="staff-refund-form" data-confirm-action="Xác nhận khoản tiền đã được hoàn thực tế?">

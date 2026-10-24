@@ -77,6 +77,16 @@ class OrderRefundServiceTest {
         verifyNoInteractions(stock);
     }
 
+    @Test void returnedShippingOrderIsARefundBasisWithoutAnotherRestock() {
+        found(); order.setOrderStatus(Order.OrderStatus.SHIPPING);
+        order.setStockRestoreReason(Order.StockRestoreReason.RETURNED);
+        order.setStockRestoredAt(LocalDateTime.now()); order.setStockRestoredBy(actor);
+        service.confirmExternalRefund(12L, refund(), 7L);
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.SHIPPING);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.REFUNDED);
+        verifyNoInteractions(stock);
+    }
+
     @Test void refundNeedsAnAcceptedBasis() {
         found(); order.setOrderStatus(Order.OrderStatus.DELIVERED);
         assertThatThrownBy(() -> service.confirmExternalRefund(12L, refund(), 7L))

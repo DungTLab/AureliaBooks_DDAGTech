@@ -153,4 +153,76 @@ class OrderStateMachineServiceTest {
                 .isInstanceOf(AppException.class);
         verifyNoInteractions(orders);
     }
+
+    @Test void confirmReturnRestockSucceedsForShippingOrderAndRetainsStatus() {
+        staff(); found();
+        order.setOrderStatus(OrderStatus.SHIPPING);
+        order.setShippedAt(LocalDateTime.now().minusHours(2));
+        order.setPaymentStatus(Order.PaymentStatus.PAID);
+        var req = new ReturnConfirmationRequest(true, "Giao không thành công, hoàn kho", "Kiện hàng nguyên vẹn");
+        service.confirmReturnRestock(12L, req, 7L);
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.SHIPPING);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        verify(stock).restoreReturnedOrder(12L, 7L);
+        verify(audit).recordRequired(eq(7L), eq("ORDER_RETURN_INSPECTION_CONFIRMED"), eq("orders"), eq(12L), contains("Giao không thành công"), isNull());
+    }
+
+    @Test void confirmReturnRestockSucceedsForDeliveredOrderAndRetainsStatus() {
+        staff(); found();
+        order.setOrderStatus(OrderStatus.DELIVERED);
+        order.setDeliveredAt(LocalDateTime.now().minusHours(2));
+        order.setPaymentStatus(Order.PaymentStatus.PAID);
+        var req = new ReturnConfirmationRequest(true, "Khách đổi ý trả toàn bộ đơn", "Sách mới 100%");
+        service.confirmReturnRestock(12L, req, 7L);
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.DELIVERED);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        verify(stock).restoreReturnedOrder(12L, 7L);
+        verify(audit).recordRequired(eq(7L), eq("ORDER_RETURN_INSPECTION_CONFIRMED"), eq("orders"), eq(12L), contains("Khách đổi ý"), isNull());
+    }
+
+    @Test void confirmReturnRestockForbiddenForManager() {
+        when(users.findById(7L)).thenReturn(Optional.of(User.builder().id(7L).isActive(true)
+                .role(Role.builder().roleName("ROLE_MANAGER").build()).build()));
+        var req = new ReturnConfirmationRequest(true, "Lý do", "Ghi chú");
+        assertThatThrownBy(() -> service.confirmReturnRestock(12L, req, 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
+        verifyNoInteractions(stock, audit);
+    }
+
+    @Test void confirmReturnRestockRejectsUnverifiedFullReturn() {
+        staff();
+        var req = new ReturnConfirmationRequest(false, "Lý do", "Ghi chú");
+        assertThatThrownBy(() -> service.confirmReturnRestock(12L, req, 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+        verifyNoInteractions(stock, audit);
+    }
+
+    @Test void confirmReturnRestockRejectsInvalidOrderState() {
+        staff(); found();
+        order.setOrderStatus(OrderStatus.CONFIRMED);
+        var req = new ReturnConfirmationRequest(true, "Lý do", "Ghi chú");
+        assertThatThrownBy(() -> service.confirmReturnRestock(12L, req, 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.INVALID_ORDER_STATE_TRANSITION);
+        verifyNoInteractions(stock, audit);
+    }
+
+    @Test void confirmReturnRestockRejectsAlreadyRestoredOrder() {
+        staff(); found();
+        order.setOrderStatus(OrderStatus.SHIPPING);
+        order.setStockRestoredAt(LocalDateTime.now().minusHours(1));
+        var req = new ReturnConfirmationRequest(true, "Lý do", "Ghi chú");
+        assertThatThrownBy(() -> service.confirmReturnRestock(12L, req, 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.ORDER_STOCK_ALREADY_RESTORED);
+        verifyNoInteractions(stock, audit);
+    }
+
+    @Test void transitionStatusBlocksDeliveredWhenAlreadyRestocked() {
+        staff(); found();
+        order.setOrderStatus(OrderStatus.SHIPPING);
+        order.setStockRestoredAt(LocalDateTime.now().minusHours(1));
+        order.setStockRestoreReason(Order.StockRestoreReason.RETURNED);
+        assertThatThrownBy(() -> service.transitionStatus(12L, request(OrderStatus.DELIVERED), 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.INVALID_ORDER_STATE_TRANSITION);
+        verifyNoInteractions(stock);
+    }
 }

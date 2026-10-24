@@ -72,6 +72,28 @@ public class StaffOrderController {
         return "redirect:/staff/orders/" + id;
     }
 
+    @PostMapping("/{id}/return-restock")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SALE_STAFF')")
+    public Object returnRestock(Authentication auth, @PathVariable Long id,
+                                @Valid @ModelAttribute ReturnConfirmationRequest request, BindingResult errors,
+                                RedirectAttributes flash) {
+        Long actor = identity.resolve(auth);
+        if (errors.hasErrors()) {
+            return latest(id, actor,
+                    errors.getAllErrors().getFirst().getDefaultMessage(), HttpStatus.BAD_REQUEST);
+        }
+        try {
+            orders.confirmReturnRestock(id, request, actor);
+        } catch (AppException exception) {
+            if (exception.getErrorCode() == ErrorCode.UNAUTHORIZED || exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
+                throw exception;
+            }
+            return latest(id, actor, exception.getMessage(), exception.getErrorCode().getStatusCode());
+        }
+        flash.addFlashAttribute("successMessage", "Đã xác nhận nhận lại toàn bộ hàng hoàn và hoàn kho thành công.");
+        return "redirect:/staff/orders/" + id;
+    }
+
     @PostMapping("/{id}/refund")
     @PreAuthorize("hasAnyRole('ADMIN', 'SALE_STAFF')")
     public Object refund(Authentication auth, @PathVariable Long id,
