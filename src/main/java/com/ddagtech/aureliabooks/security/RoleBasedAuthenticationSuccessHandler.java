@@ -2,6 +2,8 @@ package com.ddagtech.aureliabooks.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -12,9 +14,8 @@ import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.stereotype.Component;
-
-import java.io.IOException;
-import java.util.Collection;
+import org.springframework.web.servlet.FlashMap;
+import org.springframework.web.servlet.support.SessionFlashMapManager;
 
 /**
  * Authentication success handler that performs role-tailored landing dispatching.
@@ -29,15 +30,34 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication) throws IOException {
-        var session=request.getSession(false);
-        if(session!=null&&session.getAttribute("GOOGLE_PROFILE_ACTION_DONE")!=null){
-            String action=(String)session.getAttribute("GOOGLE_PROFILE_ACTION_DONE");session.removeAttribute("GOOGLE_PROFILE_ACTION_DONE");
-            requestCache.removeRequest(request,response);redirectStrategy.sendRedirect(request,response,"REAUTH".equals(action)?"/profile/contact-change":"/profile");return;
+    public void onAuthenticationSuccess(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        Authentication authentication
+    ) throws IOException {
+        var session = request.getSession(false);
+        if (session != null && session.getAttribute("GOOGLE_PROFILE_ACTION_DONE") != null) {
+            String action = (String) session.getAttribute("GOOGLE_PROFILE_ACTION_DONE");
+            session.removeAttribute("GOOGLE_PROFILE_ACTION_DONE");
+            session.removeAttribute("GOOGLE_REAUTH_ORIGINAL_AUTH");
+            requestCache.removeRequest(request, response);
+            redirectStrategy.sendRedirect(
+                request,
+                response,
+                "REAUTH".equals(action) ? GoogleAccountAction.returnPath(session) : "/profile"
+            );
+            return;
         }
         String targetUrl = determineTargetUrl(request, response, authentication);
+
+        if (session != null && Boolean.TRUE.equals(session.getAttribute("GOOGLE_LINK_COMPLETED"))) {
+            session.removeAttribute("GOOGLE_LINK_COMPLETED");
+            var flash = new FlashMap();
+            flash.put("successMessage", "Đã liên kết Google với tài khoản của bạn.");
+            var target = java.net.URI.create(targetUrl);
+            flash.setTargetRequestPath((target.isAbsolute() ? "" : request.getContextPath()) + target.getPath());
+            new SessionFlashMapManager().saveOutputFlashMap(flash, request, response);
+        }
 
         if (response.isCommitted()) {
             log.debug("Response has already been committed. Unable to redirect to {}", targetUrl);
@@ -47,7 +67,9 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
         log.info("User '{}' logged in successfully. Redirecting to: {}", authentication.getName(), targetUrl);
         if (request.getSession(false) != null) {
             request.getSession(false).removeAttribute("GOOGLE_AUTH_ORIGIN");
-            request.getSession(false).removeAttribute(org.springframework.security.web.WebAttributes.AUTHENTICATION_EXCEPTION);
+            request
+                .getSession(false)
+                .removeAttribute(org.springframework.security.web.WebAttributes.AUTHENTICATION_EXCEPTION);
         }
         redirectStrategy.sendRedirect(request, response, targetUrl);
     }
@@ -60,15 +82,21 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
      * @param authentication active authentication token containing user principal and authorities
      * @return target redirect URL path
      */
-    protected String determineTargetUrl(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication) {
+    protected String determineTargetUrl(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        Authentication authentication
+    ) {
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
 
-        boolean isStaffOrAbove = authorities.stream().anyMatch(authority ->
-                "ROLE_ADMIN".equals(authority.getAuthority())
-                        || "ROLE_MANAGER".equals(authority.getAuthority())
-                        || "ROLE_SALE_STAFF".equals(authority.getAuthority()));
+        boolean isStaffOrAbove = authorities
+            .stream()
+            .anyMatch(
+                authority ->
+                    "ROLE_ADMIN".equals(authority.getAuthority()) ||
+                    "ROLE_MANAGER".equals(authority.getAuthority()) ||
+                    "ROLE_SALE_STAFF".equals(authority.getAuthority())
+            );
 
         if (isStaffOrAbove) {
             // Administrative users are always directed to the Back-Office Overview Portal (SCR-DSH01)
@@ -93,21 +121,38 @@ public class RoleBasedAuthenticationSuccessHandler implements AuthenticationSucc
     private boolean isValidRedirect(HttpServletRequest request, String url) {
         if (url == null) return false;
         try {
-            java.net.URI target=java.net.URI.create(url);
-            java.net.URI origin=java.net.URI.create(request.getRequestURL().toString());
-            String path=target.getPath();
-            int targetPort=target.getPort() == -1 ? ("https".equalsIgnoreCase(target.getScheme()) ? 443 : 80) : target.getPort();
-            int originPort=origin.getPort() == -1 ? ("https".equalsIgnoreCase(origin.getScheme()) ? 443 : 80) : origin.getPort();
-            if (!origin.getScheme().equalsIgnoreCase(target.getScheme()) || target.getHost() == null
-                    || !origin.getHost().equalsIgnoreCase(target.getHost()) || targetPort != originPort
-                    || target.getUserInfo() != null || path == null) return false;
-            String context=request.getContextPath();
-            return path.equals(context+"/cart") || path.startsWith(context+"/cart/")
-                    || path.equals(context+"/checkout") || path.startsWith(context+"/checkout/")
-                    || path.equals(context+"/orders") || path.startsWith(context+"/orders/")
-                    || path.equals(context+"/profile") || path.startsWith(context+"/profile/")
-                    || path.equals(context+"/account") || path.startsWith(context+"/account/")
-                    || path.equals(context+"/products") || path.startsWith(context+"/products/");
-        } catch (IllegalArgumentException invalid) { return false; }
+            java.net.URI target = java.net.URI.create(url);
+            java.net.URI origin = java.net.URI.create(request.getRequestURL().toString());
+            String path = target.getPath();
+            int targetPort =
+                target.getPort() == -1 ? ("https".equalsIgnoreCase(target.getScheme()) ? 443 : 80) : target.getPort();
+            int originPort =
+                origin.getPort() == -1 ? ("https".equalsIgnoreCase(origin.getScheme()) ? 443 : 80) : origin.getPort();
+            if (
+                !origin.getScheme().equalsIgnoreCase(target.getScheme()) ||
+                target.getHost() == null ||
+                !origin.getHost().equalsIgnoreCase(target.getHost()) ||
+                targetPort != originPort ||
+                target.getUserInfo() != null ||
+                path == null
+            ) return false;
+            String context = request.getContextPath();
+            return (
+                path.equals(context + "/cart") ||
+                path.startsWith(context + "/cart/") ||
+                path.equals(context + "/checkout") ||
+                path.startsWith(context + "/checkout/") ||
+                path.equals(context + "/orders") ||
+                path.startsWith(context + "/orders/") ||
+                path.equals(context + "/profile") ||
+                path.startsWith(context + "/profile/") ||
+                path.equals(context + "/account") ||
+                path.startsWith(context + "/account/") ||
+                path.equals(context + "/products") ||
+                path.startsWith(context + "/products/")
+            );
+        } catch (IllegalArgumentException invalid) {
+            return false;
+        }
     }
 }
