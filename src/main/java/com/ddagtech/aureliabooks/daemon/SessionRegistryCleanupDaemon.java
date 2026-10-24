@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,6 +48,12 @@ public class SessionRegistryCleanupDaemon implements HttpSessionListener {
      * matching the standard servlet container HTTP session idle timeout.
      */
     public static final long DEFAULT_EXPIRED_SESSION_RETENTION_MS = 30L * 60L * 1000L;
+
+    /**
+     * Maximum capacity safety ceiling for tracking destroyed session IDs between scheduled passes,
+     * protecting against burst session generation or DoS attacks.
+     */
+    public static final int MAX_DESTROYED_SESSION_TRACKING = 10_000;
 
     private final SessionRegistry sessionRegistry;
     private final ConcurrentMap<String, HttpSession> activeHttpSessions = new ConcurrentHashMap<>();
@@ -120,27 +127,65 @@ public class SessionRegistryCleanupDaemon implements HttpSessionListener {
     public void markHttpSessionDestroyed(String sessionId) {
         if (sessionId != null) {
             activeHttpSessions.remove(sessionId);
-            destroyedSessionIds.add(sessionId);
+            if (destroyedSessionIds.size() < MAX_DESTROYED_SESSION_TRACKING) {
+                destroyedSessionIds.add(sessionId);
+            }
         }
     }
 
     /**
      * Purges expired sessions from the in-memory SessionRegistry every 30 minutes.
      * Ensures any tracked HTTP session is invalidated before removing its SessionInformation,
-     * and preserves unexpired HTTP session markers so ConcurrentSessionFilter can enforce logout.
+     * preserves unexpired HTTP session markers so ConcurrentSessionFilter can enforce logout,
+     * and performs internal housekeeping to evict destroyed IDs and stale sessions without leaking memory.
      *
      * @return number of expired sessions removed during this cleanup pass
      */
     @Scheduled(cron = "${app.cron.session-cleanup:0 */30 * * * ?}")
     public int purgeExpiredSessions() {
+        long nowMillis = clock.millis();
+        int purgedCount = 0;
+
+        // 1. Collect all session IDs currently registered in the SessionRegistry across all principals
+        Set<String> trackedRegistrySessionIds = new HashSet<>();
         List<Object> principals = sessionRegistry.getAllPrincipals();
+        if (principals != null) {
+            for (Object principal : principals) {
+                if (principal == null) {
+                    continue;
+                }
+                List<SessionInformation> sessions = sessionRegistry.getAllSessions(principal, true);
+                if (sessions == null || sessions.isEmpty()) {
+                    continue;
+                }
+                for (SessionInformation sessionInfo : sessions) {
+                    if (sessionInfo != null && sessionInfo.getSessionId() != null) {
+                        trackedRegistrySessionIds.add(sessionInfo.getSessionId());
+                    }
+                }
+            }
+        }
+
+        // 2. Unconditional housekeeping: prune destroyed IDs that do not belong to any tracked registry session
+        // (reclaims guest CSRF sessions, normal logouts, and sessions already removed by Spring Security)
+        destroyedSessionIds.removeIf(id -> !trackedRegistrySessionIds.contains(id));
+
+        // Evict any dead HttpSessions that were invalidated outside our lifecycle listener
+        activeHttpSessions.entrySet().removeIf(entry -> {
+            try {
+                entry.getValue().getCreationTime();
+                return false;
+            } catch (IllegalStateException e) {
+                return true;
+            }
+        });
+
+        // If no principals exist in the SessionRegistry, internal housekeeping is complete
         if (principals == null || principals.isEmpty()) {
             return 0;
         }
 
-        long nowMillis = clock.millis();
-        int purgedCount = 0;
-
+        // 3. Process expired sessions for registered principals
         for (Object principal : principals) {
             if (principal == null) {
                 continue;
@@ -198,5 +243,25 @@ public class SessionRegistryCleanupDaemon implements HttpSessionListener {
         }
         long idleDurationMs = nowMillis - lastRequest.getTime();
         return idleDurationMs >= expiredSessionRetentionMs;
+    }
+
+    /**
+     * Returns the current number of tracked destroyed session IDs.
+     * Useful for health metrics and verification testing.
+     *
+     * @return count of tracked destroyed session IDs
+     */
+    public int getDestroyedSessionCount() {
+        return destroyedSessionIds.size();
+    }
+
+    /**
+     * Returns the current number of tracked active HTTP sessions.
+     * Useful for health metrics and verification testing.
+     *
+     * @return count of tracked active HTTP sessions
+     */
+    public int getActiveHttpSessionCount() {
+        return activeHttpSessions.size();
     }
 }
