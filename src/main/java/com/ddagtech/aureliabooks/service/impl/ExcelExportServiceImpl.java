@@ -455,13 +455,13 @@ public class ExcelExportServiceImpl implements ExcelExportService {
         PaymentBreakdownDto payment = reportDto.getPaymentBreakdown() != null ? reportDto.getPaymentBreakdown() : new PaymentBreakdownDto();
 
         Object[][] kpiData = {
-                {"Tổng doanh thu thực tế (DELIVERED)", kpi.getGrossRevenue().doubleValue(), currencyStyle, "Đồng"},
-                {"Số đơn hàng hoàn tất", (double) kpi.getTotalOrders(), integerStyle, "Đơn hàng"},
+                {"Tổng doanh thu thực tế (DELIVERED & PAID)", kpi.getGrossRevenue().doubleValue(), currencyStyle, "Đồng"},
+                {"Số đơn hàng hoàn tất & đã thanh toán", (double) kpi.getTotalOrders(), integerStyle, "Đơn hàng"},
                 {"Giá trị trung bình mỗi đơn (AOV)", kpi.getAverageOrderValue().doubleValue(), currencyStyle, "Đồng/Đơn"},
                 {"Tổng cước vận chuyển thu được", kpi.getTotalShippingFee().doubleValue(), currencyStyle, "Đồng"},
                 {"Doanh thu qua COD (Tiền mặt)", payment.getCodRevenue().doubleValue(), currencyStyle, "Đồng"},
                 {"Doanh thu qua VNPAY (Điện tử)", payment.getVnpayRevenue().doubleValue(), currencyStyle, "Đồng"},
-                {"Tỷ lệ thanh toán không dùng tiền mặt (BO-4)", payment.getElectronicSharePercent() / 100.0, percentStyle, "%"}
+                {"Tỷ lệ đơn thanh toán không dùng tiền mặt (BO-4)", payment.getElectronicSharePercent() / 100.0, percentStyle, "%"}
         };
 
         int kpiRowIdx = 5;
@@ -562,7 +562,7 @@ public class ExcelExportServiceImpl implements ExcelExportService {
 
         Row r1 = sheet.createRow(1);
         Cell c1 = r1.createCell(0);
-        c1.setCellValue("Số liệu đánh giá theo tổng số lượng bán ra (Quantity Sold) từ các đơn hàng DELIVERED");
+        c1.setCellValue("Số liệu đánh giá theo tổng số lượng bán ra (Quantity Sold) từ các đơn hàng DELIVERED & PAID");
         c1.setCellStyle(subtitleStyle);
 
         Row r3 = sheet.createRow(3);
@@ -659,7 +659,7 @@ public class ExcelExportServiceImpl implements ExcelExportService {
 
         Row r0 = sheet.createRow(0);
         Cell c0 = r0.createCell(0);
-        c0.setCellValue("DANH SÁCH CHI TIẾT ĐƠN HÀNG DELIVERED TRONG KỲ - AURELIABOOK");
+        c0.setCellValue("DANH SÁCH CHI TIẾT ĐƠN HÀNG DELIVERED & PAID TRONG KỲ - AURELIABOOK");
         c0.setCellStyle(titleStyle);
 
         Row r1 = sheet.createRow(1);

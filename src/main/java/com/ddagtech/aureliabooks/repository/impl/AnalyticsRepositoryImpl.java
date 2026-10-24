@@ -36,6 +36,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     COALESCE(AVG(o.final_total_amount), 0.00) AS average_order_value
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
+                  AND o.payment_status = 'PAID'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
                   AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 """;
@@ -68,6 +69,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     COALESCE(SUM(o.final_total_amount), 0.00) AS daily_revenue
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
+                  AND o.payment_status = 'PAID'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
                   AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 GROUP BY CAST(o.created_at AS DATE)
@@ -101,6 +103,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     COALESCE(SUM(o.final_total_amount), 0.00) AS monthly_revenue
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
+                  AND o.payment_status = 'PAID'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
                   AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
@@ -140,6 +143,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     COALESCE(SUM(o.final_total_amount), 0.00) AS channel_revenue
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
+                  AND o.payment_status = 'PAID'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
                   AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 GROUP BY o.payment_method
@@ -168,11 +172,10 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
             }
         });
 
-        BigDecimal total = result.getCodRevenue().add(result.getVnpayRevenue());
-        if (total.compareTo(BigDecimal.ZERO) > 0) {
-            double percent = result.getVnpayRevenue()
-                    .multiply(BigDecimal.valueOf(100))
-                    .divide(total, 2, RoundingMode.HALF_UP)
+        long totalOrders = result.getCodOrdersCount() + result.getVnpayOrdersCount();
+        if (totalOrders > 0) {
+            double percent = BigDecimal.valueOf(result.getVnpayOrdersCount() * 100.0)
+                    .divide(BigDecimal.valueOf(totalOrders), 2, RoundingMode.HALF_UP)
                     .doubleValue();
             result.setElectronicSharePercent(percent);
         } else {
@@ -198,6 +201,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 JOIN orders o ON oi.order_id = o.id
                 JOIN products p ON oi.product_id = p.id
                 WHERE o.order_status = 'DELIVERED'
+                  AND o.payment_status = 'PAID'
                   AND p.product_type = :productType
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
                   AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
@@ -242,6 +246,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     o.final_total_amount
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
+                  AND o.payment_status = 'PAID'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
                   AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 ORDER BY o.created_at DESC
@@ -286,6 +291,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     o.final_total_amount
                 FROM orders o
                 WHERE o.order_status = 'DELIVERED'
+                  AND o.payment_status = 'PAID'
                   AND (:startDateTime IS NULL OR o.created_at >= :startDateTime)
                   AND (:endExclusiveDateTime IS NULL OR o.created_at < :endExclusiveDateTime)
                 ORDER BY o.created_at DESC

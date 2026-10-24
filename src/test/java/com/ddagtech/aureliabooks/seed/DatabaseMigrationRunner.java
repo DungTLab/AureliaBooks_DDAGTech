@@ -7,18 +7,23 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 @DisplayName("Standalone Database Migration Runner for Missing Schema Columns")
 class DatabaseMigrationRunner {
 
     @Test
     void applyMissingSchemaColumns() throws Exception {
-        String url = "jdbc:mysql://localhost:3306/aurelia_books_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false";
-        String user = "root";
-        String pass = "root";
+        String enabled = System.getProperty("ENABLE_DB_MIGRATION_RUNNER", System.getenv("ENABLE_DB_MIGRATION_RUNNER"));
+        if (!"true".equalsIgnoreCase(enabled)) {
+            System.out.println("⚠️ [F18 GUARD] DatabaseMigrationRunner is disabled by default to guard QA/live databases from accidental DDL execution. Set ENABLE_DB_MIGRATION_RUNNER=true to enable.");
+            return;
+        }
 
-        System.out.println("Connecting to MySQL database to apply missing schema migrations...");
+        String url = System.getProperty("DB_URL", System.getenv().getOrDefault("DB_URL",
+                "jdbc:mysql://localhost:3306/aurelia_books_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false"));
+        String user = System.getProperty("DB_USERNAME", System.getenv().getOrDefault("DB_USERNAME", "root"));
+        String pass = System.getProperty("DB_PASSWORD", System.getenv().getOrDefault("DB_PASSWORD", "root"));
+
+        System.out.println("Connecting to database: " + url + " as user: " + user + " to apply missing schema migrations...");
         try (Connection conn = DriverManager.getConnection(url, user, pass);
              Statement stmt = conn.createStatement()) {
 

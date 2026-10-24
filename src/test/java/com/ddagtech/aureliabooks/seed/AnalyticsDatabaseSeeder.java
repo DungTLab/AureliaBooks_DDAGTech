@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -31,9 +30,14 @@ class AnalyticsDatabaseSeeder {
     private AnalyticsRepository analyticsRepository;
 
     @Test
-    @Commit
     @Transactional
     void seedAnalyticsTestData() {
+        String enabled = System.getProperty("ENABLE_ANALYTICS_SEEDER", System.getenv("ENABLE_ANALYTICS_SEEDER"));
+        if (!"true".equalsIgnoreCase(enabled)) {
+            System.out.println("⚠️ [F18 GUARD] AnalyticsDatabaseSeeder is disabled by default to guard QA/live databases. Set ENABLE_ANALYTICS_SEEDER=true to run.");
+            return;
+        }
+
         System.out.println("=== START SEEDING REALISTIC ANALYTICS ORDERS ===");
 
         // 1. Ensure Categories exist
@@ -212,6 +216,12 @@ class AnalyticsDatabaseSeeder {
 
     @Test
     void verifyRepositoryQueriesAgainstLiveDatabase() {
+        String enabled = System.getProperty("ENABLE_ANALYTICS_SEEDER", System.getenv("ENABLE_ANALYTICS_SEEDER"));
+        if (!"true".equalsIgnoreCase(enabled)) {
+            System.out.println("⚠️ [F18 GUARD] AnalyticsDatabaseSeeder verification is skipped by default to guard QA/live databases. Set ENABLE_ANALYTICS_SEEDER=true to run.");
+            return;
+        }
+
         LocalDateTime start = LocalDate.now().minusDays(30).atStartOfDay();
         LocalDateTime end = LocalDate.now().atTime(23, 59, 59);
 

@@ -124,7 +124,7 @@
                 <span class="text-xs font-semibold uppercase tracking-wider text-carbon_black-400 block mb-1">Tổng doanh thu thực nhận</span>
                 <span class="text-2xl font-extrabold text-blazing_flame block" th:text="${report.kpi.formattedGrossRevenue}">0 ₫</span>
                 <span class="text-[11px] text-emerald-600 font-semibold block mt-1">
-                    <i class="bi bi-shield-check"></i> Đơn DELIVERED
+                    <i class="bi bi-shield-check"></i> Đơn DELIVERED & PAID
                 </span>
             </div>
             <div class="w-12 h-12 rounded-xl bg-orange-50 text-blazing_flame flex items-center justify-center text-2xl flex-shrink-0">
@@ -205,7 +205,7 @@
             <!-- Objective BO-4 Metric Progress -->
             <div class="border-t border-dust_grey/50 pt-3 space-y-2">
                 <div class="flex items-center justify-between text-xs">
-                    <span class="text-carbon_black-600 font-medium">Tỷ lệ thanh toán điện tử (BO-4):</span>
+                    <span class="text-carbon_black-600 font-medium">Tỷ lệ đơn thanh toán điện tử (BO-4):</span>
                     <span class="font-bold"
                           th:classappend="${report.paymentBreakdown.meetingElectronicTarget} ? 'text-emerald-600' : 'text-amber-600'"
                           th:text="${report.paymentBreakdown.formattedElectronicSharePercent}">0.0%</span>
@@ -215,7 +215,7 @@
                          th:style="'width: ' + ${report.paymentBreakdown.electronicSharePercent} + '%;'"></div>
                 </div>
                 <div class="text-[11px] text-carbon_black-400 text-right">
-                    Mục tiêu tối thiểu: &gt;= 40%
+                    Mục tiêu tối thiểu: &gt;= 40% số đơn
                 </div>
             </div>
         </div>
@@ -298,7 +298,7 @@
             <div>
                 <h2 class="text-base font-bold text-carbon_black flex items-center gap-2">
                     <i class="bi bi-receipt-cutoff text-carbon_black-700"></i>
-                    <span>Danh Sách Đơn Hàng Hoàn Tất (DELIVERED)</span>
+                    <span>Danh Sách Đơn Hàng Hoàn Tất (DELIVERED & PAID)</span>
                 </h2>
                 <p class="text-xs text-carbon_black-500 mt-0.5">Danh sách các đơn hàng giao thành công cấu thành doanh thu thực nhận.</p>
             </div>
