@@ -198,9 +198,10 @@
                                 class="hidden absolute right-0 mt-2 w-56 bg-white border border-dust_grey rounded-2xl shadow-hover py-2 z-50 animate-fade-in-down divide-y divide-dust_grey/40"
                             >
                                 <!-- Profile Links -->
-                                <div class="py-1">
+                                <div sec:authorize="hasRole('CUSTOMER')" class="py-1">
                                     <a
                                         th:href="@{/profile}"
+                                        sec:authorize="hasRole('CUSTOMER')"
                                         class="flex items-center gap-2.5 px-4 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-parchment-100 transition-colors"
                                     >
                                         <i class="bi bi-person text-blazing_flame"></i> Hồ sơ cá nhân
@@ -236,28 +237,28 @@
                                         <i class="bi bi-shield-lock"></i> Quản trị hệ thống
                                     </a>
                                     <a
-                                        sec:authorize="hasRole('MANAGER')"
+                                        sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
                                         th:href="@{/manager/products}"
                                         class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold"
                                     >
                                         <i class="bi bi-box-seam"></i> Quản lý kho & SP
                                     </a>
                                     <a
-                                        sec:authorize="hasRole('MANAGER')"
+                                        sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
                                         th:href="@{/manager/publishers}"
                                         class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold"
                                     >
                                         <i class="bi bi-building"></i> Quản lý Nhà xuất bản
                                     </a>
                                     <a
-                                        sec:authorize="hasRole('MANAGER')"
+                                        sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
                                         th:href="@{/manager/brands}"
                                         class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold"
                                     >
                                         <i class="bi bi-tag"></i> Quản lý Thương hiệu VPP
                                     </a>
                                     <a
-                                        sec:authorize="hasRole('MANAGER')"
+                                        sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
                                         th:href="@{/manager/categories}"
                                         class="flex items-center gap-2.5 px-4 py-2 text-sm text-sky-700 hover:bg-sky-50 transition-colors font-semibold"
                                     >
@@ -313,7 +314,7 @@
                                         <i class="bi bi-boxes"></i> Quản lý kho
                                     </a>
                                     <a
-                                        sec:authorize="hasRole('SALE_STAFF')"
+                                        sec:authorize="hasAnyRole('ADMIN', 'SALE_STAFF')"
                                         th:href="@{/staff/orders}"
                                         class="flex items-center gap-2.5 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 transition-colors font-semibold"
                                     >

@@ -13,11 +13,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 
 /** Only verifies shell rendering and existing URL boundaries, not Sprint 1 business DoD. */
 @WebMvcTest(controllers = {AuthController.class, ProductController.class,
         AdminUserController.class, AdminProductController.class, MasterDataController.class,
-        SupplierController.class, AdminReceiptController.class, AuditLogController.class})
+        SupplierController.class, AdminReceiptController.class, AuditLogController.class,
+        DashboardController.class})
 @Import(SecurityConfig.class)
 @org.springframework.test.context.bean.override.mockito.MockitoBean(types = com.ddagtech.aureliabooks.repository.RoleRepository.class)
 class SprintOneShellTest {
@@ -203,5 +205,63 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
     @Test
     void postWithoutCsrfIsRejected() throws Exception {
         mvc.perform(post("/auth/register")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void navbarAndDashboardAlignRoleVisibilityWithSecurityConfig() throws Exception {
+        org.mockito.Mockito.when(productService.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(productService.getActiveCategories())
+                .thenReturn(java.util.List.of());
+
+        // 1. CUSTOMER sees personal profile/address/orders links, but no back-office links
+        mvc.perform(get("/products").with(user("customer-nav").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/profile\"")))
+                .andExpect(content().string(containsString("href=\"/profile/addresses\"")))
+                .andExpect(content().string(containsString("href=\"/orders/my-orders\"")))
+                .andExpect(content().string(not(containsString("href=\"/manager/products\""))))
+                .andExpect(content().string(not(containsString("href=\"/admin/users\""))))
+                .andExpect(content().string(not(containsString("href=\"/staff/orders\""))));
+
+        // 2. ADMIN does NOT see CUSTOMER-only /profile links (preventing 403), and DOES see /manager/* and /staff/orders
+        mvc.perform(get("/dashboard").with(user("admin-nav").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("href=\"/profile\""))))
+                .andExpect(content().string(not(containsString("href=\"/profile/addresses\""))))
+                .andExpect(content().string(not(containsString("href=\"/orders/my-orders\""))))
+                .andExpect(content().string(not(containsString("href=\"/cart\""))))
+                .andExpect(content().string(containsString("href=\"/admin/users\"")))
+                .andExpect(content().string(containsString("href=\"/manager/products\"")))
+                .andExpect(content().string(containsString("href=\"/manager/publishers\"")))
+                .andExpect(content().string(containsString("href=\"/manager/brands\"")))
+                .andExpect(content().string(containsString("href=\"/manager/categories\"")))
+                .andExpect(content().string(containsString("href=\"/manager/vouchers\"")))
+                .andExpect(content().string(containsString("href=\"/manager/suppliers\"")))
+                .andExpect(content().string(containsString("href=\"/manager/receipts\"")))
+                .andExpect(content().string(containsString("href=\"/staff/orders\"")));
+
+        // 3. MANAGER does NOT see /profile links or /admin/users, and sees all /manager/* links
+        mvc.perform(get("/dashboard").with(user("manager-nav").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("href=\"/profile\""))))
+                .andExpect(content().string(not(containsString("href=\"/admin/users\""))))
+                .andExpect(content().string(containsString("href=\"/manager/products\"")))
+                .andExpect(content().string(containsString("href=\"/manager/publishers\"")))
+                .andExpect(content().string(containsString("href=\"/manager/brands\"")))
+                .andExpect(content().string(containsString("href=\"/manager/categories\"")))
+                .andExpect(content().string(containsString("href=\"/manager/vouchers\"")))
+                .andExpect(content().string(containsString("href=\"/manager/suppliers\"")))
+                .andExpect(content().string(containsString("href=\"/manager/receipts\"")));
+
+        // 4. SALE_STAFF on /dashboard sees /staff/orders, /staff/receipts/new, and /manager/stock/alerts, but NOT /profile or /manager/products
+        mvc.perform(get("/dashboard").with(user("staff-nav").roles("SALE_STAFF")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("href=\"/profile\""))))
+                .andExpect(content().string(not(containsString("href=\"/manager/products\""))))
+                .andExpect(content().string(not(containsString("href=\"/admin/users\""))))
+                .andExpect(content().string(containsString("href=\"/staff/orders\"")))
+                .andExpect(content().string(containsString("href=\"/staff/receipts/new\"")))
+                .andExpect(content().string(containsString("href=\"/manager/stock/alerts\"")));
     }
 }
