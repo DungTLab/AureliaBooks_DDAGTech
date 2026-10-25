@@ -1,5 +1,25 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Không thể xử lý đơn', ~{::#main-content})}">
-<head><title>Không thể xử lý đơn</title></head><body><section id="main-content" class="checkout-page">
-    <link rel="stylesheet" th:href="@{/css/checkout.css}"><div class="checkout-card"><h1>Không thể xử lý đơn</h1><p role="alert" th:text="${errorMessage}"></p><a th:href="@{/staff/orders}" class="checkout-back-link">Về hàng đợi để tải lại đơn hàng</a></div>
-</section></body></html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Không thể xử lý đơn | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Không thể xử lý đơn - AureliaBook</title>
+</head>
+<body>
+<div id="main-content" class="max-w-2xl mx-auto px-4 py-16">
+    <div class="bg-white border border-dust_grey rounded-2xl p-8 sm:p-10 shadow-sm text-center space-y-4">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-3xl">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h1 class="text-2xl font-bold font-serif text-carbon_black">Không thể xử lý đơn</h1>
+        <p class="text-sm text-carbon_black-600" role="alert" th:text="${errorMessage}">Đã xảy ra sự cố khi tải thông tin đơn hàng.</p>
+        <div class="pt-4">
+            <a th:href="@{/staff/orders}"
+               class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold text-sm rounded-xl shadow-md transition">
+                <i class="bi bi-arrow-left"></i>
+                <span>Về hàng đợi để tải lại đơn hàng</span>
+            </a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

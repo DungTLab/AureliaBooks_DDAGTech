@@ -1,24 +1,299 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      th:replace="~{layout/base :: layout('Khu vực làm việc', ~{::#main-content})}">
-<head><title>Khu vực làm việc</title></head>
+      th:replace="~{layout/base :: layout('Khu vực làm việc & Bảng điều khiển tác vụ', ~{::#main-content})}">
+<head>
+    <title>Khu vực làm việc - AureliaBooks</title>
+</head>
 <body>
-<section id="main-content" class="max-w-4xl mx-auto px-4 py-12">
-    <h1 class="font-serif text-3xl font-bold">Khu vực làm việc</h1>
-    <p class="mt-3">Đăng nhập thành công. Vui lòng chọn chức năng phù hợp với vai trò của bạn.</p>
-    <div class="flex flex-wrap gap-4 mt-6">
-        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý tài khoản</a>
-        <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/audit-logs}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhật ký kiểm toán</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/analytics/revenue}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Báo cáo Doanh thu & Excel</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/products}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý sản phẩm</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/stock/alerts}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý kho</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/stock/history}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Lịch sử biến động kho</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/authors}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Tác giả</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/publishers}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhà xuất bản</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/brands}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Thương hiệu VPP</a>
-        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/categories}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Cây danh mục</a>
-        <a th:href="@{/staff/receipts/new}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhập kho</a>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Page Header Card -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Hệ thống nội bộ</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Khu vực làm việc</span>
+            </div>
+            <h1 class="text-2xl font-bold font-serif text-carbon_black flex items-center gap-2.5">
+                <i class="bi bi-grid-1x2-fill text-blazing_flame"></i>
+                <span>Khu vực làm việc &amp; Bảng điều khiển tác vụ</span>
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Chào mừng trở lại! Trung tâm điều phối hoạt động kinh doanh, kho vận, danh mục và quản trị hệ thống AureliaBook.
+            </p>
+        </div>
+
+        <!-- Role Badge Display -->
+        <div class="flex items-center gap-2 self-start sm:self-center">
+            <span class="text-xs font-semibold text-carbon_black-500 uppercase">Vai trò:</span>
+            <span sec:authorize="hasRole('ADMIN')"
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                <i class="bi bi-shield-lock-fill"></i> Quản trị viên (ADMIN)
+            </span>
+            <span sec:authorize="hasRole('MANAGER')"
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                <i class="bi bi-briefcase-fill"></i> Quản lý vận hành (MANAGER)
+            </span>
+            <span sec:authorize="hasRole('SALE_STAFF')"
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                <i class="bi bi-person-badge-fill"></i> Nhân viên bán hàng (SALE_STAFF)
+            </span>
+        </div>
     </div>
-</section>
+
+    <!-- Section 1: Orders & Fulfillment (Đơn hàng & Kho vận) -->
+    <div sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')" class="space-y-4">
+        <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-2">
+            <i class="bi bi-box-seam text-blazing_flame text-lg"></i>
+            <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Đơn hàng &amp; Kho vận</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Xử lý đơn hàng -->
+            <a sec:authorize="hasAnyRole('ADMIN','SALE_STAFF')" th:href="@{/staff/orders}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-orange-50 text-blazing_flame flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-inboxes-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Xử lý đơn hàng</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Hàng đợi tiếp nhận đơn, đóng gói, bàn giao vận chuyển và xử lý hoàn trả.</p>
+                </div>
+            </a>
+
+            <!-- Quản lý kho -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')" th:href="@{/manager/stock/alerts}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-boxes"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý kho</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Giám sát số lượng tồn kho khả dụng (ATP), cảnh báo hết hàng và tồn kho thấp.</p>
+                </div>
+            </a>
+
+            <!-- Lập phiếu nhập kho -->
+            <a th:href="@{/staff/receipts/new}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-plus-circle-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Nhập kho</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Tạo phiếu nhập kho dự thảo (DRAFT) từ nhà cung cấp theo chứng từ hàng về.</p>
+                </div>
+            </a>
+
+            <!-- Quản lý Phiếu nhập kho -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/receipts}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-journal-check"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý Phiếu nhập kho</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Kiểm tra, duyệt phiếu nhập để cộng tồn kho chính thức và khóa chứng từ vĩnh viễn.</p>
+                </div>
+            </a>
+
+            <!-- Lịch sử biến động kho -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/stock/history}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Lịch sử biến động kho</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Truy vết nguồn gốc tăng/giảm tồn kho minh bạch từ phiếu nhập và chứng từ đơn hàng.</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Section 2: Catalog & Master Data & Promotions -->
+    <div sec:authorize="hasAnyRole('ADMIN','MANAGER')" class="space-y-4">
+        <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-2">
+            <i class="bi bi-tags-fill text-blazing_flame text-lg"></i>
+            <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Danh mục, Nhà cung cấp &amp; Khuyến mãi</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Quản lý sản phẩm -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/products}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-journal-bookmark-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý sản phẩm</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Danh mục Sách &amp; Văn phòng phẩm, giá niêm yết, mã ISBN và mã vạch Barcode.</p>
+                </div>
+            </a>
+
+            <!-- Quản lý Nhà cung cấp -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/suppliers}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-truck"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý Nhà cung cấp</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Danh bạ đối tác xuất bản, xưởng sản xuất và nhà cung ứng hàng hóa.</p>
+                </div>
+            </a>
+
+            <!-- Mã giảm giá -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/vouchers}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-ticket-perforated-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Mã giảm giá</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Chương trình khuyến mãi giảm giá tiền hàng và mã miễn phí/hỗ trợ vận chuyển.</p>
+                </div>
+            </a>
+
+            <!-- Tác giả -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/authors}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Tác giả</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Danh sách tác giả trong nước và quốc tế, liên kết với các đầu sách phát hành.</p>
+                </div>
+            </a>
+
+            <!-- Nhà xuất bản -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/publishers}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-building-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Nhà xuất bản</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Quản lý nhà xuất bản sách phục vụ phân loại và tra cứu bản quyền.</p>
+                </div>
+            </a>
+
+            <!-- Thương hiệu VPP -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/brands}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-tag-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Thương hiệu VPP</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Quản lý nhãn hiệu văn phòng phẩm, dụng cụ học tập và phụ kiện.</p>
+                </div>
+            </a>
+
+            <!-- Cây danh mục -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/categories}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-diagram-3-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Cây danh mục</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Cấu trúc phân loại phân cấp đa tầng (Cha - Con) cho danh mục toàn trang.</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Section 3: Analytics & System Governance -->
+    <div sec:authorize="hasAnyRole('ADMIN','MANAGER')" class="space-y-4">
+        <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-2">
+            <i class="bi bi-shield-check text-blazing_flame text-lg"></i>
+            <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Thống kê, Báo cáo &amp; Quản trị hệ thống</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Báo cáo Doanh thu & Excel -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/analytics/revenue}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Báo cáo Doanh thu &amp; Excel</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Biểu đồ doanh thu thực nhận theo kỳ và xuất báo cáo tài chính định dạng Excel (.xlsx).</p>
+                </div>
+            </a>
+
+            <!-- Quản lý tài khoản (ADMIN ONLY) -->
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-person-lines-fill"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý tài khoản</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Phân quyền vai trò nội bộ (ADMIN, MANAGER, SALE_STAFF) và bảo vệ an toàn phiên.</p>
+                </div>
+            </a>
+
+            <!-- Nhật ký kiểm toán (ADMIN ONLY) -->
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/audit-logs}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-journal-text"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Nhật ký kiểm toán</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Tra cứu nhật ký an ninh, biến động chứng từ và thao tác hệ thống append-only.</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+</div>
 </body>
 </html>
