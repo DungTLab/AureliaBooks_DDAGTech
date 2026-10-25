@@ -54,10 +54,9 @@
         </div>
 
         <form method="get" th:action="@{/manager/stock/history}" th:object="${filter}" class="space-y-4">
-            <input type="hidden" name="size" th:value="${pageSize != null ? pageSize : 20}" />
             <input th:if="${filter.productId != null}" type="hidden" name="productId" th:value="${filter.productId}" />
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 <!-- Search Keyword -->
                 <div>
                     <label for="keywordInput" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
@@ -94,6 +93,24 @@
                     </select>
                 </div>
 
+                <!-- Operator / Actor Filter (L-08) -->
+                <div>
+                    <label for="actorSelect" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                        Người thực hiện
+                    </label>
+                    <select id="actorSelect" name="actorUserId"
+                            class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
+                        <option value="" th:selected="${filter.actorUserId == null}">Tất cả người thực hiện</option>
+                        <option value="-1" th:selected="${filter.actorUserId != null and filter.actorUserId == -1}">Hệ thống tự động (-1)</option>
+                        <option th:each="u : ${actors}"
+                                th:value="${u.id}"
+                                th:text="${u.fullName != null ? u.fullName + ' (' + u.email + ')' : u.email}"
+                                th:selected="${filter.actorUserId != null and filter.actorUserId == u.id}">
+                            Nhân viên
+                        </option>
+                    </select>
+                </div>
+
                 <!-- Start Date -->
                 <div>
                     <label for="startDateInput" class="block text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
@@ -115,7 +132,7 @@
 
             <!-- Action Buttons & Quick Filter Tags -->
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-dust_grey/60">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-3">
                     <button type="submit"
                             class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl transition shadow-sm">
                         <i class="bi bi-funnel-fill text-xs"></i>
@@ -127,6 +144,19 @@
                         <i class="bi bi-arrow-counterclockwise text-xs"></i>
                         <span>Xóa bộ lọc</span>
                     </a>
+
+                    <!-- Page Size Selector (L-07 / RDS 5.5 Step 8) -->
+                    <div class="flex items-center gap-2 text-xs text-carbon_black-600 border-l border-dust_grey pl-3">
+                        <label for="pageSizeSelect" class="font-medium whitespace-nowrap">Hiển thị:</label>
+                        <select id="pageSizeSelect" name="size" onchange="this.form.submit()"
+                                class="px-2.5 py-1.5 bg-white border border-dust_grey rounded-xl text-xs font-semibold text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                            <option value="10" th:selected="${pageSize == 10}">10 dòng</option>
+                            <option value="20" th:selected="${pageSize == null or pageSize == 20}">20 dòng</option>
+                            <option value="25" th:selected="${pageSize == 25}">25 dòng</option>
+                            <option value="50" th:selected="${pageSize == 50}">50 dòng</option>
+                            <option value="100" th:selected="${pageSize == 100}">100 dòng</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Filter indicator if product filtered -->
@@ -225,24 +255,25 @@
 
                     <!-- Source Document Link -->
                     <td class="py-3.5 px-4 whitespace-nowrap">
-                        <!-- Receipt Document (Opens Detail Modal) -->
+                        <!-- Receipt Document (L-06: Unobtrusive data-receipt-id instead of inline onclick) -->
                         <button th:if="${item.sourceTable == 'goods_receipts'}"
                                 type="button"
-                                th:onclick="'viewReceiptDetail(' + ${item.sourceId} + ')'"
-                                class="font-mono text-xs font-semibold text-blazing_flame hover:underline cursor-pointer focus:outline-none"
+                                th:data-receipt-id="${item.sourceId}"
+                                class="btn-view-receipt font-mono text-xs font-semibold text-blazing_flame hover:underline cursor-pointer focus:outline-none"
                                 title="Bấm để xem chi tiết phiếu nhập"
                                 th:text="${item.referenceCode}">
                             GR-20261015-001
                         </button>
 
-                        <!-- Order Document -->
-                        <a th:if="${item.sourceTable == 'orders'}"
-                           th:href="@{/manager/orders}"
-                           class="font-mono text-xs font-semibold text-sky-600 hover:underline"
-                           title="Xem đơn hàng gốc"
-                           th:text="${item.referenceCode}">
+                        <!-- Order Document (L-02: Opens Order Detail Modal via AJAX without 404 dead link) -->
+                        <button th:if="${item.sourceTable == 'orders'}"
+                                type="button"
+                                th:data-order-id="${item.sourceId}"
+                                class="btn-view-order font-mono text-xs font-semibold text-sky-600 hover:underline cursor-pointer focus:outline-none"
+                                title="Bấm để xem chi tiết đơn hàng"
+                                th:text="${item.referenceCode}">
                             ORD-20261015-001
-                        </a>
+                        </button>
 
                         <!-- Other fallback -->
                         <span th:if="${item.sourceTable != 'goods_receipts' and item.sourceTable != 'orders'}"
@@ -301,7 +332,7 @@
             <!-- Page Navigation Buttons -->
             <div class="flex items-center gap-1">
                 <!-- First Page -->
-                <a th:href="@{/manager/stock/history(page=0, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                <a th:href="@{/manager/stock/history(page=0, size=${pageSize}, keyword=${filter.keyword}, movementType=${filter.movementType}, actorUserId=${filter.actorUserId}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
                    th:classappend="${movementsPage.first} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
                    class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
                    title="Trang đầu">
@@ -309,7 +340,7 @@
                 </a>
 
                 <!-- Previous Page -->
-                <a th:href="@{/manager/stock/history(page=${movementsPage.number - 1}, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                <a th:href="@{/manager/stock/history(page=${movementsPage.number - 1}, size=${pageSize}, keyword=${filter.keyword}, movementType=${filter.movementType}, actorUserId=${filter.actorUserId}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
                    th:classappend="${!movementsPage.hasPrevious()} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
                    class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
                    title="Trang trước">
@@ -321,7 +352,7 @@
                       th:text="${movementsPage.number + 1}">1</span>
 
                 <!-- Next Page -->
-                <a th:href="@{/manager/stock/history(page=${movementsPage.number + 1}, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                <a th:href="@{/manager/stock/history(page=${movementsPage.number + 1}, size=${pageSize}, keyword=${filter.keyword}, movementType=${filter.movementType}, actorUserId=${filter.actorUserId}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
                    th:classappend="${!movementsPage.hasNext()} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
                    class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
                    title="Trang kế">
@@ -329,7 +360,7 @@
                 </a>
 
                 <!-- Last Page -->
-                <a th:href="@{/manager/stock/history(page=${movementsPage.totalPages - 1}, size=${movementsPage.size}, keyword=${filter.keyword}, movementType=${filter.movementType}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
+                <a th:href="@{/manager/stock/history(page=${movementsPage.totalPages - 1}, size=${pageSize}, keyword=${filter.keyword}, movementType=${filter.movementType}, actorUserId=${filter.actorUserId}, startDate=${filter.startDate}, endDate=${filter.endDate}, productId=${filter.productId})}"
                    th:classappend="${movementsPage.last} ? 'pointer-events-none opacity-40' : 'hover:bg-white hover:border-dust_grey'"
                    class="px-2.5 py-1.5 rounded-lg border border-transparent font-medium transition"
                    title="Trang cuối">
@@ -349,7 +380,7 @@
                     <i class="bi bi-receipt text-blazing_flame"></i>
                     <span>Chi tiết Phiếu Nhập Kho: <span id="modalReceiptCode" class="font-mono text-blazing_flame"></span></span>
                 </h3>
-                <button type="button" onclick="closeReceiptModal()" class="text-carbon_black-400 hover:text-carbon_black p-1 transition">
+                <button type="button" id="closeReceiptModalBtn" class="text-carbon_black-400 hover:text-carbon_black p-1 transition">
                     <i class="bi bi-x-lg text-lg"></i>
                 </button>
             </div>
@@ -417,7 +448,7 @@
                     <span>Mở trang quản lý phiếu nhập</span>
                     <i class="bi bi-box-arrow-up-right text-[10px]"></i>
                 </a>
-                <button type="button" onclick="closeReceiptModal()"
+                <button type="button" id="closeReceiptModalBottomBtn"
                         class="px-5 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl text-sm transition shadow-sm">
                     Đóng
                 </button>
@@ -425,7 +456,92 @@
         </div>
     </div>
 
-    <!-- Script for Receipt Detail Modal Interactions -->
+
+    <!-- ========================================================================= -->
+    <!-- Modal: Order Detail View Modal (Popup đối chiếu chứng từ đơn hàng L-02)    -->
+    <!-- ========================================================================= -->
+    <div id="orderDetailModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white border border-dust_grey rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden animate-fade-in-down" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-5 bg-sky-50 border-b border-dust_grey">
+                <h3 class="text-lg font-bold text-carbon_black flex items-center gap-2">
+                    <i class="bi bi-bag-check text-sky-600"></i>
+                    <span>Chi tiết Đơn Hàng Gốc: <span id="modalOrderCode" class="font-mono text-sky-600"></span></span>
+                </h3>
+                <button type="button" id="closeOrderModalBtn" class="text-carbon_black-400 hover:text-carbon_black p-1 transition">
+                    <i class="bi bi-x-lg text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+                <!-- Header Meta Info Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-sky-50/50 p-4 rounded-xl text-xs">
+                    <div>
+                        <span class="text-carbon_black-500 block">Người nhận:</span>
+                        <strong id="modalOrderRecipient" class="text-sm text-carbon_black block">-</strong>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Số điện thoại:</span>
+                        <span id="modalOrderPhone" class="font-mono text-carbon_black font-medium block">-</span>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Tổng tiền đơn:</span>
+                        <strong id="modalOrderTotal" class="text-sm text-sky-700 block">0 đ</strong>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Trạng thái đơn:</span>
+                        <span id="modalOrderStatusBadge" class="inline-block mt-0.5 font-bold">-</span>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Thanh toán:</span>
+                        <span id="modalOrderPaymentBadge" class="inline-block mt-0.5 font-medium">-</span>
+                    </div>
+                    <div>
+                        <span class="text-carbon_black-500 block">Thời gian đặt:</span>
+                        <span id="modalOrderCreatedAt" class="text-carbon_black font-medium">-</span>
+                    </div>
+                    <div class="col-span-2 sm:col-span-3">
+                        <span class="text-carbon_black-500 block">Địa chỉ giao:</span>
+                        <span id="modalOrderAddress" class="text-carbon_black font-medium">-</span>
+                    </div>
+                    <div id="modalOrderCancelRow" class="col-span-2 sm:col-span-3 hidden">
+                        <span class="text-rose-600 font-semibold block">Lý do hủy đơn:</span>
+                        <span id="modalOrderCancelReason" class="text-rose-700 italic">-</span>
+                    </div>
+                </div>
+
+                <!-- Items Table in Modal -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-2">Sản phẩm trong đơn:</h4>
+                    <div class="border border-dust_grey rounded-xl overflow-hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-parchment-100 text-carbon_black-700 font-semibold border-b border-dust_grey">
+                                <tr>
+                                    <th class="py-2.5 px-3">STT</th>
+                                    <th class="py-2.5 px-3">Tên sản phẩm</th>
+                                    <th class="py-2.5 px-3">Mã vạch</th>
+                                    <th class="py-2.5 px-3 text-right">Đơn giá (đ)</th>
+                                    <th class="py-2.5 px-3 text-center">Số lượng</th>
+                                    <th class="py-2.5 px-3 text-right">Thành tiền (đ)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalOrderItemsTableBody" class="divide-y divide-dust_grey/50">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-parchment-100 border-t border-dust_grey flex items-center justify-end">
+                <button type="button" id="closeOrderModalBottomBtn"
+                        class="px-5 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl text-sm transition shadow-sm">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script for Detail Modal Interactions (CSP compliant event delegation) -->
     <script>
         function openReceiptModal() {
             const modal = document.getElementById('receiptDetailModal');
@@ -443,11 +559,60 @@
             }
         }
 
-        // Close on backdrop click
-        window.addEventListener('click', function (e) {
-            const modal = document.getElementById('receiptDetailModal');
-            if (e.target === modal) {
+        function openOrderModal() {
+            const modal = document.getElementById('orderDetailModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            }
+        }
+
+        function closeOrderModal() {
+            const modal = document.getElementById('orderDetailModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        }
+
+        // CSP-Compliant Event Delegation (L-06 & L-02)
+        document.addEventListener('click', function (e) {
+            // Receipt view trigger
+            const receiptBtn = e.target.closest('[data-receipt-id]');
+            if (receiptBtn) {
+                e.preventDefault();
+                const id = receiptBtn.getAttribute('data-receipt-id');
+                if (id) viewReceiptDetail(id);
+                return;
+            }
+
+            // Order view trigger
+            const orderBtn = e.target.closest('[data-order-id]');
+            if (orderBtn) {
+                e.preventDefault();
+                const id = orderBtn.getAttribute('data-order-id');
+                if (id) viewOrderDetail(id);
+                return;
+            }
+
+            // Close buttons
+            if (e.target.closest('#closeReceiptModalBtn') || e.target.closest('#closeReceiptModalBottomBtn')) {
                 closeReceiptModal();
+                return;
+            }
+            if (e.target.closest('#closeOrderModalBtn') || e.target.closest('#closeOrderModalBottomBtn')) {
+                closeOrderModal();
+                return;
+            }
+
+            // Backdrop click
+            const receiptModal = document.getElementById('receiptDetailModal');
+            if (e.target === receiptModal) {
+                closeReceiptModal();
+            }
+            const orderModal = document.getElementById('orderDetailModal');
+            if (e.target === orderModal) {
+                closeOrderModal();
             }
         });
 
@@ -455,6 +620,7 @@
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 closeReceiptModal();
+                closeOrderModal();
             }
         });
 
@@ -522,6 +688,78 @@
                 })
                 .catch(err => {
                     document.getElementById('modalItemsTableBody').innerHTML = '<tr><td colspan="7" class="py-4 text-center text-rose-600 font-medium">' + escapeReceiptHtml(err.message) + '</td></tr>';
+                });
+        }
+
+        function viewOrderDetail(id) {
+            document.getElementById('modalOrderCode').textContent = '...';
+            document.getElementById('modalOrderRecipient').textContent = 'Đang tải...';
+            document.getElementById('modalOrderPhone').textContent = '...';
+            document.getElementById('modalOrderTotal').textContent = '...';
+            document.getElementById('modalOrderStatusBadge').textContent = '...';
+            document.getElementById('modalOrderPaymentBadge').textContent = '...';
+            document.getElementById('modalOrderCreatedAt').textContent = '...';
+            document.getElementById('modalOrderAddress').textContent = '...';
+            document.getElementById('modalOrderCancelRow').classList.add('hidden');
+            document.getElementById('modalOrderItemsTableBody').innerHTML = '<tr><td colspan="6" class="py-6 text-center text-carbon_black-500"><i class="bi bi-arrow-repeat animate-spin text-xl inline-block mr-2"></i>Đang tải dữ liệu đơn hàng...</td></tr>';
+            openOrderModal();
+
+            fetch('/api/orders/' + id)
+                .then(res => {
+                    if (!res.ok) throw new Error('Không thể tải chi tiết đơn hàng (Mã lỗi HTTP ' + res.status + ').');
+                    return res.json();
+                })
+                .then(data => {
+                    document.getElementById('modalOrderCode').textContent = data.orderCode || '-';
+                    document.getElementById('modalOrderRecipient').textContent = data.recipientName || '-';
+                    document.getElementById('modalOrderPhone').textContent = data.phone || '-';
+                    document.getElementById('modalOrderTotal').textContent =
+                        (data.finalTotalAmount ? Number(data.finalTotalAmount).toLocaleString('vi-VN') : '0') + ' đ';
+                    document.getElementById('modalOrderCreatedAt').textContent =
+                        data.createdAt ? new Date(data.createdAt).toLocaleString('vi-VN') : '-';
+                    document.getElementById('modalOrderAddress').textContent = data.fullAddress || '-';
+
+                    // Status badges
+                    const statusBadge = document.getElementById('modalOrderStatusBadge');
+                    statusBadge.textContent = data.orderStatus || '-';
+                    if (data.orderStatus === 'DELIVERED') {
+                        statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
+                    } else if (data.orderStatus === 'CANCELLED') {
+                        statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
+                    } else {
+                        statusBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800';
+                    }
+
+                    const payBadge = document.getElementById('modalOrderPaymentBadge');
+                    payBadge.textContent = (data.paymentMethod || '') + ' - ' + (data.paymentStatus || '');
+
+                    if (data.cancelReason) {
+                        document.getElementById('modalOrderCancelRow').classList.remove('hidden');
+                        document.getElementById('modalOrderCancelReason').textContent = data.cancelReason;
+                    }
+
+                    const tbody = document.getElementById('modalOrderItemsTableBody');
+                    tbody.innerHTML = '';
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach((item, index) => {
+                            const tr = document.createElement('tr');
+                            tr.className = 'hover:bg-sky-50/50';
+                            tr.innerHTML = `
+                                <td class="py-2.5 px-3 text-center text-carbon_black-500">${index + 1}</td>
+                                <td class="py-2.5 px-3 font-medium text-carbon_black">${escapeReceiptHtml(item.productTitle || '')}</td>
+                                <td class="py-2.5 px-3 font-mono text-carbon_black-600">${escapeReceiptHtml(item.barcode || '-')}</td>
+                                <td class="py-2.5 px-3 text-right">${Number(item.unitPrice || 0).toLocaleString('vi-VN')} đ</td>
+                                <td class="py-2.5 px-3 text-center font-bold text-carbon_black">${item.quantity || 0}</td>
+                                <td class="py-2.5 px-3 text-right font-bold text-sky-700">${Number(item.subtotal || 0).toLocaleString('vi-VN')} đ</td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-carbon_black-400">Không có dữ liệu sản phẩm trong đơn.</td></tr>';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('modalOrderItemsTableBody').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-rose-600 font-medium">' + escapeReceiptHtml(err.message) + '</td></tr>';
                 });
         }
 

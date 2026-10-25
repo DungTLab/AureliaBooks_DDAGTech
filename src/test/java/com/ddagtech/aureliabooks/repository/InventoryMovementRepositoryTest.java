@@ -110,7 +110,22 @@ class InventoryMovementRepositoryTest {
             assertThat(item.note()).isEqualTo("Nhap sach kim dong");
 
             ArgumentCaptor<MapSqlParameterSource> captor = ArgumentCaptor.forClass(MapSqlParameterSource.class);
-            verify(jdbc).query(anyString(), captor.capture(), any(RowMapper.class));
+            ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+            verify(jdbc).query(sqlCaptor.capture(), captor.capture(), any(RowMapper.class));
+
+            String executedSql = sqlCaptor.getValue();
+            // L-01: Ensure cancel_reason is only mapped for ORDER_CANCELLED_RESTOCK, not for normal sales ORDER_DEDUCT
+            assertThat(executedSql).contains("WHEN im.source_table = 'orders' AND im.movement_type = 'ORDER_CANCELLED_RESTOCK' THEN o.cancel_reason");
+
+            // L-03 & L-REMAIN-03: Ensure B-Tree indexes can be utilized via prefix matching and exact equality without leading '%'
+            assertThat(executedSql).contains("p.barcode LIKE :prefixPattern ESCAPE '\\\\'");
+            assertThat(executedSql).contains("b.isbn LIKE :prefixPattern ESCAPE '\\\\'");
+            assertThat(executedSql).contains("p.barcode = :rawKeyword");
+            assertThat(executedSql).contains("b.isbn = :rawKeyword");
+            assertThat(executedSql).contains("im.reference_code = :rawKeyword");
+            assertThat(executedSql).contains("im.reference_code LIKE :prefixPattern ESCAPE '\\\\'");
+            assertThat(executedSql).doesNotContain("LOWER(p.barcode)");
+            assertThat(executedSql).doesNotContain("LOWER(b.isbn)");
 
             MapSqlParameterSource bound = captor.getValue();
             assertThat(bound.getValue("productId")).isEqualTo(100L);
@@ -119,9 +134,28 @@ class InventoryMovementRepositoryTest {
             assertThat(bound.getValue("isSystemActor")).isEqualTo(false);
             assertThat(bound.getValue("fromInclusive")).isEqualTo(from);
             assertThat(bound.getValue("toExclusive")).isEqualTo(to);
+            assertThat(bound.getValue("rawKeyword")).isEqualTo("doraemon");
+            assertThat(bound.getValue("prefixPattern")).isEqualTo("doraemon%");
             assertThat(bound.getValue("keywordPattern")).isEqualTo("%doraemon%");
             assertThat(bound.getValue("limit")).isEqualTo(10);
             assertThat(bound.getValue("offset")).isEqualTo(10L);
+        }
+
+                @Test
+        @DisplayName("Escapes special SQL wildcard characters in prefix pattern without leading '%' (L-REMAIN-03)")
+        void escapePrefixPattern_escapesWildcardsWithoutLeadingWildcard() {
+            String input = "893524%_Special\\Book";
+            String escaped = InventoryMovementRepositoryImpl.escapePrefixPattern(input);
+            assertThat(escaped).isEqualTo("893524\\%\\_Special\\\\Book%");
+            assertThat(escaped).doesNotStartWith("%");
+        }
+
+@Test
+        @DisplayName("Escapes special SQL wildcard characters (%, _, \\) properly (L-04)")
+        void escapeLikePattern_escapesWildcards() {
+            String input = "100%_Special\\Book";
+            String escaped = InventoryMovementRepositoryImpl.escapeLikePattern(input);
+            assertThat(escaped).isEqualTo("%100\\%\\_special\\\\book%");
         }
 
         @Test

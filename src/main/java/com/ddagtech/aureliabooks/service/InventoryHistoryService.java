@@ -3,10 +3,12 @@ package com.ddagtech.aureliabooks.service;
 import com.ddagtech.aureliabooks.dto.request.InventoryHistoryFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementResponse;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary;
+import com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * Service managing read-only inspection of inventory movement history (UC25 / SCR-DB-08).
@@ -32,4 +34,12 @@ public interface InventoryHistoryService {
             InventoryHistoryFilterRequest filter,
             Pageable pageable
     );
+
+    /**
+     * Fetches source order details with eagerly loaded items and products for modal inspection (L-NEW-02).
+     *
+     * @param orderId the order primary key
+     * @return Optional containing OrderDetailModalDto if found, otherwise empty
+     */
+    Optional<OrderDetailModalDto> getOrderDetail(Long orderId);
 }

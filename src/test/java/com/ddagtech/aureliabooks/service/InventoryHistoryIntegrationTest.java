@@ -92,7 +92,7 @@ class InventoryHistoryIntegrationTest {
                 voucherService
         );
 
-        inventoryHistoryService = new InventoryHistoryServiceImpl(inventoryMovementRepository);
+        inventoryHistoryService = new InventoryHistoryServiceImpl(inventoryMovementRepository, orderRepository);
 
         // Seed Users
         manager = User.builder().id(1L).email("manager@aureliabooks.com").fullName("Nguyễn Quản Lý").build();
@@ -141,6 +141,7 @@ class InventoryHistoryIntegrationTest {
 
         lenient().when(orderRepository.findByIdWithLock(anyLong())).thenAnswer(inv -> Optional.ofNullable(orderStore.get(inv.getArgument(0))));
         lenient().when(orderRepository.findById(anyLong())).thenAnswer(inv -> Optional.ofNullable(orderStore.get(inv.getArgument(0))));
+        lenient().when(orderRepository.findByIdWithItemsAndProduct(anyLong())).thenAnswer(inv -> Optional.ofNullable(orderStore.get(inv.getArgument(0))));
         lenient().when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
             orderStore.put(o.getId(), o);

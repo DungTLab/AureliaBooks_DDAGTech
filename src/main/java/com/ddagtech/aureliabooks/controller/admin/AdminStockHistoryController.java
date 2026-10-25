@@ -3,20 +3,23 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.dto.request.InventoryHistoryFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementResponse;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary.MovementType;
+import com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto;
+import com.ddagtech.aureliabooks.entity.User;
+import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.InventoryHistoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * Controller managing administrative inspection of inventory movement history (UC25 / SCR-DB-08).
@@ -25,12 +28,11 @@ import org.springframework.web.bind.annotation.RequestParam;
  */
 @Slf4j
 @Controller
-@RequestMapping({"/manager/stock/history", "/manager/inventory/history"})
-@PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
 @RequiredArgsConstructor
 public class AdminStockHistoryController {
 
     private final InventoryHistoryService inventoryHistoryService;
+    private final UserRepository userRepository;
 
     /**
      * Renders the paginated stock movement ledger grid with multi-criteria filtering.
@@ -43,7 +45,8 @@ public class AdminStockHistoryController {
      * @param model Spring MVC model
      * @return view template name "admin/stock/history"
      */
-    @GetMapping
+    @GetMapping({"/manager/stock/history", "/manager/inventory/history"})
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
     public String list(
             @ModelAttribute("filter") InventoryHistoryFilterRequest filter,
             BindingResult bindingResult,
@@ -60,6 +63,11 @@ public class AdminStockHistoryController {
             bindingResult.rejectValue("startDate", "invalid.date.range",
                     "Từ ngày không được lớn hơn Đến ngày.");
         }
+        // Enforce RDS 5.5 Step 4: Dates cannot be in the future (L-05)
+        if (!safeFilter.isNotFutureDate()) {
+            bindingResult.rejectValue("endDate", "invalid.future.date",
+                    "Ngày lọc không được vượt quá ngày hiện tại.");
+        }
 
         Page<InventoryMovementResponse> movementsPage;
         int validPage = Math.max(0, page);
@@ -75,8 +83,12 @@ public class AdminStockHistoryController {
             movementsPage = inventoryHistoryService.getInventoryHistory(safeFilter, pageable);
         }
 
+        // Populate staff/admin actors for operator filter (L-NEW-01: eliminate PII leak & avoid OOM)
+        List<User> actors = userRepository.findInternalStaffActors();
+
         model.addAttribute("movementsPage", movementsPage);
         model.addAttribute("movementTypes", MovementType.values());
+        model.addAttribute("actors", actors);
         model.addAttribute("filter", safeFilter);
         model.addAttribute("currentPage", validPage);
         model.addAttribute("pageSize", validSize);
@@ -85,5 +97,17 @@ public class AdminStockHistoryController {
                 movementsPage.getTotalElements(), validPage, movementsPage.getTotalPages());
 
         return "admin/stock/history";
+    }
+
+    /**
+     * AJAX endpoint to inspect source order details in modal popup (RDS 5.5 Step 7 / L-02).
+     */
+    @GetMapping({"/api/orders/{id}", "/manager/orders/api/{id}"})
+    @ResponseBody
+    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'SALE_STAFF')")
+    public ResponseEntity<OrderDetailModalDto> getOrderApi(@PathVariable Long id) {
+        return inventoryHistoryService.getOrderDetail(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }
