@@ -1,32 +1,199 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Hàng đợi xử lý đơn', ~{::#main-content})}">
-<head><title>Hàng đợi xử lý đơn</title></head><body>
-<section id="main-content" class="checkout-page staff-orders-page">
-    <link rel="stylesheet" th:href="@{/css/checkout.css}"><link rel="stylesheet" th:href="@{/css/orders.css}"><link rel="stylesheet" th:href="@{/css/staff-orders.css}">
-    <p class="checkout-eyebrow">Sale Staff · Quản lý đơn hàng</p><h1>Hàng đợi xử lý đơn</h1>
-    <p class="checkout-help">Ưu tiên đơn đặt trước. Mở phiếu đóng gói để kiểm hàng và cập nhật trạng thái.</p>
-    <form class="checkout-card staff-order-filters" th:action="@{/staff/orders}" method="get" th:object="${filter}">
-        <label>Trạng thái đơn<select th:field="*{status}"><option value="">Tất cả trạng thái</option><option th:each="option : ${statusOptions}" th:value="${option.key}" th:text="${option.value}"></option></select></label>
-        <label>Thanh toán<select th:field="*{paymentStatus}"><option value="">Tất cả</option><option value="UNPAID">Chưa thanh toán</option><option value="PAID">Đã thanh toán</option><option value="REFUNDED">Đã hoàn tiền</option></select></label>
-        <label>Phương thức<select th:field="*{paymentMethod}"><option value="">Tất cả</option><option value="COD">COD</option><option value="VNPAY">VNPay</option></select></label>
-        <label>Từ ngày<input type="date" th:field="*{fromDate}"></label><label>Đến ngày<input type="date" th:field="*{toDate}"></label>
-        <div class="staff-filter-actions"><button type="submit" class="checkout-button">Lọc đơn</button><a th:href="@{/staff/orders}" class="checkout-back-link">Xóa bộ lọc</a></div>
-    </form>
-    <p class="checkout-help" th:text="|${orders.totalElements} đơn hàng phù hợp|"></p>
-    <div class="checkout-card staff-order-table-wrap">
-        <table class="staff-order-table"><thead><tr><th scope="col">Đơn hàng / Ngày đặt</th><th scope="col">Khách hàng / Người nhận</th><th scope="col">Trạng thái</th><th scope="col">Thanh toán</th><th scope="col" class="staff-money">Tổng tiền</th><th scope="col">Xử lý</th></tr></thead>
-            <tbody><tr th:each="order : ${orders.content}">
-                <td><strong class="checkout-order-code" th:text="${order.orderCode}"></strong><time th:text="${#temporals.format(order.createdAt, 'dd/MM/yyyy HH:mm')}"></time></td>
-                <td><strong th:text="${order.customerName}"></strong><small class="staff-payment-label" th:text="${order.customerEmail}"></small><span class="staff-payment-label" th:text="|Nhận: ${order.recipientName}|"></span></td><td><span class="order-status-badge" th:attr="data-status=${order.status}" th:text="${order.statusLabel()}"></span></td>
-                <td><strong th:text="${order.paymentMethod}"></strong><span class="staff-payment-label" th:text="${order.paymentLabel()}"></span><strong th:if="${order.needsRefund()}" class="staff-refund-needed">Cần hoàn tiền</strong></td>
-                <td class="staff-money"><span th:text="${#numbers.formatDecimal(order.total, 0, 'POINT', 0, 'COMMA')}"></span> đ</td>
-                <td><a class="checkout-button is-secondary" th:href="@{/staff/orders/{id}(id=${order.id})}">Xử lý đơn</a></td>
-            </tr><tr th:if="${orders.empty}"><td colspan="6" class="order-empty-state">Không có đơn hàng phù hợp với bộ lọc.</td></tr></tbody>
-        </table>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Hàng đợi xử lý đơn hàng | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Hàng đợi xử lý đơn hàng - AureliaBook</title>
+</head>
+<body>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Header Card -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Quản lý đơn hàng</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Hàng đợi xử lý đơn</span>
+            </div>
+            <h1 class="text-2xl font-bold font-serif text-carbon_black flex items-center gap-2.5">
+                <i class="bi bi-inboxes-fill text-blazing_flame"></i>
+                <span>Hàng đợi xử lý đơn hàng</span>
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Ưu tiên đơn đặt trước. Mở phiếu đóng gói để kiểm hàng và cập nhật trạng thái.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <a th:href="@{/dashboard}"
+               class="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition">
+                <i class="bi bi-house"></i>
+                <span>Bàn làm việc</span>
+            </a>
+        </div>
     </div>
-    <nav class="order-pagination" th:if="${orders.totalPages > 0}" aria-label="Phân trang hàng đợi">
-        <a th:if="${orders.hasPrevious()}" th:href="@{/staff/orders(page=${orders.number - 1},status=${filter.status},paymentStatus=${filter.paymentStatus},paymentMethod=${filter.paymentMethod},fromDate=${filter.fromDate},toDate=${filter.toDate})}">Trang trước</a>
-        <span th:text="|Trang ${orders.number + 1} / ${orders.totalPages}|"></span>
-        <a th:if="${orders.hasNext()}" th:href="@{/staff/orders(page=${orders.number + 1},status=${filter.status},paymentStatus=${filter.paymentStatus},paymentMethod=${filter.paymentMethod},fromDate=${filter.fromDate},toDate=${filter.toDate})}">Trang sau</a>
+
+    <!-- Filter Card -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
+        <form th:action="@{/staff/orders}" method="get" th:object="${filter}" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- Order Status -->
+                <div>
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Trạng thái đơn</label>
+                    <select th:field="*{status}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                        <option value="">Tất cả trạng thái</option>
+                        <option th:each="option : ${statusOptions}" th:value="${option.key}" th:text="${option.value}"></option>
+                    </select>
+                </div>
+
+                <!-- Payment Status -->
+                <div>
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Thanh toán</label>
+                    <select th:field="*{paymentStatus}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                        <option value="">Tất cả</option>
+                        <option value="UNPAID">Chưa thanh toán</option>
+                        <option value="PAID">Đã thanh toán</option>
+                        <option value="REFUNDED">Đã hoàn tiền</option>
+                    </select>
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Phương thức</label>
+                    <select th:field="*{paymentMethod}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                        <option value="">Tất cả</option>
+                        <option value="COD">COD</option>
+                        <option value="VNPAY">VNPay</option>
+                    </select>
+                </div>
+
+                <!-- From Date -->
+                <div>
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Từ ngày</label>
+                    <input type="date" th:field="*{fromDate}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                </div>
+
+                <!-- To Date -->
+                <div>
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Đến ngày</label>
+                    <input type="date" th:field="*{toDate}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-dust_grey/50 pt-3">
+                <span class="text-xs font-semibold text-carbon_black-500 uppercase tracking-wider"
+                      th:text="|${orders.totalElements} đơn hàng phù hợp|">0 đơn hàng</span>
+                <div class="flex items-center gap-2">
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl shadow-sm transition">
+                        <i class="bi bi-funnel-fill text-xs"></i>
+                        <span>Lọc đơn</span>
+                    </button>
+                    <a th:href="@{/staff/orders}" class="px-3.5 py-2 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black text-sm font-semibold rounded-xl transition">
+                        Xóa bộ lọc
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Data Grid Card -->
+    <div class="bg-white border border-dust_grey rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-parchment-100 text-carbon_black-700 uppercase tracking-wider text-xs font-semibold border-b border-dust_grey">
+                    <tr>
+                        <th scope="col" class="py-3.5 px-4">Đơn hàng / Ngày đặt</th>
+                        <th scope="col" class="py-3.5 px-4">Khách hàng / Người nhận</th>
+                        <th scope="col" class="py-3.5 px-4">Trạng thái</th>
+                        <th scope="col" class="py-3.5 px-4">Thanh toán</th>
+                        <th scope="col" class="py-3.5 px-4 text-right">Tổng tiền</th>
+                        <th scope="col" class="py-3.5 px-4 text-center">Xử lý</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-dust_grey/60 text-sm">
+                    <tr th:each="order : ${orders.content}" class="hover:bg-parchment-50 transition">
+                        <!-- Order Code & Date -->
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <strong class="font-mono font-bold text-carbon_black block text-sm" th:text="${order.orderCode}">ORD-12345</strong>
+                            <time class="text-xs text-carbon_black-500 block mt-0.5" th:text="${#temporals.format(order.createdAt, 'dd/MM/yyyy HH:mm')}">20/10/2026 14:30</time>
+                        </td>
+
+                        <!-- Customer & Recipient -->
+                        <td class="py-3.5 px-4">
+                            <strong class="text-carbon_black block" th:text="${order.customerName}">Nguyễn Văn A</strong>
+                            <small class="text-xs text-carbon_black-500 block" th:text="${order.customerEmail}">buyer@example.com</small>
+                            <span class="text-xs text-carbon_black-600 block mt-0.5" th:text="|Nhận: ${order.recipientName}|">Nhận: Nguyễn Văn B</span>
+                        </td>
+
+                        <!-- Order Status -->
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border"
+                                  th:classappend="${order.status.name() == 'PENDING_CONFIRMATION' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                                   (order.status.name() == 'CONFIRMED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                   (order.status.name() == 'SHIPPING' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                   (order.status.name() == 'DELIVERED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                   'bg-slate-100 text-slate-700 border-slate-200')))}"
+                                  th:attr="data-status=${order.status}" th:text="${order.statusLabel()}">Chờ duyệt</span>
+                        </td>
+
+                        <!-- Payment -->
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            <div class="flex items-center gap-1.5">
+                                <strong class="text-xs font-bold uppercase" th:text="${order.paymentMethod}">COD</strong>
+                                <span class="text-xs text-carbon_black-600" th:text="|(${order.paymentLabel()})|">Chưa thanh toán</span>
+                            </div>
+                            <strong th:if="${order.needsRefund()}"
+                                    class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.5 mt-1">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Cần hoàn tiền
+                            </strong>
+                        </td>
+
+                        <!-- Total Money -->
+                        <td class="py-3.5 px-4 text-right font-semibold text-carbon_black whitespace-nowrap">
+                            <span th:text="${#numbers.formatDecimal(order.total, 0, 'POINT', 0, 'COMMA')}">350.000</span> đ
+                        </td>
+
+                        <!-- Action -->
+                        <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                            <a class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold text-xs rounded-xl shadow-sm transition"
+                               th:href="@{/staff/orders/{id}(id=${order.id})}">
+                                <i class="bi bi-box-seam"></i>
+                                <span>Xử lý đơn</span>
+                            </a>
+                        </td>
+                    </tr>
+                    <tr th:if="${orders.empty}">
+                        <td colspan="6" class="p-8 text-center text-sm text-carbon_black-500">
+                            Không có đơn hàng phù hợp với bộ lọc.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination Bar -->
+    <nav class="flex items-center justify-between bg-white border border-dust_grey rounded-2xl px-5 py-3 shadow-sm"
+         th:if="${orders.totalPages > 0}" aria-label="Phân trang hàng đợi">
+        <div>
+            <span class="text-xs text-carbon_black-600" th:text="|Trang ${orders.number + 1} / ${orders.totalPages}|">Trang 1 / 1</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <a th:if="${orders.hasPrevious()}"
+               th:href="@{/staff/orders(page=${orders.number - 1},status=${filter.status},paymentStatus=${filter.paymentStatus},paymentMethod=${filter.paymentMethod},fromDate=${filter.fromDate},toDate=${filter.toDate})}"
+               class="inline-flex items-center gap-1 px-3.5 py-1.5 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black text-xs font-semibold rounded-xl transition">
+                <i class="bi bi-chevron-left text-[10px]"></i>
+                <span>Trang trước</span>
+            </a>
+            <a th:if="${orders.hasNext()}"
+               th:href="@{/staff/orders(page=${orders.number + 1},status=${filter.status},paymentStatus=${filter.paymentStatus},paymentMethod=${filter.paymentMethod},fromDate=${filter.fromDate},toDate=${filter.toDate})}"
+               class="inline-flex items-center gap-1 px-3.5 py-1.5 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black text-xs font-semibold rounded-xl transition">
+                <span>Trang sau</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+            </a>
+        </div>
     </nav>
-</section></body></html>
+
+</div>
+</body>
+</html>

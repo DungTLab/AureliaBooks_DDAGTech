@@ -8,31 +8,34 @@
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Header Section -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div>
-            <nav class="flex text-xs text-carbon_black-400 gap-1.5 mb-1">
-                <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Bàn làm việc</a>
-                <span>/</span>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
                 <span>Danh mục gốc</span>
-                <span>/</span>
-                <span class="text-carbon_black font-semibold">Cây danh mục</span>
-            </nav>
-            <h1 class="font-serif text-2xl font-bold text-carbon_black">Quản Trị Cây Danh Mục Sản Phẩm</h1>
-            <p class="text-xs text-carbon_black-500 mt-0.5">Cấu trúc phân cấp đa tầng (Cha - Con) áp dụng cho cả Sách và Văn phòng phẩm</p>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition">Bàn làm việc</a>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Cây danh mục</span>
+            </div>
+            <h1 class="text-2xl font-bold font-serif text-carbon_black flex items-center gap-2.5">
+                <i class="bi bi-diagram-3-fill text-blazing_flame"></i>
+                <span>Quản Trị Cây Danh Mục Sản Phẩm</span>
+            </h1>
+            <p class="text-sm text-carbon_black-600 mt-1">Cấu trúc phân cấp đa tầng (Cha - Con) áp dụng cho cả Sách và Văn phòng phẩm</p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
             <a th:href="@{/manager/products}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-semibold text-xs rounded-xl transition">
                 <i class="bi bi-arrow-left"></i>
                 <span>Sản Phẩm</span>
             </a>
             <a th:href="@{/dashboard}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-sm rounded-xl transition-all">
+               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-semibold text-xs rounded-xl transition">
                 <i class="bi bi-house"></i>
                 <span>Bàn Làm Việc</span>
             </a>
             <button type="button" onclick="openCategoryModal(null, '', '', '', true)"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-bold text-sm rounded-xl shadow-flame transition-all">
+                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold text-xs rounded-xl shadow-md hover:shadow-lg transition">
                 <i class="bi bi-plus-lg"></i>
                 <span>Thêm Danh Mục Mới</span>
             </button>
@@ -40,7 +43,7 @@
     </div>
 
     <!-- Category Tree Summary Banner -->
-    <div class="bg-white rounded-2xl border border-dust_grey/80 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+    <div class="bg-white rounded-2xl border border-dust_grey p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-blazing_flame/10 flex items-center justify-center text-blazing_flame">
                 <i class="bi bi-diagram-3-fill text-lg"></i>
@@ -56,10 +59,10 @@
     </div>
 
     <!-- Categories Table -->
-    <div class="bg-white rounded-2xl border border-dust_grey/80 shadow-sm overflow-hidden">
+    <div class="bg-white rounded-2xl border border-dust_grey shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-dust_grey/60 text-left text-sm">
-                <thead class="bg-alabaster_grey/50 text-carbon_black-600 text-xs uppercase font-bold tracking-wider">
+                <thead class="bg-parchment-100 text-carbon_black-700 text-xs uppercase font-semibold tracking-wider">
                     <tr>
                         <th class="px-6 py-3.5 w-16">ID</th>
                         <th class="px-6 py-3.5">Tên Danh Mục</th>
@@ -71,7 +74,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-dust_grey/40">
-                    <tr th:each="cat : ${categories}" class="hover:bg-alabaster_grey/20 transition-colors">
+                    <tr th:each="cat : ${categories}" class="hover:bg-parchment-50 transition-colors">
                         <td class="px-6 py-4 font-mono text-xs text-carbon_black-400" th:text="${cat.id}">1</td>
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-2" th:classappend="${cat.parent != null ? 'pl-6' : ''}">
@@ -194,7 +197,7 @@
                 <div class="flex items-center gap-2 pt-1">
                     <input type="hidden" name="_active" value="on"/>
                     <input type="checkbox" id="categoryActiveCheckbox" name="active" value="true" checked
-                           class="w-4 h-4 text-blazing_flame border-dust_grey rounded focus:ring-blazing_flame">
+                            class="w-4 h-4 text-blazing_flame border-dust_grey rounded focus:ring-blazing_flame">
                     <label for="categoryActiveCheckbox" class="text-xs font-semibold text-carbon_black cursor-pointer">
                         Kích hoạt hiển thị trên Storefront
                     </label>
@@ -205,7 +208,7 @@
                         Hủy
                     </button>
                     <button type="submit"
-                            class="px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-sm font-bold shadow-flame transition-colors">
+                            class="px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-colors">
                         Lưu Thông Tin
                     </button>
                 </div>

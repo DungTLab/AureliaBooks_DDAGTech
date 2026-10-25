@@ -7,27 +7,30 @@
 <body>
 <div id="main-content" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-    <!-- Header Navigation -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-dust_grey/60">
+    <!-- Page Header Card -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div>
-            <nav class="flex text-xs text-carbon_black-400 gap-1.5 mb-1">
-                <a th:href="@{/manager/products?type=STATIONERY}" class="hover:text-blazing_flame transition-colors">Danh mục sản phẩm</a>
+            <nav class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-carbon_black-400 mb-1">
+                <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Tổng quan</a>
                 <span>/</span>
-                <span class="text-carbon_black font-semibold" th:text="${isEdit ? 'Chỉnh sửa VPP' : 'Thêm VPP mới'}">Biểu mẫu</span>
+                <a th:href="@{/manager/products?type=STATIONERY}" class="hover:text-blazing_flame transition-colors">Văn phòng phẩm</a>
+                <span>/</span>
+                <span class="text-carbon_black font-bold" th:text="${isEdit ? 'Chỉnh sửa VPP' : 'Thêm VPP mới'}">Biểu mẫu</span>
             </nav>
-            <h1 class="font-serif text-2xl font-bold text-carbon_black"
-                th:text="${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm' : 'Thêm Văn Phòng Phẩm Mới'}">
-                Thêm Văn Phòng Phẩm Mới
+            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-pencil-square text-blazing_flame"></i>
+                <span th:text="${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm' : 'Thêm Văn Phòng Phẩm Mới'}">Thêm Văn Phòng Phẩm Mới</span>
             </h1>
-            <p class="text-xs text-carbon_black-500 mt-0.5">Nhập thông tin chi tiết và quy cách của văn phòng phẩm</p>
+            <p class="text-sm text-carbon_black-600 mt-1">Nhập thông tin chi tiết và quy cách của văn phòng phẩm.</p>
         </div>
-        <a th:href="@{/manager/products?type=STATIONERY}"
-           class="inline-flex items-center gap-1.5 px-4 py-2 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition-colors">
-            <i class="bi bi-arrow-left"></i>
-            <span>Quay lại danh sách</span>
-        </a>
+        <div class="flex items-center gap-3">
+            <a th:href="@{/manager/products?type=STATIONERY}"
+               class="inline-flex items-center gap-2 rounded-xl border border-dust_grey bg-white px-4 py-2.5 text-sm font-semibold text-carbon_black-700 hover:bg-parchment-100 transition shadow-sm">
+                <i class="bi bi-arrow-left"></i>
+                <span>Quay lại danh sách</span>
+            </a>
+        </div>
     </div>
-
     <!-- Inventory Notice -->
     <div class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-start gap-3">
         <i class="bi bi-info-circle-fill text-base text-blue-600 mt-0.5"></i>

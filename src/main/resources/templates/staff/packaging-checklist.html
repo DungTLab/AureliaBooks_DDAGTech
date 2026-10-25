@@ -1,75 +1,417 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Phiếu đóng gói và xử lý đơn', ~{::#main-content})}">
-<head><title>Phiếu đóng gói và xử lý đơn</title></head><body>
-<section id="main-content" class="checkout-page staff-packaging" th:with="order=${checklist.order}">
-    <link rel="stylesheet" th:href="@{/css/checkout.css}"><link rel="stylesheet" th:href="@{/css/orders.css}"><link rel="stylesheet" th:href="@{/css/staff-orders.css}"><script th:src="@{/js/staff-orders.js}" defer></script>
-    <div class="staff-screen-only staff-detail-actions"><a th:href="@{/staff/orders}" class="checkout-back-link">← Hàng đợi đơn hàng</a><a th:href="@{/staff/orders/{id}(id=${checklist.orderId})}" class="checkout-back-link">Tải lại thông tin</a><button type="button" class="checkout-button is-secondary" data-print-checklist>In phiếu đóng gói</button></div>
-    <h1>Phiếu đóng gói</h1><p class="checkout-order-code" th:text="${order.orderCode}"></p>
-    <p th:text="${#temporals.format(order.createdAt, 'dd/MM/yyyy HH:mm')}"></p>
-    <p th:if="${successMessage != null}" class="checkout-notice staff-screen-only" role="status" th:text="${successMessage}"></p>
-    <p th:if="${errorMessage != null}" class="checkout-notice is-error staff-screen-only" role="alert" th:text="${errorMessage}"></p>
-    <p th:if="${checklist.needsRefund}" class="checkout-notice staff-refund-needed" role="status">Cần hoàn tiền: đơn đã thanh toán có cơ sở hoàn tiền. Chỉ xác nhận sau khi hoàn tiền thực tế.</p>
-    <div class="checkout-grid"><div class="checkout-main">
-        <section class="checkout-card"><h2>Khách hàng và người nhận</h2><p class="staff-screen-only">Khách hàng: <strong th:text="${checklist.customerName}"></strong> · <span th:text="${checklist.customerEmail}"></span></p><strong th:text="${order.recipientName}"></strong><p th:text="${order.phone}"></p><p th:text="${order.fullAddress}"></p>
-            <p th:if="${checklist.trackingNumber != null}">Mã vận đơn: <strong th:text="${checklist.trackingNumber}"></strong></p>
-        </section>
-        <section class="checkout-card staff-order-table-wrap"><h2>Danh sách kiểm hàng</h2><p class="checkout-help">Đánh dấu từng dòng sau khi kiểm tra đúng sản phẩm và số lượng.</p>
-            <table class="staff-checklist-table"><thead><tr><th scope="col">Đã kiểm</th><th scope="col">Sản phẩm</th><th scope="col">Số lượng</th></tr></thead><tbody>
-                <tr th:each="item, row : ${order.items}"><td><input type="checkbox" th:id="|packed-${row.index}|" th:attr="aria-label=|Đã kiểm ${item.title}|" class="staff-pack-checkbox"></td><td><label th:for="|packed-${row.index}|" th:text="${item.title}"></label><small th:text="|Mã sản phẩm: ${item.productId}|"></small></td><td class="staff-pack-quantity" th:text="${item.quantity}"></td></tr>
-            </tbody></table>
-            <div class="staff-print-signature">Người đóng gói: ____________________ &nbsp; Ngày: ______________</div>
-        </section>
-        <section class="checkout-card staff-screen-only"><h2>Tiến trình đơn hàng</h2><ol class="order-timeline"><li th:each="step : ${checklist.timeline}" th:classappend="${step.occurredAt != null} ? 'is-complete'"><strong th:text="${step.label}"></strong><time th:if="${step.occurredAt != null}" th:text="${#temporals.format(step.occurredAt, 'dd/MM/yyyy HH:mm')}"></time></li></ol></section>
-        <section class="checkout-card staff-screen-only"><h2>Giá sản phẩm ghi nhận lúc đặt</h2><div th:replace="~{checkout/fragments :: items(${order.items})}"></div></section>
-        <section class="checkout-card staff-screen-only"><h2>Lịch sử đơn hàng và thanh toán</h2><p th:if="${checklist.history.empty}">Chưa có lịch sử thao tác được ghi nhận.</p>
-            <ol class="staff-order-history"><li th:each="entry : ${checklist.history}"><strong th:text="${entry.actor}"></strong><time th:if="${entry.recordedAt != null}" th:text="${#temporals.format(entry.recordedAt, 'dd/MM/yyyy HH:mm')}"></time><p th:text="${entry.description}"></p></li></ol>
-        </section>
-    </div><aside class="checkout-main">
-        <section class="checkout-card"><h2>Thanh toán và giao hàng</h2><p th:text="${order.orderStatusLabel()}"></p><p><strong th:text="${order.paymentMethod}"></strong> · <span th:text="${order.paymentStatusLabel()}"></span></p>
-            <div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.discount}, ${order.shippingFee}, ${order.finalTotalAmount})}"></div>
-            <p th:if="${order.paymentMethod.name() == 'COD' and order.paymentStatus.name() == 'UNPAID' and order.orderStatus.name() != 'CANCELLED'}" class="checkout-notice">Thu hộ khi giao: <strong><span th:text="${#numbers.formatDecimal(order.finalTotalAmount, 0, 'POINT', 0, 'COMMA')}"></span> đ</strong></p>
-            <p th:if="${checklist.cancelReason != null}">Lý do hủy: <span th:text="${checklist.cancelReason}"></span></p>
-            <p th:if="${checklist.stockRestoredAt != null and checklist.stockRestoreReason != null}" class="checkout-notice">
-                Kho: <strong>Đã hoàn tồn kho</strong>
-                (<span th:text="${checklist.stockRestoreReason.name() == 'RETURNED' ? 'Trả hàng hoàn kho' : 'Hủy đơn hoàn kho'}"></span> vào
-                <span th:text="${#temporals.format(checklist.stockRestoredAt, 'dd/MM/yyyy HH:mm')}"></span>)
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Phiếu đóng gói và xử lý đơn | AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Phiếu đóng gói và xử lý đơn - AureliaBook</title>
+</head>
+<body>
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 staff-packaging staff-print-container" th:with="order=${checklist.order}">
+    <link rel="stylesheet" th:href="@{/css/orders.css}">
+    <script th:src="@{/js/staff-orders.js}" defer></script>
+
+    <style>
+        @media print {
+            body header, body footer, #toastContainer, .staff-screen-only { display: none !important; }
+            .staff-print-container { max-width: 100% !important; padding: 0 !important; }
+            .staff-print-card { box-shadow: none !important; border: 1px solid #aaa !important; margin: 12px 0 !important; break-inside: avoid; }
+            .staff-checklist-table { font-size: 12px; width: 100%; border-collapse: collapse; }
+            .staff-checklist-table th, .staff-checklist-table td { border: 1px solid #ccc; padding: 8px; }
+            .staff-checklist-table tr { break-inside: avoid; }
+        }
+    </style>
+
+    <!-- Top Action Bar (Staff Screen Only) -->
+    <div class="staff-screen-only flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Quản lý đơn hàng</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <a th:href="@{/staff/orders}" class="hover:text-blazing_flame transition">Hàng đợi xử lý đơn</a>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Phiếu đóng gói</span>
+            </div>
+            <h1 class="text-2xl font-bold font-serif text-carbon_black flex items-center gap-2.5">
+                <i class="bi bi-box2-heart-fill text-blazing_flame"></i>
+                <span>Phiếu đóng gói</span>
+                <span class="checkout-order-code font-mono text-xl text-carbon_black-700 bg-alabaster_grey px-2.5 py-0.5 rounded-lg border border-dust_grey" th:text="${order.orderCode}">ORD-12345</span>
+            </h1>
+            <p class="text-xs text-carbon_black-500 mt-1">
+                Ngày đặt: <time th:text="${#temporals.format(order.createdAt, 'dd/MM/yyyy HH:mm')}">20/10/2026 14:30</time>
             </p>
-        </section>
-        <section class="checkout-card staff-screen-only"><h2>Cập nhật trạng thái</h2>
-            <p th:if="${checklist.allowedTargets.empty}" class="checkout-help">Đơn hiện không có thao tác chuyển trạng thái phù hợp.</p>
-            <form th:each="target : ${checklist.allowedTargets}" th:if="${target.name() != 'CANCELLED'}" th:action="@{/staff/orders/{id}/transition(id=${checklist.orderId})}" method="post" class="staff-transition-form" data-confirm-action="Xác nhận thực hiện bước xử lý đơn hàng này?">
-                <input type="hidden" name="targetStatus" th:value="${target}">
-                <label th:if="${target.name() == 'SHIPPING'}">Mã vận đơn (nếu có)<input name="trackingNumber" maxlength="100" th:value="${checklist.trackingNumber}"></label>
-                <label th:if="${target.name() == 'DELIVERED' and order.paymentMethod.name() == 'COD'}" class="staff-confirm-check"><input type="checkbox" name="codCollected" value="true" required> Tôi xác nhận giao thành công và đã thu đủ tiền COD.</label>
-                <button class="checkout-button" type="submit" th:text="${checklist.targetLabel(target)}"></button>
-            </form>
-            <details th:if="${checklist.allowedTargets.contains(T(com.ddagtech.aureliabooks.entity.Order.OrderStatus).CANCELLED)}" class="staff-cancel-panel"><summary>Hủy đơn hàng</summary>
-                <p th:if="${order.paymentStatus.name() == 'PAID'}" class="checkout-notice">Đơn đã thanh toán. Hủy đơn hoàn kho; hoàn tiền cần được xử lý riêng.</p>
-                <form th:action="@{/staff/orders/{id}/transition(id=${checklist.orderId})}" method="post" class="staff-transition-form" data-confirm-action="Hủy đơn và hoàn tồn kho? Nếu đã thanh toán, tiền phải được hoàn riêng.">
-                    <input type="hidden" name="targetStatus" value="CANCELLED">
-                    <label for="staff-cancel-reason">Lý do hủy (bắt buộc)</label><textarea id="staff-cancel-reason" name="reason" required maxlength="255" rows="3" class="order-cancel-reason"></textarea>
-                    <button class="checkout-button is-secondary" type="submit">Xác nhận hủy và hoàn kho</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+            <a th:href="@{/staff/orders}"
+               class="checkout-back-link inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-xs rounded-xl transition">
+                <i class="bi bi-arrow-left"></i>
+                <span>← Hàng đợi đơn hàng</span>
+            </a>
+            <a th:href="@{/staff/orders/{id}(id=${checklist.orderId})}"
+               class="checkout-back-link inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-medium text-xs rounded-xl transition">
+                <i class="bi bi-arrow-clockwise"></i>
+                <span>Tải lại thông tin</span>
+            </a>
+            <button type="button"
+                    data-print-checklist
+                    class="checkout-button is-secondary inline-flex items-center gap-1.5 px-4 py-2.5 bg-carbon_black hover:bg-carbon_black-700 text-white font-semibold text-xs rounded-xl shadow-sm transition">
+                <i class="bi bi-printer"></i>
+                <span>In phiếu đóng gói</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Notices -->
+    <div th:if="${successMessage != null}" class="staff-screen-only p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2" role="status">
+        <i class="bi bi-check-circle-fill text-emerald-600"></i>
+        <span th:text="${successMessage}"></span>
+    </div>
+    <div th:if="${errorMessage != null}" class="staff-screen-only p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center gap-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill text-rose-600"></i>
+        <span th:text="${errorMessage}"></span>
+    </div>
+    <div th:if="${checklist.needsRefund}" class="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-sm flex items-center gap-2 staff-refund-needed" role="status">
+        <i class="bi bi-cash-coin text-amber-600 text-lg"></i>
+        <span><strong>Cần hoàn tiền:</strong> Đơn đã thanh toán có cơ sở hoàn tiền. Chỉ xác nhận sau khi hoàn tiền thực tế.</span>
+    </div>
+
+    <!-- Two-Column Workstation Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Left Column: Order details & Checklist (8 cols) -->
+        <div class="lg:col-span-8 space-y-6">
+
+            <!-- Card 1: Customer & Recipient Info -->
+            <section class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm staff-print-card">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3 mb-4">
+                    <i class="bi bi-person-bounding-box text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Khách hàng và người nhận</h2>
+                </div>
+                <div class="space-y-3 text-sm">
+                    <p class="staff-screen-only text-carbon_black-600">
+                        Khách hàng: <strong class="text-carbon_black" th:text="${checklist.customerName}">Nguyễn Văn A</strong>
+                        · <span th:text="${checklist.customerEmail}">buyer@example.com</span>
+                    </p>
+                    <div class="p-4 bg-alabaster_grey/50 rounded-xl border border-dust_grey/60 space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs uppercase font-semibold text-carbon_black-500">Người nhận hàng:</span>
+                            <strong class="text-base text-carbon_black" th:text="${order.recipientName}">Nguyễn Văn B</strong>
+                        </div>
+                        <p class="text-carbon_black-700 flex items-center gap-2">
+                            <i class="bi bi-telephone text-xs text-carbon_black-400"></i>
+                            <span th:text="${order.phone}">0912345678</span>
+                        </p>
+                        <p class="text-carbon_black-700 flex items-start gap-2">
+                            <i class="bi bi-geo-alt text-xs text-carbon_black-400 mt-1"></i>
+                            <span th:text="${order.fullAddress}">123 Đường ABC, Quận XYZ, TP. Hà Nội</span>
+                        </p>
+                    </div>
+                    <p th:if="${checklist.trackingNumber != null}" class="p-3 bg-sky-50 border border-sky-200 rounded-xl text-sky-800 text-sm">
+                        Mã vận đơn: <strong class="font-mono text-base" th:text="${checklist.trackingNumber}">VNPOST-12345</strong>
+                    </p>
+                </div>
+            </section>
+
+            <!-- Card 2: Packing Checklist -->
+            <section class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm staff-print-card">
+                <div class="flex items-center justify-between border-b border-dust_grey/60 pb-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <i class="bi bi-clipboard-check text-blazing_flame text-lg"></i>
+                        <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Danh sách kiểm hàng</h2>
+                    </div>
+                    <span class="text-xs text-carbon_black-500 staff-screen-only">Đánh dấu từng dòng sau khi kiểm tra đúng sản phẩm và số lượng.</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse staff-checklist-table">
+                        <thead class="bg-parchment-100 text-carbon_black-700 uppercase tracking-wider text-xs font-semibold border-b border-dust_grey">
+                            <tr>
+                                <th scope="col" class="py-3 px-3 w-16 text-center">Đã kiểm</th>
+                                <th scope="col" class="py-3 px-4">Sản phẩm</th>
+                                <th scope="col" class="py-3 px-4 w-24 text-center">Số lượng</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-dust_grey/60 text-sm">
+                            <tr th:each="item, row : ${order.items}" class="hover:bg-parchment-50 transition">
+                                <td class="py-3 px-3 text-center">
+                                    <input type="checkbox"
+                                           th:id="|packed-${row.index}|"
+                                           th:attr="aria-label=|Đã kiểm ${item.title}|"
+                                           class="staff-pack-checkbox w-5 h-5 rounded border-dust_grey text-blazing_flame focus:ring-blazing_flame cursor-pointer">
+                                </td>
+                                <td class="py-3 px-4">
+                                    <label th:for="|packed-${row.index}|" th:text="${item.title}" class="font-medium text-carbon_black cursor-pointer block">Tên sách mẫu</label>
+                                    <small class="text-xs text-carbon_black-500 block mt-0.5" th:text="|Mã sản phẩm: ${item.productId}|">Mã sản phẩm: 2</small>
+                                </td>
+                                <td class="py-3 px-4 text-center font-bold text-base text-carbon_black staff-pack-quantity" th:text="${item.quantity}">1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-8 pt-4 border-t border-dust_grey text-xs text-carbon_black-600 staff-print-signature">
+                    Người đóng gói: ____________________ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Ngày kiểm hàng: ______________
+                </div>
+            </section>
+
+            <!-- Card 3: Timeline & Progress (Staff Screen Only) -->
+            <section class="staff-screen-only bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3 mb-4">
+                    <i class="bi bi-clock-history text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Tiến trình đơn hàng</h2>
+                </div>
+                <ol class="order-timeline">
+                    <li th:each="step : ${checklist.timeline}" th:classappend="${step.occurredAt != null} ? 'is-complete'">
+                        <strong th:text="${step.label}" class="text-sm font-semibold">Tạo đơn</strong>
+                        <time th:if="${step.occurredAt != null}" th:text="${#temporals.format(step.occurredAt, 'dd/MM/yyyy HH:mm')}" class="text-xs text-carbon_black-500">20/10/2026 14:30</time>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- Card 4: Price Snapshot at Placement (Staff Screen Only) -->
+            <section class="staff-screen-only bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3 mb-4">
+                    <i class="bi bi-tag text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Giá sản phẩm ghi nhận lúc đặt</h2>
+                </div>
+                <div th:replace="~{checkout/fragments :: items(${order.items})}"></div>
+            </section>
+
+            <!-- Card 5: Order & Payment History (Staff Screen Only) -->
+            <section class="staff-screen-only bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3 mb-4">
+                    <i class="bi bi-journal-text text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Lịch sử đơn hàng và thanh toán</h2>
+                </div>
+                <p th:if="${checklist.history.empty}" class="text-sm text-carbon_black-500">Chưa có lịch sử thao tác được ghi nhận.</p>
+                <ol th:unless="${checklist.history.empty}" class="space-y-4">
+                    <li th:each="entry : ${checklist.history}" class="p-3 bg-alabaster_grey/40 rounded-xl border border-dust_grey/50 text-sm">
+                        <div class="flex items-center justify-between mb-1">
+                            <strong class="text-carbon_black font-semibold" th:text="${entry.actor}">Nhân viên</strong>
+                            <time th:if="${entry.recordedAt != null}" th:text="${#temporals.format(entry.recordedAt, 'dd/MM/yyyy HH:mm')}" class="text-xs text-carbon_black-500">20/10/2026</time>
+                        </div>
+                        <p class="text-carbon_black-600 text-xs" th:text="${entry.description}"></p>
+                    </li>
+                </ol>
+            </section>
+
+        </div>
+
+        <!-- Right Column: Payment, Status Transitions, Restock & Refund (4 cols) -->
+        <aside class="lg:col-span-4 space-y-6">
+
+            <!-- Card: Payment & Delivery Summary -->
+            <section class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm staff-print-card space-y-4">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3">
+                    <i class="bi bi-credit-card-2-front text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Thanh toán &amp; Giao hàng</h2>
+                </div>
+
+                <div class="space-y-2 text-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-carbon_black-500 uppercase font-semibold">Trạng thái đơn:</span>
+                        <strong class="text-sm font-bold text-carbon_black" th:text="${order.orderStatusLabel()}">Chờ duyệt</strong>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-carbon_black-500 uppercase font-semibold">Thanh toán:</span>
+                        <span class="text-sm">
+                            <strong th:text="${order.paymentMethod}">COD</strong> ·
+                            <span th:text="${order.paymentStatusLabel()}">Chưa thanh toán</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-dust_grey/60">
+                    <div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.discount}, ${order.shippingFee}, ${order.finalTotalAmount})}"></div>
+                </div>
+
+                <div th:if="${order.paymentMethod.name() == 'COD' and order.paymentStatus.name() == 'UNPAID' and order.orderStatus.name() != 'CANCELLED'}"
+                     class="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs">
+                    Thu hộ khi giao: <strong><span th:text="${#numbers.formatDecimal(order.finalTotalAmount, 0, 'POINT', 0, 'COMMA')}"></span> đ</strong>
+                </div>
+
+                <div th:if="${checklist.cancelReason != null}" class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs">
+                    Lý do hủy: <strong th:text="${checklist.cancelReason}">Khách yêu cầu hủy</strong>
+                </div>
+
+                <div th:if="${checklist.stockRestoredAt != null and checklist.stockRestoreReason != null}"
+                     class="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs">
+                    Kho: <strong>Đã hoàn tồn kho</strong>
+                    (<span th:text="${checklist.stockRestoreReason.name() == 'RETURNED' ? 'Trả hàng hoàn kho' : 'Hủy đơn hoàn kho'}"></span> vào
+                    <span th:text="${#temporals.format(checklist.stockRestoredAt, 'dd/MM/yyyy HH:mm')}"></span>)
+                </div>
+            </section>
+
+            <!-- Card: Status Transition Actions (Staff Screen Only) -->
+            <section class="staff-screen-only bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3">
+                    <i class="bi bi-arrow-repeat text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Cập nhật trạng thái</h2>
+                </div>
+
+                <p th:if="${checklist.allowedTargets.empty}" class="text-xs text-carbon_black-500">
+                    Đơn hiện không có thao tác chuyển trạng thái phù hợp.
+                </p>
+
+                <!-- Transition Forms -->
+                <div class="space-y-3">
+                    <form th:each="target : ${checklist.allowedTargets}"
+                          th:if="${target.name() != 'CANCELLED'}"
+                          th:action="@{/staff/orders/{id}/transition(id=${checklist.orderId})}"
+                          method="post"
+                          class="space-y-3 p-3 bg-alabaster_grey/40 rounded-xl border border-dust_grey/60"
+                          data-confirm-action="Xác nhận thực hiện bước xử lý đơn hàng này?">
+                        <input type="hidden" name="targetStatus" th:value="${target}">
+                        <div th:if="${target.name() == 'SHIPPING'}" class="space-y-1">
+                            <label class="block text-xs font-semibold text-carbon_black-600">Mã vận đơn (nếu có):</label>
+                            <input name="trackingNumber" maxlength="100" th:value="${checklist.trackingNumber}"
+                                   class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame">
+                        </div>
+                        <div th:if="${target.name() == 'DELIVERED' and order.paymentMethod.name() == 'COD'}" class="flex items-start gap-2">
+                            <input type="checkbox" name="codCollected" value="true" required id="codCheck"
+                                   class="w-4 h-4 mt-0.5 rounded border-dust_grey text-blazing_flame focus:ring-blazing_flame">
+                            <label for="codCheck" class="text-xs text-carbon_black-700 cursor-pointer">
+                                Tôi xác nhận giao thành công và đã thu đủ tiền COD.
+                            </label>
+                        </div>
+                        <button type="submit"
+                                class="w-full px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold text-xs rounded-xl shadow-sm transition"
+                                th:text="${checklist.targetLabel(target)}">
+                            Xác nhận bước này
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Cancel Panel -->
+                <details th:if="${checklist.allowedTargets.contains(T(com.ddagtech.aureliabooks.entity.Order.OrderStatus).CANCELLED)}"
+                         class="staff-cancel-panel border-t border-dust_grey/60 pt-4 mt-4">
+                    <summary class="cursor-pointer font-semibold text-xs text-rose-700 hover:text-rose-900 transition flex items-center gap-1.5">
+                        <i class="bi bi-x-circle"></i>
+                        <span>Hủy đơn hàng</span>
+                    </summary>
+                    <div class="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-3">
+                        <p th:if="${order.paymentStatus.name() == 'PAID'}" class="text-xs text-rose-700 font-medium">
+                            Đơn đã thanh toán. Hủy đơn hoàn kho; hoàn tiền cần được xử lý riêng.
+                        </p>
+                        <form th:action="@{/staff/orders/{id}/transition(id=${checklist.orderId})}"
+                              method="post"
+                              class="space-y-3"
+                              data-confirm-action="Hủy đơn và hoàn tồn kho? Nếu đã thanh toán, tiền phải được hoàn riêng.">
+                            <input type="hidden" name="targetStatus" value="CANCELLED">
+                            <div>
+                                <label for="staff-cancel-reason" class="block text-xs font-semibold text-carbon_black-700 mb-1">
+                                    Lý do hủy (bắt buộc):
+                                </label>
+                                <textarea id="staff-cancel-reason" name="reason" required maxlength="255" rows="2"
+                                          class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-rose-600"
+                                          placeholder="Nhập lý do hủy đơn..."></textarea>
+                            </div>
+                            <button type="submit"
+                                    class="w-full px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-xl shadow-sm transition">
+                                Xác nhận hủy và hoàn kho
+                            </button>
+                        </form>
+                    </div>
+                </details>
+            </section>
+
+            <!-- Card: Confirm Return Restock (Staff Screen Only) -->
+            <section th:if="${checklist.canConfirmReturn}" class="staff-screen-only bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-3">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3">
+                    <i class="bi bi-arrow-return-left text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Xác nhận nhận lại hàng hoàn</h2>
+                </div>
+                <p class="text-xs text-carbon_black-500">
+                    Nhận lại toàn bộ hàng theo đơn từ đơn vị vận chuyển hoặc khách hàng. Thao tác này sẽ tự động hoàn tồn kho đúng một lần và giữ nguyên trạng thái đơn hàng.
+                </p>
+                <form th:action="@{/staff/orders/{id}/return-restock(id=${checklist.orderId})}"
+                      method="post"
+                      class="space-y-3"
+                      data-confirm-action="Xác nhận đã nhận lại đầy đủ toàn bộ hàng hoàn và hoàn kho?">
+                    <div>
+                        <label for="staff-return-reason" class="block text-xs font-semibold text-carbon_black-700 mb-1">
+                            Lý do hoàn hàng (bắt buộc):
+                        </label>
+                        <input id="staff-return-reason" name="returnReason" maxlength="255" required
+                               placeholder="Giao không thành công / Khách trả nguyên đơn"
+                               class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame">
+                    </div>
+                    <div>
+                        <label for="staff-return-note" class="block text-xs font-semibold text-carbon_black-700 mb-1">
+                            Ghi chú kiểm hàng thực tế:
+                        </label>
+                        <textarea id="staff-return-note" name="inspectionNote" maxlength="1000" rows="2"
+                                  placeholder="Tình trạng kiện hàng / sản phẩm khi nhận lại..."
+                                  class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame"></textarea>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <input type="checkbox" name="fullReturnVerified" value="true" required id="fullReturnCheck"
+                               class="w-4 h-4 mt-0.5 rounded border-dust_grey text-blazing_flame focus:ring-blazing_flame">
+                        <label for="fullReturnCheck" class="text-xs text-carbon_black-700 cursor-pointer">
+                            Tôi xác nhận đã kiểm đếm và nhận lại đầy đủ 100% số lượng tất cả mặt hàng trong đơn.
+                        </label>
+                    </div>
+                    <button type="submit"
+                            class="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow-sm transition">
+                        Xác nhận nhận hàng &amp; Hoàn tồn kho
+                    </button>
                 </form>
-            </details>
-        </section>
-        <section th:if="${checklist.canConfirmReturn}" class="checkout-card staff-screen-only"><h2>Xác nhận nhận lại hàng hoàn</h2><p class="checkout-help">Nhận lại toàn bộ hàng theo đơn từ đơn vị vận chuyển hoặc khách hàng. Thao tác này sẽ tự động hoàn tồn kho đúng một lần và giữ nguyên trạng thái đơn hàng.</p>
-            <form th:action="@{/staff/orders/{id}/return-restock(id=${checklist.orderId})}" method="post" class="staff-refund-form" data-confirm-action="Xác nhận đã nhận lại đầy đủ toàn bộ hàng hoàn và hoàn kho?">
-                <label for="staff-return-reason">Lý do hoàn hàng (bắt buộc)</label><input id="staff-return-reason" name="returnReason" maxlength="255" required placeholder="Giao không thành công / Khách đổi ý trả nguyên đơn">
-                <label for="staff-return-note">Ghi chú kiểm hàng thực tế</label><textarea id="staff-return-note" name="inspectionNote" maxlength="1000" rows="3" placeholder="Tình trạng kiện hàng / sản phẩm khi nhận lại"></textarea>
-                <label class="staff-confirm-check"><input type="checkbox" name="fullReturnVerified" value="true" required> Tôi xác nhận đã kiểm đếm và nhận lại đầy đủ 100% số lượng tất cả mặt hàng trong đơn.</label>
-                <button type="submit" class="checkout-button is-secondary">Xác nhận nhận hàng & Hoàn tồn kho</button>
-            </form>
-        </section>
-        <section th:if="${checklist.canConfirmRefund}" class="checkout-card staff-screen-only"><h2>Xác nhận hoàn tiền</h2><p class="checkout-help">Chỉ ghi nhận hoàn toàn bộ số tiền đã thực hiện bên ngoài hệ thống. Thao tác này không chuyển tiền và không hoàn kho.</p>
-            <form th:action="@{/staff/orders/{id}/refund(id=${checklist.orderId})}" method="post" class="staff-refund-form" data-confirm-action="Xác nhận khoản tiền đã được hoàn thực tế?">
-                <label>Số tiền đã hoàn (đ)<input type="number" name="amount" min="0.01" step="0.01" required th:value="${order.finalTotalAmount}"></label>
-                <label>Phương thức hoàn<input name="method" maxlength="100" required placeholder="Chuyển khoản / tiền mặt"></label>
-                <label>Ngày hoàn tất<input type="date" name="completedDate" required></label>
-                <label>Mã giao dịch<input name="reference" maxlength="100"></label>
-                <label>Thông tin chứng minh<textarea name="supportingInfo" maxlength="1000" rows="3" placeholder="Nhập mã giao dịch hoặc thông tin chứng minh khoản hoàn"></textarea></label>
-                <label class="staff-confirm-check"><input type="checkbox" name="externallyCompleted" value="true" required> Tôi xác nhận đã hoàn tiền thực tế cho khách.</label>
-                <button type="submit" class="checkout-button">Ghi nhận hoàn tiền</button>
-            </form>
-        </section>
-    </aside></div>
-</section></body></html>
+            </section>
+
+            <!-- Card: Confirm Refund (Staff Screen Only) -->
+            <section th:if="${checklist.canConfirmRefund}" class="staff-screen-only bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-3">
+                <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-3">
+                    <i class="bi bi-cash-stack text-blazing_flame text-lg"></i>
+                    <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Xác nhận hoàn tiền</h2>
+                </div>
+                <p class="text-xs text-carbon_black-500">
+                    Chỉ ghi nhận hoàn toàn bộ số tiền đã thực hiện bên ngoài hệ thống. Thao tác này không chuyển tiền và không hoàn kho.
+                </p>
+                <form th:action="@{/staff/orders/{id}/refund(id=${checklist.orderId})}"
+                      method="post"
+                      class="space-y-3"
+                      data-confirm-action="Xác nhận khoản tiền đã được hoàn thực tế?">
+                    <div>
+                        <label class="block text-xs font-semibold text-carbon_black-700 mb-1">Số tiền đã hoàn (đ):</label>
+                        <input type="number" name="amount" min="0.01" step="0.01" required th:value="${order.finalTotalAmount}"
+                               class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-carbon_black-700 mb-1">Phương thức hoàn:</label>
+                        <input name="method" maxlength="100" required placeholder="Chuyển khoản / tiền mặt"
+                               class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-carbon_black-700 mb-1">Ngày hoàn tất:</label>
+                        <input type="date" name="completedDate" required
+                               class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-carbon_black-700 mb-1">Mã giao dịch:</label>
+                        <input name="reference" maxlength="100" placeholder="Mã tham chiếu ngân hàng..."
+                               class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-carbon_black-700 mb-1">Thông tin chứng minh:</label>
+                        <textarea name="supportingInfo" maxlength="1000" rows="2" placeholder="Ghi chú chi tiết chứng từ hoàn..."
+                                  class="w-full px-3 py-1.5 bg-white border border-dust_grey rounded-lg text-xs focus:border-blazing_flame"></textarea>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <input type="checkbox" name="externallyCompleted" value="true" required id="extCompletedCheck"
+                               class="w-4 h-4 mt-0.5 rounded border-dust_grey text-blazing_flame focus:ring-blazing_flame">
+                        <label for="extCompletedCheck" class="text-xs text-carbon_black-700 cursor-pointer">
+                            Tôi xác nhận đã hoàn tiền thực tế cho khách.
+                        </label>
+                    </div>
+                    <button type="submit"
+                            class="w-full px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold text-xs rounded-xl shadow-sm transition">
+                        Ghi nhận hoàn tiền
+                    </button>
+                </form>
+            </section>
+
+        </aside>
+    </div>
+
+</div>
+</body>
+</html>
