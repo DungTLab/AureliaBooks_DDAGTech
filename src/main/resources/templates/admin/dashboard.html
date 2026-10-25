@@ -9,7 +9,10 @@
     <div class="flex flex-wrap gap-4 mt-6">
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý tài khoản</a>
         <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/audit-logs}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhật ký kiểm toán</a>
+        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/analytics/revenue}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Báo cáo Doanh thu & Excel</a>
         <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/products}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý sản phẩm</a>
+        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/stock/alerts}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Quản lý kho</a>
+        <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/stock/history}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Lịch sử biến động kho</a>
         <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/authors}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Tác giả</a>
         <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/publishers}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Nhà xuất bản</a>
         <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/brands}" class="rounded-xl border border-dust_grey bg-white px-5 py-3 hover:border-blazing_flame hover:text-blazing_flame transition">Thương hiệu VPP</a>

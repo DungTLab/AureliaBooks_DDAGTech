@@ -26,6 +26,11 @@
         </div>
 
         <div class="flex items-center gap-3">
+            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')" th:href="@{/manager/stock/history}"
+               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dust_grey hover:border-blazing_flame text-carbon_black hover:text-blazing_flame font-semibold rounded-xl shadow-sm transition">
+                <i class="bi bi-clock-history text-lg"></i>
+                <span>Lịch sử biến động</span>
+            </a>
             <a th:href="@{/staff/receipts/new}"
                class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition">
                 <i class="bi bi-plus-circle-fill text-lg"></i>
