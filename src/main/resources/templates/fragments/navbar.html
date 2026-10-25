@@ -6,7 +6,7 @@
             class="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-dust_grey/60 text-carbon_black shadow-soft transition-all duration-300"
         >
             <!-- Top Utility Announcement Bar (Grounding Warm Espresso Anchor) -->
-            <div class="hidden sm:block bg-[#1f1c19] text-[#ded7cc] text-xs py-2 px-4 border-b border-[#2d2824]">
+            <div sec:authorize="!hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" class="hidden sm:block bg-[#1f1c19] text-[#ded7cc] text-xs py-2 px-4 border-b border-[#2d2824]">
                 <div class="max-w-7xl mx-auto flex justify-between items-center">
                     <div class="flex items-center space-x-6">
                         <span class="inline-flex items-center gap-1.5 hover:text-[#ff8a5c] transition-colors">
@@ -389,7 +389,7 @@
             </nav>
 
             <!-- Secondary Category Navigation Bar with Fahasa-style Multi-level Mega Menu -->
-            <div class="hidden md:block bg-alabaster_grey-100 border-t border-dust_grey/50 relative">
+            <div sec:authorize="!hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')" class="hidden md:block bg-alabaster_grey-100 border-t border-dust_grey/50 relative">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div
                         class="flex items-center space-x-6 py-1.5 text-xs font-bold tracking-wide text-carbon_black-700 whitespace-nowrap"

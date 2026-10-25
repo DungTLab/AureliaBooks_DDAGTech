@@ -220,6 +220,8 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
                 .andExpect(content().string(containsString("href=\"/profile\"")))
                 .andExpect(content().string(containsString("href=\"/profile/addresses\"")))
                 .andExpect(content().string(containsString("href=\"/orders/my-orders\"")))
+                .andExpect(content().string(containsString("Cước từ 30.000đ theo vùng")))
+                .andExpect(content().string(containsString("group/megamenu")))
                 .andExpect(content().string(not(containsString("href=\"/manager/products\""))))
                 .andExpect(content().string(not(containsString("href=\"/admin/users\""))))
                 .andExpect(content().string(not(containsString("href=\"/staff/orders\""))));
@@ -231,6 +233,8 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
                 .andExpect(content().string(not(containsString("href=\"/profile/addresses\""))))
                 .andExpect(content().string(not(containsString("href=\"/orders/my-orders\""))))
                 .andExpect(content().string(not(containsString("href=\"/cart\""))))
+                .andExpect(content().string(not(containsString("Cước từ 30.000đ theo vùng"))))
+                .andExpect(content().string(not(containsString("group/megamenu"))))
                 .andExpect(content().string(containsString("href=\"/admin/users\"")))
                 .andExpect(content().string(containsString("href=\"/manager/products\"")))
                 .andExpect(content().string(containsString("href=\"/manager/publishers\"")))
@@ -262,6 +266,8 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
                 .andExpect(content().string(not(containsString("href=\"/admin/users\""))))
                 .andExpect(content().string(containsString("href=\"/staff/orders\"")))
                 .andExpect(content().string(containsString("href=\"/staff/receipts/new\"")))
-                .andExpect(content().string(containsString("href=\"/manager/stock/alerts\"")));
+                .andExpect(content().string(containsString("href=\"/manager/stock/alerts\"")))
+                .andExpect(content().string(not(containsString("Cước từ 30.000đ theo vùng"))))
+                .andExpect(content().string(not(containsString("group/megamenu"))));
     }
 }
