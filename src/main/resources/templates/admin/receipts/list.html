@@ -26,12 +26,6 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <a th:href="@{/manager/stock/alerts}"
-               class="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-semibold rounded-xl transition">
-                <i class="bi bi-boxes text-amber-600"></i>
-                <span>Quản lý kho</span>
-            </a>
-
             <a th:href="@{/staff/receipts/new}"
                class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition">
                 <i class="bi bi-plus-circle-fill text-lg"></i>
@@ -39,7 +33,6 @@
             </a>
         </div>
     </div>
-
     <!-- Filter Toolbar -->
     <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
         <form method="get" th:action="@{${baseUri ?: '/manager/receipts'}}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">

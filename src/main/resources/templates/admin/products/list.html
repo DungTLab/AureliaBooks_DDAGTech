@@ -24,26 +24,6 @@
             <p class="text-sm text-carbon_black-600 mt-1">Quản lý danh mục sách và văn phòng phẩm trong hệ thống</p>
         </div>
         <div class="flex flex-wrap items-center gap-2.5">
-            <a th:href="@{/manager/authors}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition">
-                <i class="bi bi-people"></i>
-                <span>Tác Giả</span>
-            </a>
-            <a th:href="@{/manager/publishers}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition">
-                <i class="bi bi-building"></i>
-                <span>Nhà Xuất Bản</span>
-            </a>
-            <a th:href="@{/manager/brands}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition">
-                <i class="bi bi-tag"></i>
-                <span>Thương Hiệu VPP</span>
-            </a>
-            <a th:href="@{/manager/categories}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black rounded-xl text-xs font-bold transition">
-                <i class="bi bi-diagram-3"></i>
-                <span>Cây Danh Mục</span>
-            </a>
             <a th:href="@{/manager/books/new}"
                class="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition">
                 <i class="bi bi-journal-plus"></i>
@@ -56,7 +36,6 @@
             </a>
         </div>
     </div>
-
     <!-- Filter & Search Toolbar -->
     <div class="bg-white rounded-2xl border border-dust_grey/80 p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
         <!-- Type Tabs -->

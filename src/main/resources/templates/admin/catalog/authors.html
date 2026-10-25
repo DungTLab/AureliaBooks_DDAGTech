@@ -23,17 +23,7 @@
             </h1>
             <p class="text-sm text-carbon_black-600 mt-1">Danh sách tác giả, tiểu sử và thông tin các đầu sách liên kết</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2.5">
-            <a th:href="@{/manager/products}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-semibold text-xs rounded-xl transition">
-                <i class="bi bi-arrow-left"></i>
-                <span>Sản Phẩm</span>
-            </a>
-            <a th:href="@{/dashboard}"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-dust_grey hover:bg-alabaster_grey text-carbon_black font-semibold text-xs rounded-xl transition">
-                <i class="bi bi-house"></i>
-                <span>Bàn Làm Việc</span>
-            </a>
+        <div class="flex items-center gap-2.5">
             <button type="button" onclick="openAuthorModal(null, '', '')"
                     class="inline-flex items-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold text-xs rounded-xl shadow-md hover:shadow-lg transition">
                 <i class="bi bi-plus-lg"></i>
@@ -41,7 +31,6 @@
             </button>
         </div>
     </div>
-
     <!-- Search Toolbar -->
     <div class="bg-white rounded-2xl border border-dust_grey p-4 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
         <form th:action="@{/manager/authors}" method="get" class="w-full sm:max-w-md flex gap-2">

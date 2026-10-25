@@ -25,11 +25,6 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <a th:href="@{/admin/audit-logs}"
-               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-parchment text-carbon_black border border-dust_grey font-semibold rounded-xl shadow-sm transition duration-150">
-                <i class="bi bi-journal-text text-carbon_black-600"></i>
-                <span>Nhật ký kiểm toán</span>
-            </a>
             <button type="button"
                     onclick="openModal('createStaffModal')"
                     class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame">
@@ -38,7 +33,6 @@
             </button>
         </div>
     </div>
-
     <!-- Filter & Statistics Toolbar -->
     <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
         <form method="get" th:action="@{/admin/users}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
