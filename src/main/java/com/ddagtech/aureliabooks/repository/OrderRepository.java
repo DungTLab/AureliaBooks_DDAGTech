@@ -4,6 +4,7 @@ import com.ddagtech.aureliabooks.entity.Order;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -20,6 +21,10 @@ import java.util.Optional;
  * Provides pessimistic write locks for atomic checkout/IPN/restock mutations and timeout queries.
  */
 public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
+
+    @Override
+    @EntityGraph(attributePaths = "user")
+    Page<Order> findAll(Specification<Order> spec, Pageable pageable);
 
     Page<Order> findByUser_Id(Long userId, Pageable pageable);
 

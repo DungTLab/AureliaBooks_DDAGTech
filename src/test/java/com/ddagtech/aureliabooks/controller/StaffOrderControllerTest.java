@@ -164,4 +164,32 @@ class StaffOrderControllerTest {
         mvc.perform(get("/staff/orders").with(user("staff").roles("SALE_STAFF")))
                 .andExpect(status().isServiceUnavailable()).andExpect(view().name("staff/order-error"));
     }
+
+    @Test void returnRestockSucceedsForStaffAndRedirects() throws Exception {
+        mvc.perform(post("/staff/orders/12/return-restock").with(user("staff").roles("SALE_STAFF")).with(csrf())
+                        .param("fullReturnVerified", "true")
+                        .param("returnReason", "Hàng giao không thành công hoàn kho")
+                        .param("inspectionNote", "Hàng nguyên vẹn"))
+                .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/staff/orders/12"));
+        verify(orders).confirmReturnRestock(eq(12L), any(), eq(7L));
+    }
+
+    @Test void returnRestockForbiddenForManager() throws Exception {
+        mvc.perform(post("/staff/orders/12/return-restock").with(user("manager").roles("MANAGER")).with(csrf())
+                        .header("X-Requested-With", "XMLHttpRequest")
+                        .param("fullReturnVerified", "true")
+                        .param("returnReason", "Hàng hoàn"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(orders);
+    }
+
+    @Test void returnRestockValidationFailureRendersLatestChecklist() throws Exception {
+        when(orders.getPackagingChecklist(12L, 7L)).thenReturn(latestChecklist());
+        mvc.perform(post("/staff/orders/12/return-restock").with(user("staff").roles("SALE_STAFF")).with(csrf())
+                        .param("fullReturnVerified", "false")
+                        .param("returnReason", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(view().name("staff/packaging-checklist"));
+        verify(orders, never()).confirmReturnRestock(any(), any(), any());
+    }
 }
