@@ -1,0 +1,32 @@
+.order-history-card { display:grid; grid-template-columns:minmax(0,1fr) 180px 160px 128px; align-items:center; gap:24px; margin:1rem 0; }
+.order-history-info { min-width:0; }
+.order-history-card .order-status-badge { justify-self:center; margin:0; white-space:nowrap; }
+.order-history-total { justify-self:end; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.order-history-action { justify-self:end; width:128px; white-space:nowrap; }
+.order-pagination { display:flex; justify-content:center; align-items:center; gap:1.5rem; margin:1.5rem 0; }
+.order-status-tabs { display:flex; overflow-x:auto; gap:.25rem; padding:.4rem; margin:1.5rem 0; background:#fff; border:1px solid #e5ddd1; border-radius:1rem; }
+.order-status-tabs a { flex:1 0 auto; text-align:center; white-space:nowrap; padding:.85rem 1rem; border-radius:.7rem; font-weight:600; color:#57534e; text-decoration:none; transition:background .15s,color .15s; }
+.order-status-tabs a:hover { background:#fff3ec; color:#b93818; }
+.order-status-tabs a.is-active { color:#fff; background:#df4824; }
+.order-status-tabs a:focus-visible { outline:2px solid #b93818; outline-offset:2px; }
+.order-status-badge { padding:.4rem .8rem; border-radius:999px; font-size:.875rem; font-weight:600; background:#fff4d6; color:#854d0e; }
+.order-status-badge[data-status="CONFIRMED"] { background:#e0f2fe; color:#075985; }
+.order-status-badge[data-status="SHIPPING"] { background:#ede9fe; color:#5b21b6; }
+.order-status-badge[data-status="DELIVERED"] { background:#dcfce7; color:#166534; }
+.order-status-badge[data-status="CANCELLED"] { background:#f3f4f6; color:#4b5563; }
+.order-empty-state { text-align:center; padding:3rem 1rem; }
+.order-empty-state > i { display:block; font-size:2rem; color:#a8a29e; margin-bottom:.75rem; }
+.order-timeline { list-style:none; margin:1.5rem 0; padding:0 0 0 1rem; }
+.order-timeline li { border-left:3px solid #d6d3d1; padding:0 0 1.5rem 1rem; display:grid; gap:.3rem; color:#57534e; }
+.order-timeline li.is-complete { border-color:#047857; }
+.order-timeline li[aria-current="step"] strong { color:#047857; }
+.order-timeline time, .order-timeline span { font-size:.875rem; }
+.order-cancel-reason { display:block; width:100%; border:1px solid #a8a29e; border-radius:.5rem; padding:.75rem; margin:.5rem 0 1rem; resize:vertical; }
+@media(max-width:960px) { .order-history-card { grid-template-columns:minmax(0,1fr) 150px 130px 128px; gap:16px; } }
+@media(max-width:760px) {
+    .order-history-card { grid-template-columns:minmax(0,1fr) auto; }
+    .order-history-info { grid-column:1/-1; }
+    .order-history-card .order-status-badge { justify-self:start; }
+    .order-history-action { grid-column:1/-1; }
+    .order-pagination { gap:1rem; }
+}

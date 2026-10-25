@@ -10,6 +10,9 @@ public interface OrderPlacementService {
     CheckoutView getCheckoutView(Long userId, Long shippingAddressId);
 
 
+    /** Apply one voucher to server-calculated cart and delivery totals without consuming quota. */
+    CheckoutView getCheckoutView(Long userId, Long shippingAddressId, String voucherCode);
+
     /** Return snapshots only for the specified owner; missing and foreign orders both produce a not-found error. */
     OrderConfirmationView getOrderConfirmation(Long userId, String orderCode);
 

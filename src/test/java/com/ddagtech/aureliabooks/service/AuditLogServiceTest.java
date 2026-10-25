@@ -39,6 +39,12 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AuditLogServiceTest {
 
+    @Test void requiredAuditPropagatesPersistenceFailure() {
+        when(auditLogRepository.save(any(AuditLog.class))).thenThrow(new IllegalStateException("ledger unavailable"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> auditLogService.recordRequired(null,
+                "ORDER_REFUND_CONFIRMED", "orders", 1L, "{}", null)).isInstanceOf(IllegalStateException.class);
+    }
+
     @Mock
     private AuditLogRepository auditLogRepository;
 
@@ -223,17 +229,19 @@ class AuditLogServiceTest {
     }
 
     @Test
-    @DisplayName("getDistinctActions() should delegate to repository")
+    @DisplayName("getDistinctActions() should delegate to repository and filter out deprecated MANUAL_STOCK_ADJUST (D04)")
     void testGetDistinctActions() {
-        when(auditLogRepository.findDistinctActions()).thenReturn(List.of("USER_CREATE", "LOGIN_FAILED"));
+        when(auditLogRepository.findDistinctActions())
+                .thenReturn(List.of("USER_CREATE", "MANUAL_STOCK_ADJUST", "LOGIN_FAILED"));
         List<String> actions = auditLogService.getDistinctActions();
         assertThat(actions).containsExactly("USER_CREATE", "LOGIN_FAILED");
     }
 
     @Test
-    @DisplayName("getDistinctTargetTables() should delegate to repository")
+    @DisplayName("getDistinctTargetTables() should delegate to repository and filter out deprecated stock_logs (D04)")
     void testGetDistinctTargetTables() {
-        when(auditLogRepository.findDistinctTargetTables()).thenReturn(List.of("goods_receipts", "users"));
+        when(auditLogRepository.findDistinctTargetTables())
+                .thenReturn(List.of("goods_receipts", "stock_logs", "users"));
         List<String> tables = auditLogService.getDistinctTargetTables();
         assertThat(tables).containsExactly("goods_receipts", "users");
     }

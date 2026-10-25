@@ -42,6 +42,21 @@ class CheckoutFlowMySqlTest {
     @Autowired
     UserRepository users;
 
+    @Autowired
+    VoucherService vouchers;
+
+    @Autowired
+    StockMutationService stock;
+
+    @Autowired
+    OrderPlacementService placement;
+
+    @Autowired
+    java.time.Clock clock;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    AuditLogService audit;
+
     private long owner;
     private long address;
     private long product;
@@ -259,6 +274,361 @@ class CheckoutFlowMySqlTest {
                 .param("paymentMethod", "VNPAY")
         ).andExpect(redirectedUrl("/checkout"));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
+    }
+
+    @Test
+    void percentageVoucherFlowsThroughPreviewReviewPlacementReplayAndCancellation() throws Exception {
+        jdbc.update("UPDATE products SET price=250000 WHERE id=?", product);
+        String code = campaign(
+            com.ddagtech.aureliabooks.entity.Voucher.Scope.PRODUCT,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.PERCENTAGE,
+            "10",
+            "50000",
+            1
+        );
+        capture(
+            "voucher-checkout.html",
+            mvc
+                .perform(
+                    get("/checkout")
+                        .with(user(principal))
+                        .param("voucherCode", code)
+                        .param("shippingAddressId", Long.toString(address))
+                )
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("500.000")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString()
+        );
+        assertThat(remaining(code)).isEqualTo(1);
+        CheckoutConfirmation review = prepare(code);
+        assertThat(review.reviewedCheckout().productDiscount()).isEqualByComparingTo("50000");
+        assertThat(review.reviewedCheckout().finalTotalAmount()).isEqualByComparingTo("500000");
+        place(review, code);
+        Long id = jdbc.queryForObject("SELECT id FROM orders WHERE order_code=?", Long.class, review.checkoutToken());
+        assertThat(
+            jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE id=?", java.math.BigDecimal.class, id)
+        ).isEqualByComparingTo("500000");
+        assertThat(remaining(code)).isZero();
+        place(review, code); // Replay has no session review, yet returns the same committed order.
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isEqualTo(
+            1
+        );
+        assertThat(
+            jdbc.queryForObject("SELECT COUNT(*) FROM order_vouchers WHERE order_id=?", Integer.class, id)
+        ).isEqualTo(1);
+        stock.restoreCancelledOrder(id, owner);
+        stock.restoreCancelledOrder(id, owner);
+        assertThat(remaining(code)).isEqualTo(1);
+        assertThat(
+            jdbc.queryForObject("SELECT COUNT(*) FROM order_vouchers WHERE order_id=?", Integer.class, id)
+        ).isZero();
+        assertThat(
+            jdbc.queryForObject("SELECT stock_quantity FROM products WHERE id=?", Integer.class, product)
+        ).isEqualTo(10);
+        jdbc.update("INSERT INTO cart_items(cart_id,product_id,quantity) VALUES(?,?,2)", cart, product);
+        place(prepare(code), code); // Cancellation releases the account's one-use restriction.
+        assertThat(remaining(code)).isZero();
+    }
+
+    @Test
+    void fixedAndShippingVouchersPersistExactlyTheReviewedTotal() throws Exception {
+        String code = campaign(
+            com.ddagtech.aureliabooks.entity.Voucher.Scope.SHIPPING,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT,
+            "10000",
+            null,
+            2
+        );
+        CheckoutConfirmation review = prepare(code);
+        assertThat(review.reviewedCheckout().shippingFee()).isEqualByComparingTo("40000");
+        assertThat(review.reviewedCheckout().finalTotalAmount()).isEqualByComparingTo("240000");
+        place(review, code);
+        assertThat(
+            jdbc.queryForObject(
+                "SELECT final_total_amount FROM orders WHERE order_code=?",
+                java.math.BigDecimal.class,
+                review.checkoutToken()
+            )
+        ).isEqualByComparingTo("240000");
+        assertThat(
+            jdbc.queryForObject(
+                "SELECT shipping_fee FROM orders WHERE order_code=?",
+                java.math.BigDecimal.class,
+                review.checkoutToken()
+            )
+        ).isEqualByComparingTo("50000");
+        assertThat(
+            jdbc.queryForObject(
+                "SELECT discount_applied FROM order_vouchers WHERE order_id=(SELECT id FROM orders WHERE order_code=?)",
+                java.math.BigDecimal.class,
+                review.checkoutToken()
+            )
+        ).isEqualByComparingTo("10000");
+    }
+
+    @Test
+    void fixedVoucherOn300kAndVnpayOrderKeepDiscountedSnapshot() throws Exception {
+        jdbc.update("UPDATE products SET price=150000 WHERE id=?", product);
+        String code = campaign(
+            com.ddagtech.aureliabooks.entity.Voucher.Scope.PRODUCT,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT,
+            "50000",
+            null,
+            1
+        );
+        var checkout = placement.getCheckoutView(owner, address, code);
+        assertThat(checkout.productDiscount()).isEqualByComparingTo("50000");
+        assertThat(checkout.finalTotalAmount()).isEqualByComparingTo("300000");
+        var review = new CheckoutConfirmation(
+            UUID.randomUUID().toString().replace("-", ""),
+            owner,
+            checkout,
+            com.ddagtech.aureliabooks.entity.Order.PaymentMethod.VNPAY,
+            code
+        );
+        var form = new com.ddagtech.aureliabooks.dto.request.CheckoutRequest();
+        form.setCheckoutToken(review.checkoutToken());
+        form.setShippingAddressId(address);
+        form.setPaymentMethod(review.paymentMethod());
+        form.setVoucherCode(code);
+        placement.placeOrder(owner, form, review);
+        assertThat(
+            jdbc.queryForObject(
+                "SELECT final_total_amount FROM orders WHERE order_code=?",
+                java.math.BigDecimal.class,
+                review.checkoutToken()
+            )
+        ).isEqualByComparingTo("300000");
+        assertThat(
+            jdbc.queryForObject(
+                "SELECT order_status FROM orders WHERE order_code=?",
+                String.class,
+                review.checkoutToken()
+            )
+        ).isEqualTo("PENDING_PAYMENT");
+        assertThat(remaining(code)).isZero();
+    }
+
+    @Test
+    void auditFailureRollsBackQuotaOrderStockCartAndRedemption() throws Exception {
+        String code = campaign(
+            com.ddagtech.aureliabooks.entity.Voucher.Scope.PRODUCT,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT,
+            "50000",
+            null,
+            1
+        );
+        CheckoutConfirmation review = prepare(code);
+        org.mockito.Mockito.doThrow(new IllegalStateException("QA late placement failure"))
+            .when(audit)
+            .record(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq("ORDER_PLACED"),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+            );
+        mvc.perform(
+            post("/checkout/place")
+                .session(session)
+                .with(user(principal))
+                .with(csrf())
+                .param("checkoutToken", review.checkoutToken())
+                .param("shippingAddressId", Long.toString(address))
+                .param("paymentMethod", "COD")
+                .param("voucherCode", code)
+        ).andExpect(redirectedUrl("/checkout"));
+        assertThat(remaining(code)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
+        assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM order_vouchers ov JOIN vouchers v ON v.id=ov.voucher_id WHERE v.code=?",
+                Integer.class,
+                code
+            )
+        ).isZero();
+        assertThat(
+            jdbc.queryForObject("SELECT stock_quantity FROM products WHERE id=?", Integer.class, product)
+        ).isEqualTo(10);
+        assertThat(
+            jdbc.queryForObject("SELECT COUNT(*) FROM cart_items WHERE cart_id=?", Integer.class, cart)
+        ).isEqualTo(1);
+    }
+
+    @Test
+    void voucherExpiredAfterReviewCannotCreateOrder() throws Exception {
+        String code = campaign(
+            com.ddagtech.aureliabooks.entity.Voucher.Scope.PRODUCT,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT,
+            "50000",
+            null,
+            1
+        );
+        CheckoutConfirmation review = prepare(code);
+        jdbc.update(
+            "UPDATE vouchers SET start_date=DATE_SUB(NOW(),INTERVAL 2 DAY),end_date=DATE_SUB(NOW(),INTERVAL 1 DAY) WHERE code=?",
+            code
+        );
+        mvc.perform(
+            post("/checkout/place")
+                .session(session)
+                .with(user(principal))
+                .with(csrf())
+                .param("checkoutToken", review.checkoutToken())
+                .param("shippingAddressId", Long.toString(address))
+                .param("paymentMethod", "COD")
+                .param("voucherCode", code)
+        ).andExpect(redirectedUrl("/checkout"));
+        assertThat(remaining(code)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
+    }
+
+    @Test
+    void concurrentCheckoutForLastVoucherUseCommitsOnlyOneOrder() throws Exception {
+        String code = campaign(
+            com.ddagtech.aureliabooks.entity.Voucher.Scope.PRODUCT,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT,
+            "50000",
+            null,
+            1
+        );
+        CheckoutConfirmation first = prepare(code);
+        long secondOwner = insert(
+            "INSERT INTO users(role_id,password_hash,full_name) SELECT role_id,'qa-hash','Second' FROM users WHERE id=?",
+            owner
+        );
+        long secondAddress = insert(
+            "INSERT INTO shipping_addresses(user_id,recipient_name,phone,economic_region,province,district,ward,detailed_address,is_default) VALUES(?,'Second','0912345678','NORTHERN','HN','BD','DC','12 DC',TRUE)",
+            secondOwner
+        );
+        long secondCart = insert("INSERT INTO carts(user_id) VALUES(?)", secondOwner);
+        jdbc.update("INSERT INTO cart_items(cart_id,product_id,quantity) VALUES(?,?,2)", secondCart, product);
+        var view = placement.getCheckoutView(secondOwner, secondAddress, code);
+        CheckoutConfirmation second = new CheckoutConfirmation(
+            UUID.randomUUID().toString().replace("-", ""),
+            secondOwner,
+            view,
+            com.ddagtech.aureliabooks.entity.Order.PaymentMethod.COD,
+            code
+        );
+        java.util.concurrent.CyclicBarrier start = new java.util.concurrent.CyclicBarrier(2);
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var a = pool.submit(() -> concurrentPlace(first, code, start));
+            var b = pool.submit(() -> concurrentPlace(second, code, start));
+            assertThat(
+                a.get(20, java.util.concurrent.TimeUnit.SECONDS) + b.get(20, java.util.concurrent.TimeUnit.SECONDS)
+            ).isEqualTo(1);
+        }
+        assertThat(remaining(code)).isZero();
+        assertThat(
+            jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id IN (?,?)", Integer.class, owner, secondOwner)
+        ).isEqualTo(1);
+        assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM order_vouchers ov JOIN vouchers v ON ov.voucher_id=v.id WHERE v.code=?",
+                Integer.class,
+                code
+            )
+        ).isEqualTo(1);
+        assertThat(
+            jdbc.queryForObject("SELECT stock_quantity FROM products WHERE id=?", Integer.class, product)
+        ).isEqualTo(8);
+    }
+
+    private int concurrentPlace(CheckoutConfirmation review, String code, java.util.concurrent.CyclicBarrier start)
+        throws Exception {
+        start.await(10, java.util.concurrent.TimeUnit.SECONDS);
+        var form = new com.ddagtech.aureliabooks.dto.request.CheckoutRequest();
+        form.setCheckoutToken(review.checkoutToken());
+        form.setShippingAddressId(review.reviewedCheckout().selectedAddressId());
+        form.setPaymentMethod(review.paymentMethod());
+        form.setVoucherCode(code);
+        try {
+            placement.placeOrder(review.userId(), form, review);
+            return 1;
+        } catch (com.ddagtech.aureliabooks.exception.AppException rejected) {
+            return 0;
+        }
+    }
+
+    private String campaign(
+        com.ddagtech.aureliabooks.entity.Voucher.Scope scope,
+        com.ddagtech.aureliabooks.entity.Voucher.Type type,
+        String amount,
+        String cap,
+        int uses
+    ) {
+        jdbc.update("INSERT INTO roles(role_name) VALUES('ROLE_MANAGER') ON DUPLICATE KEY UPDATE role_name=role_name");
+        long role = jdbc.queryForObject("SELECT id FROM roles WHERE role_name='ROLE_MANAGER'", Long.class);
+        long manager = insert("INSERT INTO users(role_id,password_hash,full_name) VALUES(?,'qa-hash','Manager')", role);
+        String code = "QA" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+        var now = java.time.LocalDateTime.now(clock);
+        vouchers.create(
+            manager,
+            new com.ddagtech.aureliabooks.dto.request.VoucherForm(
+                code,
+                "QA campaign",
+                scope,
+                type,
+                type == com.ddagtech.aureliabooks.entity.Voucher.Type.PERCENTAGE
+                    ? new java.math.BigDecimal(amount)
+                    : null,
+                type == com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT
+                    ? new java.math.BigDecimal(amount)
+                    : null,
+                cap == null ? null : new java.math.BigDecimal(cap),
+                java.math.BigDecimal.ZERO,
+                now.minusHours(1),
+                now.plusDays(1),
+                uses
+            ),
+            null
+        );
+        return code;
+    }
+
+    private int remaining(String code) {
+        return jdbc.queryForObject("SELECT usage_limit FROM vouchers WHERE code=?", Integer.class, code);
+    }
+
+    private CheckoutConfirmation prepare(String code) throws Exception {
+        String destination = mvc
+            .perform(
+                post("/checkout/review")
+                    .session(session)
+                    .with(user(principal))
+                    .with(csrf())
+                    .param("shippingAddressId", Long.toString(address))
+                    .param("paymentMethod", "COD")
+                    .param("voucherCode", code)
+            )
+            .andExpect(status().is3xxRedirection())
+            .andReturn()
+            .getResponse()
+            .getRedirectedUrl();
+        var result = mvc
+            .perform(get(destination).session(session).with(user(principal)))
+            .andExpect(status().isOk())
+            .andReturn();
+        capture("voucher-review.html", result.getResponse().getContentAsString());
+        return (CheckoutConfirmation) result.getModelAndView().getModel().get("review");
+    }
+
+    private void place(CheckoutConfirmation review, String code) throws Exception {
+        mvc.perform(
+            post("/checkout/place")
+                .session(session)
+                .with(user(principal))
+                .with(csrf())
+                .param("checkoutToken", review.checkoutToken())
+                .param("shippingAddressId", Long.toString(address))
+                .param("paymentMethod", "COD")
+                .param("voucherCode", code)
+                .param("finalTotalAmount", "1")
+        ).andExpect(redirectedUrl("/orders/" + review.checkoutToken()));
     }
 
     /** Prepare the review through real HTTP handlers and read the confirmation model instead of fabricating it in the test. */

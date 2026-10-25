@@ -16,6 +16,7 @@ import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.ddagtech.aureliabooks.service.StockMutationService;
+import com.ddagtech.aureliabooks.service.VoucherService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
@@ -53,6 +54,7 @@ public class StockMutationServiceImpl implements StockMutationService {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final EntityManager entityManager;
+    private final VoucherService vouchers;
 
     /**
      * Manager posts a draft goods receipt (UC23/FND-03).
@@ -151,8 +153,8 @@ public class StockMutationServiceImpl implements StockMutationService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Order ID must not be null.");
         }
 
-        // Pessimistic lock on order document
-        Order order = orderRepository.findByIdWithLock(orderId)
+        // Refresh acquires the lock and latest posting markers together, including when the entity is cached.
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
         // The caller may have loaded this order before another transaction deducted its stock.
@@ -257,9 +259,17 @@ public class StockMutationServiceImpl implements StockMutationService {
         Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
+        // Reload the marker with a locking read rather than trusting stale persistence-context state (F02).
+        if (entityManager != null) {
+            entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        }
+
         // Idempotency / Replay protection: if already restored, no-op
         if (order.getStockRestoredAt() != null) {
             log.info("Order id={} stock was already restored at {}. Replay ignored.", orderId, order.getStockRestoredAt());
+            if (order.getOrderStatus() == Order.OrderStatus.CANCELLED) {
+                vouchers.releaseCancelledOrder(orderId, actorUserId, null);
+            }
             return;
         }
 
@@ -273,6 +283,7 @@ public class StockMutationServiceImpl implements StockMutationService {
                 order.setCancelledAt(LocalDateTime.now());
             }
             orderRepository.save(order);
+            vouchers.releaseCancelledOrder(orderId, actorUserId, null);
             return;
         }
 
@@ -291,6 +302,12 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Long> productIds = restoreQtyPerProduct.keySet().stream().sorted().toList();
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        if (entityManager != null) {
+            for (Product product : products) {
+                entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+            }
+        }
 
         for (Map.Entry<Long, Integer> entry : restoreQtyPerProduct.entrySet()) {
             Product product = productMap.get(entry.getKey());
@@ -311,6 +328,7 @@ public class StockMutationServiceImpl implements StockMutationService {
             order.setCancelledAt(now);
         }
         orderRepository.save(order);
+        vouchers.releaseCancelledOrder(orderId, actorUserId, null);
 
         // Record audit log within the same database transaction
         Map<String, Object> auditDetails = new HashMap<>();
@@ -345,6 +363,10 @@ public class StockMutationServiceImpl implements StockMutationService {
         Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Order not found."));
 
+        if (entityManager != null) {
+            entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        }
+
         // Idempotency / Replay protection: if already restored, no-op
         if (order.getStockRestoredAt() != null) {
             log.info("Order id={} stock was already restored at {}. Replay ignored.", orderId, order.getStockRestoredAt());
@@ -368,6 +390,12 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Long> productIds = returnQtyPerProduct.keySet().stream().sorted().toList();
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        if (entityManager != null) {
+            for (Product product : products) {
+                entityManager.refresh(product, LockModeType.PESSIMISTIC_WRITE);
+            }
+        }
 
         for (Map.Entry<Long, Integer> entry : returnQtyPerProduct.entrySet()) {
             Product product = productMap.get(entry.getKey());
