@@ -349,11 +349,11 @@ class OrderPlacementMySqlTest {
                 Integer.class, buyer.id())).isEqualTo(1);
     }
 
-    @Test void phoneVerificationRevokedAfterReviewBlocksPosting() {
+    @Test void phoneRemovedAfterReviewBlocksPosting() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(1));
         Attempt reviewed = attempt(buyer, Order.PaymentMethod.COD);
-        jdbc.update("UPDATE users SET phone_verified=FALSE WHERE id=?", buyer.id());
+        jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", buyer.id());
         assertFailure(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT, buyer, reviewed);
         assertNoOrder(buyer);
         assertThat(stock(productId)).isEqualTo(5);
