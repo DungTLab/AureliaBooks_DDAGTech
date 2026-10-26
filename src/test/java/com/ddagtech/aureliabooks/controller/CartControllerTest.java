@@ -78,7 +78,7 @@ class CartControllerTest {
     void mutationsStillRedirectAndResolveOwnerOnTheServer() throws Exception {
         mvc.perform(post("/cart/items").with(user("customer").roles("CUSTOMER")).with(csrf())
                         .param("productId", "1").param("quantity", "3").param("userId", "999"))
-                .andExpect(redirectedUrl("/cart")).andExpect(flash().attributeExists("successMessage"));
+                .andExpect(redirectedUrl("/products/1")).andExpect(flash().attributeExists("successMessage"));
         mvc.perform(post("/cart/items/9/quantity").with(user("customer").roles("CUSTOMER")).with(csrf())
                         .param("quantity", "2").param("userId", "999"))
                 .andExpect(redirectedUrl("/cart")).andExpect(flash().attributeExists("successMessage"));
@@ -136,7 +136,7 @@ class CartControllerTest {
     void requestBindingErrorsRedirectWithMessage() throws Exception {
         mvc.perform(post("/cart/items").with(user("customer").roles("CUSTOMER")).with(csrf())
                         .param("quantity", "1"))
-                .andExpect(redirectedUrl("/cart")).andExpect(flash().attributeExists("errorMessage"));
+                .andExpect(redirectedUrl("/products")).andExpect(flash().attributeExists("errorMessage"));
         mvc.perform(post("/cart/items/not-a-number/remove").with(user("customer").roles("CUSTOMER")).with(csrf()))
                 .andExpect(redirectedUrl("/cart")).andExpect(flash().attributeExists("errorMessage"));
         verifyNoInteractions(carts);
@@ -150,5 +150,38 @@ class CartControllerTest {
                 .andExpect(redirectedUrl("/error/403"));
         mvc.perform(get("/cart")).andExpect(status().is3xxRedirection());
         verifyNoInteractions(carts, identity);
+    }
+    @Test
+    void addKeepsTheCatalogueFilterAndRecommendationContext() throws Exception {
+        mvc.perform(post("/cart/items").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("productId", "1").param("quantity", "1").param("returnTo", "/products?categoryId=2&page=3"))
+                .andExpect(redirectedUrl("/products?categoryId=2&page=3"));
+        mvc.perform(post("/cart/recommendations").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("productIds", "1", "2").param("returnTo", "/products/1"))
+                .andExpect(redirectedUrl("/products/1"));
+        verify(carts).addRecommendations(7L, List.of(1L, 2L));
+    }
+
+    @Test
+    void addRejectsUntrustedDestinationsAndKeepsValidationErrorsOnProductPage() throws Exception {
+        for (String target : List.of("https://evil.example", "//evil.example/products", "/admin/users",
+                "/products/../admin", "/products?x=%0d%0aLocation:evil", "/products#unsafe")) {
+            mvc.perform(post("/cart/items").with(user("customer").roles("CUSTOMER")).with(csrf())
+                    .param("productId", "1").param("quantity", "1").param("returnTo", target))
+                    .andExpect(redirectedUrl("/products/1"));
+        }
+        mvc.perform(post("/cart/items").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("productId", "1").param("quantity", "0"))
+                .andExpect(redirectedUrl("/products/1")).andExpect(flash().attributeExists("errorMessage"));
+    }
+
+    @Test
+    void unavailableProductKeepsShoppingContext() throws Exception {
+        doThrow(new AppException(ErrorCode.INVALID_INPUT_DATA, "Không đủ tồn kho"))
+                .when(carts).addItem(anyLong(), anyLong(), any());
+        mvc.perform(post("/cart/items").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("productId", "1").param("quantity", "1").param("returnTo", "/products/search?keyword=book"))
+                .andExpect(redirectedUrl("/products/search?keyword=book"))
+                .andExpect(flash().attribute("errorMessage", "Không đủ tồn kho"));
     }
 }

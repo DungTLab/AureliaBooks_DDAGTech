@@ -177,6 +177,7 @@
 
                     <!-- Customer & Guest Cart Action Area -->
                     <form sec:authorize="!hasAnyRole('MANAGER', 'ADMIN', 'SALE_STAFF')" th:action="@{/cart/items}" method="post" class="space-y-4">
+                        <input type="hidden" name="returnTo" th:value="${'/products/' + product.id}">
                         <input type="hidden" name="productId" th:value="${product.id}">
 
                         <!-- Quantity Selector & Action Button -->

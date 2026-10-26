@@ -108,6 +108,16 @@ class OrderPlacementServiceTest {
                 service.getCheckoutView(owner.getId(), address.getId()), request.getPaymentMethod(), null);
     }
 
+    @Test
+    void verifiedEmailCustomerWithoutAccountPhoneCanOrderUsingRecipientPhone() {
+        owner.setPhone(null);
+        owner.setPhoneVerified(false);
+        owner.setEmailVerified(true);
+        assertThat(service.placeOrder(owner.getId(), request, confirmation())).isEqualTo(TOKEN);
+        assertThat(savedOrder.getShippingPhone()).isEqualTo(address.getPhone());
+        assertThat(owner.getPhone()).isNull();
+    }
+
     /** Apply the same snapshot and single-deduction expectations to both COD and VNPay. */
     @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
     void placesBothMethodsWithSnapshotsAndOneDeduction(Order.PaymentMethod method) {
