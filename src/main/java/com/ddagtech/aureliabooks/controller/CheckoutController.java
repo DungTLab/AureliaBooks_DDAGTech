@@ -299,6 +299,7 @@ public class CheckoutController {
             return "redirect:/auth/login";
         }
         if (code == ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
+        if (code == ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT) return "redirect:/profile/contact-change?type=PHONE";
         if (code == ErrorCode.CHECKOUT_CHANGED) {
             reviews.remove(request.getSession(false), request.getParameter("checkoutToken"));
         }

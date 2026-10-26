@@ -349,11 +349,21 @@ class OrderPlacementMySqlTest {
                 Integer.class, buyer.id())).isEqualTo(1);
     }
 
-    @Test void foreignAddressIsRejectedWithoutAccountPhoneVerification() {
+    @Test void phoneVerificationRevokedAfterReviewBlocksPosting() {
+        long productId = product(5, "100000");
+        Buyer buyer = buyer(List.of(productId), List.of(1));
+        Attempt reviewed = attempt(buyer, Order.PaymentMethod.COD);
+        jdbc.update("UPDATE users SET phone_verified=FALSE WHERE id=?", buyer.id());
+        assertFailure(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT, buyer, reviewed);
+        assertNoOrder(buyer);
+        assertThat(stock(productId)).isEqualTo(5);
+        assertThat(cartLines(buyer)).isEqualTo(1);
+    }
+
+    @Test void foreignAddressIsRejectedForVerifiedCustomer() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(1));
         Attempt attempt = attempt(buyer, Order.PaymentMethod.COD);
-        jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", buyer.id());
         Buyer other = buyer(List.of(productId), List.of(1));
         assertThatThrownBy(() -> service.getCheckoutView(buyer.id(), other.addressId()))
                 .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.ADDRESS_NOT_FOUND);

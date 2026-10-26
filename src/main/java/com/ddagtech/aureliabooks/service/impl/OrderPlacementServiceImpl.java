@@ -109,6 +109,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             throw new AppException(ErrorCode.CART_EMPTY);
         }
 
+        requireVerifiedAccountPhone(checkoutCustomer(userId));
         List<AddressView> addressViews = addressService.list(userId);
         AddressView selectedAddress = selectAddress(addressViews, shippingAddressId);
         return checkoutView(cartView, addressViews, selectedAddress);
@@ -218,6 +219,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             return existingOrder.getOrderCode();
         }
 
+        requireVerifiedAccountPhone(owner);
         validateConfirmation(userId, request, confirmation);
 
         Cart cart = cartRepository.findByUser_Id(userId).orElseThrow(() -> new AppException(ErrorCode.CART_EMPTY));
@@ -281,7 +283,14 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return order.getOrderCode();
     }
 
-    /** Reuse UC09 address constraints, including the delivery phone; account phone verification is not required. */
+    /** Require a verified account contact independently from the order recipient phone. */
+    private void requireVerifiedAccountPhone(User owner) {
+        if (owner.getPhone() == null || owner.getPhone().isBlank() || !owner.isPhoneVerified()) {
+            throw new AppException(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT);
+        }
+    }
+
+    /** Reuse UC09 address constraints, including the delivery phone; account phone verification is checked separately. */
     private void validateShippingAddress(ShippingAddress address) {
         AddressRequest delivery = new AddressRequest(
             address.getRecipientName(),

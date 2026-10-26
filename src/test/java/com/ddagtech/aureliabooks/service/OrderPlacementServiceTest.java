@@ -83,6 +83,7 @@ class OrderPlacementServiceTest {
         cart.addItem(item);
         request = new CheckoutRequest(); request.setCheckoutToken(TOKEN);
         request.setShippingAddressId(address.getId()); request.setPaymentMethod(Order.PaymentMethod.COD);
+        lenient().when(users.findById(owner.getId())).thenReturn(Optional.of(owner));
         lenient().when(users.findOwnerForUpdate(owner.getId())).thenReturn(Optional.of(owner));
         lenient().when(carts.findByUser_Id(owner.getId())).thenReturn(Optional.of(cart));
         lenient().when(addresses.findByIdAndUserIdAndIsActiveTrue(address.getId(), owner.getId()))
@@ -109,13 +110,26 @@ class OrderPlacementServiceTest {
     }
 
     @Test
-    void verifiedEmailCustomerWithoutAccountPhoneCanOrderUsingRecipientPhone() {
+    void missingOrUnverifiedAccountPhoneCannotStartCheckout() {
         owner.setPhone(null);
         owner.setPhoneVerified(false);
-        owner.setEmailVerified(true);
-        assertThat(service.placeOrder(owner.getId(), request, confirmation())).isEqualTo(TOKEN);
+        assertThatThrownBy(() -> service.getCheckoutView(owner.getId(), address.getId()))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT);
+        owner.setPhone("0912345678");
+        assertThatThrownBy(() -> service.getCheckoutView(owner.getId(), address.getId()))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT);
+    }
+
+    @Test
+    void placementRechecksPhoneAfterPreviewAndKeepsRecipientIndependent() {
+        CheckoutConfirmation reviewed = confirmation();
+        owner.setPhoneVerified(false);
+        assertThatThrownBy(() -> service.placeOrder(owner.getId(), request, reviewed))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT);
+        verify(orders, never()).saveAndFlush(any());
+        owner.setPhoneVerified(true);
+        assertThat(service.placeOrder(owner.getId(), request, reviewed)).isEqualTo(TOKEN);
         assertThat(savedOrder.getShippingPhone()).isEqualTo(address.getPhone());
-        assertThat(owner.getPhone()).isNull();
     }
 
     /** Apply the same snapshot and single-deduction expectations to both COD and VNPay. */
@@ -217,14 +231,13 @@ class OrderPlacementServiceTest {
     }
 
     @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
-    void usesDeliveryPhoneWithoutRequiringAccountPhoneVerification(Order.PaymentMethod method) {
+    void usesRecipientPhoneIndependentlyOfVerifiedAccountPhone(Order.PaymentMethod method) {
         request.setPaymentMethod(method);
-        owner.setPhone(null);
-        owner.setPhoneVerified(false);
         assertThat(service.placeOrder(1L, request, confirmation())).isEqualTo(TOKEN);
         ArgumentCaptor<Order> saved = ArgumentCaptor.forClass(Order.class);
         verify(orders).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getShippingPhone()).isEqualTo(address.getPhone());
+        assertThat(saved.getValue().getShippingPhone()).isNotEqualTo(owner.getPhone());
     }
 
     @ParameterizedTest @ValueSource(strings = {"", "123", "abcdefghij"})
