@@ -50,21 +50,8 @@ public class ProductServiceImpl implements ProductService {
     private final AuthorRepository authorRepository;
     private final PublisherRepository publisherRepository;
     private final BrandRepository brandRepository;
-    private ProductMapper productMapper = new ProductMapper();
-    private MasterDataMapper masterDataMapper = new MasterDataMapper();
-
-    public ProductServiceImpl(ProductRepository productRepository,
-                              CategoryRepository categoryRepository,
-                              BookRepository bookRepository) {
-        this(productRepository, categoryRepository, bookRepository, null, null, null, null);
-    }
-
-    public ProductServiceImpl(ProductRepository productRepository,
-                              CategoryRepository categoryRepository,
-                              BookRepository bookRepository,
-                              StationeryRepository stationeryRepository) {
-        this(productRepository, categoryRepository, bookRepository, stationeryRepository, null, null, null);
-    }
+    private final ProductMapper productMapper;
+    private final MasterDataMapper masterDataMapper;
 
     @Autowired
     public ProductServiceImpl(ProductRepository productRepository,
@@ -73,7 +60,9 @@ public class ProductServiceImpl implements ProductService {
                               StationeryRepository stationeryRepository,
                               AuthorRepository authorRepository,
                               PublisherRepository publisherRepository,
-                              BrandRepository brandRepository) {
+                              BrandRepository brandRepository,
+                              ProductMapper productMapper,
+                              MasterDataMapper masterDataMapper) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.bookRepository = bookRepository;
@@ -81,21 +70,11 @@ public class ProductServiceImpl implements ProductService {
         this.authorRepository = authorRepository;
         this.publisherRepository = publisherRepository;
         this.brandRepository = brandRepository;
+        this.productMapper = productMapper;
+        this.masterDataMapper = masterDataMapper;
     }
 
-    @Autowired(required = false)
-    public void setProductMapper(ProductMapper productMapper) {
-        if (productMapper != null) {
-            this.productMapper = productMapper;
-        }
-    }
 
-    @Autowired(required = false)
-    public void setMasterDataMapper(MasterDataMapper masterDataMapper) {
-        if (masterDataMapper != null) {
-            this.masterDataMapper = masterDataMapper;
-        }
-    }
 
     @Transactional(readOnly = true)
     @Override

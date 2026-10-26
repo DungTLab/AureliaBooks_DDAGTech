@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.service;
 
+import com.ddagtech.aureliabooks.mapper.AdminUserMapper;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
@@ -46,6 +47,9 @@ import static org.mockito.Mockito.*;
  */
 @ExtendWith(MockitoExtension.class)
 class AdminUserServiceTest {
+    @org.mockito.Spy
+    private AdminUserMapper adminUserMapper = new AdminUserMapper();
+
 
     @Mock
     private UserRepository userRepository;
@@ -692,7 +696,7 @@ class AdminUserServiceTest {
                 sessionRegistry,
                 realAuditLogService,
                 objectMapper
-        );
+        , new AdminUserMapper());
 
         Long actorAdminId = 1L;
         Long targetAdminId = 2L;
@@ -732,7 +736,7 @@ class AdminUserServiceTest {
                 sessionRegistry,
                 realAuditLogService,
                 objectMapper
-        );
+        , new AdminUserMapper());
 
         Long actorAdminId = 1L;
         Long targetAdminId = 2L;

@@ -1,5 +1,7 @@
 package com.ddagtech.aureliabooks.service;
 
+import com.ddagtech.aureliabooks.mapper.MasterDataMapper;
+import com.ddagtech.aureliabooks.mapper.ProductMapper;
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.AuthorSummary;
 import com.ddagtech.aureliabooks.dto.response.BrandSummary;
@@ -81,8 +83,8 @@ class ProductServiceImplTest {
     void setUp() {
         productService = new ProductServiceImpl(
                 productRepository, categoryRepository, bookRepository, stationeryRepository,
-                authorRepository, publisherRepository, brandRepository
-        );
+                authorRepository, publisherRepository, brandRepository,
+                new ProductMapper(), new MasterDataMapper());
     }
 
     @Test

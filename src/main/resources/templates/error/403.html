@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      th:replace="~{layout/base :: layout('403 - Quyền Bị Từ Chối | AureliaBook', ~{::#main-content})}">
+      th:replace="~{${internalPage == true ? 'layout/internal' : 'layout/base'} :: layout('403 - Quyền Bị Từ Chối | AureliaBook', ~{::#main-content})}">
 <head>
     <title>403 - Quyền Bị Từ Chối</title>
 </head>
@@ -48,7 +48,7 @@
                 </a>
 
                 <!-- Storefront Home Shortcut -->
-                <a th:href="@{/}"
+                <a sec:authorize="!hasAnyRole('ADMIN','MANAGER','SALE_STAFF')" th:href="@{/}"
                    class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-lg text-sm font-medium bg-blazing_flame text-white hover:bg-blazing_flame/90 transition-colors shadow-sm">
                     <i class="bi bi-house-door mr-2"></i>Về Trang Chủ
                 </a>

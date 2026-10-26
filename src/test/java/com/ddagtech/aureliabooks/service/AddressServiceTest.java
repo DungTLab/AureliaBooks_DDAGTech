@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.service;
 
+import com.ddagtech.aureliabooks.mapper.ShippingAddressMapper;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -45,7 +46,7 @@ class AddressServiceTest {
                 .findFirst()
         );
         validatorFactory = Validation.buildDefaultValidatorFactory();
-        service = new AddressServiceImpl(addresses, users, orders, validatorFactory.getValidator());
+        service = new AddressServiceImpl(addresses, users, orders, validatorFactory.getValidator(), new ShippingAddressMapper());
     }
 
     @AfterEach

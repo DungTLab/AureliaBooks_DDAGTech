@@ -7,6 +7,9 @@ import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.CartService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -50,15 +53,23 @@ public class CartController {
         }
     }
 
+    @PostMapping("/recommendations")
+    public String addRecommendations(Authentication authentication, @RequestParam java.util.List<Long> productIds,
+            RedirectAttributes flash, HttpServletRequest request) {
+        carts.addRecommendations(identity.resolve(authentication), productIds);
+        flash.addFlashAttribute("successMessage", "Đã thêm các sản phẩm đã chọn vào giỏ hàng. Bạn có thể tiếp tục mua sắm.");
+        return shoppingDestination(request);
+    }
+
     @PostMapping("/items")
     public String add(Authentication authentication, @RequestParam Long productId,
                       @Valid @ModelAttribute("quantityForm") CartQuantityRequest form,
-                      BindingResult errors, RedirectAttributes flash) {
+                      BindingResult errors, RedirectAttributes flash, HttpServletRequest request) {
         Long owner = identity.resolve(authentication);
-        if (invalidQuantity(errors, flash)) return "redirect:/cart";
+        if (invalidQuantity(errors, flash)) return shoppingDestination(request);
         carts.addItem(owner, productId, form);
-        flash.addFlashAttribute("successMessage", "Đã thêm sản phẩm vào giỏ hàng.");
-        return "redirect:/cart";
+        flash.addFlashAttribute("successMessage", "Đã thêm sản phẩm vào giỏ hàng. Bạn có thể tiếp tục mua sắm.");
+        return shoppingDestination(request);
     }
 
     @PostMapping("/items/{itemId}/quantity")
@@ -82,7 +93,7 @@ public class CartController {
     @ExceptionHandler(AppException.class)
     public String businessError(AppException error, RedirectAttributes flash,
                                 @SessionAttribute(name = "SPRING_SECURITY_CONTEXT", required = false)
-                                SecurityContext sessionContext) {
+                                SecurityContext sessionContext, HttpServletRequest request) {
         flash.addFlashAttribute("errorMessage", error.getMessage());
         ErrorCode code = error.getErrorCode();
         if (code == ErrorCode.UNAUTHENTICATED || code == ErrorCode.ACCOUNT_LOCKED
@@ -93,20 +104,52 @@ public class CartController {
             return "redirect:/auth/login";
         }
         if (code == ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
-        return "redirect:/cart";
+        return mutationDestination(request);
     }
 
     @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
-    public String invalidRequest(RedirectAttributes flash) {
+    public String invalidRequest(RedirectAttributes flash, HttpServletRequest request) {
         flash.addFlashAttribute("errorMessage", "Thông tin sản phẩm hoặc số lượng chưa hợp lệ. Vui lòng thử lại.");
-        return "redirect:/cart";
+        return mutationDestination(request);
     }
 
     @ExceptionHandler(Exception.class)
-    public String storageError(Exception error, RedirectAttributes flash) {
+    public String storageError(Exception error, RedirectAttributes flash, HttpServletRequest request) {
         log.error("Unable to save cart changes", error);
         flash.addFlashAttribute("errorMessage", "Không thể lưu thay đổi giỏ hàng. Vui lòng thử lại.");
-        return "redirect:/cart";
+        return mutationDestination(request);
+    }
+
+    private String mutationDestination(HttpServletRequest request) {
+        return request.getRequestURI().substring(request.getContextPath().length()).equals("/cart/items") || request.getRequestURI().substring(request.getContextPath().length()).equals("/cart/recommendations")
+                ? shoppingDestination(request) : "redirect:/cart";
+    }
+
+    /** Only catalogue destinations are accepted; never redirect to an arbitrary Referer or external URL. */
+    private String shoppingDestination(HttpServletRequest request) {
+        String target = request.getParameter("returnTo");
+        if (target != null && target.length() <= 2048) {
+            try {
+                URI uri = URI.create(target);
+                String lower = target.toLowerCase(Locale.ROOT);
+                if (!uri.isAbsolute() && uri.getRawAuthority() == null && uri.getRawFragment() == null
+                        && uri.getRawPath().matches("/products(?:/search|/[1-9][0-9]{0,17})?")
+                        && !lower.contains("%0d") && !lower.contains("%0a")) {
+                    return "redirect:" + target;
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Invalid destinations fall back to a server-selected catalogue page.
+            }
+        }
+        if (request.getRequestURI().substring(request.getContextPath().length()).equals("/cart/items")) {
+            try {
+                long id = Long.parseLong(request.getParameter("productId"));
+                if (id > 0) return "redirect:/products/" + id;
+            } catch (NumberFormatException ignored) {
+                // Malformed product identifiers cannot supply a redirect destination.
+            }
+        }
+        return "redirect:/products";
     }
 
     private boolean invalidQuantity(BindingResult errors, RedirectAttributes flash) {

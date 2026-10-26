@@ -44,31 +44,10 @@
                     Danh Mục Chọn Lọc
                 </h3>
                 <ul class="space-y-2.5 text-sm text-[#aba398]">
-                    <li>
-                        <a th:href="@{/products(productType='BOOK')}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
-                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Sách Tiếng Việt
-                        </a>
+                    <li th:each="category, status : ${navigationCategories}" th:if="${status.index < 6}">
+                        <a th:href="@{/products(categoryId=${category.id})}" th:text="${category.name}" class="hover:text-white">Danh mục</a>
                     </li>
-                    <li>
-                        <a th:href="@{/products(categoryId=2)}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
-                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Văn Học & Tiểu Thuyết
-                        </a>
-                    </li>
-                    <li>
-                        <a th:href="@{/products(categoryId=3)}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
-                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Kinh Tế - Kinh Doanh
-                        </a>
-                    </li>
-                    <li>
-                        <a th:href="@{/products(categoryId=4)}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
-                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Khoa Học - Công Nghệ
-                        </a>
-                    </li>
-                    <li>
-                        <a th:href="@{/products(productType='STATIONERY')}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
-                            <i class="bi bi-chevron-right text-[10px] text-blazing_flame"></i>Văn Phòng Phẩm Cao Cấp
-                        </a>
-                    </li>
+                    <li><a th:href="@{/products}" class="hover:text-white">Tất cả sản phẩm</a></li>
                 </ul>
             </div>
 
@@ -79,22 +58,22 @@
                 </h3>
                 <ul class="space-y-2.5 text-sm text-[#aba398]">
                     <li>
-                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
-                            <i class="bi bi-shield-check text-xs text-blazing_flame"></i>Chính sách đổi trả 7 ngày
+                        <a th:href="@{/policies/returns}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                            <i class="bi bi-shield-check text-xs text-blazing_flame"></i>Chính sách đổi trả
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                        <a th:href="@{/policies/shipping}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
                             <i class="bi bi-truck text-xs text-blazing_flame"></i>Phương thức vận chuyển toàn quốc
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                        <a th:href="@{/policies/payment}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
                             <i class="bi bi-credit-card text-xs text-blazing_flame"></i>Hướng dẫn thanh toán VNPay
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                        <a th:href="@{/policies/faq}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
                             <i class="bi bi-patch-question text-xs text-blazing_flame"></i>Câu hỏi thường gặp (FAQ)
                         </a>
                     </li>
@@ -131,7 +110,6 @@
         <div class="border-t border-[#2e2925] pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#8c8479]">
             <div class="text-center md:text-left space-y-1">
                 <p>&copy; 2026 AureliaBook Inc. Dự án SWP391 - Fall 2026 | Đại học FPT.</p>
-                <p class="text-[#aba398] font-medium">Được xây dựng bởi Nhóm 5 DDAGTech (Dũng, Duy, Đức Anh, Trọng, Giác).</p>
             </div>
             <!-- Trust & Payment Security Badges -->
             <div class="flex items-center gap-3">

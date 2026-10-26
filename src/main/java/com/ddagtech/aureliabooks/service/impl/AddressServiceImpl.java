@@ -13,7 +13,6 @@ import com.ddagtech.aureliabooks.util.DeliveryProvinceCatalog;
 import jakarta.validation.Validator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,14 +24,8 @@ public class AddressServiceImpl implements AddressService {
     private final UserRepository users;
     private final AddressOrderGuard orders;
     private final Validator validator;
-    private ShippingAddressMapper addressMapper = new ShippingAddressMapper();
+    private final ShippingAddressMapper addressMapper;
 
-    @Autowired(required = false)
-    public void setAddressMapper(ShippingAddressMapper addressMapper) {
-        if (addressMapper != null) {
-            this.addressMapper = addressMapper;
-        }
-    }
 
     @Transactional(readOnly = true)
     public List<AddressView> list(Long ownerId) {

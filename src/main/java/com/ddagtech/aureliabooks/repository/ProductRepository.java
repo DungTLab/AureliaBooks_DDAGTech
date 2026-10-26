@@ -196,4 +196,9 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      */
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.embedding IS NOT NULL")
     List<Product> findActiveProductsWithEmbedding();
+    @Query("select p from Product p join p.category c where p.id in :ids and p.isActive = true and c.isActive = true and p.stockQuantity > 0")
+    List<Product> findRecommendationCandidates(@Param("ids") Collection<Long> ids);
+
+    @Query("select p from Product p join p.category c where p.isActive = true and c.isActive = true and p.stockQuantity > 0 and (:categoryId is null or c.id = :categoryId) order by p.id desc")
+    List<Product> findRecommendationFallback(@Param("categoryId") Long categoryId, Pageable pageable);
 }

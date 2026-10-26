@@ -186,4 +186,14 @@ class CustomOAuth2UserServiceTest {
         assertThrows(OAuth2AuthenticationException.class, () -> service.loadUser(request()));
         server.verify();
     }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SALE_STAFF"})
+    void internalRoleCannotBecomeGoogleAuthenticationEvenWhenIdentityAlreadyExists(String role) {
+        claims();
+        when(registration.registerGoogle(any(), any(), any(), any(), any())).thenReturn(
+                User.builder().id(9L).isActive(true).email("a@example.com")
+                        .role(Role.builder().roleName(role).build()).build());
+        assertThrows(OAuth2AuthenticationException.class, () -> service.loadUser(request()));
+        server.verify();
+    }
 }

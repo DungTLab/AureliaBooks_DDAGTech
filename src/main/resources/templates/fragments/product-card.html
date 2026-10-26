@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<article th:fragment="card(item)" class="group bg-white rounded-2xl border border-dust_grey shadow-soft hover:shadow-hover transition-shadow flex flex-col min-w-0 overflow-hidden"
+         th:attr="data-home-product-id=${item.id}">
+    <a th:href="@{/products/{id}(id=${item.id})}" class="block relative bg-parchment-100 p-4">
+        <img data-product-image th:src="${item.mainImageUrl != null and !item.mainImageUrl.isBlank()} ? ${item.mainImageUrl} : @{/images/product-placeholder.svg}"
+             th:attr="data-fallback-src=@{/images/product-placeholder.svg}" th:alt="${item.title}" loading="lazy" width="240" height="320"
+             class="w-full h-44 sm:h-56 object-contain group-hover:scale-[1.03] transition-transform">
+        <span class="absolute top-3 left-3 px-2 py-1 rounded-lg bg-white text-xs font-semibold border border-dust_grey"
+              th:text="${item.productType != null and item.productType.name() == 'STATIONERY' ? 'Văn phòng phẩm' : 'Sách'}">Sản phẩm</span>
+    </a>
+    <div class="p-4 flex flex-col flex-1 gap-3">
+        <h3 class="font-bold text-sm sm:text-base leading-relaxed break-words">
+            <a th:href="@{/products/{id}(id=${item.id})}" th:text="${item.title}" class="hover:text-blazing_flame line-clamp-2">Tên sản phẩm</a>
+        </h3>
+        <p class="text-sm text-carbon_black-600" th:text="${item.stockQuantity > 0 ? 'Còn hàng' : 'Hết hàng'}"></p>
+        <p class="font-extrabold text-blazing_flame mt-auto" th:text="${#numbers.formatDecimal(item.price, 0, 'POINT', 0, 'COMMA') + 'đ'}"></p>
+        <a th:href="@{/products/{id}(id=${item.id})}" class="inline-flex justify-center items-center px-3 py-2 rounded-xl border border-dust_grey font-semibold text-sm hover:bg-parchment-100">Xem chi tiết</a>
+    </div>
+</article>
+</body>
+</html>

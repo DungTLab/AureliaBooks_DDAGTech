@@ -70,7 +70,11 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
                 ApiResponse<Object> apiResponse = ApiResponse.error(ErrorCode.UNAUTHORIZED.getCode(), csrfErrorMessage);
                 objectMapper.writeValue(response.getWriter(), apiResponse);
             } else {
-                request.setAttribute("errorMessage", csrfErrorMessage);
+                // A forward may enter the other chain; retain the original failure context.
+                if (request.getAttribute("errorMessage") == null) request.setAttribute("errorMessage", csrfErrorMessage);
+                if (request.getAttribute("internalPortalError") == null) {
+                    request.setAttribute("internalPortalError", PortalSecurity.internalRequest(request));
+                }
                 request.getRequestDispatcher("/error/403").forward(request, response);
             }
             return;

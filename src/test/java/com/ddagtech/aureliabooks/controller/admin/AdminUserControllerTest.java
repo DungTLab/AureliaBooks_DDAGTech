@@ -114,7 +114,7 @@ class AdminUserControllerTest {
     void testList_Unauthenticated_RedirectsToLogin() throws Exception {
         mockMvc.perform(get("/admin/users"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("**/auth/login"));
+                .andExpect(redirectedUrlPattern("**/internal/login"));
     }
 
     @Test

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Hàng đợi xử lý đơn hàng | AureliaBook', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Hàng đợi xử lý đơn hàng | AureliaBook', ~{::#main-content})}">
 <head>
     <title>Hàng đợi xử lý đơn hàng - AureliaBook</title>
 </head>
@@ -33,8 +33,8 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <!-- Order Status -->
                 <div>
-                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Trạng thái đơn</label>
-                    <select th:field="*{status}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5" for="status">Trạng thái đơn</label>
+                    <select id="status" th:field="*{status}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                         <option value="">Tất cả trạng thái</option>
                         <option th:each="option : ${statusOptions}" th:value="${option.key}" th:text="${option.value}"></option>
                     </select>
@@ -42,8 +42,8 @@
 
                 <!-- Payment Status -->
                 <div>
-                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Thanh toán</label>
-                    <select th:field="*{paymentStatus}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5" for="paymentStatus">Thanh toán</label>
+                    <select id="paymentStatus" th:field="*{paymentStatus}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                         <option value="">Tất cả</option>
                         <option value="UNPAID">Chưa thanh toán</option>
                         <option value="PAID">Đã thanh toán</option>
@@ -53,8 +53,8 @@
 
                 <!-- Payment Method -->
                 <div>
-                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Phương thức</label>
-                    <select th:field="*{paymentMethod}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5" for="paymentMethod">Phương thức</label>
+                    <select id="paymentMethod" th:field="*{paymentMethod}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                         <option value="">Tất cả</option>
                         <option value="COD">COD</option>
                         <option value="VNPAY">VNPay</option>
@@ -63,14 +63,14 @@
 
                 <!-- From Date -->
                 <div>
-                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Từ ngày</label>
-                    <input type="date" th:field="*{fromDate}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5" for="fromDate">Từ ngày</label>
+                    <input id="fromDate" type="date" th:field="*{fromDate}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                 </div>
 
                 <!-- To Date -->
                 <div>
-                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Đến ngày</label>
-                    <input type="date" th:field="*{toDate}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                    <label class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5" for="toDate">Đến ngày</label>
+                    <input id="toDate" type="date" th:field="*{toDate}" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                 </div>
             </div>
 

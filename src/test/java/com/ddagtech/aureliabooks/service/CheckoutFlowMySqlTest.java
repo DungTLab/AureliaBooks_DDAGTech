@@ -107,11 +107,18 @@ class CheckoutFlowMySqlTest {
         session = new MockHttpSession();
     }
 
-    /** Complete COD checkout without an account phone; preserve the delivery phone and prevent duplicate orders. */
+    @Test
+    void missingAccountPhoneRedirectsToVerificationWithoutCreatingAnOrder() throws Exception {
+        jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", owner);
+        mvc.perform(get("/checkout").session(session).with(user(principal)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile/contact-change?type=PHONE"));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
+    }
+
+    /** Complete COD checkout with verified account contact and an independent delivery phone. */
     @Test
     void customerCompletesCodCheckoutAndReplayKeepsSingleOrder() throws Exception {
-        jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", owner);
-        principal = new CustomUserDetails(users.findById(owner).orElseThrow());
         String html = mvc
             .perform(get("/cart").session(session).with(user(principal)))
             .andExpect(status().isOk())
@@ -497,7 +504,7 @@ class CheckoutFlowMySqlTest {
         );
         CheckoutConfirmation first = prepare(code);
         long secondOwner = insert(
-            "INSERT INTO users(role_id,password_hash,full_name) SELECT role_id,'qa-hash','Second' FROM users WHERE id=?",
+            "INSERT INTO users(role_id,password_hash,full_name,phone,phone_verified) SELECT role_id,'qa-hash','Second','0999999998',TRUE FROM users WHERE id=?",
             owner
         );
         long secondAddress = insert(

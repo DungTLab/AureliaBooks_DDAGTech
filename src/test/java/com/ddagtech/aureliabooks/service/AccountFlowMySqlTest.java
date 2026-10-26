@@ -135,7 +135,9 @@ class AccountFlowMySqlTest {
         id = users.findByPhone(phone).orElseThrow().getId();
         User u = users.findById(id).orElseThrow();
         sessions.registerNewSession("old-session", new CustomUserDetails(u));
-        String flow = otp.recovery(phone, "EMAIL", "s", "ip");
+        assertThatThrownBy(() -> otp.recovery(phone, "EMAIL", "s", "ip"))
+                .isInstanceOf(IllegalArgumentException.class);
+        String flow = otp.recovery(phone, "SMS", "s", "ip");
         verify(delivery).send(eq("SMS"), eq(phone), anyString());
         otp.verify(flow, "s", code, "ip");
         otp.reset(flow, "s", "NewPass1!", "NewPass1!", "ip");

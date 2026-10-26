@@ -86,7 +86,8 @@ public class MasterDataController {
             masterDataService.createAuthor(form);
             redirectAttributes.addFlashAttribute("successMessage", "Thêm tác giả mới thành công!");
         } catch (AppException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            bindingResult.rejectValue("name", "author.save", e.getMessage());
+            return authors(keyword, pageable, model);
         }
         return "redirect:/manager/authors";
     }
@@ -117,7 +118,9 @@ Page<Author> authorsPage = masterDataService.listAuthors(keyword, pageable);
             masterDataService.updateAuthor(id, form);
             redirectAttributes.addFlashAttribute("successMessage", "Cập nhật thông tin tác giả thành công!");
         } catch (AppException e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
+            bindingResult.rejectValue("name", "author.save", e.getMessage());
+            model.addAttribute("editAuthorId", id);
+            return authors(keyword, pageable, model);
         }
         return "redirect:/manager/authors";
     }

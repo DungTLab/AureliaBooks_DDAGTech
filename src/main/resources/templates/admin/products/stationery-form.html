@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout(${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm' : 'Thêm Văn Phòng Phẩm Mới'} + ' | AureliaBook', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout(${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm' : 'Thêm Văn Phòng Phẩm Mới'} + ' | AureliaBook', ~{::#main-content})}">
 <head>
     <title th:text="${isEdit ? 'Chỉnh Sửa Văn Phòng Phẩm' : 'Thêm Văn Phòng Phẩm Mới'}">Quản Lý Văn Phòng Phẩm</title>
 </head>
@@ -41,23 +41,23 @@
     </div>
 
     <!-- Main Stationery Form -->
-    <form th:action="${isEdit ? '/manager/stationeries/' + stationeryForm.id() + '/edit' : '/manager/stationeries'}"
+    <form data-form-validation th:action="${isEdit ? '/manager/stationeries/' + stationeryForm.id() + '/edit' : '/manager/stationeries'}"
           th:object="${stationeryForm}" method="post" class="space-y-6">
 
         <!-- 1. Thông Tin Chung (Base Product) -->
         <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
             <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
                 <i class="bi bi-box-seam text-blazing_flame"></i>
-                <span>1. Thông Tin Sản Phẩm Cơ Bản (Bảng Products)</span>
+                <span>1. Thông Tin Sản Phẩm Cơ Bản</span>
             </h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Barcode -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="barcode">
                         Mã Vạch Barcode <span class="text-blazing_flame">*</span>
                     </label>
-                    <input type="text" th:field="*{barcode}" required maxlength="50"
+                    <input id="barcode" type="text" th:field="*{barcode}" pattern="\s*[0-9]{8,14}\s*" title="Mã vạch gồm 8 đến 14 chữ số" required maxlength="50"
                            placeholder="Ví dụ: 8935001234567"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                            th:classappend="${#fields.hasErrors('barcode')} ? 'border-rose-500' : 'border-dust_grey'">
@@ -66,10 +66,10 @@
 
                 <!-- Title -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="title">
                         Tên Sản Phẩm Văn Phòng Phẩm <span class="text-blazing_flame">*</span>
                     </label>
-                    <input type="text" th:field="*{title}" required maxlength="255"
+                    <input id="title" type="text" th:field="*{title}" required maxlength="255"
                            placeholder="Ví dụ: Bút Bi Thiên Long FO-GEL08"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                            th:classappend="${#fields.hasErrors('title')} ? 'border-rose-500' : 'border-dust_grey'">
@@ -78,10 +78,10 @@
 
                 <!-- Category -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="categoryId">
                         Danh Mục Văn Phòng Phẩm <span class="text-blazing_flame">*</span>
                     </label>
-                    <select th:field="*{categoryId}" required
+                    <select id="categoryId" th:field="*{categoryId}" required
                             class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                             th:classappend="${#fields.hasErrors('categoryId')} ? 'border-rose-500' : 'border-dust_grey'">
                         <option value="">-- Chọn danh mục --</option>
@@ -92,20 +92,20 @@
 
                 <!-- Weight -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="weightGrams">
                         Khối Lượng (Gram)
                     </label>
-                    <input type="number" th:field="*{weightGrams}" min="0"
+                    <input id="weightGrams" type="number" th:field="*{weightGrams}" min="0"
                            placeholder="Mặc định: 100"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
 
                 <!-- Price -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="price">
                         Giá Bán Niêm Yết (VNĐ) <span class="text-blazing_flame">*</span>
                     </label>
-                    <input type="number" step="1" th:field="*{price}" required min="0"
+                    <input id="price" type="number" step="1" th:field="*{price}" required min="0"
                            placeholder="Ví dụ: 15000"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                            th:classappend="${#fields.hasErrors('price')} ? 'border-rose-500' : 'border-dust_grey'">
@@ -114,10 +114,10 @@
 
                 <!-- Original Cost -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="originalCost">
                         Giá Vốn Gốc (VNĐ) <span class="text-blazing_flame">*</span>
                     </label>
-                    <input type="number" step="1" th:field="*{originalCost}" required min="0"
+                    <input id="originalCost" type="number" step="1" th:field="*{originalCost}" required min="0"
                            placeholder="Ví dụ: 9000"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                            th:classappend="${#fields.hasErrors('originalCost')} ? 'border-rose-500' : 'border-dust_grey'">
@@ -126,30 +126,30 @@
 
                 <!-- Main Image URL -->
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="mainImageUrl">
                         Đường Dẫn Ảnh Sản Phẩm (Image URL)
                     </label>
-                    <input type="url" th:field="*{mainImageUrl}" maxlength="500"
+                    <input id="mainImageUrl" type="url" th:field="*{mainImageUrl}" maxlength="500"
                            placeholder="https://example.com/images/pen.jpg"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
 
                 <!-- Tags -->
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="tags">
                         Từ Khóa Phân Loại (Tags)
                     </label>
-                    <input type="text" th:field="*{tags}" maxlength="255"
+                    <input id="tags" type="text" th:field="*{tags}" maxlength="255"
                            placeholder="Ví dụ: but-bi, van-phong-pham, hoc-sinh"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
 
                 <!-- Description -->
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="description">
                         Mô Tả Sản Phẩm
                     </label>
-                    <textarea th:field="*{description}" rows="4"
+                    <textarea id="description" th:field="*{description}" rows="4"
                               placeholder="Chi tiết tính năng, quy cách đóng gói, thông số kỹ thuật..."
                               class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"></textarea>
                 </div>
@@ -160,16 +160,16 @@
         <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
             <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
                 <i class="bi bi-pencil-fill text-blazing_flame"></i>
-                <span>2. Thuộc Tính Riêng Của Văn Phòng Phẩm (Bảng Stationeries)</span>
+                <span>2. Thuộc Tính Riêng Của Văn Phòng Phẩm</span>
             </h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Brand -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="brandId">
                         Thương Hiệu Sản Xuất <span class="text-blazing_flame">*</span>
                     </label>
-                    <select th:field="*{brandId}" required
+                    <select id="brandId" th:field="*{brandId}" required
                             class="w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame"
                             th:classappend="${#fields.hasErrors('brandId')} ? 'border-rose-500' : 'border-dust_grey'">
                         <option value="">-- Chọn thương hiệu --</option>
@@ -180,20 +180,20 @@
 
                 <!-- Warranty Months -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="warrantyMonths">
                         Thời Gian Bảo Hành (Tháng)
                     </label>
-                    <input type="number" th:field="*{warrantyMonths}" min="0"
+                    <input id="warrantyMonths" type="number" th:field="*{warrantyMonths}" min="0"
                            placeholder="Mặc định: 0 (Không bảo hành)"
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                 </div>
 
                 <!-- Material -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="material">
                         Chất Liệu
                     </label>
-                    <input type="text" th:field="*{material}" maxlength="100" list="common-materials"
+                    <input id="material" type="text" th:field="*{material}" maxlength="100" list="common-materials"
                            placeholder="Chọn gợi ý hoặc nhập tự do (Ví dụ: Nhựa cao cấp)..."
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                     <datalist id="common-materials">
@@ -208,10 +208,10 @@
 
                 <!-- Color -->
                 <div>
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
+                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="color">
                         Màu Sắc
                     </label>
-                    <input type="text" th:field="*{color}" maxlength="50" list="common-colors"
+                    <input id="color" type="text" th:field="*{color}" maxlength="50" list="common-colors"
                            placeholder="Chọn gợi ý hoặc nhập tự do (Ví dụ: Xanh dương)..."
                            class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
                     <datalist id="common-colors">

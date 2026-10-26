@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('Quản Trị Cây Danh Mục | AureliaBook', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Quản Trị Cây Danh Mục | AureliaBook', ~{::#main-content})}">
 <head>
     <title>Quản Trị Cây Danh Mục</title>
 </head>
@@ -143,15 +143,15 @@
     </div>
 
     <!-- Modal Form (Create / Edit Category) -->
-    <div id="categoryModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <dialog id="categoryModal" class="catalog-dialog p-0 bg-transparent border-0 w-[calc(100%-2rem)] max-w-lg" data-managed-dialog aria-labelledby="categoryModalTitle">
         <div class="bg-white rounded-2xl border border-dust_grey shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-down">
             <div class="px-6 py-4 bg-alabaster_grey/40 border-b border-dust_grey/60 flex items-center justify-between">
                 <h3 id="categoryModalTitle" class="font-serif font-bold text-lg text-carbon_black">Thêm Danh Mục Mới</h3>
-                <button type="button" onclick="closeCategoryModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
+                <button type="button" aria-label="Đóng hộp thoại" onclick="closeCategoryModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-            <form id="categoryForm" th:action="@{/manager/categories}" method="post" class="p-6 space-y-4">
+            <form data-form-validation id="categoryForm" th:action="@{/manager/categories}" method="post" class="p-6 space-y-4">
                 <div>
                     <label for="categoryNameInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Tên Danh Mục <span class="text-blazing_flame">*</span>
@@ -203,7 +203,7 @@
                 </div>
             </form>
         </div>
-    </div>
+    </dialog>
 
     <script>
         function openCategoryModal(id, name, parentId, description, active) {
@@ -243,12 +243,12 @@
                 activeCheckbox.checked = true;
             }
 
-            modal.classList.remove('hidden');
+            modal.showModal(); modal.querySelector('form')?.dispatchEvent(new Event('form-validity-change'));
             nameInput.focus();
         }
 
         function closeCategoryModal() {
-            document.getElementById('categoryModal').classList.add('hidden');
+            document.getElementById('categoryModal').close();
         }
     </script>
 </div>

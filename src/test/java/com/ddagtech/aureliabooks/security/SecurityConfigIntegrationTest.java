@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WebMvcTest(controllers = { HomeController.class, CustomErrorController.class })
 @Import({
+
     SecurityConfig.class,
     CustomAccessDeniedHandler.class,
     CustomAuthenticationEntryPoint.class,
@@ -30,6 +31,17 @@ import org.springframework.test.web.servlet.MockMvc;
     CustomAuthenticationFailureHandler.class,
 })
 class SecurityConfigIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.ProductService homepageProducts;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setupHomepageCatalogue() {
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+    }
+
 
     @Autowired
     private MockMvc mockMvc;
@@ -52,7 +64,7 @@ class SecurityConfigIntegrationTest {
     @Test
     @DisplayName("QA-01: Should redirect anonymous user to login when accessing exact /admin root")
     void testUnauthenticatedAccess_AdminRoot_RedirectsToLogin() throws Exception {
-        mockMvc.perform(get("/admin")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/auth/login"));
+        mockMvc.perform(get("/admin")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/internal/login"));
     }
 
     @Test
@@ -61,7 +73,7 @@ class SecurityConfigIntegrationTest {
         mockMvc
             .perform(get("/admin/users"))
             .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/auth/login"));
+            .andExpect(redirectedUrl("/internal/login"));
     }
 
     @Test

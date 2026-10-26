@@ -157,6 +157,9 @@ public class VoucherServiceImpl implements VoucherService {
             throw new AppException(ErrorCode.VOUCHER_ALREADY_USED_BY_USER);
         }
         order.setFinalTotalAmount(applied.payableTotal());
+        // Persist the payable snapshot before downstream stock posting refreshes this order.
+        // This flush does not commit; the enclosing placement transaction still owns rollback.
+        orders.flush();
         record(customerId, "VOUCHER_REDEEMED", voucher.getId(),
                 Map.of("orderId", orderId, "discount", applied.discountAmount()), clientIp);
         return applied;
