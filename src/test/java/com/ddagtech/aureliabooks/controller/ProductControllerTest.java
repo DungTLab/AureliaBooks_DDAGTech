@@ -24,9 +24,12 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -252,5 +255,42 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("application/json"))
                 .andExpect(content().json("[]"));
+    }
+
+    @Test
+    @DisplayName("GET /products/1 enforces internal-role purchase guard and customer/guest action states")
+    void getDetailPageEnforcesRoleBasedPurchaseActions() throws Exception {
+        com.ddagtech.aureliabooks.dto.response.ProductDetailResponse detail =
+                new com.ddagtech.aureliabooks.dto.response.ProductDetailResponse(
+                        1L, "BARCODE123", "Harry Potter", new BigDecimal("150000"),
+                        new BigDecimal("200000"), 10, "http://image.jpg", "Great book", 350,
+                        Product.ProductType.BOOK, 2L, "Văn Học", "978-1234567890", 1L, "NXB Trẻ",
+                        List.of("J.K. Rowling"), "Harry Potter", 1, false, 2020, "1", 350,
+                        Book.CoverType.PAPERBACK, "Tiếng Việt", null, null, null, null, null
+                );
+        when(productService.viewDetail(1L)).thenReturn(detail);
+
+        // 1. Internal staff roles (ADMIN, MANAGER, SALE_STAFF) see read-only management notice and no cart form
+        for (String staffRole : new String[]{"ADMIN", "MANAGER", "SALE_STAFF"}) {
+            mockMvc.perform(get("/products/1").with(user("staff-viewer").roles(staffRole)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Chế độ Quản lý: Tài khoản nội bộ chỉ xem thông tin sản phẩm, không thực hiện mua hàng.")))
+                    .andExpect(content().string(not(containsString("action=\"/cart/items\""))))
+                    .andExpect(content().string(not(containsString("Thêm Vào Giỏ Hàng"))));
+        }
+
+        // 2. CUSTOMER sees Add to Cart form and button, without the internal staff notice
+        mockMvc.perform(get("/products/1").with(user("customer-buyer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("action=\"/cart/items\"")))
+                .andExpect(content().string(containsString("Thêm Vào Giỏ Hàng")))
+                .andExpect(content().string(not(containsString("Chế độ Quản lý:"))));
+
+        // 3. Anonymous guest sees login prompt button instead of direct cart submission
+        mockMvc.perform(get("/products/1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Đăng Nhập Để Mua Hàng")))
+                .andExpect(content().string(not(containsString("Thêm Vào Giỏ Hàng"))))
+                .andExpect(content().string(not(containsString("Chế độ Quản lý:"))));
     }
 }

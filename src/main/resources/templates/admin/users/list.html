@@ -5,7 +5,7 @@
     <title>Quản lý tài khoản nội bộ &amp; Phân quyền RBAC - AureliaBook</title>
 </head>
 <body>
-<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Page Header & Action Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
@@ -17,7 +17,7 @@
             </div>
             <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
                 <i class="bi bi-shield-lock-fill text-blazing_flame"></i>
-                Quản lý tài khoản nội bộ &amp; Vai trò
+                <span>Quản lý tài khoản nội bộ &amp; Vai trò</span>
             </h1>
             <p class="text-sm text-carbon_black-600 mt-1">
                 Phân quyền tài khoản quản trị (ADMIN), quản lý (MANAGER) và nhân viên bán hàng (SALE_STAFF).
@@ -25,11 +25,6 @@
         </div>
 
         <div class="flex items-center gap-3">
-            <a th:href="@{/admin/audit-logs}"
-               class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-parchment text-carbon_black border border-dust_grey font-semibold rounded-xl shadow-sm transition duration-150">
-                <i class="bi bi-journal-text text-carbon_black-600"></i>
-                <span>Nhật ký kiểm toán</span>
-            </a>
             <button type="button"
                     onclick="openModal('createStaffModal')"
                     class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame">
@@ -38,7 +33,6 @@
             </button>
         </div>
     </div>
-
     <!-- Filter & Statistics Toolbar -->
     <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
         <form method="get" th:action="@{/admin/users}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -98,17 +92,17 @@
     <!-- Staff Accounts Table Card -->
     <div class="bg-white border border-dust_grey rounded-2xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-dust_grey text-left text-sm">
+            <table class="w-full divide-y divide-dust_grey text-left text-sm">
                 <thead class="bg-parchment/60 text-carbon_black-600 font-semibold uppercase text-xs tracking-wider">
                     <tr>
-                        <th class="px-6 py-4">ID</th>
-                        <th class="px-6 py-4">Nhân sự</th>
-                        <th class="px-6 py-4">Số điện thoại</th>
-                        <th class="px-6 py-4">Vai trò hiện tại</th>
-                        <th class="px-6 py-4">Đổi vai trò</th>
-                        <th class="px-6 py-4">Trạng thái</th>
-                        <th class="px-6 py-4">Ngày tạo</th>
-                        <th class="px-6 py-4 text-right">Hành động</th>
+                        <th class="px-3.5 py-3.5 sm:px-4 w-12">ID</th>
+                        <th class="px-3.5 py-3.5 sm:px-4">Nhân sự</th>
+                        <th class="px-3.5 py-3.5 sm:px-4 whitespace-nowrap">Số điện thoại</th>
+                        <th class="px-3.5 py-3.5 sm:px-4 whitespace-nowrap">Vai trò hiện tại</th>
+                        <th class="px-3.5 py-3.5 sm:px-4 whitespace-nowrap">Đổi vai trò</th>
+                        <th class="px-3.5 py-3.5 sm:px-4 whitespace-nowrap">Trạng thái</th>
+                        <th class="px-3.5 py-3.5 sm:px-4 whitespace-nowrap">Ngày tạo</th>
+                        <th class="px-3.5 py-3.5 sm:px-4 text-right whitespace-nowrap">Hành động</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-dust_grey/70 bg-white">
@@ -117,60 +111,60 @@
                         th:classappend="${#authentication.principal.id == user.id} ? 'bg-amber-50/40' : ''">
 
                         <!-- ID -->
-                        <td class="px-6 py-4 font-mono text-xs font-semibold whitespace-nowrap">
+                        <td class="px-3.5 py-3 sm:px-4 font-mono text-xs font-semibold whitespace-nowrap">
                             <span class="text-carbon_black-500" th:text="'#' + ${user.id}">#1</span>
                         </td>
 
                         <!-- Name & Email -->
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm bg-blazing_flame/10 text-blazing_flame">
+                        <td class="px-3.5 py-3 sm:px-4">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs bg-blazing_flame/10 text-blazing_flame">
                                     <span th:text="${user.fullName != null and !#strings.isEmpty(user.fullName) ? #strings.substring(user.fullName, 0, 1) : 'U'}">A</span>
                                 </div>
-                                <div>
-                                    <div class="font-semibold text-carbon_black flex items-center gap-2">
-                                        <span th:text="${user.fullName}">Nguyễn Văn A</span>
+                                <div class="min-w-0 max-w-[150px] sm:max-w-[180px] lg:max-w-[220px]">
+                                    <div class="font-semibold text-carbon_black text-sm flex items-center gap-1.5 truncate">
+                                        <span class="truncate" th:text="${user.fullName}" th:title="${user.fullName}">Nguyễn Văn A</span>
                                         <!-- Current Authenticated Admin Badge -->
                                         <span th:if="${#authentication.principal.id == user.id}"
-                                              class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                                              class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
                                             (Bạn)
                                         </span>
                                     </div>
-                                    <div class="text-xs text-carbon_black-500" th:text="${user.email}">admin@aureliabook.vn</div>
+                                    <div class="text-xs text-carbon_black-500 truncate" th:text="${user.email}" th:title="${user.email}">admin@aureliabook.vn</div>
                                 </div>
                             </div>
                         </td>
 
                         <!-- Phone -->
-                        <td class="px-6 py-4 font-mono text-xs text-carbon_black-700"
+                        <td class="px-3.5 py-3 sm:px-4 font-mono text-xs text-carbon_black-700 whitespace-nowrap"
                             th:text="${user.phone}">0912345678</td>
 
                         <!-- Role Badge -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3.5 py-3 sm:px-4 whitespace-nowrap">
                             <span th:if="${user.roleName == 'ROLE_ADMIN'}"
-                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-                                <i class="bi bi-shield-shaded"></i>
+                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                                <i class="bi bi-shield-shaded text-[11px]"></i>
                                 Quản trị viên
                             </span>
                             <span th:if="${user.roleName == 'ROLE_MANAGER'}"
-                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-                                <i class="bi bi-briefcase-fill"></i>
+                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                <i class="bi bi-briefcase-fill text-[11px]"></i>
                                 Quản lý
                             </span>
                             <span th:if="${user.roleName == 'ROLE_SALE_STAFF'}"
-                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                <i class="bi bi-person-badge-fill"></i>
-                                Nhân viên bán hàng
+                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <i class="bi bi-person-badge-fill text-[11px]"></i>
+                                Nhân viên
                             </span>
                             <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
-                                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                                <i class="bi bi-person-fill"></i>
+                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                <i class="bi bi-person-fill text-[11px]"></i>
                                 Khách hàng
                             </span>
                         </td>
 
                         <!-- Quick Role Change -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3.5 py-3 sm:px-4 whitespace-nowrap">
                             <!-- Customer -> Non-changeable inline -->
                             <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
                                   class="text-xs text-carbon_black-400 italic">
@@ -193,7 +187,7 @@
                                         aria-label="Thay đổi vai trò nhân sự"
                                         onchange="if(confirm('Bạn có chắc chắn muốn thay đổi vai trò tài khoản này? Người dùng sẽ phải đăng nhập lại.')) this.form.submit(); else this.value=this.getAttribute('data-original');"
                                         th:data-original="${user.roleId}"
-                                        class="text-xs border border-dust_grey rounded-lg px-2.5 py-1 bg-white text-carbon_black focus:ring-1 focus:ring-blazing_flame focus:outline-none">
+                                        class="text-xs font-medium border border-dust_grey rounded-lg px-2 py-1 bg-white text-carbon_black focus:ring-1 focus:ring-blazing_flame focus:outline-none transition cursor-pointer">
                                     <option th:each="r : ${roles}"
                                             th:value="${r.id}"
                                             th:text="${r.roleName == 'ROLE_ADMIN' ? 'ADMIN' : (r.roleName == 'ROLE_MANAGER' ? 'MANAGER' : 'SALE_STAFF')}"
@@ -204,7 +198,7 @@
                         </td>
 
                         <!-- Active Status Badge -->
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <td class="px-3.5 py-3 sm:px-4 whitespace-nowrap">
                             <span th:if="${user.active}"
                                   class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                                 <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
@@ -218,21 +212,21 @@
                         </td>
 
                         <!-- Created At -->
-                        <td class="px-6 py-4 whitespace-nowrap text-xs text-carbon_black-500"
+                        <td class="px-3.5 py-3 sm:px-4 whitespace-nowrap text-xs text-carbon_black-500"
                             th:text="${user.createdAt != null ? #temporals.format(user.createdAt, 'dd/MM/yyyy HH:mm') : '—'}">
                             01/01/2026 10:00
                         </td>
 
                         <!-- Actions (Self-Lock Protected per BR-08-01) -->
-                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <td class="px-3.5 py-3 sm:px-4 whitespace-nowrap text-right">
                             <!-- Case 1: Self Account -> Disallow Self-Lock -->
                             <div th:if="${#authentication.principal.id == user.id}" class="inline-block">
                                 <button type="button"
                                         disabled
                                         title="Bạn không thể tự khóa tài khoản của chính mình (BR-08-01)"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-carbon_black-400 bg-dust_grey/30 border border-dust_grey cursor-not-allowed opacity-60">
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-carbon_black-400 bg-dust_grey/30 border border-dust_grey cursor-not-allowed opacity-60">
                                     <i class="bi bi-lock-fill"></i>
-                                    <span>Tự khóa (Khóa)</span>
+                                    <span>Tự khóa</span>
                                 </button>
                             </div>
 
@@ -246,15 +240,15 @@
                                 <button th:if="${user.active}"
                                         type="submit"
                                         onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này? Mọi phiên đăng nhập hiện tại của người dùng sẽ bị thu hồi ngay lập tức.');"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition">
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition">
                                     <i class="bi bi-lock-fill"></i>
-                                    <span>Khóa tài khoản</span>
+                                    <span>Khóa</span>
                                 </button>
 
                                 <button th:unless="${user.active}"
                                         type="submit"
                                         onclick="return confirm('Bạn có chắc chắn muốn mở khóa cho tài khoản này?');"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
                                     <i class="bi bi-unlock-fill"></i>
                                     <span>Mở khóa</span>
                                 </button>
@@ -264,7 +258,7 @@
 
                     <!-- Empty State -->
                     <tr th:if="${usersPage == null or usersPage.content.isEmpty()}">
-                        <td colspan="8" class="px-6 py-12 text-center text-carbon_black-500">
+                        <td colspan="8" class="px-4 py-12 text-center text-carbon_black-500">
                             <div class="flex flex-col items-center justify-center gap-2">
                                 <i class="bi bi-people text-4xl text-dust_grey"></i>
                                 <span class="font-semibold text-base">Không tìm thấy tài khoản người dùng nào phù hợp.</span>
@@ -278,7 +272,7 @@
 
         <!-- Pagination Controls -->
         <div th:if="${usersPage != null and usersPage.totalPages > 1}"
-             class="px-6 py-4 bg-parchment/40 border-t border-dust_grey flex items-center justify-between text-xs text-carbon_black-600">
+             class="px-4 sm:px-6 py-4 bg-parchment/40 border-t border-dust_grey flex items-center justify-between text-xs text-carbon_black-600">
             <div>
                 Trang <span class="font-bold text-carbon_black" th:text="${usersPage.number + 1}">1</span> /
                 <span class="font-bold text-carbon_black" th:text="${usersPage.totalPages}">5</span>
@@ -465,4 +459,3 @@
 </div>
 </body>
 </html>
-
