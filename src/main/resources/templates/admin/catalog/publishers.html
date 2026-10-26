@@ -161,15 +161,15 @@
     </div>
 
     <!-- Modal Form (Create / Edit Publisher) -->
-    <div id="publisherModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <dialog id="publisherModal" class="catalog-dialog p-0 bg-transparent border-0 w-[calc(100%-2rem)] max-w-lg" data-managed-dialog aria-labelledby="publisherModalTitle">
         <div class="bg-white rounded-2xl border border-dust_grey shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-down">
             <div class="px-6 py-4 bg-alabaster_grey/40 border-b border-dust_grey/60 flex items-center justify-between">
                 <h3 id="publisherModalTitle" class="font-serif font-bold text-lg text-carbon_black">Thêm Nhà Xuất Bản Mới</h3>
-                <button type="button" onclick="closePublisherModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
+                <button type="button" aria-label="Đóng hộp thoại" onclick="closePublisherModal()" class="text-carbon_black-400 hover:text-carbon_black text-lg">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-            <form id="publisherForm" th:action="@{/manager/publishers}" method="post" class="p-6 space-y-4">
+            <form data-form-validation id="publisherForm" th:action="@{/manager/publishers}" method="post" class="p-6 space-y-4">
                 <div>
                     <label for="publisherNameInput" class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5">
                         Tên Nhà Xuất Bản <span class="text-blazing_flame">*</span>
@@ -206,7 +206,7 @@
                 </div>
             </form>
         </div>
-    </div>
+    </dialog>
 
     <script>
         function openPublisherModal(id, name, address, email) {
@@ -231,12 +231,12 @@
                 emailInput.value = '';
             }
 
-            modal.classList.remove('hidden');
+            modal.showModal(); modal.querySelector('form')?.dispatchEvent(new Event('form-validity-change'));
             nameInput.focus();
         }
 
         function closePublisherModal() {
-            document.getElementById('publisherModal').classList.add('hidden');
+            document.getElementById('publisherModal').close();
         }
     </script>
 </div>

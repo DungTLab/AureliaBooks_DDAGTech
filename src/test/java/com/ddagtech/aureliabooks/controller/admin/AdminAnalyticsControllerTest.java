@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = AdminAnalyticsController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, com.ddagtech.aureliabooks.service.impl.StockReportServiceImpl.class})
 @DisplayName("UC26, UC27: AdminAnalyticsController WebMvc & RBAC Security Tests")
 class AdminAnalyticsControllerTest {
 
@@ -165,5 +165,19 @@ class AdminAnalyticsControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.kpi.totalOrders").value(2))
                 .andExpect(jsonPath("$.kpi.grossRevenue").value(400000));
+    }
+    @Test
+    @WithMockUser(roles = "MANAGER")
+    void managerCanViewEmptyStockReport() throws Exception {
+        mockMvc.perform(get("/manager/analytics/stock").param("keyword", "missing"))
+                .andExpect(status().isOk()).andExpect(view().name("admin/analytics/stock-report"))
+                .andExpect(model().attributeExists("stockReport"));
+    }
+
+    @Test
+    @WithMockUser(roles = "SALE_STAFF")
+    void staffCannotAccessStockReportOrExport() throws Exception {
+        mockMvc.perform(get("/manager/analytics/stock")).andExpect(status().isForbidden());
+        mockMvc.perform(get("/manager/analytics/export/stock")).andExpect(status().isForbidden());
     }
 }

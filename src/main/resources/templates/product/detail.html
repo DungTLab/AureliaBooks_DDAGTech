@@ -68,7 +68,7 @@
                     </div>
                     <div class="p-2.5 rounded-xl bg-parchment-100 border border-dust_grey/60 text-carbon_black">
                         <i class="bi bi-arrow-repeat text-blazing_flame text-base block mb-0.5"></i>
-                        <span class="text-[11px] font-bold block">Đổi Trả 7 Ngày</span>
+                        <span class="text-[11px] font-bold block">Đổi Trả Theo Chính Sách</span>
                     </div>
                 </div>
             </div>
@@ -187,6 +187,7 @@
                                         class="w-8 h-8 rounded-lg hover:bg-parchment-200 text-carbon_black font-bold flex items-center justify-center transition-colors">
                                     <i class="bi bi-dash"></i>
                                 </button>
+                                <label for="qtyInput" class="sr-only">Số lượng sản phẩm</label>
                                 <input type="number" id="qtyInput" name="quantity" value="1" min="1" step="1" required
                                        th:max="${T(java.lang.Math).min(T(com.ddagtech.aureliabooks.dto.request.CartQuantityRequest).MAX_QUANTITY, product.stockQuantity)}"
                                        th:disabled="${product.stockQuantity <= 0}"
@@ -312,6 +313,12 @@
         </div>
 
     </div>
+
+    <th:block th:if="${product != null and product.stockQuantity > 0}" sec:authorize="isAnonymous() or hasRole('CUSTOMER')">
+        <section th:replace="~{fragments/recommendations :: suggestions}"></section>
+        <section th:replace="~{fragments/recommendations :: personal}"></section>
+    </th:block>
+    <script th:src="@{/js/recommendations.js}" defer></script>
 
     <!-- Product Not Found Fallback -->
     <div th:if="${product == null}" class="bg-white rounded-3xl border border-dust_grey p-12 text-center shadow-soft max-w-lg mx-auto">

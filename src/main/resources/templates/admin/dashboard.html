@@ -49,18 +49,18 @@
             <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Đơn hàng &amp; Kho vận</h2>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Xử lý đơn hàng -->
-            <a sec:authorize="hasAnyRole('ADMIN','SALE_STAFF')" th:href="@{/staff/orders}"
+            <!-- Tra cứu / Xử lý đơn hàng -->
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')" th:href="@{/staff/orders}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-orange-50 text-blazing_flame flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-inboxes-fill"></i>
                 </div>
                 <div class="flex-grow">
                     <div class="flex items-center justify-between">
-                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Xử lý đơn hàng</h3>
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors"><span sec:authorize="hasRole('MANAGER')">Tra cứu / Hủy đơn hàng</span><span sec:authorize="!hasRole('MANAGER')">Xử lý đơn hàng</span></h3>
                         <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
                     </div>
-                    <p class="text-xs text-carbon_black-500 mt-1">Hàng đợi tiếp nhận đơn, đóng gói, bàn giao vận chuyển và xử lý hoàn trả.</p>
+                    <p class="text-xs text-carbon_black-500 mt-1">Tra cứu đơn và thực hiện thao tác phù hợp quyền của bạn.</p>
                 </div>
             </a>
 
@@ -247,7 +247,7 @@
             <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Thống kê, Báo cáo &amp; Quản trị hệ thống</h2>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Báo cáo Doanh thu & Excel -->
+            <!-- Báo cáo doanh thu -->
             <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/analytics/revenue}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
@@ -255,10 +255,23 @@
                 </div>
                 <div class="flex-grow">
                     <div class="flex items-center justify-between">
-                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Báo cáo Doanh thu &amp; Excel</h3>
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Báo cáo doanh thu</h3>
                         <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
                     </div>
                     <p class="text-xs text-carbon_black-500 mt-1">Biểu đồ doanh thu thực nhận theo kỳ và xuất báo cáo tài chính định dạng Excel (.xlsx).</p>
+                </div>
+            </a>
+            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/analytics/stock}"
+               class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Báo cáo kho</h3>
+                        <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
+                    </div>
+                    <p class="text-xs text-carbon_black-500 mt-1">Tồn đầu, nhập, dành hàng, hoàn và tồn cuối kỳ; định giá và xuất Excel theo bộ lọc.</p>
                 </div>
             </a>
 

@@ -26,8 +26,9 @@
         <div class="flex flex-col lg:flex-row gap-8 items-start">
 
             <!-- LEFT COLUMN: Faceted Search & Filter Sidebar (w-full lg:w-1/4) -->
-            <aside class="w-full lg:w-1/4 flex-shrink-0">
-                <div class="bg-white rounded-2xl border border-dust_grey p-5 sm:p-6 shadow-soft sticky top-24">
+            <aside class="catalog-filter w-full lg:w-1/4 flex-shrink-0">
+                <button type="button" data-filter-toggle aria-expanded="false" aria-controls="catalogFilterPanel" class="lg:hidden w-full mb-3 px-4 py-3 rounded-xl border border-dust_grey bg-white font-bold">Bộ lọc sản phẩm</button>
+                <div id="catalogFilterPanel" class="bg-white rounded-2xl border border-dust_grey p-5 sm:p-6 shadow-soft lg:sticky top-24">
                     <div class="flex items-center justify-between pb-4 border-b border-dust_grey/60 mb-5">
                         <div class="flex items-center gap-2">
                             <i class="bi bi-funnel-fill text-blazing_flame text-lg"></i>

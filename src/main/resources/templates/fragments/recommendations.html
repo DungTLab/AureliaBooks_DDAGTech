@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+    <body>
+        <section th:fragment="suggestions" th:if="${!#lists.isEmpty(recommendations)}" class="mt-8 bg-white border border-dust_grey rounded-2xl p-5 space-y-4">
+            <h2 class="font-serif font-bold text-2xl">Có thể bạn quan tâm</h2>
+            <p class="text-sm text-carbon_black-600">Chọn thêm sản phẩm nếu phù hợp. Giá từng món được cộng riêng, không có giảm giá combo.</p>
+            <form th:action="@{/cart/recommendations}" method="post" data-recommendation-form th:attr="data-base-price=${product.price}" class="space-y-4">
+                <input type="hidden" name="productIds" th:value="${product.id}">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <article th:each="item : ${recommendations}" class="border border-dust_grey rounded-xl p-3 min-w-0" th:attr="data-recommended-id=${item.id}">
+                        <a th:href="@{/products/{id}(id=${item.id})}" class="block">
+                            <img th:if="${item.mainImageUrl != null}" th:src="${item.mainImageUrl}" th:alt="${item.title}" loading="lazy" width="120" height="160" class="h-32 w-full object-contain mb-3">
+                            <span class="font-semibold text-sm block break-words" th:text="${item.title}">
+                            </span>
+                        </a>
+                        <p class="text-sm font-bold my-2" th:text="${#numbers.formatDecimal(item.price, 0, 'POINT', 0, 'COMMA') + 'đ'}">
+                        </p>
+                        <label class="inline-flex gap-2 items-center text-sm">
+                            <input type="checkbox" name="productIds" th:value="${item.id}" th:attr="data-price=${item.price}" class="accent-blazing_flame">Chọn thêm</label>
+                    </article>
+                </div>
+                <p class="text-sm" aria-live="polite">Sản phẩm đang xem × 1 và các mục chọn (mỗi mục × 1): <strong data-recommendation-total th:text="${#numbers.formatDecimal(product.price, 0, 'POINT', 0, 'COMMA') + 'đ'}">
+                    </strong>
+                </p>
+                <button sec:authorize="hasRole('CUSTOMER')" type="submit" class="bg-blazing_flame text-white rounded-xl px-4 py-3 font-semibold">Thêm các mục chọn vào giỏ</button>
+                <a sec:authorize="isAnonymous()" th:href="@{/auth/login(redirect=${'/products/' + product.id})}" class="inline-block bg-blazing_flame text-white rounded-xl px-4 py-3 font-semibold">Đăng nhập để thêm giỏ</a>
+            </form>
+        </section>
+        <section th:fragment="personal" th:if="${!#lists.isEmpty(personalizedRecommendations)}" class="mt-8 bg-white border border-dust_grey rounded-2xl p-5 space-y-4">
+            <h2 class="font-serif font-bold text-2xl">Gợi ý dành cho bạn</h2>
+            <p class="text-sm text-carbon_black-600">Tham khảo từ đơn đã giao và loại sản phẩm đã mua. Khi chưa đủ lịch sử, hệ thống giới thiệu sản phẩm đang bán.</p>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <article th:each="item : ${personalizedRecommendations}" class="border border-dust_grey rounded-xl p-3 min-w-0" th:attr="data-personalized-id=${item.id}">
+                    <a th:href="@{/products/{id}(id=${item.id})}" class="font-semibold text-sm break-words" th:text="${item.title}">
+                    </a>
+                    <p class="font-bold text-sm my-3" th:text="${#numbers.formatDecimal(item.price, 0, 'POINT', 0, 'COMMA') + 'đ'}">
+                    </p>
+                    <form th:action="@{/cart/items}" method="post" data-form-validation>
+                        <input type="hidden" name="productId" th:value="${item.id}">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="bg-blazing_flame text-white rounded-xl px-3 py-2 text-sm font-semibold">Thêm vào giỏ</button>
+                    </form>
+                </article>
+            </div>
+        </section>
+    </body>
+</html>

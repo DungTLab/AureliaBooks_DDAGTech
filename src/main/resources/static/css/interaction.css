@@ -1,0 +1,16 @@
+/* Shared interaction states; decorative brand shades remain available in the palette. */
+button[type="submit"]:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.catalog-dialog:not([open]) { display: none; }
+.catalog-dialog::backdrop { background: rgb(31 28 25 / .55); backdrop-filter: blur(3px); }
+.catalog-dialog { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.checkout-order-code { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+h1:has(.checkout-order-code) { flex-wrap: wrap; min-width: 0; }
+@media (max-width: 1023px) {
+    .catalog-filter.is-enhanced #catalogFilterPanel[hidden] { display: none; }
+}
+@media (min-width: 1024px) {
+    #catalogFilterPanel[hidden] { display: block; }
+}
+@media print {
+    .checkout-order-code { overflow-wrap: anywhere; }
+}

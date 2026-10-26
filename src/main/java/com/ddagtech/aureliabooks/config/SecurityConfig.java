@@ -134,6 +134,7 @@ public class SecurityConfig {
                         "/",
                         "/home",
                         "/products/**",
+                        "/policies/**",
                         "/auth/**",
                         "/api/v1/payments/vnpay-ipn",
                         "/css/**",

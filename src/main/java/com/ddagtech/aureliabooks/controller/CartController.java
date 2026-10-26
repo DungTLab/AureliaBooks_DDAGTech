@@ -50,6 +50,14 @@ public class CartController {
         }
     }
 
+    @PostMapping("/recommendations")
+    public String addRecommendations(Authentication authentication, @RequestParam java.util.List<Long> productIds,
+            RedirectAttributes flash) {
+        carts.addRecommendations(identity.resolve(authentication), productIds);
+        flash.addFlashAttribute("successMessage", "Đã thêm các sản phẩm đã chọn vào giỏ hàng.");
+        return "redirect:/cart";
+    }
+
     @PostMapping("/items")
     public String add(Authentication authentication, @RequestParam Long productId,
                       @Valid @ModelAttribute("quantityForm") CartQuantityRequest form,

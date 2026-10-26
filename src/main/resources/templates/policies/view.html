@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Thông tin mua sắm', ~{::#main-content})}">
+    <body>
+        <article id="main-content" class="max-w-3xl mx-auto px-4 py-10 space-y-6 leading-relaxed">
+            <nav aria-label="Thông tin mua sắm" class="flex flex-wrap gap-4 text-sm underline">
+                <a th:href="@{/policies/terms}">Điều khoản</a>
+                <a th:href="@{/policies/returns}">Đổi trả</a>
+                <a th:href="@{/policies/shipping}">Vận chuyển</a>
+                <a th:href="@{/policies/payment}">Thanh toán</a>
+                <a th:href="@{/policies/faq}">Câu hỏi thường gặp</a>
+            </nav>
+            <section th:if="${policyPage == 'terms'}" class="space-y-4">
+                <h1 class="font-serif text-3xl font-bold">Điều khoản sử dụng AureliaBook</h1>
+                <p>Khi đăng ký, bạn tự xác nhận từ đủ 13 tuổi và đồng ý cung cấp thông tin liên hệ chính xác. Ngày sinh là thông tin tự nguyện, không được dùng để xét tuổi đăng ký.</p>
+                <p>Bạn có trách nhiệm bảo mật mật khẩu và mã xác thực. Không chia sẻ mã cho người khác. Email, số điện thoại và thông tin giao hàng được dùng để xác thực, khôi phục tài khoản và xử lý đơn hàng.</p>
+                <p>Giá từng sản phẩm, phí vận chuyển và ưu đãi được hiển thị ở bước kiểm tra đơn trước khi đặt. Mỗi đơn dùng tối đa một mã khuyến mại; sách theo bộ được bán theo giá từng tập.</p>
+                <p>AureliaBook là dự án học phần. Môi trường demo không cung cấp dịch vụ giao hàng thương mại thực tế; nhóm sẽ thông báo khi chuyển sang vận hành thật.</p>
+            </section>
+            <section th:if="${policyPage == 'returns'}" class="space-y-4">
+                <h1 class="font-serif text-3xl font-bold">Đổi trả và hoàn tiền</h1>
+                <p>Liên hệ nhóm hỗ trợ và cung cấp mã đơn, lý do cùng tình trạng hàng để được kiểm tra. Việc hủy hoặc trả hàng phụ thuộc trạng thái đơn và xác nhận của nhân viên.</p>
+                <p>Hệ thống hiện hỗ trợ trả toàn bộ đơn, chưa xử lý trả hoặc hoàn tiền một phần. Chỉ ghi nhận đã hoàn tiền sau khi việc hoàn tiền thực tế được xác nhận. Xác nhận nhận lại hàng và hoàn tiền là hai bước riêng.</p>
+            </section>
+            <section th:if="${policyPage == 'shipping'}" class="space-y-4">
+                <h1 class="font-serif text-3xl font-bold">Vận chuyển</h1>
+                <p>Chọn tỉnh/thành phố, nhập phường/xã và địa chỉ chi tiết. Vùng giao hàng được xác định từ tỉnh/thành phố, bạn không cần chọn vùng hoặc quận/huyện.</p>
+                <p>Phí cơ bản: miền Bắc 50.000đ, miền Trung/Tây Nguyên 40.000đ, miền Nam/Đồng bằng sông Cửu Long 30.000đ. Phí cuối cùng sau ưu đãi được hiển thị tại bước kiểm tra đơn; hãy kiểm tra trước khi xác nhận.</p>
+            </section>
+            <section th:if="${policyPage == 'payment'}" class="space-y-4">
+                <h1 class="font-serif text-3xl font-bold">Thanh toán</h1>
+                <p>Bạn có thể chọn COD hoặc VNPay tại checkout. VNPay trong môi trường demo sử dụng Sandbox, không dùng thẻ hay thông tin thanh toán thật.</p>
+                <p>Đóng trình duyệt không đồng nghĩa thanh toán thất bại. Kiểm tra trạng thái trong Đơn mua; giao dịch chưa rõ kết quả cần được đối soát. Không thanh toán lại khi chưa kiểm tra giao dịch trước.</p>
+            </section>
+            <section th:if="${policyPage == 'faq'}" class="space-y-4">
+                <h1 class="font-serif text-3xl font-bold">Câu hỏi thường gặp</h1>
+                <h2 class="font-bold">Có cần tài khoản để mua hàng?</h2>
+                <p>Có. Khách có thể xem sản phẩm tự do; thêm giỏ và đặt hàng cần đăng nhập bằng tài khoản Khách hàng.</p>
+                <h2 class="font-bold">Quên mật khẩu thì làm gì?</h2>
+                <p>Chọn Quên mật khẩu ở trang đăng nhập, chọn kênh liên hệ đã xác minh rồi nhập thông tin phù hợp để nhận mã.</p>
+                <h2 class="font-bold">Giỏ hàng có giữ hàng không?</h2>
+                <p>Không. Giá và tồn kho được kiểm tra lại khi đặt đơn. Mỗi khách được dùng một mã một lần; đơn bị hủy sẽ hoàn lượt theo chính sách.</p>
+            </section>
+            <p class="text-sm">Hỗ trợ dự án: <a href="mailto:aureliabook.team@gmail.com" class="underline">aureliabook.team@gmail.com</a>.</p>
+            <a th:href="@{/products}" class="inline-block underline font-semibold">Tiếp tục xem sản phẩm</a>
+        </article>
+    </body>
+</html>

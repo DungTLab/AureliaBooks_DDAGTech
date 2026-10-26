@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/base :: layout('Báo cáo kho', ~{::#main-content})}">
+    <body>
+        <section id="main-content" class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+            <header class="flex flex-wrap gap-3 items-center justify-between">
+                <h1 class="font-serif text-3xl font-bold">Báo cáo kho</h1>
+                <a th:href="@{/manager/analytics/revenue}" class="underline">Báo cáo doanh thu</a>
+            </header>
+            <p class="text-sm text-carbon_black-600">Biến động kỳ được tính từ chứng từ đã ghi nhận. Định giá hiện tại được trình bày riêng; số liệu không thay thế kiểm kê thực tế.</p>
+            <form th:action="@{/manager/analytics/stock}" method="get" class="bg-white border border-dust_grey rounded-2xl p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label for="stockStart" class="block text-sm font-semibold mb-2">Từ ngày</label>
+                    <input id="stockStart" name="startDate" type="date" required th:value="${stockReport.filter.startDate}" class="w-full border rounded-xl p-2">
+                </div>
+                <div>
+                    <label for="stockEnd" class="block text-sm font-semibold mb-2">Đến hết ngày</label>
+                    <input id="stockEnd" name="endDate" type="date" required th:value="${stockReport.filter.endDate}" class="w-full border rounded-xl p-2">
+                </div>
+                <div>
+                    <label for="stockKeyword" class="block text-sm font-semibold mb-2">Tên / mã vạch</label>
+                    <input id="stockKeyword" name="keyword" th:value="${stockReport.keyword}" maxlength="255" class="w-full border rounded-xl p-2">
+                </div>
+                <div>
+                    <label for="stockCategory" class="block text-sm font-semibold mb-2">Danh mục</label>
+                    <select id="stockCategory" name="category" class="w-full border rounded-xl p-2">
+                        <option value="">Tất cả</option>
+                        <option th:each="name : ${stockReport.categories}" th:value="${name}" th:text="${name}" th:selected="${name == stockReport.category}">
+                    </option>
+                    </select>
+                </div>
+                <div>
+                    <label for="stockType" class="block text-sm font-semibold mb-2">Loại sản phẩm</label>
+                    <select id="stockType" name="productType" class="w-full border rounded-xl p-2">
+                        <option value="">Tất cả</option>
+                        <option value="BOOK" th:selected="${stockReport.productType == 'BOOK'}">Sách</option>
+                        <option value="STATIONERY" th:selected="${stockReport.productType == 'STATIONERY'}">Văn phòng phẩm</option>
+                    </select>
+                </div>
+                <div class="flex flex-wrap gap-3 items-end">
+                    <button type="submit" class="bg-blazing_flame text-white px-4 py-2 rounded-xl font-semibold">Xem báo cáo</button>
+                    <a th:href="@{/manager/analytics/stock}" class="underline py-2">Đặt lại</a>
+                </div>
+            </form>
+            <div class="flex flex-wrap gap-3 text-sm font-semibold">
+                <a id="exportStockReport" th:href="@{/manager/analytics/export/stock(startDate=${stockReport.filter.startDate},endDate=${stockReport.filter.endDate},keyword=${stockReport.keyword},category=${stockReport.category},productType=${stockReport.productType})}" class="bg-blazing_flame text-white px-4 py-3 rounded-xl">Xuất Excel theo bộ lọc</a>
+                <a th:href="@{/manager/analytics/export/stock-valuation(startDate=${stockReport.filter.startDate},endDate=${stockReport.filter.endDate},keyword=${stockReport.keyword},category=${stockReport.category},productType=${stockReport.productType})}" class="border border-dust_grey bg-white px-4 py-3 rounded-xl">Xuất định giá hiện tại</a>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <p class="bg-white border rounded-xl p-4">Tồn đầu kỳ <strong class="block text-xl" th:text="${stockReport.openingQuantity}">
+                    </strong>
+                </p>
+                <p class="bg-white border rounded-xl p-4">Tồn cuối kỳ <strong class="block text-xl" th:text="${stockReport.closingQuantity}">
+                    </strong>
+                </p>
+                <p class="bg-white border rounded-xl p-4">Giá vốn cuối kỳ <strong class="block text-xl" th:text="${#numbers.formatDecimal(stockReport.closingCost, 0, 'POINT', 0, 'COMMA') + 'đ'}">
+                    </strong>
+                </p>
+                <p class="bg-white border rounded-xl p-4">Giá vốn tồn hiện tại <strong class="block text-xl" th:text="${#numbers.formatDecimal(stockReport.currentCost, 0, 'POINT', 0, 'COMMA') + 'đ'}">
+                    </strong>
+                </p>
+            </div>
+            <section class="bg-white rounded-2xl border border-dust_grey p-4 space-y-3 min-w-0">
+                <h2 class="font-bold text-xl">Biến động trong kỳ</h2>
+                <p class="text-sm">Tồn cuối = tồn đầu + nhập − dành cho đơn + hoàn hủy + nhận lại hàng trả.</p>
+                <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Bảng biến động kho">
+                    <table class="w-full text-sm text-left whitespace-nowrap" id="stockMovementTable">
+                        <caption class="sr-only">Chi tiết biến động kỳ theo sản phẩm</caption>
+                        <thead>
+                            <tr class="border-b">
+                                <th scope="col" class="p-3">Mã vạch / Sản phẩm</th>
+                                <th scope="col" class="p-3">Tồn đầu</th>
+                                <th scope="col" class="p-3">Nhập</th>
+                                <th scope="col" class="p-3">Dành hàng</th>
+                                <th scope="col" class="p-3">Hoàn hủy</th>
+                                <th scope="col" class="p-3">Hàng trả</th>
+                                <th scope="col" class="p-3">Tồn cuối</th>
+                                <th scope="col" class="p-3">Giá vốn cuối</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="item : ${stockReport.movements}" class="border-b" th:attr="data-product-id=${item.productId}">
+                                <td class="p-3">
+                                    <span th:text="${item.barcode}">
+                                    </span>
+                                    <span class="block max-w-xs whitespace-normal" th:text="${item.title}">
+                                    </span>
+                                </td>
+                                <td class="p-3" th:text="${item.openingStock}">
+                                </td>
+                                <td class="p-3" th:text="${item.importQty}">
+                                </td>
+                                <td class="p-3" th:text="${item.orderDeductQty}">
+                                </td>
+                                <td class="p-3" th:text="${item.cancelRestoreQty}">
+                                </td>
+                                <td class="p-3" th:text="${item.returnRestoreQty}">
+                                </td>
+                                <td class="p-3" th:text="${item.closingStock}">
+                                </td>
+                                <td class="p-3" th:text="${item.formattedClosingCostValue}">
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(stockReport.movements)}">
+                                <td colspan="8" class="p-8 text-center">Không có sản phẩm phù hợp bộ lọc.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="bg-white rounded-2xl border border-dust_grey p-4 space-y-3 min-w-0">
+                <h2 class="font-bold text-xl">Định giá tồn hiện tại</h2>
+                <p class="text-sm">Theo số lượng khả dụng và giá vốn hiện hành, không phải giá vốn lịch sử của cuối kỳ đã chọn.</p>
+                <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Bảng định giá hiện tại">
+                    <table class="w-full text-sm text-left whitespace-nowrap" id="stockValuationTable">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="p-3">Sản phẩm</th>
+                                <th scope="col" class="p-3">Tồn hiện tại</th>
+                                <th scope="col" class="p-3">Giá vốn</th>
+                                <th scope="col" class="p-3">Tổng giá vốn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="item : ${stockReport.valuations}" class="border-b" th:attr="data-product-id=${item.productId}">
+                                <td class="p-3 max-w-xs whitespace-normal" th:text="${item.title}">
+                                </td>
+                                <td class="p-3" th:text="${item.stockQuantity}">
+                                </td>
+                                <td class="p-3" th:text="${item.formattedOriginalCost}">
+                                </td>
+                                <td class="p-3" th:text="${item.formattedTotalCostValue}">
+                                </td>
+                            </tr>
+                            <tr th:if="${#lists.isEmpty(stockReport.valuations)}">
+                                <td colspan="4" class="p-8 text-center">Không có dữ liệu phù hợp.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+    </body>
+</html>

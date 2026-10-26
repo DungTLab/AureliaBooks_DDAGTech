@@ -1,5 +1,5 @@
 <!doctype html>
-<html xmlns:th="http://www.thymeleaf.org" th:fragment="layout(title, content)" lang="vi" class="h-full">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:fragment="layout(title, content)" lang="vi" class="h-full">
     <head th:replace="~{fragments/head :: head(${title})}"></head>
     <body
         class="min-h-full flex flex-col bg-parchment text-carbon_black font-sans antialiased selection:bg-blazing_flame selection:text-white"
@@ -16,12 +16,17 @@
         </main>
 
         <!-- Global Footer -->
-        <div th:replace="~{fragments/footer :: footer}"></div>
+        <th:block sec:authorize="!hasAnyRole('ADMIN','MANAGER','SALE_STAFF')"><div th:replace="~{fragments/footer :: footer}"></div></th:block>
+        <footer sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')" class="border-t border-dust_grey px-4 py-5 text-center text-sm text-carbon_black-600">
+            AureliaBook · <a th:href="@{/dashboard}" class="underline font-semibold">Bàn làm việc</a>
+        </footer>
         <script th:src="@{/js/password-visibility.js}" defer></script>
         <script th:src="@{/js/birthdate-input.js}" defer></script>
         <script th:src="@{/js/otp-countdown.js}" defer></script>
         <script th:src="@{/js/cart.js}" defer></script>
         <link rel="stylesheet" th:href="@{/css/form-validation.css}" />
         <script th:src="@{/js/form-validation.js}" defer></script>
+        <link rel="stylesheet" th:href="@{/css/interaction.css}">
+        <script th:src="@{/js/interaction.js}" defer></script>
     </body>
 </html>

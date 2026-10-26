@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.service;
 
+import com.ddagtech.aureliabooks.mapper.CartMapper;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.CartQuantityRequest;
 import com.ddagtech.aureliabooks.dto.response.CartView;
@@ -24,6 +25,9 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CartServiceImplTest {
+    @org.mockito.Spy
+    private CartMapper cartMapper = new CartMapper();
+
 
     @Mock
     private CartRepository cartRepository;

@@ -16,7 +16,6 @@ import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.session.SessionInformation;
@@ -57,14 +56,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final ReentrantLock adminMutationLock = new ReentrantLock();
-    private AdminUserMapper adminUserMapper = new AdminUserMapper();
+    private final AdminUserMapper adminUserMapper;
 
-    @Autowired(required = false)
-    public void setAdminUserMapper(AdminUserMapper adminUserMapper) {
-        if (adminUserMapper != null) {
-            this.adminUserMapper = adminUserMapper;
-        }
-    }
 
     @Override
     @Transactional(readOnly = true)

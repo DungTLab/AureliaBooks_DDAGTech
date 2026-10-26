@@ -14,7 +14,6 @@ import com.ddagtech.aureliabooks.repository.CartRepository;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.CartService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,12 +29,22 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
-    private CartMapper cartMapper = new CartMapper();
+    private final CartMapper cartMapper;
 
-    @Autowired(required = false)
-    public void setCartMapper(CartMapper cartMapper) {
-        if (cartMapper != null) {
-            this.cartMapper = cartMapper;
+
+    /** Adds the chosen products atomically using the existing cart quantity/availability checks. */
+    @Override
+    @Transactional
+    public void addRecommendations(Long userId, List<Long> productIds) {
+        if (productIds == null || productIds.isEmpty() || productIds.size() > 5
+                || productIds.stream().anyMatch(id -> id == null || id <= 0)
+                || productIds.stream().distinct().count() != productIds.size()) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Vui lòng chọn từ 1 đến 5 sản phẩm hợp lệ.");
+        }
+        for (Long productId : productIds.stream().sorted().toList()) {
+            CartQuantityRequest quantity = new CartQuantityRequest();
+            quantity.setQuantity(1);
+            addItem(userId, productId, quantity);
         }
     }
 
