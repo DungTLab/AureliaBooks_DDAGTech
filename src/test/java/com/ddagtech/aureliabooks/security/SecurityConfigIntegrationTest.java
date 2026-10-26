@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WebMvcTest(controllers = { HomeController.class, CustomErrorController.class })
 @Import({
+
     SecurityConfig.class,
     CustomAccessDeniedHandler.class,
     CustomAuthenticationEntryPoint.class,
@@ -30,6 +31,17 @@ import org.springframework.test.web.servlet.MockMvc;
     CustomAuthenticationFailureHandler.class,
 })
 class SecurityConfigIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.ProductService homepageProducts;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setupHomepageCatalogue() {
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+    }
+
 
     @Autowired
     private MockMvc mockMvc;

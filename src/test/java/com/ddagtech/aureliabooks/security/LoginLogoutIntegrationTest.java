@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
     controllers = { AuthController.class, HomeController.class, LoginLogoutIntegrationTest.ProtectedPage.class }
 )
 @Import({
+
     SecurityConfig.class,
     CustomUserDetailsService.class,
     RoleBasedAuthenticationSuccessHandler.class,
@@ -43,6 +44,17 @@ import org.springframework.web.bind.annotation.RestController;
     com.ddagtech.aureliabooks.controller.admin.DashboardController.class,
 })
 class LoginLogoutIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.ProductService homepageProducts;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setupHomepageCatalogue() {
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+    }
+
 
     @Autowired
     MockMvc mvc;
