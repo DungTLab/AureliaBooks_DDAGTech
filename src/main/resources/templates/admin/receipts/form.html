@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      th:replace="~{layout/base :: layout(${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}, ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout(${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}, ~{::#main-content})}">
 <head>
     <title th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'} + ' - AureliaBooks'">Lập Phiếu Nhập Kho - AureliaBooks</title>
 </head>

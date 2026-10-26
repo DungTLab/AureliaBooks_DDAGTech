@@ -166,7 +166,8 @@ class LoginLogoutIntegrationTest {
     void oneRoleControlsLandingAndSessionAuthorities(String role) throws Exception {
         account.setId(700L + role.hashCode());
         account.setRole(Role.builder().roleName(role).build());
-        var result = login(" MEMBER@EXAMPLE.COM ", "Strong@123")
+        var result = mvc.perform(post(role.equals("ROLE_CUSTOMER") ? "/auth/login" : "/internal/login")
+                .with(csrf()).param("username", " MEMBER@EXAMPLE.COM ").param("password", "Strong@123"))
             .andExpect(redirectedUrl(role.equals("ROLE_CUSTOMER") ? "/" : "/dashboard"))
             .andReturn();
         var session = (MockHttpSession) result.getRequest().getSession(false);

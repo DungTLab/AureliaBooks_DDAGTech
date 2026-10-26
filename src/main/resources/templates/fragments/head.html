@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
+    <link th:if="${internalPage == true}" rel="stylesheet" th:href="@{/css/workspace.css}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" th:href="@{/css/password-fields.css}">
     <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">

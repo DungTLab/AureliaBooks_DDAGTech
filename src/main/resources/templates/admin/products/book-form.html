@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout(${isEdit ? 'Chỉnh Sửa Sách' : 'Thêm Sách Mới'} + ' | AureliaBook', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout(${isEdit ? 'Chỉnh Sửa Sách' : 'Thêm Sách Mới'} + ' | AureliaBook', ~{::#main-content})}">
 <head>
     <title th:text="${isEdit ? 'Chỉnh Sửa Sách' : 'Thêm Sách Mới'}">Quản Lý Sách</title>
 </head>

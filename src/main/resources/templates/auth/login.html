@@ -32,6 +32,7 @@
                     <p th:case="'disabled'">
                         Tài khoản chưa được cấp quyền truy cập hợp lệ. Vui lòng liên hệ quản trị viên.
                     </p>
+                    <p th:case="'portal'">Tài khoản nội bộ vui lòng sử dụng <a th:href="@{/internal/login}" class="underline">cổng quản lý</a>.</p>
                     <p th:case="'google'">Đăng nhập bằng Google hiện chưa khả dụng.</p>
                     <p th:case="*">Không thể đăng nhập. Vui lòng thử lại.</p>
                 </div>
@@ -127,6 +128,7 @@
                     <a th:href="@{/auth/register}" class="text-blazing_flame font-semibold hover:underline"
                         >Đăng ký ngay</a>
                 </p>
+                <p class="text-center text-sm mt-6 border-t border-dust_grey pt-4">Dành cho nhân sự: <a th:href="@{/internal/login}" class="underline font-semibold">Đăng nhập quản lý</a></p>
             </div>
         </section>
     </body>

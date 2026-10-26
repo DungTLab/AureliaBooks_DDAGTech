@@ -1,5 +1,7 @@
 package com.ddagtech.aureliabooks.controller;
 
+import com.ddagtech.aureliabooks.security.PortalSecurity;
+import jakarta.servlet.http.HttpServletRequest;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.service.ProductService;
 import java.util.List;
@@ -18,7 +20,8 @@ public class NavigationAdvice {
     }
 
     @ModelAttribute("navigationCategories")
-    public List<CategorySummary> categories() {
+    public List<CategorySummary> categories(HttpServletRequest request) {
+        if (PortalSecurity.internalRequest(request)) return List.of();
         ProductService service = products.getIfAvailable();
         return service == null ? List.of() : service.getActiveCategories();
     }

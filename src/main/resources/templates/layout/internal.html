@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" th:fragment="layout(title, content)">
+<head th:replace="~{fragments/head :: head(${title})}"></head>
+<body class="bg-parchment text-carbon_black font-sans antialiased" data-portal="internal">
+    <a class="workspace-skip" href="#workspace-main">Bỏ qua menu, tới nội dung</a>
+    <header class="workspace-header">
+        <a class="workspace-brand" th:href="@{/dashboard}" sec:authorize="isAuthenticated()">AureliaBook <span>Quản lý</span></a>
+        <span class="workspace-brand" sec:authorize="!isAuthenticated()">AureliaBook <span>Quản lý</span></span>
+        <div sec:authorize="isAuthenticated()" class="workspace-account">
+            <span sec:authentication="name" class="workspace-username">Tài khoản nội bộ</span>
+            <form th:action="@{/internal/logout}" method="post"><button type="submit" class="workspace-logout">Đăng xuất</button></form>
+        </div>
+    </header>
+    <div th:replace="~{fragments/alerts :: alerts}"></div>
+    <div th:class="${internalWorkspace == true} ? 'workspace-shell' : 'workspace-login-shell'">
+        <aside th:if="${internalWorkspace == true}" class="workspace-sidebar"><div th:replace="~{fragments/internal-navigation :: navigation}"></div></aside>
+        <main id="workspace-main" class="workspace-main" tabindex="-1"><th:block th:replace="${content}"></th:block></main>
+    </div>
+    <footer class="workspace-footer">AureliaBook · Hệ thống quản lý nội bộ</footer>
+    <link rel="stylesheet" th:href="@{/css/form-validation.css}">
+    <link rel="stylesheet" th:href="@{/css/interaction.css}">
+    <script th:src="@{/js/password-visibility.js}" defer></script>
+    <script th:src="@{/js/form-validation.js}" defer></script>
+    <script th:src="@{/js/interaction.js}" defer></script>
+    <script th:src="@{/js/workspace.js}" defer></script>
+</body>
+</html>

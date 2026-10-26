@@ -83,7 +83,7 @@ class SupplierControllerTest {
     void getSuppliers_Unauthenticated_Redirects() throws Exception {
         mockMvc.perform(get("/manager/suppliers"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("**/auth/login"));
+                .andExpect(redirectedUrlPattern("**/internal/login"));
     }
 
     @Test

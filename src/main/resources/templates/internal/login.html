@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/internal :: layout('Đăng nhập nội bộ', ~{::#main-content})}">
+<body>
+<section id="main-content" class="workspace-login-card">
+    <p class="workspace-nav-label">Cổng dành cho nhân sự</p>
+    <h1 class="font-serif text-3xl font-bold mt-2">Đăng nhập hệ thống quản lý</h1>
+    <p class="text-sm text-carbon_black-600 mt-3 mb-6">Dành cho Quản trị viên, Quản lý và Nhân viên bán hàng.</p>
+    <div th:if="${param.error != null}" th:switch="${param.error[0]}" role="alert" class="rounded-xl bg-red-50 text-red-800 border border-red-200 p-4 mb-5">
+        <p th:case="'portal'">Tài khoản khách hàng sử dụng cổng đăng nhập cửa hàng.</p>
+        <p th:case="'throttled'">Đăng nhập tạm thời bị khóa. Vui lòng thử lại sau 15 phút.</p>
+        <p th:case="'locked'">Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.</p>
+        <p th:case="'disabled'">Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.</p>
+        <p th:case="*">Email hoặc mật khẩu không chính xác.</p>
+    </div>
+    <p th:if="${param.logout != null}" role="status" class="text-green-700 mb-5">Bạn đã đăng xuất khỏi hệ thống quản lý.</p>
+    <form data-form-validation th:action="@{/internal/login}" method="post" class="space-y-5">
+        <div><label for="internal-username" class="block font-semibold text-sm mb-2">Email tài khoản nội bộ</label>
+            <input id="internal-username" name="username" type="email" required maxlength="100" autocomplete="username" class="w-full border border-dust_grey rounded-xl px-4 py-3"></div>
+        <div><label for="internal-password" class="block font-semibold text-sm mb-2">Mật khẩu</label>
+            <div class="relative" data-password-field><input id="internal-password" name="password" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl px-4 py-3 pr-14">
+                <button type="button" data-password-toggle="internal-password" aria-controls="internal-password" aria-label="Hiện mật khẩu" aria-pressed="false" class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 rounded-lg"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
+        <button type="submit" class="w-full bg-blazing_flame text-white rounded-xl px-4 py-3 font-semibold">Đăng nhập quản lý</button>
+    </form>
+    <p class="mt-6 text-sm text-carbon_black-600">Nếu quên mật khẩu, hãy liên hệ quản trị viên để được hỗ trợ.</p>
+</section>
+</body>
+</html>

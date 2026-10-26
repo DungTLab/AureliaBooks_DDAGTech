@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<nav th:fragment="navigation" aria-label="Điều hướng quản lý" class="workspace-navigation" data-internal-navigation>
+    <details open data-workspace-menu>
+        <summary>Menu quản lý</summary>
+        <p class="workspace-nav-label">Không gian làm việc</p>
+        <ul>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')"><a th:href="@{/dashboard}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/dashboard')} ? 'page' : null">Tổng quan</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')"><a th:href="@{/staff/orders}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/staff/orders')} ? 'page' : null">Đơn hàng</a></li>
+            <li sec:authorize="hasRole('SALE_STAFF')"><a th:href="@{/staff/receipts}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/receipts')} ? 'page' : null">Phiếu nhập kho</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/receipts}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/receipts')} ? 'page' : null">Phiếu nhập kho</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')"><a th:href="@{/inventory/stock/alerts}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/stock/alerts')} ? 'page' : null">Theo dõi tồn kho</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/stock/history}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/stock/history')} ? 'page' : null">Lịch sử kho</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/products}" th:attr="aria-current=${workspacePath != null and (#strings.contains(workspacePath, '/products') or #strings.contains(workspacePath, '/books') or #strings.contains(workspacePath, '/stationeries'))} ? 'page' : null">Sản phẩm</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/authors}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/authors')} ? 'page' : null">Tác giả</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/publishers}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/publishers')} ? 'page' : null">Nhà xuất bản</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/brands}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/brands')} ? 'page' : null">Thương hiệu</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/categories}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/categories')} ? 'page' : null">Danh mục</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/suppliers}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/suppliers')} ? 'page' : null">Nhà cung cấp</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/vouchers}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/vouchers')} ? 'page' : null">Mã giảm giá</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/analytics/revenue}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/analytics/revenue')} ? 'page' : null">Báo cáo doanh thu</a></li>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER')"><a th:href="@{/manager/analytics/stock}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/analytics/stock')} ? 'page' : null">Báo cáo kho</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/users}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/admin/users')} ? 'page' : null">Tài khoản nội bộ</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/audit-logs}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/audit-logs')} ? 'page' : null">Nhật ký kiểm toán</a></li>
+        </ul>
+    </details>
+</nav>
+</body>
+</html>

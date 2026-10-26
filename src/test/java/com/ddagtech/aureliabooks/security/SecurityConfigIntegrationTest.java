@@ -64,7 +64,7 @@ class SecurityConfigIntegrationTest {
     @Test
     @DisplayName("QA-01: Should redirect anonymous user to login when accessing exact /admin root")
     void testUnauthenticatedAccess_AdminRoot_RedirectsToLogin() throws Exception {
-        mockMvc.perform(get("/admin")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/auth/login"));
+        mockMvc.perform(get("/admin")).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/internal/login"));
     }
 
     @Test
@@ -73,7 +73,7 @@ class SecurityConfigIntegrationTest {
         mockMvc
             .perform(get("/admin/users"))
             .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/auth/login"));
+            .andExpect(redirectedUrl("/internal/login"));
     }
 
     @Test

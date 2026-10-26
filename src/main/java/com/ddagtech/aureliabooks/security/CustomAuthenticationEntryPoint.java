@@ -52,7 +52,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         } else {
             // Save current request so that the user is returned after successful login
             requestCache.saveRequest(request, response);
-            response.sendRedirect(request.getContextPath() + "/auth/login");
+            response.sendRedirect(request.getContextPath() + (PortalSecurity.internalRequest(request) ? "/internal/login" : "/auth/login"));
         }
     }
 }
