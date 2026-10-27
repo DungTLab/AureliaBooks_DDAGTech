@@ -50,7 +50,7 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Tra cứu / Xử lý đơn hàng -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')" th:href="@{/staff/orders}"
+            <a sec:authorize="hasAnyRole('SALE_STAFF','MANAGER')" th:href="@{/staff/orders}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-orange-50 text-blazing_flame flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-inboxes-fill"></i>
@@ -65,7 +65,7 @@
             </a>
 
             <!-- Quản lý kho -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')" th:href="@{/manager/stock/alerts}"
+            <a sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" th:href="@{/manager/stock/alerts}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-boxes"></i>
@@ -95,7 +95,7 @@
             </a>
 
             <!-- Quản lý Phiếu nhập kho -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/receipts}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/receipts}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-journal-check"></i>
@@ -127,14 +127,14 @@
     </div>
 
     <!-- Section 2: Catalog & Master Data & Promotions -->
-    <div sec:authorize="hasAnyRole('ADMIN','MANAGER')" class="space-y-4">
+    <div sec:authorize="hasRole('MANAGER')" class="space-y-4">
         <div class="flex items-center gap-2 border-b border-dust_grey/60 pb-2">
             <i class="bi bi-tags-fill text-blazing_flame text-lg"></i>
             <h2 class="text-base font-bold text-carbon_black uppercase tracking-wider">Danh mục, Nhà cung cấp &amp; Khuyến mãi</h2>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Quản lý sản phẩm -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/products}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/products}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-journal-bookmark-fill"></i>
@@ -149,7 +149,7 @@
             </a>
 
             <!-- Quản lý Nhà cung cấp -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/suppliers}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/suppliers}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-truck"></i>
@@ -164,7 +164,7 @@
             </a>
 
             <!-- Mã giảm giá -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/vouchers}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/vouchers}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-ticket-perforated-fill"></i>
@@ -179,7 +179,7 @@
             </a>
 
             <!-- Tác giả -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/authors}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/authors}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-people-fill"></i>
@@ -194,7 +194,7 @@
             </a>
 
             <!-- Nhà xuất bản -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/publishers}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/publishers}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-building-fill"></i>
@@ -209,7 +209,7 @@
             </a>
 
             <!-- Thương hiệu VPP -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/brands}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/brands}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-tag-fill"></i>
@@ -224,7 +224,7 @@
             </a>
 
             <!-- Cây danh mục -->
-            <a sec:authorize="hasAnyRole('ADMIN','MANAGER')" th:href="@{/manager/categories}"
+            <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/categories}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-diagram-3-fill"></i>

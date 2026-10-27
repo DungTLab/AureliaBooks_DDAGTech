@@ -324,4 +324,36 @@ class AdminReceiptControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
     }
+
+    @Test
+    @DisplayName("GET /api/receipts/{id}: ADMIN truy cập thành công để đối chiếu lịch sử biến động kho (UC25 / P2 fix)")
+    void getReceiptApi_admin_accessGranted() throws Exception {
+        GoodsReceiptDetailDto mockDetail = new GoodsReceiptDetailDto(
+                1L, "GR-20261027-001", 10L, "Nhà Sách FAHASA", "0901234567", "contact@fahasa.com",
+                2L, "Staff Tester", GoodsReceipt.Status.RECEIVED, BigDecimal.valueOf(500000), "Nhập sách mới",
+                LocalDateTime.now(), 3L, "Manager Tester", LocalDateTime.now(), LocalDateTime.now(), List.of()
+        );
+        when(goodsReceiptService.getReceiptDetail(1L)).thenReturn(mockDetail);
+
+        mvc.perform(get("/api/receipts/1").with(user(mockUser(1L, "admin@aureliabooks.com", "ADMIN"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.receiptCode").value("GR-20261027-001"))
+                .andExpect(jsonPath("$.status").value("RECEIVED"));
+    }
+
+    @Test
+    @DisplayName("GET /api/receipts/{id}: SALE_STAFF truy cập thành công")
+    void getReceiptApi_saleStaff_accessGranted() throws Exception {
+        GoodsReceiptDetailDto mockDetail = new GoodsReceiptDetailDto(
+                1L, "GR-20261027-001", 10L, "Nhà Sách FAHASA", "0901234567", "contact@fahasa.com",
+                2L, "Staff Tester", GoodsReceipt.Status.RECEIVED, BigDecimal.valueOf(500000), "Nhập sách mới",
+                LocalDateTime.now(), 3L, "Manager Tester", LocalDateTime.now(), LocalDateTime.now(), List.of()
+        );
+        when(goodsReceiptService.getReceiptDetail(1L)).thenReturn(mockDetail);
+
+        mvc.perform(get("/api/receipts/1").with(user(mockUser(2L, "staff@aureliabooks.com", "SALE_STAFF"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1));
+    }
 }
