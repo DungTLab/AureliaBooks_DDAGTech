@@ -29,7 +29,7 @@ import java.util.Set;
 @Slf4j
 @Controller
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+@PreAuthorize("hasRole('MANAGER')")
 public class AdminProductController {
 
     private final AdminProductService adminProductService;

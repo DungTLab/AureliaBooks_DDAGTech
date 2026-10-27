@@ -26,7 +26,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @Slf4j
 @Controller
 @RequestMapping("/manager/suppliers")
-@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+@PreAuthorize("hasRole('MANAGER')")
 @RequiredArgsConstructor
 public class SupplierController {
 

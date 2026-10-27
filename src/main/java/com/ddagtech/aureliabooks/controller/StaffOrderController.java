@@ -30,7 +30,7 @@ import java.util.LinkedHashMap;
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/staff/orders")
-@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+@PreAuthorize("hasAnyRole('SALE_STAFF', 'MANAGER')")
 public class StaffOrderController {
     private final OrderStateMachineService orders;
     private final StaffIdentity identity;
@@ -73,7 +73,7 @@ public class StaffOrderController {
     }
 
     @PostMapping("/{id}/return-restock")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('SALE_STAFF', 'MANAGER')")
     public Object returnRestock(Authentication auth, @PathVariable Long id,
                                 @Valid @ModelAttribute ReturnConfirmationRequest request, BindingResult errors,
                                 RedirectAttributes flash) {
@@ -95,7 +95,7 @@ public class StaffOrderController {
     }
 
     @PostMapping("/{id}/refund")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('SALE_STAFF', 'MANAGER')")
     public Object refund(Authentication auth, @PathVariable Long id,
                          @Valid @ModelAttribute RefundConfirmationRequest request, BindingResult errors,
                          RedirectAttributes flash) {
