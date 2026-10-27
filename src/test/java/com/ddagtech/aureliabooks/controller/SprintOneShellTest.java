@@ -227,7 +227,7 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
                 .andExpect(content().string(not(containsString("href=\"/admin/audit-logs\""))))
                 .andExpect(content().string(not(containsString("href=\"/staff/orders\""))));
 
-        // 2. ADMIN does NOT see CUSTOMER-only /profile links (preventing 403), and DOES see /manager/* and /staff/orders
+        // 2. ADMIN does NOT see CUSTOMER-only /profile links or MANAGER/STAFF-only links, and DOES see /admin/*
         mvc.perform(get("/dashboard").with(user("admin-nav").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("href=\"/profile\""))))
@@ -238,14 +238,14 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
                 .andExpect(content().string(not(containsString("group/megamenu"))))
                 .andExpect(content().string(containsString("href=\"/admin/users\"")))
                 .andExpect(content().string(containsString("href=\"/admin/audit-logs\"")))
-                .andExpect(content().string(containsString("href=\"/manager/products\"")))
-                .andExpect(content().string(containsString("href=\"/manager/publishers\"")))
-                .andExpect(content().string(containsString("href=\"/manager/brands\"")))
-                .andExpect(content().string(containsString("href=\"/manager/categories\"")))
-                .andExpect(content().string(containsString("href=\"/manager/vouchers\"")))
-                .andExpect(content().string(containsString("href=\"/manager/suppliers\"")))
-                .andExpect(content().string(containsString("href=\"/manager/receipts\"")))
-                .andExpect(content().string(containsString("href=\"/staff/orders\"")));
+                .andExpect(content().string(not(containsString("href=\"/manager/products\""))))
+                .andExpect(content().string(not(containsString("href=\"/manager/publishers\""))))
+                .andExpect(content().string(not(containsString("href=\"/manager/brands\""))))
+                .andExpect(content().string(not(containsString("href=\"/manager/categories\""))))
+                .andExpect(content().string(not(containsString("href=\"/manager/vouchers\""))))
+                .andExpect(content().string(not(containsString("href=\"/manager/suppliers\""))))
+                .andExpect(content().string(not(containsString("href=\"/manager/receipts\""))))
+                .andExpect(content().string(not(containsString("href=\"/staff/orders\""))));
 
         // 3. MANAGER does NOT see /profile links or /admin/users, and sees all /manager/* links
         mvc.perform(get("/dashboard").with(user("manager-nav").roles("MANAGER")))

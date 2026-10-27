@@ -73,7 +73,7 @@ public class StaffOrderController {
     }
 
     @PostMapping("/{id}/return-restock")
-    @PreAuthorize("hasAnyRole('SALE_STAFF', 'MANAGER')")
+    @PreAuthorize("hasRole('SALE_STAFF')")
     public Object returnRestock(Authentication auth, @PathVariable Long id,
                                 @Valid @ModelAttribute ReturnConfirmationRequest request, BindingResult errors,
                                 RedirectAttributes flash) {
@@ -95,7 +95,7 @@ public class StaffOrderController {
     }
 
     @PostMapping("/{id}/refund")
-    @PreAuthorize("hasAnyRole('SALE_STAFF', 'MANAGER')")
+    @PreAuthorize("hasRole('SALE_STAFF')")
     public Object refund(Authentication auth, @PathVariable Long id,
                          @Valid @ModelAttribute RefundConfirmationRequest request, BindingResult errors,
                          RedirectAttributes flash) {

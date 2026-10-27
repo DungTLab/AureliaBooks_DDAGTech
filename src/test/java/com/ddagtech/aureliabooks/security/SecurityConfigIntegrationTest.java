@@ -236,4 +236,108 @@ class SecurityConfigIntegrationTest {
             )
             .andExpect(status().is3xxRedirection());
     }
+
+    @Test
+    @DisplayName("RBAC: Authenticated ADMIN accessing /manager/products is redirected to /error/403")
+    void testRbacForbidden_AdminAccessingManagerProducts_RedirectsTo403() throws Exception {
+        mockMvc
+            .perform(get("/manager/products").with(user("admin").roles("ADMIN")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated ADMIN accessing /staff/orders is redirected to /error/403")
+    void testRbacForbidden_AdminAccessingStaffOrders_RedirectsTo403() throws Exception {
+        mockMvc
+            .perform(get("/staff/orders").with(user("admin").roles("ADMIN")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated ADMIN attempting to finalize receipt returns 403 Forbidden")
+    void testRbacForbidden_AdminFinalizingReceipt_Returns403Json() throws Exception {
+        mockMvc
+            .perform(
+                post("/manager/receipts/1/finalize")
+                    .with(csrf())
+                    .with(user("admin").roles("ADMIN"))
+                    .header("Accept", "application/json")
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(1002));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated SALE_STAFF accessing /manager/products is redirected to /error/403")
+    void testRbacForbidden_StaffAccessingManagerProducts_RedirectsTo403() throws Exception {
+        mockMvc
+            .perform(get("/manager/products").with(user("staff").roles("SALE_STAFF")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated SALE_STAFF accessing /manager/stock/history is redirected to /error/403")
+    void testRbacForbidden_StaffAccessingStockHistory_RedirectsTo403() throws Exception {
+        mockMvc
+            .perform(get("/manager/stock/history").with(user("staff").roles("SALE_STAFF")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated SALE_STAFF attempting to finalize receipt returns 403 Forbidden")
+    void testRbacForbidden_StaffFinalizingReceipt_Returns403Json() throws Exception {
+        mockMvc
+            .perform(
+                post("/manager/receipts/1/finalize")
+                    .with(csrf())
+                    .with(user("staff").roles("SALE_STAFF"))
+                    .header("Accept", "application/json")
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(1002));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated MANAGER accessing /admin/users is redirected to /error/403")
+    void testRbacForbidden_ManagerAccessingAdminUsers_RedirectsTo403() throws Exception {
+        mockMvc
+            .perform(get("/admin/users").with(user("manager").roles("MANAGER")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated SALE_STAFF passes security filter on /staff/orders")
+    void testRbacAuthorized_StaffAccessingStaffOrders() throws Exception {
+        mockMvc
+            .perform(get("/staff/orders").with(user("staff").roles("SALE_STAFF")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/404"));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated MANAGER passes security filter on /manager/products")
+    void testRbacAuthorized_ManagerAccessingManagerProducts() throws Exception {
+        mockMvc
+            .perform(get("/manager/products").with(user("manager").roles("MANAGER")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/404"));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated MANAGER passes security filter on POST /manager/receipts/1/finalize")
+    void testRbacAuthorized_ManagerFinalizingReceipt() throws Exception {
+        mockMvc
+            .perform(
+                post("/manager/receipts/1/finalize")
+                    .with(csrf())
+                    .with(user("manager").roles("MANAGER"))
+            )
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/error/404"));
+    }
 }
