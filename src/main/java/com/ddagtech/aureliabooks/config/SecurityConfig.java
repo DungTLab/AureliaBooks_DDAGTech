@@ -123,10 +123,23 @@ public class SecurityConfig {
                 UsernamePasswordAuthenticationFilter.class);
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/internal/login").permitAll()
-                .requestMatchers("/admin/analytics/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/admin/users", "/admin/users/**", "/admin/audit-logs", "/admin/audit-logs/**").hasRole("ADMIN")
+                .requestMatchers("/admin/analytics/**", "/manager/analytics/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/manager/stock/history", "/manager/inventory/history").hasAnyRole("ADMIN", "MANAGER")
                 .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
-                .requestMatchers("/manager/stock/alerts").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/manager", "/manager/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/manager/stock/alerts", "/staff/stock/alerts", "/inventory/stock/alerts").hasAnyRole("MANAGER", "SALE_STAFF")
+                .requestMatchers("/manager/receipts/*/finalize").hasRole("MANAGER")
+                .requestMatchers(
+                        "/manager/receipts",
+                        "/manager/receipts/**",
+                        "/staff/receipts",
+                        "/staff/receipts/**",
+                        "/api/receipts/**",
+                        "/api/products/quick-create"
+                ).hasAnyRole("MANAGER", "SALE_STAFF")
+                .requestMatchers("/manager", "/manager/**").hasRole("MANAGER")
+                .requestMatchers("/staff", "/staff/**").hasAnyRole("SALE_STAFF", "MANAGER")
+                .requestMatchers("/dashboard", "/dashboard/**", "/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
                 .anyRequest().hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF"));
         http.formLogin(login -> {
             login.loginPage("/internal/login").loginProcessingUrl("/internal/login").permitAll();
