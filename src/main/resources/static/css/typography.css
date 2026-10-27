@@ -1,0 +1,50 @@
+/* Full brand fonts keep Vietnamese base letters and combining accents in one face. */
+@font-face {
+    font-family: 'Plus Jakarta Sans';
+    font-style: normal;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url('fonts/plus-jakarta-sans-normal.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Plus Jakarta Sans';
+    font-style: italic;
+    font-weight: 200 800;
+    font-display: swap;
+    src: url('fonts/plus-jakarta-sans-italic.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Playfair Display';
+    font-style: normal;
+    font-weight: 400 900;
+    font-display: swap;
+    src: url('fonts/playfair-display-normal.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'Playfair Display';
+    font-style: italic;
+    font-weight: 400 900;
+    font-display: swap;
+    src: url('fonts/playfair-display-italic.ttf') format('truetype');
+}
+
+:root {
+    --font-body: "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+    --font-heading: "Playfair Display", "Plus Jakarta Sans", Georgia, "Times New Roman", serif;
+}
+
+body,
+.font-sans,
+input,
+button,
+select,
+textarea {
+    font-family: var(--font-body);
+}
+
+.font-serif {
+    font-family: var(--font-heading);
+}
