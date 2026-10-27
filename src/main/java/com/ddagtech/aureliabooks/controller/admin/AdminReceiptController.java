@@ -293,7 +293,7 @@ public class AdminReceiptController {
      */
     @GetMapping("/api/receipts/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
     public ResponseEntity<GoodsReceiptDetailDto> getReceiptApi(@PathVariable Long id) {
         GoodsReceiptDetailDto detail = goodsReceiptService.getReceiptDetail(id);
         return ResponseEntity.ok(detail);

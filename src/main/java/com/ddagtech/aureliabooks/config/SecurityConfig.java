@@ -35,6 +35,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.FlashMap;
 import org.springframework.web.servlet.support.SessionFlashMapManager;
 
@@ -129,6 +130,7 @@ public class SecurityConfig {
                 .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                 .requestMatchers("/manager/stock/alerts", "/staff/stock/alerts", "/inventory/stock/alerts").hasAnyRole("MANAGER", "SALE_STAFF")
                 .requestMatchers("/manager/receipts/*/finalize").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.GET, "/api/receipts/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
                 .requestMatchers(
                         "/manager/receipts",
                         "/manager/receipts/**",

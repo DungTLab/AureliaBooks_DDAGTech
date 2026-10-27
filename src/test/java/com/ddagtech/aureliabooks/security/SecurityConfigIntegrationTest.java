@@ -340,4 +340,22 @@ class SecurityConfigIntegrationTest {
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/error/404"));
     }
+
+    @Test
+    @DisplayName("RBAC: Authenticated ADMIN passes security filter on GET /api/receipts/1 for UC25 stock history audit")
+    void testRbacAuthorized_AdminAccessingReceiptDetailApi() throws Exception {
+        mockMvc
+            .perform(get("/api/receipts/1").with(user("admin").roles("ADMIN")))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value(3001));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated CUSTOMER accessing /api/receipts/1 is rejected with 403 Forbidden")
+    void testRbacForbidden_CustomerAccessingReceiptDetailApi_Returns403Json() throws Exception {
+        mockMvc
+            .perform(get("/api/receipts/1").with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(1002));
+    }
 }
