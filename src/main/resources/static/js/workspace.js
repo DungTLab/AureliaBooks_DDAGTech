@@ -39,4 +39,45 @@
             });
         }
     });
+
+    const pwdForm = document.querySelector("form[data-password-change]");
+    if (pwdForm) {
+        pwdForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const modal = document.getElementById("internal-password-modal");
+            const errBox = modal ? modal.querySelector("[data-modal-error]") : null;
+            const errText = modal ? modal.querySelector("[data-modal-error-text]") : null;
+            if (errBox) errBox.classList.add("hidden");
+
+            const formData = new FormData(pwdForm);
+            try {
+                const response = await fetch(pwdForm.action, {
+                    method: "POST",
+                    headers: {
+                        "Accept": "application/json",
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    if (modal) {
+                        modal.classList.add("hidden");
+                        modal.setAttribute("aria-hidden", "true");
+                    }
+                    window.location.reload();
+                } else {
+                    if (errBox && errText) {
+                        errText.textContent = data.message || "Đã xảy ra lỗi khi đổi mật khẩu.";
+                        errBox.classList.remove("hidden");
+                    }
+                }
+            } catch (err) {
+                if (errBox && errText) {
+                    errText.textContent = "Không thể kết nối máy chủ. Vui lòng thử lại.";
+                    errBox.classList.remove("hidden");
+                }
+            }
+        });
+    }
 })();

@@ -19,15 +19,18 @@ public class AdminUserMapper {
         if (user == null) {
             return null;
         }
+        String roleName = user.getRole() != null ? user.getRole().getRoleName() : null;
+        boolean passwordResetAllowed = roleName != null && !"ROLE_CUSTOMER".equalsIgnoreCase(roleName);
         return new UserSummary(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getPhone(),
                 user.getRole() != null ? user.getRole().getId() : null,
-                user.getRole() != null ? user.getRole().getRoleName() : null,
+                roleName,
                 user.getIsActive(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                passwordResetAllowed
         );
     }
 

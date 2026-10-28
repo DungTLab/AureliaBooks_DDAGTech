@@ -259,7 +259,7 @@
                                 </form>
 
                                 <!-- Case 3: Emergency Password Reset for Internal Staff only (never CUSTOMER) -->
-                                <form th:if="${user.roleName != 'ROLE_CUSTOMER'}"
+                                <form th:if="${user.passwordResetAllowed}"
                                       method="post"
                                       th:action="@{/admin/users/{id}/reset-password(id=${user.id})}"
                                       class="inline-block">

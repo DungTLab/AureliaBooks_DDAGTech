@@ -60,6 +60,8 @@ public class InternalPortalController {
                 return ResponseEntity.badRequest().body(Map.of("success", false, "message", errorMsg != null ? errorMsg : "Dữ liệu không hợp lệ"));
             }
             flash.addFlashAttribute("errorMessage", errorMsg);
+            flash.addFlashAttribute("openPasswordModal", true);
+            flash.addFlashAttribute("internalPasswordError", errorMsg);
             return redirectBack(request);
         }
 
@@ -80,6 +82,8 @@ public class InternalPortalController {
                 return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
             }
             flash.addFlashAttribute("errorMessage", e.getMessage());
+            flash.addFlashAttribute("openPasswordModal", true);
+            flash.addFlashAttribute("internalPasswordError", e.getMessage());
         }
 
         return redirectBack(request);

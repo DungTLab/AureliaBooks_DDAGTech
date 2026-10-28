@@ -1,13 +1,15 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-/** Transactional mail content shared by real email and the phone demo transport. */
-final class OtpMailContent {
+/** Transactional mail content shared by real email, staff reset, and the phone demo transport. */
+public final class OtpMailContent {
 
-    static final String SUBJECT = "AureliaBook - Mã xác thực của bạn";
+    public static final String SUBJECT = "AureliaBook - Mã xác thực của bạn";
+    public static final String SMS_DEMO_SUBJECT = "[SMS DEMO] " + SUBJECT;
+    public static final String STAFF_PASSWORD_RESET_SUBJECT = "[AureliaBook] Cấp lại mật khẩu tài khoản nội bộ";
 
     private OtpMailContent() {}
 
-    static String body(String code) {
+    public static String body(String code) {
         return """
         Xin chào,
 
@@ -25,5 +27,28 @@ final class OtpMailContent {
         Đội ngũ AureliaBook
         Email được gửi tự động. Vui lòng không trả lời email này.
         """.formatted(code);
+    }
+
+    public static String smsDemoBody(String code, String recipient) {
+        String maskedPhone = (recipient != null && recipient.length() >= 4)
+                ? "******" + recipient.substring(recipient.length() - 4)
+                : "******";
+        return body(code)
+                + "\n[SMS GATEWAY SANDBOX - CHUYỂN TIẾP TỪ SĐT " + maskedPhone + "]"
+                + "\nThông tin bản demo: yêu cầu cho số " + maskedPhone + ". Không xác minh quyền sở hữu SĐT thật.\n";
+    }
+
+    public static String staffPasswordResetBody(String fullName, String temporaryPassword) {
+        return """
+        Xin chào %s,
+
+        Quản trị viên đã cấp lại mật khẩu tạm thời cho tài khoản nội bộ của bạn.
+        Mật khẩu tạm thời: %s
+
+        Vui lòng đăng nhập tại cổng nội bộ (/internal/login) và đổi sang mật khẩu mới ngay lập tức.
+
+        Trân trọng,
+        AureliaBook Security Team
+        """.formatted(fullName != null ? fullName : "bạn", temporaryPassword);
     }
 }

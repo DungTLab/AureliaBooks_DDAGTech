@@ -363,12 +363,8 @@ public class AdminUserServiceImpl implements AdminUserService {
                     SimpleMailMessage message = new SimpleMailMessage();
                     message.setFrom("no-reply@aureliabook.local");
                     message.setTo(targetUser.getEmail());
-                    message.setSubject("[AureliaBook] Cấp lại mật khẩu tài khoản nội bộ");
-                    message.setText("Xin chào " + targetUser.getFullName() + ",\n\n"
-                            + "Quản trị viên đã cấp lại mật khẩu tạm thời cho tài khoản nội bộ của bạn.\n"
-                            + "Mật khẩu tạm thời: " + tempPassword + "\n\n"
-                            + "Vui lòng đăng nhập tại cổng nội bộ (/internal/login) và đổi sang mật khẩu mới ngay lập tức.\n"
-                            + "Trân trọng,\nAureliaBook Security Team");
+                    message.setSubject(OtpMailContent.STAFF_PASSWORD_RESET_SUBJECT);
+                    message.setText(OtpMailContent.staffPasswordResetBody(targetUser.getFullName(), tempPassword));
                     sender.send(message);
                 } catch (Exception ex) {
                     log.error("Failed to send temporary password email to staff [{}]", targetUser.getEmail(), ex);

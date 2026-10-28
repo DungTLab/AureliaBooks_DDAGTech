@@ -16,7 +16,7 @@
                 ></h1>
                 <div th:if="${smsDemoEnabled}" class="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl p-3 flex items-start gap-2">
                     <i class="bi bi-info-circle-fill mt-0.5 text-amber-600 flex-shrink-0" aria-hidden="true"></i>
-                    <span><strong>Chế độ Demo SMS:</strong> Mã OTP gửi tới Số điện thoại được hệ thống chuyển tiếp giả lập về hộp thư Email demo phục vụ môi trường thử nghiệm (nhãn <em>[SMS DEMO]</em>).</span>
+                    <span><strong>Chế độ Demo SMS:</strong> <span th:text="${smsDemoBannerMessage}">Do không kết nối cổng viễn thông SMS thực tế, mã OTP gửi tới Số điện thoại sẽ được hệ thống chuyển tiếp giả lập về hộp thư Email demo (nhãn [SMS DEMO]).</span></span>
                 </div>
                 <p
                     th:if="${verificationMessage != null}"

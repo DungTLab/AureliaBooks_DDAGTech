@@ -16,11 +16,19 @@
         <aside th:if="${internalWorkspace == true}" class="workspace-sidebar"><div th:replace="~{fragments/internal-navigation :: navigation}"></div></aside>
         <main id="workspace-main" class="workspace-main" tabindex="-1"><th:block th:replace="${content}"></th:block></main>
     </div>
-    <div sec:authorize="isAuthenticated()" id="internal-password-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200 hidden" aria-hidden="true" role="dialog" aria-labelledby="internal-password-modal-title">
+    <div sec:authorize="isAuthenticated()" id="internal-password-modal" th:classappend="${openPasswordModal == true} ? '' : 'hidden'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200" th:attr="aria-hidden=${openPasswordModal == true ? 'false' : 'true'}" role="dialog" aria-labelledby="internal-password-modal-title">
         <div class="bg-white border border-dust_grey rounded-2xl p-6 w-full max-w-md shadow-2xl relative text-left">
             <div class="flex justify-between items-center mb-4 pb-2 border-b border-dust_grey">
                 <h2 id="internal-password-modal-title" class="font-serif text-xl font-bold">Đổi mật khẩu nội bộ</h2>
                 <button type="button" class="text-gray-400 hover:text-gray-600 text-2xl font-bold bg-transparent border-0 cursor-pointer" data-close-modal="internal-password-modal" aria-label="Đóng">&times;</button>
+            </div>
+            <div data-modal-error class="hidden text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 mb-4 font-medium flex items-center gap-2">
+                <i class="bi bi-exclamation-circle-fill text-red-600 flex-shrink-0" aria-hidden="true"></i>
+                <span data-modal-error-text></span>
+            </div>
+            <div th:if="${internalPasswordError != null}" class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 mb-4 font-medium flex items-center gap-2">
+                <i class="bi bi-exclamation-circle-fill text-red-600 flex-shrink-0" aria-hidden="true"></i>
+                <span th:text="${internalPasswordError}"></span>
             </div>
             <form th:action="@{/internal/account/change-password}" method="post" data-valid-form data-password-change class="space-y-4">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
