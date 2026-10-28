@@ -224,6 +224,8 @@ class AdminUserServiceTest {
         assertThat(captured.getAuthProvider()).isEqualTo(User.AuthProvider.LOCAL);
         assertThat(captured.getIsActive()).isTrue();
         assertThat(captured.getRole().getRoleName()).isEqualTo("ROLE_MANAGER");
+        assertThat(captured.isEmailVerified()).isTrue();
+        assertThat(captured.isPhoneVerified()).isTrue();
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(auditLogService).record(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), jsonCaptor.capture(), eq(clientIp));

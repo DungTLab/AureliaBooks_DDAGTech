@@ -259,4 +259,26 @@ class AccountOtpServiceTest {
         assertThatThrownBy(() -> service.verify(first, "s", old, "ip")).isInstanceOf(IllegalArgumentException.class);
         assertThat(service.verify(next, "s", code, "ip").complete()).isTrue();
     }
+
+    @Test
+    void internalStaffWithVerifiedContactsCanInitiateOtpRecovery() {
+        com.ddagtech.aureliabooks.entity.Role staffRole = com.ddagtech.aureliabooks.entity.Role.builder().id(3L).roleName("ROLE_SALE_STAFF").build();
+        User staff = User.builder()
+            .id(42L)
+            .email("staff@aureliabook.vn")
+            .emailVerified(true)
+            .phone("0988776655")
+            .phoneVerified(true)
+            .role(staffRole)
+            .passwordHash("$2a$12$someHashedPassword")
+            .isActive(true)
+            .build();
+        when(users.findByIdentifierWithRoles("staff@aureliabook.vn")).thenReturn(Optional.of(staff));
+        List<String> channels = service.recoveryChannels("staff@aureliabook.vn");
+        assertThat(channels).containsExactlyInAnyOrder("EMAIL", "SMS");
+
+        String flowId = service.recovery("staff@aureliabook.vn", "EMAIL", "session", "10.0.0.1");
+        assertThat(flowId).isNotBlank();
+        verify(delivery).send(eq("EMAIL"), eq("staff@aureliabook.vn"), anyString());
+    }
 }

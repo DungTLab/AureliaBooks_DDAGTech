@@ -65,6 +65,9 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
         message.setSubject("[SMS DEMO] " + OtpMailContent.SUBJECT);
         message.setText(
             OtpMailContent.body(code) +
+                "\n[SMS GATEWAY SANDBOX - CHUYỂN TIẾP TỪ SĐT ******" +
+                recipient.substring(6) +
+                "]" +
                 "\nThông tin bản demo: yêu cầu cho số ******" +
                 recipient.substring(6) +
                 ". Không xác minh quyền sở hữu SĐT thật.\n"

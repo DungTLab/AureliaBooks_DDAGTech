@@ -45,6 +45,8 @@ public class AdminUserMapper {
                 .role(assignedRole)
                 .authProvider(User.AuthProvider.LOCAL)
                 .isActive(true)
+                .emailVerified(req.email() != null && !req.email().isBlank())
+                .phoneVerified(!canonicalPhone.isBlank())
                 .build();
     }
 

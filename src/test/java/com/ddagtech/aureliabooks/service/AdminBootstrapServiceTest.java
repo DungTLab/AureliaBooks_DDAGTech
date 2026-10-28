@@ -52,8 +52,20 @@ class AdminBootstrapServiceTest {
         assertThat(user.getRole().getId()).isEqualTo(92L);
         assertThat(passwords.matches("Bootstrap391@", user.getPasswordHash())).isTrue();
         assertThat(user.getPasswordHash()).startsWith("$2a$12$");
-        assertThat(user.isEmailVerified()).isFalse();
+        assertThat(user.isEmailVerified()).isTrue();
+        assertThat(user.isPhoneVerified()).isFalse();
         verify(audit).record(isNull(), eq("ADMIN_BOOTSTRAPPED"), eq("users"), isNull(), anyString(), isNull());
+    }
+
+    @Test
+    void createsFirstAdminWithPhoneVerified() {
+        when(users.existsByRole_RoleName("ROLE_ADMIN")).thenReturn(false);
+        assertThat(service.initialize(new BootstrapAdminRequest("admin2@example.test", "Bootstrap391@", "0912345678"))).isTrue();
+        var captor = ArgumentCaptor.forClass(User.class);
+        verify(users, atLeastOnce()).saveAndFlush(captor.capture());
+        User user = captor.getValue();
+        assertThat(user.isEmailVerified()).isTrue();
+        assertThat(user.isPhoneVerified()).isTrue();
     }
 
     @Test

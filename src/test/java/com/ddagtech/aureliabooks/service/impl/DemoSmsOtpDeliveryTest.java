@@ -46,7 +46,9 @@ class DemoSmsOtpDeliveryTest {
         var message = capture.getValue();
         assertThat(message.getTo()).containsExactly("team@example.test");
         assertThat(message.getSubject()).contains("[SMS DEMO]");
-        assertThat(message.getText()).contains("135790", "******5678", "Không xác minh").doesNotContain("0912345678");
+        assertThat(message.getText())
+            .contains("135790", "******5678", "Không xác minh", "[SMS GATEWAY SANDBOX - CHUYỂN TIẾP TỪ SĐT ******5678]")
+            .doesNotContain("0912345678");
     }
 
     @Test
