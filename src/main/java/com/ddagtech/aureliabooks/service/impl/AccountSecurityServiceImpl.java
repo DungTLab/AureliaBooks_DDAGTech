@@ -1,6 +1,11 @@
 package com.ddagtech.aureliabooks.service.impl;
 
+import com.ddagtech.aureliabooks.constant.ErrorCode;
+import com.ddagtech.aureliabooks.dto.request.PasswordChangeRequest;
 import com.ddagtech.aureliabooks.dto.response.ContactSettingsView;
+import com.ddagtech.aureliabooks.exception.AppException;
+import java.nio.charset.StandardCharsets;
+import org.springframework.security.core.session.SessionInformation;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.mapper.UserMapper;
 import com.ddagtech.aureliabooks.repository.*;
@@ -131,6 +136,78 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         users.saveAndFlush(user);
         audit.record(id, "GOOGLE_LINKED", "users", id, "{}", ip);
         return user;
+    }
+
+    @Override
+    @Transactional
+    public User changeStaffPassword(Long staffId, PasswordChangeRequest request, String currentSessionId, String clientIp) {
+        if (request == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Dữ liệu đổi mật khẩu không hợp lệ");
+        }
+        User staff = users.findById(staffId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (staff.getRole() == null || "ROLE_CUSTOMER".equals(staff.getRole().getRoleName())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED, "Chỉ tài khoản nhân sự mới có thể đổi mật khẩu tại đây");
+        }
+
+        if (staff.getPasswordHash() == null || !passwords.matches(request.currentPassword(), staff.getPasswordHash())) {
+            throw new AppException(ErrorCode.PASSWORD_NOT_MATCH, "Mật khẩu hiện tại không chính xác");
+        }
+
+        String newPassword = request.newPassword() != null ? request.newPassword().strip() : "";
+        if (newPassword.isBlank() || newPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mật khẩu mới không hợp lệ hoặc vượt quá 72 byte");
+        }
+
+        if (request.confirmPassword() != null && !newPassword.equals(request.confirmPassword().strip())) {
+            throw new AppException(ErrorCode.PASSWORD_NOT_MATCH, "Xác nhận mật khẩu mới không khớp");
+        }
+
+        if (passwords.matches(newPassword, staff.getPasswordHash())) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mật khẩu mới không được trùng với mật khẩu hiện tại");
+        }
+
+        staff.setPasswordHash(passwords.encode(newPassword));
+        User savedStaff = users.saveAndFlush(staff);
+
+        audit.record(
+                staffId,
+                "STAFF_PASSWORD_CHANGED",
+                "users",
+                staffId,
+                "{\"action\":\"CHANGE_PASSWORD\",\"role\":\"" + staff.getRole().getRoleName() + "\"}",
+                clientIp
+        );
+
+        expireOtherSessionsAfterCommit(staffId, currentSessionId);
+
+        return savedStaff;
+    }
+
+    private void expireOtherSessionsAfterCommit(Long userId, String currentSessionId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            expireOtherSessionsNow(userId, currentSessionId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    expireOtherSessionsNow(userId, currentSessionId);
+                }
+            }
+        );
+    }
+
+    private void expireOtherSessionsNow(Long userId, String currentSessionId) {
+        for (Object p : sessions.getAllPrincipals()) {
+            if (p instanceof CustomUserDetails local && userId.equals(local.getId())) {
+                sessions.getAllSessions(p, false).stream()
+                    .filter(s -> currentSessionId == null || !currentSessionId.equals(s.getSessionId()))
+                    .forEach(SessionInformation::expireNow);
+            }
+        }
     }
 
     private void expireAfterCommit(User u) {

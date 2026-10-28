@@ -24,6 +24,10 @@
             <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/users}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/admin/users')} ? 'page' : null">Tài khoản nội bộ</a></li>
             <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/audit-logs}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/audit-logs')} ? 'page' : null">Nhật ký kiểm toán</a></li>
         </ul>
+        <p class="workspace-nav-label mt-4">Tài khoản</p>
+        <ul>
+            <li><button type="button" class="w-full text-left px-3 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-dust_grey/20 rounded-lg cursor-pointer bg-transparent border-0 flex items-center gap-2" data-open-modal="internal-password-modal"><i class="bi bi-key" aria-hidden="true"></i> Đổi mật khẩu</button></li>
+        </ul>
     </details>
 </nav>
 </body>

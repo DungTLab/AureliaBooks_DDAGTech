@@ -36,6 +36,9 @@ class PortalSeparationIntegrationTest {
     @MockitoBean CustomUserDetailsService users;
     @MockitoBean AccountOtpService otp;
     @MockitoBean com.ddagtech.aureliabooks.service.ProductService products;
+    @MockitoBean StaffIdentity staffIdentity;
+    @MockitoBean com.ddagtech.aureliabooks.service.AccountSecurityService accountSecurityService;
+    @MockitoBean AuthenticatedSessionUpdater sessionUpdater;
 
     @BeforeEach
     void credentials() {
@@ -132,5 +135,39 @@ class PortalSeparationIntegrationTest {
                 .andExpect(status().isForbidden());
         mvc.perform(get("/checkout").with(user("admin").roles("ADMIN")).header("Accept", "application/json"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void internalStaffCanChangePasswordAtInternalEndpoint() throws Exception {
+        when(staffIdentity.resolve(any())).thenReturn(10L);
+        when(accountSecurityService.changeStaffPassword(eq(10L), any(), any(), any()))
+                .thenReturn(User.builder().id(10L).fullName("Staff").role(Role.builder().roleName("ROLE_SALE_STAFF").build()).build());
+
+        mvc.perform(post("/internal/account/change-password")
+                .with(user("staff").roles("SALE_STAFF"))
+                .with(csrf())
+                .param("currentPassword", "PortalExample391@")
+                .param("newPassword", "NewStrongP@ss123")
+                .param("confirmPassword", "NewStrongP@ss123"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/dashboard"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(accountSecurityService).changeStaffPassword(eq(10L), any(), any(), any());
+        verify(sessionUpdater).refreshStaff(any(), any(), any());
+    }
+
+    @Test
+    void customerCannotCallInternalPasswordChange() throws Exception {
+        mvc.perform(post("/internal/account/change-password")
+                .header("Accept", "application/json")
+                .with(user("customer").roles("CUSTOMER"))
+                .with(csrf())
+                .param("currentPassword", "OldPass123!")
+                .param("newPassword", "NewPass123!")
+                .param("confirmPassword", "NewPass123!"))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(accountSecurityService);
     }
 }
