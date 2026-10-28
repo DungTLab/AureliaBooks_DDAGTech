@@ -21,7 +21,7 @@ public interface AccountSecurityService {
 
     void register(Draft draft, String ip);
 
-    void reset(Long id, String oldHash, String channel, String recipient, String newHash, String ip);
+    User reset(Long id, String oldHash, String channel, String recipient, String newHash, String ip);
 
     User completeGoogleLink(Long id, String sub, String mail, String channel, String recipient, String ip);
 

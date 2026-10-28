@@ -78,8 +78,9 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         audit.record(u.getId(), "ACCOUNT_REGISTERED", "users", u.getId(), "{\"phone_verified\":true}", ip);
     }
 
+        @Override
     @Transactional
-    public void reset(Long id, String oldHash, String channel, String recipient, String newHash, String ip) {
+    public User reset(Long id, String oldHash, String channel, String recipient, String newHash, String ip) {
         var u = users.findOwnerForUpdate(id).orElseThrow();
         if (
             !Boolean.TRUE.equals(u.getIsActive()) ||
@@ -90,9 +91,13 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
                 : u.isPhoneVerified() && Objects.equals(recipient, u.getPhone()))
         ) throw new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
         u.setPasswordHash(newHash);
-        users.saveAndFlush(u);
+        User saved = users.saveAndFlush(u);
+        if (attempts != null) {
+            attempts.resetAttempts(id);
+        }
         audit.record(id, "PASSWORD_RESET", "users", id, "{}", ip);
-        expireAfterCommit(u);
+        expireAfterCommit(saved);
+        return saved;
     }
 
     @Override
@@ -170,6 +175,12 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
 
         staff.setPasswordHash(passwords.encode(newPassword));
         User savedStaff = users.saveAndFlush(staff);
+        if (attempts != null) {
+            attempts.resetAttempts(staffId);
+        }
+        if (attempts != null) {
+            attempts.resetAttempts(staffId);
+        }
 
         audit.record(
                 staffId,

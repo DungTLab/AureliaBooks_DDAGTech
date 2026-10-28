@@ -13,6 +13,7 @@
         <p th:case="*">Email hoặc mật khẩu không chính xác.</p>
     </div>
     <p th:if="${param.logout != null}" role="status" class="text-green-700 mb-5">Bạn đã đăng xuất khỏi hệ thống quản lý.</p>
+    <div th:if="${param.reset != null or successMessage != null}" role="status" class="rounded-xl bg-green-50 text-green-800 border border-green-200 p-4 mb-5" th:text="${successMessage != null ? successMessage : 'Đã đặt lại mật khẩu mới thành công. Vui lòng đăng nhập với mật khẩu mới.'}">Đã đặt lại mật khẩu mới thành công. Vui lòng đăng nhập với mật khẩu mới.</div>
     <form data-form-validation th:action="@{/internal/login}" method="post" class="space-y-5">
         <div><label for="internal-username" class="block font-semibold text-sm mb-2">Email tài khoản nội bộ</label>
             <input id="internal-username" name="username" type="email" required maxlength="100" autocomplete="username" class="w-full border border-dust_grey rounded-xl px-4 py-3"></div>
@@ -21,7 +22,10 @@
                 <button type="button" data-password-toggle="internal-password" aria-controls="internal-password" aria-label="Hiện mật khẩu" aria-pressed="false" class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 rounded-lg"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
         <button type="submit" class="w-full bg-blazing_flame text-white rounded-xl px-4 py-3 font-semibold">Đăng nhập quản lý</button>
     </form>
-    <p class="mt-6 text-sm text-carbon_black-600">Nếu quên mật khẩu, hãy liên hệ quản trị viên để được hỗ trợ.</p>
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between text-sm text-carbon_black-600 gap-2">
+        <a th:href="@{/auth/forgot-password}" class="text-blazing_flame font-semibold hover:underline">Quên mật khẩu? Khôi phục bằng OTP</a>
+        <span class="text-xs text-dust_grey-600">hoặc liên hệ Quản trị viên</span>
+    </div>
 </section>
 </body>
 </html>
