@@ -169,5 +169,35 @@ public class AdminUserController {
         redirectAttributes.addFlashAttribute("successMessage", "Cập nhật vai trò thành công!");
         return "redirect:/admin/users";
     }
+
+    /**
+     * Resets the password of an internal back-office staff account in an emergency (UC28).
+     * Generates a secure random temporary password, emails it to staff,
+     * unlocks brute-force cooldown, and invalidates active sessions.
+     *
+     * @param admin authenticated administrator principal
+     * @param id target user identifier
+     * @param httpRequest incoming HTTP servlet request
+     * @param redirectAttributes redirect attributes for flash messaging
+     * @return redirect URL
+     */
+    @PostMapping("/{id}/reset-password")
+    public String resetPassword(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable Long id,
+            HttpServletRequest httpRequest,
+            RedirectAttributes redirectAttributes
+    ) {
+        Long adminId = admin != null ? admin.getId() : null;
+        String clientIp = HttpRequestUtil.getClientIp(httpRequest);
+        try {
+            adminUserService.resetStaffPassword(adminId, id, clientIp);
+            redirectAttributes.addFlashAttribute("successMessage", "Cấp lại mật khẩu tạm thời thành công! Mật khẩu mới đã được gửi tới email của nhân sự.");
+        } catch (AppException ex) {
+            log.warn("Failed to reset staff password: {}", ex.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
+        return "redirect:/admin/users";
+    }
 }
 

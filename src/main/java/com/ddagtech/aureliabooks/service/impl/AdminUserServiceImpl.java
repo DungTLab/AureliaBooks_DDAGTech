@@ -32,6 +32,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
+import java.security.SecureRandom;
+import com.ddagtech.aureliabooks.security.LoginAttemptService;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
 /**
  * Production implementation of {@link AdminUserService} managing internal accounts and RBAC (UC28).
@@ -57,6 +62,20 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final ObjectMapper objectMapper;
     private final ReentrantLock adminMutationLock = new ReentrantLock();
     private final AdminUserMapper adminUserMapper;
+    private final LoginAttemptService loginAttemptService;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+
+    public AdminUserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            SessionRegistry sessionRegistry,
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper,
+            AdminUserMapper adminUserMapper
+    ) {
+        this(userRepository, roleRepository, passwordEncoder, sessionRegistry, auditLogService, objectMapper, adminUserMapper, null, null);
+    }
 
 
     @Override
@@ -282,6 +301,114 @@ public class AdminUserServiceImpl implements AdminUserService {
                 adminId, userId, newRole.getRoleName(), ipAddress);
     }
 
+    /**
+     * Resets the password of an internal back-office staff account in an emergency (UC28).
+     * Enforces customer isolation guard: rejects any attempt to reset customer passwords.
+     * Generates a secure random temporary password, hashes it, emails it to staff,
+     * unlocks brute-force cooldown, invalidates existing sessions, and writes a clean audit log.
+     *
+     * @param adminId authenticated administrator performing the reset
+     * @param targetUserId staff user whose password should be reset
+     * @param ipAddress originating client IP
+     */
+    @Override
+    @Transactional
+    public void resetStaffPassword(Long adminId, Long targetUserId, String ipAddress) {
+        if (targetUserId == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        }
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        Role targetRole = targetUser.getRole();
+        if (targetRole == null || "ROLE_CUSTOMER".equalsIgnoreCase(targetRole.getRoleName())
+                || !ALLOWED_INTERNAL_ROLES.contains(targetRole.getRoleName())) {
+            throw new AppException(ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD);
+        }
+
+        String tempPassword = generateTemporaryPassword();
+        targetUser.setPasswordHash(passwordEncoder.encode(tempPassword));
+        userRepository.save(targetUser);
+
+        // 1. Send temporary password directly to staff email
+        if (mailSenderProvider != null) {
+            JavaMailSender sender = mailSenderProvider.getIfAvailable();
+            if (sender != null && targetUser.getEmail() != null && !targetUser.getEmail().isBlank()) {
+                try {
+                    SimpleMailMessage message = new SimpleMailMessage();
+                    message.setFrom("no-reply@aureliabook.local");
+                    message.setTo(targetUser.getEmail());
+                    message.setSubject("[AureliaBook] Cấp lại mật khẩu tài khoản nội bộ");
+                    message.setText("Xin chào " + targetUser.getFullName() + ",\n\n"
+                            + "Quản trị viên đã cấp lại mật khẩu tạm thời cho tài khoản nội bộ của bạn.\n"
+                            + "Mật khẩu tạm thời: " + tempPassword + "\n\n"
+                            + "Vui lòng đăng nhập tại cổng nội bộ (/internal/login) và đổi sang mật khẩu mới ngay lập tức.\n"
+                            + "Trân trọng,\nAureliaBook Security Team");
+                    sender.send(message);
+                } catch (Exception ex) {
+                    log.error("Failed to send temporary password email to staff [{}]", targetUser.getEmail(), ex);
+                }
+            }
+        }
+
+        // 2. Clear brute-force cooldown if locked
+        if (loginAttemptService != null) {
+            loginAttemptService.resetAttempts(targetUserId);
+        }
+
+        // 3. Expire existing sessions
+        expireUserSessions(targetUserId);
+
+        // 4. Record audit entry (clean - no password or hash)
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("action", "RESET_STAFF_PASSWORD");
+        details.put("actor_id", adminId);
+        details.put("target_user_id", targetUserId);
+        details.put("target_email", targetUser.getEmail());
+        details.put("target_role", targetRole.getRoleName());
+
+        auditLogService.record(
+                adminId,
+                "RESET_STAFF_PASSWORD",
+                "users",
+                targetUserId,
+                toJson(details),
+                ipAddress
+        );
+
+        log.info("Admin [{}] reset temporary password for staff [{}] ({}) from IP [{}]",
+                adminId, targetUserId, targetUser.getEmail(), ipAddress);
+    }
+
+    /**
+     * Generates a cryptographically strong random temporary password meeting system policy:
+     * 12 chars containing uppercase, lowercase, digits, and special characters, <= 72 bytes.
+     */
+    private String generateTemporaryPassword() {
+        String upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        String lower = "abcdefghjkmnpqrstuvwxyz";
+        String digits = "23456789";
+        String special = "@#$%&*!";
+        SecureRandom rng = new SecureRandom();
+        StringBuilder sb = new StringBuilder();
+        sb.append(upper.charAt(rng.nextInt(upper.length())));
+        sb.append(lower.charAt(rng.nextInt(lower.length())));
+        sb.append(digits.charAt(rng.nextInt(digits.length())));
+        sb.append(special.charAt(rng.nextInt(special.length())));
+        String all = upper + lower + digits + special;
+        for (int i = 0; i < 8; i++) {
+            sb.append(all.charAt(rng.nextInt(all.length())));
+        }
+        char[] chars = sb.toString().toCharArray();
+        for (int i = chars.length - 1; i > 0; i--) {
+            int j = rng.nextInt(i + 1);
+            char temp = chars[i];
+            chars[i] = chars[j];
+            chars[j] = temp;
+        }
+        return new String(chars);
+    }
     /**
      * Serializes any payload object into a JSON string for audit storage.
      *

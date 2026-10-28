@@ -215,4 +215,33 @@ class AdminUserControllerTest {
 
         verify(adminUserService).changeRole(eq(1L), eq(10L), eq(2L), any());
     }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/reset-password invokes service and redirects with success message")
+    void testResetPassword_Success() throws Exception {
+        mockMvc.perform(post("/admin/users/10/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("successMessage", org.hamcrest.Matchers.containsString("Cấp lại mật khẩu tạm thời thành công")));
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/reset-password when target is Customer redirects with error message")
+    void testResetPassword_CustomerRejected_Error() throws Exception {
+        doThrow(new AppException(ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD))
+                .when(adminUserService).resetStaffPassword(eq(1L), eq(50L), any());
+
+        mockMvc.perform(post("/admin/users/50/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", org.hamcrest.Matchers.containsString("không được phép")));
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(50L), any());
+    }
 }

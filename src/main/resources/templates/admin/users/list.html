@@ -195,6 +195,20 @@
                                     </option>
                                 </select>
                             </form>
+
+                            <!-- Case 3: Emergency Password Reset for Internal Staff only (never CUSTOMER) -->
+                            <form th:if="${user.roleName != 'ROLE_CUSTOMER'}"
+                                  method="post"
+                                  th:action="@{/admin/users/{id}/reset-password(id=${user.id})}"
+                                  class="inline-block ml-1">
+                                <button type="submit"
+                                        onclick="return confirm('Bạn có chắc chắn muốn cấp lại mật khẩu cho tài khoản nhân sự này? Hệ thống sẽ tạo mật khẩu ngẫu nhiên và gửi thẳng về email của nhân viên, đồng thời thu hồi mọi phiên đăng nhập cũ.');"
+                                        title="Cấp lại mật khẩu tạm thời ngẫu nhiên qua email"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition">
+                                    <i class="bi bi-key-fill"></i>
+                                    <span>Cấp lại MK</span>
+                                </button>
+                            </form>
                         </td>
 
                         <!-- Active Status Badge -->
@@ -251,6 +265,20 @@
                                         class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
                                     <i class="bi bi-unlock-fill"></i>
                                     <span>Mở khóa</span>
+                                </button>
+                            </form>
+
+                            <!-- Case 3: Emergency Password Reset for Internal Staff only (never CUSTOMER) -->
+                            <form th:if="${user.roleName != 'ROLE_CUSTOMER'}"
+                                  method="post"
+                                  th:action="@{/admin/users/{id}/reset-password(id=${user.id})}"
+                                  class="inline-block ml-1">
+                                <button type="submit"
+                                        onclick="return confirm('Bạn có chắc chắn muốn cấp lại mật khẩu cho tài khoản nhân sự này? Hệ thống sẽ tạo mật khẩu ngẫu nhiên và gửi thẳng về email của nhân viên, đồng thời thu hồi mọi phiên đăng nhập cũ.');"
+                                        title="Cấp lại mật khẩu tạm thời ngẫu nhiên qua email"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition">
+                                    <i class="bi bi-key-fill"></i>
+                                    <span>Cấp lại MK</span>
                                 </button>
                             </form>
                         </td>

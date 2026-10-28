@@ -66,6 +66,12 @@ class AdminUserServiceTest {
     @Mock
     private AuditLogService auditLogService;
 
+    @Mock
+    private com.ddagtech.aureliabooks.security.LoginAttemptService loginAttemptService;
+
+    @Mock
+    private org.springframework.beans.factory.ObjectProvider<org.springframework.mail.javamail.JavaMailSender> mailSenderProvider;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -763,5 +769,81 @@ class AdminUserServiceTest {
         assertThat(savedAudit.getAction()).isEqualTo("USER_ROLE_UPDATE");
         assertThat(savedAudit.getTargetId()).isEqualTo(targetAdminId);
         assertThat(savedAudit.getTargetTable()).isEqualTo("users");
+    }
+
+    @Test
+    @DisplayName("resetStaffPassword() should generate random temp password, hash it, unlock cooldown, expire sessions and write clean audit log")
+    void testResetStaffPassword_Success() {
+        Long adminId = 1L;
+        Long targetStaffId = 20L;
+        User targetStaff = User.builder()
+                .id(targetStaffId)
+                .email("staff20@aureliabook.vn")
+                .fullName("Staff Twenty")
+                .role(staffRole)
+                .passwordHash("oldHash123")
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetStaffId)).thenReturn(Optional.of(targetStaff));
+        when(passwordEncoder.encode(anyString())).thenReturn("newHashedTempPassword");
+
+        adminUserService.resetStaffPassword(adminId, targetStaffId, "192.168.1.100");
+
+        assertThat(targetStaff.getPasswordHash()).isEqualTo("newHashedTempPassword");
+        verify(userRepository).save(targetStaff);
+        verify(loginAttemptService).resetAttempts(targetStaffId);
+
+        ArgumentCaptor<String> auditDetailsCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogService).record(
+                eq(adminId),
+                eq("RESET_STAFF_PASSWORD"),
+                eq("users"),
+                eq(targetStaffId),
+                auditDetailsCaptor.capture(),
+                eq("192.168.1.100")
+        );
+
+        String capturedDetails = auditDetailsCaptor.getValue();
+        assertThat(capturedDetails).contains("RESET_STAFF_PASSWORD");
+        assertThat(capturedDetails).contains("staff20@aureliabook.vn");
+        assertThat(capturedDetails).doesNotContain("oldHash123");
+        assertThat(capturedDetails).doesNotContain("newHashedTempPassword");
+    }
+
+    @Test
+    @DisplayName("resetStaffPassword() must throw CANNOT_RESET_CUSTOMER_PASSWORD when target is CUSTOMER")
+    void testResetStaffPassword_RejectsCustomerTarget() {
+        Long adminId = 1L;
+        Long customerId = 50L;
+        User customerUser = User.builder()
+                .id(customerId)
+                .email("customer@gmail.com")
+                .fullName("Customer User")
+                .role(customerRole)
+                .passwordHash("customerHash")
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(customerId)).thenReturn(Optional.of(customerUser));
+
+        assertThatThrownBy(() -> adminUserService.resetStaffPassword(adminId, customerId, "10.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD);
+
+        verify(userRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(any());
+        verifyNoInteractions(loginAttemptService);
+        verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    @DisplayName("resetStaffPassword() must throw USER_NOT_EXISTED when target user not found")
+    void testResetStaffPassword_UserNotFound() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> adminUserService.resetStaffPassword(1L, 999L, "10.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_EXISTED);
     }
 }

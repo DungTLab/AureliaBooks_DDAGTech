@@ -67,12 +67,12 @@ class AuditLogSecurityTest {
         private CustomUserDetailsService userDetailsService;
 
         @Test
-        @DisplayName("SEC-01: Anonymous request to /admin/audit-logs must redirect to /auth/login")
+        @DisplayName("SEC-01: Anonymous request to /admin/audit-logs must redirect to /internal/login")
         void testAnonymousAccess_RedirectsToLogin() throws Exception {
             mockMvc
                 .perform(get("/admin/audit-logs"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/login"));
+                .andExpect(redirectedUrl("/internal/login"));
         }
 
         @Test
