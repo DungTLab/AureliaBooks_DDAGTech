@@ -6,9 +6,8 @@
     <header class="workspace-header">
         <a class="workspace-brand" th:href="@{/dashboard}" sec:authorize="isAuthenticated()">AureliaBook <span>Quản lý</span></a>
         <span class="workspace-brand" sec:authorize="!isAuthenticated()">AureliaBook <span>Quản lý</span></span>
-        <div sec:authorize="isAuthenticated()" class="workspace-account flex items-center gap-3">
+        <div sec:authorize="isAuthenticated()" class="workspace-account">
             <span sec:authentication="name" class="workspace-username">Tài khoản nội bộ</span>
-            <button type="button" class="text-xs text-carbon_black hover:text-blazing_flame underline cursor-pointer bg-transparent border-0" data-open-modal="internal-password-modal">Đổi mật khẩu</button>
             <form th:action="@{/internal/logout}" method="post"><button type="submit" class="workspace-logout">Đăng xuất</button></form>
         </div>
     </header>
