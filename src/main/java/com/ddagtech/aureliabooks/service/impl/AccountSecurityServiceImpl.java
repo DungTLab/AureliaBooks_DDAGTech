@@ -178,9 +178,6 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         if (attempts != null) {
             attempts.resetAttempts(staffId);
         }
-        if (attempts != null) {
-            attempts.resetAttempts(staffId);
-        }
 
         audit.record(
                 staffId,

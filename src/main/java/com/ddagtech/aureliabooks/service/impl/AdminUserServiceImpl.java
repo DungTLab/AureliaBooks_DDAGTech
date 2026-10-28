@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.security.SecureRandom;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -45,7 +46,7 @@ import org.springframework.mail.javamail.JavaMailSender;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
+
 public class AdminUserServiceImpl implements AdminUserService {
 
     private static final Set<String> ALLOWED_INTERNAL_ROLES = Set.of(
@@ -64,6 +65,29 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final AdminUserMapper adminUserMapper;
     private final LoginAttemptService loginAttemptService;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
+
+    @Autowired
+    public AdminUserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            SessionRegistry sessionRegistry,
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper,
+            AdminUserMapper adminUserMapper,
+            LoginAttemptService loginAttemptService,
+            ObjectProvider<JavaMailSender> mailSenderProvider
+    ) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.sessionRegistry = sessionRegistry;
+        this.auditLogService = auditLogService;
+        this.objectMapper = objectMapper;
+        this.adminUserMapper = adminUserMapper;
+        this.loginAttemptService = loginAttemptService;
+        this.mailSenderProvider = mailSenderProvider;
+    }
 
     public AdminUserServiceImpl(
             UserRepository userRepository,
