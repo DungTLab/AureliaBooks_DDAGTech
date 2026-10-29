@@ -30,7 +30,7 @@
                 <i class="bi bi-exclamation-circle-fill text-red-600 flex-shrink-0" aria-hidden="true"></i>
                 <span th:text="${internalPasswordError}"></span>
             </div>
-            <form th:action="@{/internal/account/change-password}" method="post" data-valid-form data-password-change class="space-y-4">
+            <form th:action="@{/internal/account/change-password}" method="post" data-valid-form data-ajax-submit data-password-change class="space-y-4">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <div>
                     <label for="internalCurrentPassword" class="block text-sm font-semibold mb-1">Mật khẩu hiện tại</label>

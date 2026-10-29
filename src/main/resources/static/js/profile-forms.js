@@ -112,6 +112,9 @@
         form.addEventListener("input", update);
         form.addEventListener("change", update);
         form.addEventListener("submit", (event) => {
+            if (event.defaultPrevented || form.hasAttribute("data-ajax-submit") || form.closest("#internal-password-modal")) {
+                return;
+            }
             update();
             if (submit.disabled) {
                 event.preventDefault();
@@ -119,6 +122,11 @@
             }
             submitting = true;
             form.setAttribute("aria-busy", "true");
+            update();
+        });
+        form.addEventListener("submit-complete", () => {
+            submitting = false;
+            form.removeAttribute("aria-busy");
             update();
         });
         window.addEventListener("pageshow", () => {

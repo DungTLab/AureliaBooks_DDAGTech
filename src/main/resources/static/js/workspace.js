@@ -31,6 +31,8 @@
                     pwdForm.reset();
                     const errBox = modal.querySelector("[data-modal-error]");
                     if (errBox) errBox.classList.add("hidden");
+                    pwdForm.dispatchEvent(new CustomEvent("submit-complete"));
+                    pwdForm.dispatchEvent(new Event("input", { bubbles: true }));
                 }
             }
         }
@@ -47,21 +49,32 @@
 
     const pwdForm = document.querySelector("form[data-password-change]");
     if (pwdForm) {
+        const submitBtn = pwdForm.querySelector('button[type="submit"]');
+        const modal = document.getElementById("internal-password-modal");
+        const errBox = modal ? modal.querySelector("[data-modal-error]") : null;
+        const errText = modal ? modal.querySelector("[data-modal-error-text]") : null;
+
+        const restoreButton = () => {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Lưu thay đổi";
+            }
+            pwdForm.dispatchEvent(new CustomEvent("submit-complete"));
+        };
+
         pwdForm.addEventListener("submit", async (e) => {
-            const submitBtn = pwdForm.querySelector('button[type="submit"]');
-            if (submitBtn && submitBtn.disabled) {
-                e.preventDefault();
-                return;
-            }
-            if (!pwdForm.checkValidity()) {
-                e.preventDefault();
-                return;
-            }
             e.preventDefault();
-            const modal = document.getElementById("internal-password-modal");
-            const errBox = modal ? modal.querySelector("[data-modal-error]") : null;
-            const errText = modal ? modal.querySelector("[data-modal-error-text]") : null;
+
+            if (!pwdForm.checkValidity()) {
+                return;
+            }
+
             if (errBox) errBox.classList.add("hidden");
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Đang lưu...";
+            }
 
             const formData = new FormData(pwdForm);
             try {
@@ -73,7 +86,7 @@
                     },
                     body: formData
                 });
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
                 if (response.ok && data.success) {
                     if (modal) {
                         modal.classList.add("hidden");
@@ -85,12 +98,14 @@
                         errText.textContent = data.message || "Đã xảy ra lỗi khi đổi mật khẩu.";
                         errBox.classList.remove("hidden");
                     }
+                    restoreButton();
                 }
             } catch (err) {
                 if (errBox && errText) {
                     errText.textContent = "Không thể kết nối máy chủ. Vui lòng thử lại.";
                     errBox.classList.remove("hidden");
                 }
+                restoreButton();
             }
         });
     }
