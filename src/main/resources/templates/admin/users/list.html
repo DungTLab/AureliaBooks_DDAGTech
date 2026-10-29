@@ -430,6 +430,8 @@
 
     <!-- Vanilla Modal Controller Script with A11y & Auto-Reopen -->
     <script>
+        let createStaffInFlight = false;
+
         function openModal(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
@@ -443,6 +445,9 @@
         }
 
         function closeModal(modalId) {
+            if (modalId === 'createStaffModal' && createStaffInFlight) {
+                return;
+            }
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.classList.add('hidden');
@@ -462,6 +467,29 @@
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 closeModal('createStaffModal');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const createStaffForm = document.querySelector('form[action*="/admin/users/create"]');
+            if (createStaffForm) {
+                createStaffForm.addEventListener('submit', function (e) {
+                    if (createStaffInFlight) {
+                        e.preventDefault();
+                        return;
+                    }
+                    createStaffInFlight = true;
+                    const btn = createStaffForm.querySelector('button[type="submit"]');
+                    const cancelBtn = createStaffForm.querySelector('button[onclick*="closeModal"]');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'Đang tạo...';
+                    }
+                    if (cancelBtn) {
+                        cancelBtn.disabled = true;
+                        cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                });
             }
         });
     </script>

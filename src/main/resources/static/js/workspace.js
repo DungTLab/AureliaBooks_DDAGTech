@@ -27,6 +27,12 @@
             submitBtn.disabled = false;
             submitBtn.textContent = "Lưu thay đổi";
         }
+        if (modal) {
+            modal.querySelectorAll("[data-close-modal]").forEach((btn) => {
+                btn.disabled = false;
+                btn.classList.remove("opacity-50", "cursor-not-allowed");
+            });
+        }
     };
 
     document.addEventListener("click", (e) => {
@@ -37,18 +43,36 @@
             if (targetModal) {
                 targetModal.classList.remove("hidden");
                 targetModal.setAttribute("aria-hidden", "false");
-                const firstInput = targetModal.querySelector("input:not([type=hidden])");
-                if (firstInput) firstInput.focus();
+                if (targetId === "internal-password-modal" && inFlight) {
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = "Đang lưu...";
+                    }
+                    targetModal.querySelectorAll("[data-close-modal]").forEach((btn) => {
+                        btn.disabled = true;
+                        btn.classList.add("opacity-50", "cursor-not-allowed");
+                    });
+                } else {
+                    const firstInput = targetModal.querySelector("input:not([type=hidden])");
+                    if (firstInput) firstInput.focus();
+                }
             }
         }
         const closeBtn = e.target.closest("[data-close-modal]");
         if (closeBtn) {
             const targetId = closeBtn.getAttribute("data-close-modal");
+            if (targetId === "internal-password-modal" && inFlight) {
+                e.preventDefault();
+                return;
+            }
             const targetModal = document.getElementById(targetId);
             if (targetModal) {
                 targetModal.classList.add("hidden");
                 targetModal.setAttribute("aria-hidden", "true");
                 if (targetId === "internal-password-modal" && pwdForm) {
+                    if (inFlight) {
+                        return;
+                    }
                     pwdForm.reset();
                     if (errBox) errBox.classList.add("hidden");
                     restoreButton();
@@ -61,9 +85,15 @@
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
             document.querySelectorAll("[role=dialog]:not(.hidden)").forEach((targetModal) => {
+                if (targetModal.id === "internal-password-modal" && inFlight) {
+                    return;
+                }
                 targetModal.classList.add("hidden");
                 targetModal.setAttribute("aria-hidden", "true");
                 if (targetModal.id === "internal-password-modal" && pwdForm) {
+                    if (inFlight) {
+                        return;
+                    }
                     pwdForm.reset();
                     if (errBox) errBox.classList.add("hidden");
                     restoreButton();
@@ -95,6 +125,13 @@
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.textContent = "Đang lưu...";
+            }
+
+            if (modal) {
+                modal.querySelectorAll("[data-close-modal]").forEach((btn) => {
+                    btn.disabled = true;
+                    btn.classList.add("opacity-50", "cursor-not-allowed");
+                });
             }
 
             const formData = new FormData(pwdForm);
