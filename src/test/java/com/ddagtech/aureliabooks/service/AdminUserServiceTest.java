@@ -14,6 +14,7 @@ import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.impl.AdminUserServiceImpl;
 import com.ddagtech.aureliabooks.service.impl.AuditLogServiceImpl;
+import com.ddagtech.aureliabooks.service.impl.OtpMailContent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -189,21 +190,23 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("create() should hash password, assign internal role, save user and write audit log")
+    @DisplayName("create() should auto-generate initial password, hash it, save user, send email, and write audit log")
     void testCreateStaff_Success() throws Exception {
         Long adminId = 1L;
         UserCreateRequest request = new UserCreateRequest(
                 "manager@aureliabook.vn",
-                "SecretP@ss123",
                 "Tran Manager",
                 "0912345678",
                 2L
         );
 
+        org.springframework.mail.javamail.JavaMailSender mailSender = mock(org.springframework.mail.javamail.JavaMailSender.class);
+        when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
+
         when(userRepository.existsByEmail("manager@aureliabook.vn")).thenReturn(false);
         when(userRepository.existsByPhone("0912345678")).thenReturn(false);
         when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
-        when(passwordEncoder.encode("SecretP@ss123")).thenReturn("$2a$12$hashedPassword");
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$12$hashedPassword");
 
         User savedUser = User.builder()
                 .id(100L)
@@ -233,6 +236,12 @@ class AdminUserServiceTest {
         assertThat(captured.isEmailVerified()).isTrue();
         assertThat(captured.isPhoneVerified()).isTrue();
 
+        ArgumentCaptor<org.springframework.mail.SimpleMailMessage> mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+        verify(mailSender).send(mailCaptor.capture());
+        org.springframework.mail.SimpleMailMessage sentMail = mailCaptor.getValue();
+        assertThat(sentMail.getTo()).containsExactly("manager@aureliabook.vn");
+        assertThat(sentMail.getSubject()).isEqualTo(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
+
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(auditLogService).record(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), jsonCaptor.capture(), eq(clientIp));
         JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
@@ -248,7 +257,6 @@ class AdminUserServiceTest {
         Long adminId = 1L;
         UserCreateRequest request = new UserCreateRequest(
                 "staff84@aureliabook.vn",
-                "SecretP@ss123",
                 "Staff 84",
                 "+84912345678",
                 2L
@@ -273,7 +281,7 @@ class AdminUserServiceTest {
     @DisplayName("create() should throw USER_EXISTED when email already exists")
     void testCreateStaff_DuplicateEmail_ThrowsException() {
         UserCreateRequest request = new UserCreateRequest(
-                "duplicate@aureliabook.vn", "Pass123456@", "Name", "0912345678", 2L
+                "duplicate@aureliabook.vn", "Name", "0912345678", 2L
         );
         when(userRepository.existsByEmail("duplicate@aureliabook.vn")).thenReturn(true);
 
@@ -288,7 +296,7 @@ class AdminUserServiceTest {
     @DisplayName("create() should throw INVALID_ROLE_ASSIGNMENT when attempting to assign ROLE_CUSTOMER")
     void testCreateStaff_CustomerRole_ThrowsInvalidRoleAssignmentException() {
         UserCreateRequest request = new UserCreateRequest(
-                "new@aureliabook.vn", "Pass123456", "Name", "0912345678", 4L
+                "new@aureliabook.vn", "Name", "0912345678", 4L
         );
         when(userRepository.existsByEmail("new@aureliabook.vn")).thenReturn(false);
         when(userRepository.existsByPhone("0912345678")).thenReturn(false);
@@ -302,21 +310,29 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("create() should throw INVALID_INPUT_DATA when password exceeds 72 UTF-8 bytes")
-    void testCreateStaff_PasswordExceeds72Bytes_ThrowsException() {
-        String longPassword = "A".repeat(70) + "1@aA"; // 74 chars -> 74 bytes
+    @DisplayName("create() should auto-generate initial password meeting length, complexity and <= 72 bytes")
+    void testCreateStaff_AutoGeneratesSecurePassword_MeetingPolicy() {
+        Long adminId = 1L;
         UserCreateRequest request = new UserCreateRequest(
-                "new@aureliabook.vn", longPassword, "Staff Name", "0912345678", 2L
+                "newstaff@aureliabook.vn", "Staff Name", "0912345678", 2L
         );
-        when(userRepository.existsByEmail("new@aureliabook.vn")).thenReturn(false);
+        when(userRepository.existsByEmail("newstaff@aureliabook.vn")).thenReturn(false);
         when(userRepository.existsByPhone("0912345678")).thenReturn(false);
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
 
-        assertThatThrownBy(() -> adminUserService.create(1L, request))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
+        ArgumentCaptor<String> rawPasswordCaptor = ArgumentCaptor.forClass(String.class);
+        when(passwordEncoder.encode(rawPasswordCaptor.capture())).thenReturn("$2a$12$hashedPassword");
 
-        verify(userRepository, never()).save(any());
-        verify(passwordEncoder, never()).encode(any());
+        User savedUser = User.builder().id(102L).build();
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+        adminUserService.create(adminId, request);
+
+        String generatedPassword = rawPasswordCaptor.getValue();
+        assertThat(generatedPassword).isNotBlank();
+        assertThat(generatedPassword.length()).isEqualTo(12);
+        assertThat(generatedPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length).isLessThanOrEqualTo(72);
+        assertThat(generatedPassword).matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@#$%&*!]).{12}$");
     }
 
     @Test

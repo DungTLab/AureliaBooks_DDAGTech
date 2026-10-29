@@ -6,6 +6,7 @@ public final class OtpMailContent {
     public static final String SUBJECT = "AureliaBook - Mã xác thực của bạn";
     public static final String SMS_DEMO_SUBJECT = "[SMS DEMO] " + SUBJECT;
     public static final String STAFF_PASSWORD_RESET_SUBJECT = "[AureliaBook] Cấp lại mật khẩu tài khoản nội bộ";
+    public static final String STAFF_ACCOUNT_CREATED_SUBJECT = "[AureliaBook] Thông tin tài khoản nội bộ và mật khẩu khởi tạo";
 
     private OtpMailContent() {}
 
@@ -46,6 +47,20 @@ public final class OtpMailContent {
         Mật khẩu tạm thời: %s
 
         Vui lòng đăng nhập tại cổng nội bộ (/internal/login) và đổi sang mật khẩu mới ngay lập tức.
+
+        Trân trọng,
+        AureliaBook Security Team
+        """.formatted(fullName != null ? fullName : "bạn", temporaryPassword);
+    }
+
+    public static String staffAccountCreatedBody(String fullName, String temporaryPassword) {
+        return """
+        Xin chào %s,
+
+        Tài khoản nội bộ của bạn tại AureliaBook đã được khởi tạo thành công bởi Quản trị viên.
+        Mật khẩu khởi tạo: %s
+
+        Vui lòng đăng nhập tại cổng nội bộ (/internal/login) và đổi sang mật khẩu mới ngay trong lần truy cập đầu tiên để đảm bảo an toàn thông tin.
 
         Trân trọng,
         AureliaBook Security Team

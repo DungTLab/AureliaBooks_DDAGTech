@@ -274,6 +274,36 @@ class AuditLogSecurityTest {
             assertThat(savedJson).doesNotContain("tempStaffPassword123!");
             assertThat(savedJson).doesNotContain("$2a$12$eX4mPl3H4shV4lu3N0tL34k3d");
         }
+
+        @Test
+        @DisplayName("SEC-10C: Staff creation audit payload does not contain plaintext password or hash")
+        void testStaffCreation_AuditPayloadClean() {
+            Long actorId = 1L;
+            User actor = User.builder().id(actorId).email("admin@aureliabook.vn").build();
+            when(userRepository.findById(actorId)).thenReturn(Optional.of(actor));
+
+            String payload = """
+            {
+                "action": "USER_CREATE",
+                "actor_id": 1,
+                "created_user_id": 105,
+                "email": "newstaff@aureliabook.vn",
+                "full_name": "New Staff Member",
+                "role": "ROLE_SALE_STAFF"
+            }
+            """;
+
+            auditLogService.record(actorId, "USER_CREATE", "users", 105L, payload, "127.0.0.1");
+
+            ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+            verify(auditLogRepository).save(captor.capture());
+
+            String savedJson = captor.getValue().getDetailsJson();
+            assertThat(savedJson).contains("\"action\":\"USER_CREATE\"");
+            assertThat(savedJson).contains("\"email\":\"newstaff@aureliabook.vn\"");
+            assertThat(savedJson).doesNotContain("password");
+            assertThat(savedJson).doesNotContain("password_hash");
+        }
     }
 
     @Nested

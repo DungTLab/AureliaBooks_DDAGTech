@@ -73,7 +73,7 @@ public class AdminUserController {
         model.addAttribute("keyword", keyword);
         model.addAttribute("roles", internalRoles);
         if (!model.containsAttribute("newUserForm")) {
-            model.addAttribute("newUserForm", new UserCreateRequest("", "", "", "", null));
+            model.addAttribute("newUserForm", new UserCreateRequest("", "", "", null));
         }
 
         return "admin/users/list";

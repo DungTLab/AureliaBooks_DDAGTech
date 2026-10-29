@@ -153,10 +153,6 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.USER_EXISTED, "Số điện thoại đã được sử dụng trong hệ thống");
         }
 
-        if (request.password() != null && request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mật khẩu không được vượt quá 72 byte theo chuẩn mã hóa BCrypt");
-        }
-
         Role assignedRole = roleRepository.findById(request.roleId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy vai trò đã chọn"));
 
@@ -164,13 +160,19 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.INVALID_ROLE_ASSIGNMENT);
         }
 
+        // Generate cryptographically strong initial password for new staff
+        String initialPassword = generateTemporaryPassword();
+
         User user = adminUserMapper.toInternalStaffEntity(
                 request,
-                passwordEncoder.encode(request.password()),
+                passwordEncoder.encode(initialPassword),
                 assignedRole
         );
 
         User savedUser = userRepository.save(user);
+
+        // Send initial credentials directly to staff email
+        sendInitialPasswordEmail(savedUser, initialPassword);
 
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "USER_CREATE");
@@ -428,6 +430,31 @@ public class AdminUserServiceImpl implements AdminUserService {
             chars[j] = temp;
         }
         return new String(chars);
+    }
+
+    /**
+     * Sends initial credentials with auto-generated temporary password directly to staff email.
+     * Fails gracefully with warning logging if mail dispatch fails.
+     *
+     * @param user newly provisioned staff entity
+     * @param initialPassword cryptographically generated plaintext password
+     */
+    private void sendInitialPasswordEmail(User user, String initialPassword) {
+        if (mailSenderProvider != null) {
+            JavaMailSender sender = mailSenderProvider.getIfAvailable();
+            if (sender != null && user.getEmail() != null && !user.getEmail().isBlank()) {
+                try {
+                    SimpleMailMessage message = new SimpleMailMessage();
+                    message.setFrom("no-reply@aureliabook.local");
+                    message.setTo(user.getEmail());
+                    message.setSubject(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
+                    message.setText(OtpMailContent.staffAccountCreatedBody(user.getFullName(), initialPassword));
+                    sender.send(message);
+                } catch (Exception ex) {
+                    log.error("Failed to send initial password email to staff [{}]", user.getEmail(), ex);
+                }
+            }
+        }
     }
     /**
      * Serializes any payload object into a JSON string for audit storage.
