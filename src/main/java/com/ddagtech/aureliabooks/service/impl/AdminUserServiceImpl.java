@@ -35,6 +35,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.security.SecureRandom;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -65,6 +66,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final AdminUserMapper adminUserMapper;
     private final LoginAttemptService loginAttemptService;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final String mailFrom;
 
     @Autowired
     public AdminUserServiceImpl(
@@ -76,7 +78,8 @@ public class AdminUserServiceImpl implements AdminUserService {
             ObjectMapper objectMapper,
             AdminUserMapper adminUserMapper,
             LoginAttemptService loginAttemptService,
-            ObjectProvider<JavaMailSender> mailSenderProvider
+            ObjectProvider<JavaMailSender> mailSenderProvider,
+            @Value("${app.contact-verification.mail-from:no-reply@aureliabook.local}") String mailFrom
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -87,6 +90,21 @@ public class AdminUserServiceImpl implements AdminUserService {
         this.adminUserMapper = adminUserMapper;
         this.loginAttemptService = loginAttemptService;
         this.mailSenderProvider = mailSenderProvider;
+        this.mailFrom = (mailFrom != null && !mailFrom.isBlank()) ? mailFrom : "no-reply@aureliabook.local";
+    }
+
+    public AdminUserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            SessionRegistry sessionRegistry,
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper,
+            AdminUserMapper adminUserMapper,
+            LoginAttemptService loginAttemptService,
+            ObjectProvider<JavaMailSender> mailSenderProvider
+    ) {
+        this(userRepository, roleRepository, passwordEncoder, sessionRegistry, auditLogService, objectMapper, adminUserMapper, loginAttemptService, mailSenderProvider, "no-reply@aureliabook.local");
     }
 
     public AdminUserServiceImpl(
@@ -98,7 +116,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             ObjectMapper objectMapper,
             AdminUserMapper adminUserMapper
     ) {
-        this(userRepository, roleRepository, passwordEncoder, sessionRegistry, auditLogService, objectMapper, adminUserMapper, null, null);
+        this(userRepository, roleRepository, passwordEncoder, sessionRegistry, auditLogService, objectMapper, adminUserMapper, null, null, "no-reply@aureliabook.local");
     }
 
 
@@ -357,21 +375,22 @@ public class AdminUserServiceImpl implements AdminUserService {
         targetUser.setPasswordHash(passwordEncoder.encode(tempPassword));
         userRepository.save(targetUser);
 
-        // 1. Send temporary password directly to staff email
-        if (mailSenderProvider != null) {
-            JavaMailSender sender = mailSenderProvider.getIfAvailable();
-            if (sender != null && targetUser.getEmail() != null && !targetUser.getEmail().isBlank()) {
-                try {
-                    SimpleMailMessage message = new SimpleMailMessage();
-                    message.setFrom("no-reply@aureliabook.local");
-                    message.setTo(targetUser.getEmail());
-                    message.setSubject(OtpMailContent.STAFF_PASSWORD_RESET_SUBJECT);
-                    message.setText(OtpMailContent.staffPasswordResetBody(targetUser.getFullName(), tempPassword));
-                    sender.send(message);
-                } catch (Exception ex) {
-                    log.error("Failed to send temporary password email to staff [{}]", targetUser.getEmail(), ex);
-                }
-            }
+        // 1. Send temporary password directly to staff email before revoking sessions or clearing attempts
+        JavaMailSender sender = mailSenderProvider != null ? mailSenderProvider.getIfAvailable() : null;
+        if (sender == null || targetUser.getEmail() == null || targetUser.getEmail().isBlank()) {
+            log.error("Mail dispatch unavailable for staff password reset [{}]", targetUser.getEmail());
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(mailFrom);
+            message.setTo(targetUser.getEmail());
+            message.setSubject(OtpMailContent.STAFF_PASSWORD_RESET_SUBJECT);
+            message.setText(OtpMailContent.staffPasswordResetBody(targetUser.getFullName(), tempPassword));
+            sender.send(message);
+        } catch (Exception ex) {
+            log.error("Failed to send temporary password email to staff [{}]", targetUser.getEmail(), ex);
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
         }
 
         // 2. Clear brute-force cooldown if locked
@@ -440,20 +459,21 @@ public class AdminUserServiceImpl implements AdminUserService {
      * @param initialPassword cryptographically generated plaintext password
      */
     private void sendInitialPasswordEmail(User user, String initialPassword) {
-        if (mailSenderProvider != null) {
-            JavaMailSender sender = mailSenderProvider.getIfAvailable();
-            if (sender != null && user.getEmail() != null && !user.getEmail().isBlank()) {
-                try {
-                    SimpleMailMessage message = new SimpleMailMessage();
-                    message.setFrom("no-reply@aureliabook.local");
-                    message.setTo(user.getEmail());
-                    message.setSubject(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
-                    message.setText(OtpMailContent.staffAccountCreatedBody(user.getFullName(), initialPassword));
-                    sender.send(message);
-                } catch (Exception ex) {
-                    log.error("Failed to send initial password email to staff [{}]", user.getEmail(), ex);
-                }
-            }
+        JavaMailSender sender = mailSenderProvider != null ? mailSenderProvider.getIfAvailable() : null;
+        if (sender == null || user.getEmail() == null || user.getEmail().isBlank()) {
+            log.error("Mail dispatch unavailable for staff initial password [{}]", user.getEmail());
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(mailFrom);
+            message.setTo(user.getEmail());
+            message.setSubject(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
+            message.setText(OtpMailContent.staffAccountCreatedBody(user.getFullName(), initialPassword));
+            sender.send(message);
+        } catch (Exception ex) {
+            log.error("Failed to send initial password email to staff [{}]", user.getEmail(), ex);
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
         }
     }
     /**

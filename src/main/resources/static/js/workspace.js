@@ -27,6 +27,11 @@
             if (modal) {
                 modal.classList.add("hidden");
                 modal.setAttribute("aria-hidden", "true");
+                if (targetId === "internal-password-modal" && pwdForm) {
+                    pwdForm.reset();
+                    const errBox = modal.querySelector("[data-modal-error]");
+                    if (errBox) errBox.classList.add("hidden");
+                }
             }
         }
     });
@@ -43,6 +48,15 @@
     const pwdForm = document.querySelector("form[data-password-change]");
     if (pwdForm) {
         pwdForm.addEventListener("submit", async (e) => {
+            const submitBtn = pwdForm.querySelector('button[type="submit"]');
+            if (submitBtn && submitBtn.disabled) {
+                e.preventDefault();
+                return;
+            }
+            if (!pwdForm.checkValidity()) {
+                e.preventDefault();
+                return;
+            }
             e.preventDefault();
             const modal = document.getElementById("internal-password-modal");
             const errBox = modal ? modal.querySelector("[data-modal-error]") : null;

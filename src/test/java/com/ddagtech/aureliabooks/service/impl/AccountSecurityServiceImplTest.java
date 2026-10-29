@@ -145,4 +145,31 @@ class AccountSecurityServiceImplTest {
                 .isInstanceOf(AppException.class)
                 .satisfies(ex -> assertThat(((AppException) ex).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT_DATA));
     }
+
+    @Test
+    @DisplayName("changeStaffPassword should preserve leading and trailing whitespace in raw password without stripping")
+    void changeStaffPassword_PreservesWhitespaceInRawPassword() {
+        Long staffId = 15L;
+        User staff = User.builder()
+                .id(staffId)
+                .email("staff@aureliabook.vn")
+                .passwordHash("$2a$12$oldHashedPassword")
+                .role(staffRole)
+                .isActive(true)
+                .build();
+
+        String rawPasswordWithSpaces = " Abc123! ";
+        when(users.findById(staffId)).thenReturn(Optional.of(staff));
+        when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
+        when(passwords.matches(rawPasswordWithSpaces, "$2a$12$oldHashedPassword")).thenReturn(false);
+        when(passwords.encode(rawPasswordWithSpaces)).thenReturn("$2a$12$hashedWithSpaces");
+        when(users.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PasswordChangeRequest request = new PasswordChangeRequest("OldPassword123@", rawPasswordWithSpaces, rawPasswordWithSpaces);
+        User result = service.changeStaffPassword(staffId, request, "session-1", "127.0.0.1");
+
+        assertThat(result.getPasswordHash()).isEqualTo("$2a$12$hashedWithSpaces");
+        verify(passwords).encode(rawPasswordWithSpaces);
+        verify(passwords, never()).encode("Abc123!");
+    }
 }

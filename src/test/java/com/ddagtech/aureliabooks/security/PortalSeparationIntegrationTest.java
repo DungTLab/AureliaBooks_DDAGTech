@@ -170,4 +170,12 @@ class PortalSeparationIntegrationTest {
 
         verifyNoInteractions(accountSecurityService);
     }
+
+    @Test
+    void internalWorkspaceShellIncludesPasswordValidationScript() throws Exception {
+        String html = mvc.perform(get("/dashboard").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("/js/profile-forms.js", "data-password-change", "data-valid-form");
+    }
 }

@@ -160,12 +160,12 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
             throw new AppException(ErrorCode.PASSWORD_NOT_MATCH, "Mật khẩu hiện tại không chính xác");
         }
 
-        String newPassword = request.newPassword() != null ? request.newPassword().strip() : "";
+        String newPassword = request.newPassword() != null ? request.newPassword() : "";
         if (newPassword.isBlank() || newPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mật khẩu mới không hợp lệ hoặc vượt quá 72 byte");
         }
 
-        if (request.confirmPassword() != null && !newPassword.equals(request.confirmPassword().strip())) {
+        if (request.confirmPassword() != null && !newPassword.equals(request.confirmPassword())) {
             throw new AppException(ErrorCode.PASSWORD_NOT_MATCH, "Xác nhận mật khẩu mới không khớp");
         }
 

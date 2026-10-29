@@ -34,6 +34,7 @@ public enum ErrorCode {
     GOOGLE_IDENTITY_CONFLICT(1017, "Tài khoản Google này đã được liên kết với một tài khoản khác.", HttpStatus.CONFLICT),
     PHONE_REQUIRED_BEFORE_CHECKOUT(1018, "Vui lòng bổ sung và xác minh số điện thoại trước khi đặt hàng.", HttpStatus.BAD_REQUEST),
     CANNOT_RESET_CUSTOMER_PASSWORD(1019, "Quản trị viên không được phép đặt lại mật khẩu cho tài khoản khách hàng.", HttpStatus.FORBIDDEN),
+    EMAIL_DELIVERY_FAILED(1020, "Không thể gửi email cấp mật khẩu. Vui lòng kiểm tra cấu hình/kết nối SMTP và thử gửi lại.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 2xxx: Address & Shipping Constraints — Lê Tiến Dũng (3 codes)
     ADDRESS_QUOTA_EXCEEDED(2001, "Bạn chỉ có thể lưu tối đa 5 địa chỉ giao hàng đang hoạt động.", HttpStatus.BAD_REQUEST),

@@ -73,6 +73,9 @@ class AdminUserServiceTest {
     @Mock
     private org.springframework.beans.factory.ObjectProvider<org.springframework.mail.javamail.JavaMailSender> mailSenderProvider;
 
+    @Mock
+    private org.springframework.mail.javamail.JavaMailSender mailSender;
+
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
 
@@ -91,6 +94,7 @@ class AdminUserServiceTest {
         staffRole = Role.builder().id(3L).roleName("ROLE_SALE_STAFF").description("Sales Staff").build();
         customerRole = Role.builder().id(4L).roleName("ROLE_CUSTOMER").description("End Customer").build();
         lenient().when(roleRepository.findByRoleNameForUpdate("ROLE_ADMIN")).thenReturn(Optional.of(adminRole));
+        lenient().when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
     }
 
     @Test
@@ -267,7 +271,7 @@ class AdminUserServiceTest {
         when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
 
-        User savedUser = User.builder().id(101L).build();
+        User savedUser = User.builder().id(101L).email(request.email()).fullName(request.fullName()).role(managerRole).build();
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
         adminUserService.create(adminId, request);
@@ -323,7 +327,7 @@ class AdminUserServiceTest {
         ArgumentCaptor<String> rawPasswordCaptor = ArgumentCaptor.forClass(String.class);
         when(passwordEncoder.encode(rawPasswordCaptor.capture())).thenReturn("$2a$12$hashedPassword");
 
-        User savedUser = User.builder().id(102L).build();
+        User savedUser = User.builder().id(102L).email(request.email()).fullName(request.fullName()).role(managerRole).build();
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
         adminUserService.create(adminId, request);
@@ -807,6 +811,12 @@ class AdminUserServiceTest {
         adminUserService.resetStaffPassword(adminId, targetStaffId, "192.168.1.100");
 
         assertThat(targetStaff.getPasswordHash()).isEqualTo("newHashedTempPassword");
+        ArgumentCaptor<org.springframework.mail.SimpleMailMessage> mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+        verify(mailSender).send(mailCaptor.capture());
+        org.springframework.mail.SimpleMailMessage sentMail = mailCaptor.getValue();
+        assertThat(sentMail.getTo()).containsExactly("staff20@aureliabook.vn");
+        assertThat(sentMail.getFrom()).isEqualTo("no-reply@aureliabook.local");
+        assertThat(sentMail.getSubject()).isEqualTo(OtpMailContent.STAFF_PASSWORD_RESET_SUBJECT);
         verify(userRepository).save(targetStaff);
         verify(loginAttemptService).resetAttempts(targetStaffId);
 
@@ -861,5 +871,105 @@ class AdminUserServiceTest {
         assertThatThrownBy(() -> adminUserService.resetStaffPassword(1L, 999L, "10.0.0.1"))
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_EXISTED);
+    }
+
+    @Test
+    @DisplayName("resetStaffPassword() should throw EMAIL_DELIVERY_FAILED and not revoke sessions or clear cooldown when mail dispatch fails")
+    void testResetStaffPassword_MailFailure_ThrowsExceptionAndRollsBack() {
+        Long adminId = 1L;
+        Long targetStaffId = 20L;
+        User targetStaff = User.builder()
+                .id(targetStaffId)
+                .email("staff20@aureliabook.vn")
+                .fullName("Staff Twenty")
+                .role(staffRole)
+                .passwordHash("oldHash123")
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetStaffId)).thenReturn(Optional.of(targetStaff));
+        when(passwordEncoder.encode(anyString())).thenReturn("newHashedTempPassword");
+        doThrow(new org.springframework.mail.MailSendException("SMTP connection timeout"))
+                .when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
+
+        assertThatThrownBy(() -> adminUserService.resetStaffPassword(adminId, targetStaffId, "192.168.1.100"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_DELIVERY_FAILED);
+
+        verifyNoInteractions(loginAttemptService);
+        verify(sessionRegistry, never()).getAllPrincipals();
+        verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    @DisplayName("create() should throw EMAIL_DELIVERY_FAILED and not record audit when mail dispatch fails")
+    void testCreateStaff_MailFailure_ThrowsExceptionAndRollsBack() {
+        Long adminId = 1L;
+        UserCreateRequest request = new UserCreateRequest(
+                "manager_fail@aureliabook.vn",
+                "Tran Fail",
+                "0912345678",
+                2L
+        );
+
+        when(userRepository.existsByEmail("manager_fail@aureliabook.vn")).thenReturn(false);
+        when(userRepository.existsByPhone("0912345678")).thenReturn(false);
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$12$hashedPassword");
+
+        User savedUser = User.builder()
+                .id(105L)
+                .email("manager_fail@aureliabook.vn")
+                .fullName("Tran Fail")
+                .role(managerRole)
+                .build();
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+
+        doThrow(new org.springframework.mail.MailSendException("SMTP connection refused"))
+                .when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
+
+        assertThatThrownBy(() -> adminUserService.create(adminId, request, "192.168.1.100"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_DELIVERY_FAILED);
+
+        verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    @DisplayName("resetStaffPassword() should use custom configured mailFrom address when specified")
+    void testResetStaffPassword_UsesConfiguredMailFrom() {
+        String customFrom = "custom-auth@aureliabook.vn";
+        AdminUserServiceImpl customMailService = new AdminUserServiceImpl(
+                userRepository,
+                roleRepository,
+                passwordEncoder,
+                sessionRegistry,
+                auditLogService,
+                objectMapper,
+                adminUserMapper,
+                loginAttemptService,
+                mailSenderProvider,
+                customFrom
+        );
+
+        Long adminId = 1L;
+        Long targetStaffId = 20L;
+        User targetStaff = User.builder()
+                .id(targetStaffId)
+                .email("staff20@aureliabook.vn")
+                .fullName("Staff Twenty")
+                .role(staffRole)
+                .passwordHash("oldHash123")
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(targetStaffId)).thenReturn(Optional.of(targetStaff));
+        when(passwordEncoder.encode(anyString())).thenReturn("newHashedTempPassword");
+
+        customMailService.resetStaffPassword(adminId, targetStaffId, "192.168.1.100");
+
+        ArgumentCaptor<org.springframework.mail.SimpleMailMessage> mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+        verify(mailSender).send(mailCaptor.capture());
+        assertThat(mailCaptor.getValue().getFrom()).isEqualTo(customFrom);
     }
 }

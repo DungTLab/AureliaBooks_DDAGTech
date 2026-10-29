@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -240,5 +241,53 @@ class AdminUserControllerTest {
                 .andExpect(flash().attribute("errorMessage", org.hamcrest.Matchers.containsString("không được phép")));
 
         verify(adminUserService).resetStaffPassword(eq(1L), eq(50L), any());
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/reset-password when email delivery fails redirects with error message")
+    void testResetPassword_EmailDeliveryFailed_ShowsErrorMessage() throws Exception {
+        doThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED))
+                .when(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
+
+        mockMvc.perform(post("/admin/users/10/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", ErrorCode.EMAIL_DELIVERY_FAILED.getMessage()))
+                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/create when email delivery fails preserves form state and shows error message")
+    void testCreate_EmailDeliveryFailed_PreservesFormAndShowsError() throws Exception {
+        when(adminUserService.create(any(), any(), any())).thenThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED));
+
+        mockMvc.perform(post("/admin/users/create")
+                        .with(csrf())
+                        .with(user(adminUserDetails))
+                        .param("email", "staff@aureliabook.vn")
+                        .param("fullName", "Staff Name")
+                        .param("phone", "0912345678")
+                        .param("roleId", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", ErrorCode.EMAIL_DELIVERY_FAILED.getMessage()))
+                .andExpect(flash().attribute("openCreateModal", true))
+                .andExpect(flash().attributeExists("newUserForm"))
+                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
+
+        verify(adminUserService).create(eq(1L), any(), any());
+    }
+
+    @Test
+    @DisplayName("GET /admin/users list view includes overflow-x-auto for responsive horizontal scrolling")
+    void testListView_ContainsOverflowXAuto() throws Exception {
+        when(adminUserService.list(any(), any(), any(), any())).thenReturn(Page.empty());
+        mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("overflow-x-auto")));
     }
 }
