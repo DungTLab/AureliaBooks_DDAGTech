@@ -50,6 +50,7 @@ public class StaffOrderController {
 
     @GetMapping("/{id}")
     public String checklist(Authentication auth, @PathVariable Long id, Model model) {
+        model.addAttribute("refundToday", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
         model.addAttribute("checklist", orders.getPackagingChecklist(id, identity.resolve(auth)));
         return "staff/packaging-checklist";
     }
@@ -114,6 +115,7 @@ public class StaffOrderController {
 
     private ModelAndView latest(Long id, Long actor, String message, HttpStatus status) {
         var result = new ModelAndView("staff/packaging-checklist");
+        result.addObject("refundToday", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
         result.addObject("checklist", orders.getPackagingChecklist(id, actor));
         result.addObject("errorMessage", message);
         result.setStatus(status);

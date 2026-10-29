@@ -67,7 +67,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
                         || (order.getShippedAt() == null && order.getDeliveredAt() == null
                             && order.getPaymentStatus() != Order.PaymentStatus.REFUNDED)).toList();
         boolean canConfirmReturn = !isManager(actor)
-                && (order.getOrderStatus() == Order.OrderStatus.SHIPPING || order.getOrderStatus() == Order.OrderStatus.DELIVERED)
+                && order.getOrderStatus() == Order.OrderStatus.DELIVERED
                 && order.getStockDeductedAt() != null && order.getStockRestoredAt() == null;
         boolean refundBasis = refundBasis(order);
         return new PackagingChecklistDTO(order.getId(), mapper.toConfirmation(order),
@@ -157,20 +157,23 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
         ensureOperational(order);
 
-        if (order.getOrderStatus() != Order.OrderStatus.SHIPPING && order.getOrderStatus() != Order.OrderStatus.DELIVERED)
-            throw new AppException(ErrorCode.INVALID_ORDER_STATE_TRANSITION, "Chỉ có thể xác nhận nhận hàng hoàn khi đơn đang giao (SHIPPING) hoặc đã giao (DELIVERED).");
+        if (order.getOrderStatus() != Order.OrderStatus.DELIVERED)
+            throw new AppException(ErrorCode.INVALID_ORDER_STATE_TRANSITION, "Chỉ có thể xác nhận nhận hàng hoàn khi đơn đã giao thành công (DELIVERED).");
 
         if (order.getStockRestoredAt() != null)
             throw new AppException(ErrorCode.ORDER_STOCK_ALREADY_RESTORED);
 
         // Call stock engine to restore quantities exactly once, stamp stock_restored_at, stock_restore_reason = RETURNED, and record ORDER_RETURN_CONFIRMED
         stock.restoreReturnedOrder(orderId, staffId);
+        order.setOrderStatus(Order.OrderStatus.RETURNED);
 
         var details = new LinkedHashMap<String, Object>();
         details.put("orderCode", order.getOrderCode());
         details.put("orderStatus", order.getOrderStatus().name());
         details.put("paymentStatus", order.getPaymentStatus().name());
         details.put("returnReason", request.returnReason().strip());
+        details.put("from", Order.OrderStatus.DELIVERED.name());
+        details.put("to", Order.OrderStatus.RETURNED.name());
         details.put("inspectionNote", blank(request.inspectionNote()) ? null : request.inspectionNote().strip());
         record(staffId, "ORDER_RETURN_INSPECTION_CONFIRMED", orderId, details);
     }
@@ -180,9 +183,8 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
     public void confirmExternalRefund(Long orderId, RefundConfirmationRequest request, Long staffId) {
         User actor = requireStaff(staffId);
         if (isManager(actor)) throw new AppException(ErrorCode.UNAUTHORIZED);
-        if (request == null || !validator.validate(request).isEmpty()
-                || (blank(request.reference()) && blank(request.supportingInfo())))
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Nhập đủ số tiền, phương thức, ngày hoàn, mã giao dịch hoặc thông tin chứng minh và xác nhận đã hoàn tiền.");
+        if (request == null || !validator.validate(request).isEmpty())
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Nhập đủ số tiền, phương thức, ngày hoàn, thông tin chứng minh và xác nhận đã hoàn tiền.");
         if (orderId == null) throw new AppException(ErrorCode.ORDER_NOT_FOUND);
         Order order = orders.findByIdWithLock(orderId).orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
@@ -196,7 +198,6 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         details.put("amount", request.amount());
         details.put("method", request.method().strip());
         details.put("completedDate", request.completedDate().toString());
-        details.put("reference", blank(request.reference()) ? null : request.reference().strip());
         details.put("supportingInfo", blank(request.supportingInfo()) ? null : request.supportingInfo().strip());
         details.put("paymentFrom", Order.PaymentStatus.PAID.name());
         details.put("paymentTo", Order.PaymentStatus.REFUNDED.name());
@@ -217,7 +218,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         return order.getPaymentStatus() == Order.PaymentStatus.PAID
                 && order.getFinalTotalAmount() != null && order.getFinalTotalAmount().signum() > 0
                 && (order.getOrderStatus() == Order.OrderStatus.CANCELLED
-                    || ((order.getOrderStatus() == Order.OrderStatus.SHIPPING || order.getOrderStatus() == Order.OrderStatus.DELIVERED)
+                    || (order.getOrderStatus() == Order.OrderStatus.RETURNED
                         && order.getStockRestoreReason() == Order.StockRestoreReason.RETURNED
                         && order.getStockRestoredAt() != null && order.getStockRestoredBy() != null));
     }
@@ -235,8 +236,9 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
                 var data = json.readTree(entry.getDetailsJson() == null ? "{}" : entry.getDetailsJson());
                 if (entry.getAction().equals("ORDER_REFUND_CONFIRMED")) {
                     description = "Hoàn tiền: " + data.path("amount").asText() + " đ; " + data.path("method").asText()
-                            + "; ngày " + data.path("completedDate").asText() + "; mã: " + data.path("reference").asText("")
+                            + "; ngày " + data.path("completedDate").asText()
                             + "; chứng minh: " + data.path("supportingInfo").asText("");
+                    if (data.hasNonNull("reference")) description += "; mã: " + data.path("reference").asText();
                 } else if (entry.getAction().equals("ORDER_STATUS_CHANGED")) {
                     description = data.path("from").asText() + " → " + data.path("to").asText()
                             + "; thanh toán: " + data.path("paymentFrom").asText() + " → " + data.path("paymentTo").asText();

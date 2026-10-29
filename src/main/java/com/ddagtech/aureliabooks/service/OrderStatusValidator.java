@@ -15,7 +15,7 @@ public class OrderStatusValidator {
             case PENDING_CONFIRMATION -> List.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
             case CONFIRMED -> List.of(OrderStatus.SHIPPING, OrderStatus.CANCELLED);
             case SHIPPING -> List.of(OrderStatus.DELIVERED);
-            case DELIVERED, CANCELLED -> List.of();
+            case DELIVERED, CANCELLED, RETURNED -> List.of();
         };
     }
 

@@ -24,6 +24,7 @@ public record OrderConfirmationView(
             case CONFIRMED -> "Đã xác nhận";
             case SHIPPING -> "Đang giao hàng";
             case DELIVERED -> "Giao thành công";
+            case RETURNED -> "Đã trả hàng";
             case CANCELLED -> "Đã hủy";
         };
     }

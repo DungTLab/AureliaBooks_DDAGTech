@@ -38,6 +38,8 @@ public class OrderMapper {
             steps.add(new OrderTimelineStep("Giao thành công", order.getDeliveredAt(), status == Order.OrderStatus.DELIVERED));
         if (status == Order.OrderStatus.CANCELLED)
             steps.add(new OrderTimelineStep("Đã hủy", order.getCancelledAt(), true));
+        if (status == Order.OrderStatus.RETURNED)
+            steps.add(new OrderTimelineStep("Đã trả hàng", order.getStockRestoredAt(), true));
         return List.copyOf(steps);
     }
 

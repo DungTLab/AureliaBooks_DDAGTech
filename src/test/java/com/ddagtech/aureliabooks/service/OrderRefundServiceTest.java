@@ -54,7 +54,7 @@ class OrderRefundServiceTest {
     }
     void found() { when(orders.findByIdWithLock(12L)).thenReturn(Optional.of(order)); }
     RefundConfirmationRequest refund() { return new RefundConfirmationRequest(new BigDecimal("100000"),
-            "Chuyển khoản", LocalDate.now(), "BANK-REF-1", "Biên nhận hoàn tiền", true); }
+            "Chuyển khoản", LocalDate.now(), "Biên nhận hoàn tiền", true); }
 
     @Test void fullRefundRecordsEvidenceWithoutChangingOrderOrStock() {
         found();
@@ -64,26 +64,27 @@ class OrderRefundServiceTest {
         assertThat(order.getStockRestoredAt()).isNull();
         verifyNoInteractions(stock);
         verify(audit).recordRequired(eq(7L), eq("ORDER_REFUND_CONFIRMED"), eq("orders"), eq(12L),
-                argThat(payload -> payload.contains("BANK-REF-1") && payload.contains("100000") && payload.contains("completedDate")), isNull());
+                argThat(payload -> payload.contains("Biên nhận hoàn tiền") && payload.contains("100000") && payload.contains("completedDate")), isNull());
     }
 
     @Test void receivedReturnIsARefundBasisWithoutAnotherRestock() {
-        found(); order.setOrderStatus(Order.OrderStatus.DELIVERED);
+        found(); order.setOrderStatus(Order.OrderStatus.RETURNED);
         order.setStockRestoreReason(Order.StockRestoreReason.RETURNED);
         order.setStockRestoredAt(LocalDateTime.now()); order.setStockRestoredBy(actor);
         service.confirmExternalRefund(12L, refund(), 7L);
-        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.DELIVERED);
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.RETURNED);
         assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.REFUNDED);
         verifyNoInteractions(stock);
     }
 
-    @Test void returnedShippingOrderIsARefundBasisWithoutAnotherRestock() {
+    @Test void shippingOrderCannotRefundEvenWithLegacyReturnMarkers() {
         found(); order.setOrderStatus(Order.OrderStatus.SHIPPING);
         order.setStockRestoreReason(Order.StockRestoreReason.RETURNED);
         order.setStockRestoredAt(LocalDateTime.now()); order.setStockRestoredBy(actor);
-        service.confirmExternalRefund(12L, refund(), 7L);
+        assertThatThrownBy(() -> service.confirmExternalRefund(12L, refund(), 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_REFUND);
         assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.SHIPPING);
-        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.REFUNDED);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
         verifyNoInteractions(stock);
     }
 
@@ -118,11 +119,11 @@ class OrderRefundServiceTest {
 
     static Stream<RefundConfirmationRequest> invalidRefunds() {
         return Stream.of(
-                new RefundConfirmationRequest(BigDecimal.ZERO, "Bank", LocalDate.now(), "REF", null, true),
-                new RefundConfirmationRequest(new BigDecimal("100000"), " ", LocalDate.now(), "REF", null, true),
-                new RefundConfirmationRequest(new BigDecimal("100000"), "Bank", LocalDate.now().plusDays(1), "REF", null, true),
-                new RefundConfirmationRequest(new BigDecimal("100000"), "Bank", LocalDate.now(), " ", " ", true),
-                new RefundConfirmationRequest(new BigDecimal("100000"), "Bank", LocalDate.now(), "REF", null, false));
+                new RefundConfirmationRequest(BigDecimal.ZERO, "Tiền mặt", LocalDate.now(), "Biên nhận hoàn tiền", true),
+                new RefundConfirmationRequest(new BigDecimal("100000"), " ", LocalDate.now(), "Biên nhận hoàn tiền", true),
+                new RefundConfirmationRequest(new BigDecimal("100000"), "Tiền mặt", LocalDate.now().plusDays(1), "Biên nhận hoàn tiền", true),
+                new RefundConfirmationRequest(new BigDecimal("100000"), "Tiền mặt", LocalDate.now(), " ", true),
+                new RefundConfirmationRequest(new BigDecimal("100000"), "Tiền mặt", LocalDate.now(), "Biên nhận hoàn tiền", false));
     }
 
     @ParameterizedTest @MethodSource("invalidRefunds")
@@ -134,7 +135,7 @@ class OrderRefundServiceTest {
 
     @ParameterizedTest @ValueSource(strings={"99999", "100001"})
     void partialOrExcessRefundIsRejected(String amount) {
-        found(); var request = new RefundConfirmationRequest(new BigDecimal(amount), "Bank", LocalDate.now(), "REF", null, true);
+        found(); var request = new RefundConfirmationRequest(new BigDecimal(amount), "Tiền mặt", LocalDate.now(), "Biên nhận hoàn tiền", true);
         assertThatThrownBy(() -> service.confirmExternalRefund(12L, request, 7L)).isInstanceOf(AppException.class);
         assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
         verifyNoInteractions(stock, audit);
