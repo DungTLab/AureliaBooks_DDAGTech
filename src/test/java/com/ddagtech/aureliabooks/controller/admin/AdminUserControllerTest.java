@@ -228,6 +228,57 @@ class AdminUserControllerTest {
     }
 
     @Test
+    @DisplayName("POST /admin/users/{id}/reset-password when target is self redirects with error message")
+    void testResetPassword_SelfResetRejected_Error() throws Exception {
+        doThrow(new AppException(ErrorCode.CANNOT_RESET_SELF_PASSWORD))
+                .when(adminUserService).resetStaffPassword(eq(1L), eq(1L), any());
+
+        mockMvc.perform(post("/admin/users/1/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", ErrorCode.CANNOT_RESET_SELF_PASSWORD.getMessage()))
+                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(1L), any());
+    }
+
+    @Test
+    @DisplayName("GET /admin/users does not render reset password action for authenticated admin's own row")
+    void testList_DoesNotRenderResetPasswordForSelf() throws Exception {
+        UserSummary selfAdmin = new UserSummary(
+                1L,
+                "admin@aureliabook.vn",
+                "Administrator",
+                "0900000001",
+                1L,
+                "ROLE_ADMIN",
+                true,
+                LocalDateTime.now(),
+                true
+        );
+        UserSummary otherStaff = new UserSummary(
+                2L,
+                "staff@aureliabook.vn",
+                "Staff Member",
+                "0900000002",
+                3L,
+                "ROLE_SALE_STAFF",
+                true,
+                LocalDateTime.now(),
+                true
+        );
+        Page<UserSummary> page = new PageImpl<>(List.of(selfAdmin, otherStaff));
+        when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/admin/users/1/reset-password"))))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/admin/users/2/reset-password")));
+    }
+
+    @Test
     @DisplayName("POST /admin/users/{id}/reset-password when target is Customer redirects with error message")
     void testResetPassword_CustomerRejected_Error() throws Exception {
         doThrow(new AppException(ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD))

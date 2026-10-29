@@ -972,4 +972,18 @@ class AdminUserServiceTest {
         verify(mailSender).send(mailCaptor.capture());
         assertThat(mailCaptor.getValue().getFrom()).isEqualTo(customFrom);
     }
+
+    @Test
+    @DisplayName("resetStaffPassword() should reject self-reset attempt by administrator")
+    void testResetStaffPassword_ThrowsWhenSelfReset() {
+        Long adminId = 1L;
+
+        assertThatThrownBy(() -> adminUserService.resetStaffPassword(adminId, adminId, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_RESET_SELF_PASSWORD);
+
+        verify(userRepository, never()).save(any());
+        verify(mailSender, never()).send(any(org.springframework.mail.SimpleMailMessage.class));
+        verify(sessionRegistry, never()).getAllPrincipals();
+    }
 }

@@ -361,6 +361,9 @@ public class AdminUserServiceImpl implements AdminUserService {
         if (targetUserId == null) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
+        if (adminId != null && adminId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.CANNOT_RESET_SELF_PASSWORD);
+        }
 
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));

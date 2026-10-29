@@ -258,8 +258,8 @@
                                     </button>
                                 </form>
 
-                                <!-- Case 3: Emergency Password Reset for Internal Staff only (never CUSTOMER) -->
-                                <form th:if="${user.passwordResetAllowed}"
+                                <!-- Case 3: Emergency Password Reset for Internal Staff only (never CUSTOMER and never self) -->
+                                <form th:if="${user.passwordResetAllowed and #authentication.principal.id != user.id}"
                                       method="post"
                                       th:action="@{/admin/users/{id}/reset-password(id=${user.id})}"
                                       class="inline-block">
