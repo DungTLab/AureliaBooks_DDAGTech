@@ -104,6 +104,9 @@
             const active = fields.filter((field) => !field.matches(":disabled"));
             submit.disabled =
                 submitting ||
+                form.dataset.inFlight === "true" ||
+                form.dataset.submitting === "true" ||
+                form.getAttribute("aria-busy") === "true" ||
                 form.dataset.expired === "true" ||
                 active.length === 0 ||
                 active.some((field) => !field.validity.valid || (field.required && !field.value.trim()));
@@ -112,6 +115,9 @@
         form.addEventListener("input", update);
         form.addEventListener("change", update);
         form.addEventListener("submit", (event) => {
+            if (event.defaultPrevented || form.hasAttribute("data-ajax-submit") || form.closest("#internal-password-modal")) {
+                return;
+            }
             update();
             if (submit.disabled) {
                 event.preventDefault();
@@ -121,8 +127,17 @@
             form.setAttribute("aria-busy", "true");
             update();
         });
+        form.addEventListener("submit-complete", () => {
+            submitting = false;
+            delete form.dataset.inFlight;
+            delete form.dataset.submitting;
+            form.removeAttribute("aria-busy");
+            update();
+        });
         window.addEventListener("pageshow", () => {
             submitting = false;
+            delete form.dataset.inFlight;
+            delete form.dataset.submitting;
             form.removeAttribute("aria-busy");
             update();
         });

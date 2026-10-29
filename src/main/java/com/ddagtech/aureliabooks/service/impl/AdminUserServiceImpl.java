@@ -32,6 +32,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
+import java.security.SecureRandom;
+import com.ddagtech.aureliabooks.security.LoginAttemptService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
 /**
  * Production implementation of {@link AdminUserService} managing internal accounts and RBAC (UC28).
@@ -40,7 +47,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
+
 public class AdminUserServiceImpl implements AdminUserService {
 
     private static final Set<String> ALLOWED_INTERNAL_ROLES = Set.of(
@@ -57,6 +64,60 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final ObjectMapper objectMapper;
     private final ReentrantLock adminMutationLock = new ReentrantLock();
     private final AdminUserMapper adminUserMapper;
+    private final LoginAttemptService loginAttemptService;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final String mailFrom;
+
+    @Autowired
+    public AdminUserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            SessionRegistry sessionRegistry,
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper,
+            AdminUserMapper adminUserMapper,
+            LoginAttemptService loginAttemptService,
+            ObjectProvider<JavaMailSender> mailSenderProvider,
+            @Value("${app.contact-verification.mail-from:no-reply@aureliabook.local}") String mailFrom
+    ) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.sessionRegistry = sessionRegistry;
+        this.auditLogService = auditLogService;
+        this.objectMapper = objectMapper;
+        this.adminUserMapper = adminUserMapper;
+        this.loginAttemptService = loginAttemptService;
+        this.mailSenderProvider = mailSenderProvider;
+        this.mailFrom = (mailFrom != null && !mailFrom.isBlank()) ? mailFrom : "no-reply@aureliabook.local";
+    }
+
+    public AdminUserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            SessionRegistry sessionRegistry,
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper,
+            AdminUserMapper adminUserMapper,
+            LoginAttemptService loginAttemptService,
+            ObjectProvider<JavaMailSender> mailSenderProvider
+    ) {
+        this(userRepository, roleRepository, passwordEncoder, sessionRegistry, auditLogService, objectMapper, adminUserMapper, loginAttemptService, mailSenderProvider, "no-reply@aureliabook.local");
+    }
+
+    public AdminUserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            SessionRegistry sessionRegistry,
+            AuditLogService auditLogService,
+            ObjectMapper objectMapper,
+            AdminUserMapper adminUserMapper
+    ) {
+        this(userRepository, roleRepository, passwordEncoder, sessionRegistry, auditLogService, objectMapper, adminUserMapper, null, null, "no-reply@aureliabook.local");
+    }
 
 
     @Override
@@ -110,10 +171,6 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.USER_EXISTED, "Số điện thoại đã được sử dụng trong hệ thống");
         }
 
-        if (request.password() != null && request.password().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mật khẩu không được vượt quá 72 byte theo chuẩn mã hóa BCrypt");
-        }
-
         Role assignedRole = roleRepository.findById(request.roleId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy vai trò đã chọn"));
 
@@ -121,13 +178,19 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.INVALID_ROLE_ASSIGNMENT);
         }
 
+        // Generate cryptographically strong initial password for new staff
+        String initialPassword = generateTemporaryPassword();
+
         User user = adminUserMapper.toInternalStaffEntity(
                 request,
-                passwordEncoder.encode(request.password()),
+                passwordEncoder.encode(initialPassword),
                 assignedRole
         );
 
         User savedUser = userRepository.save(user);
+
+        // Send initial credentials directly to staff email
+        sendInitialPasswordEmail(savedUser, initialPassword);
 
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "USER_CREATE");
@@ -282,6 +345,140 @@ public class AdminUserServiceImpl implements AdminUserService {
                 adminId, userId, newRole.getRoleName(), ipAddress);
     }
 
+    /**
+     * Resets the password of an internal back-office staff account in an emergency (UC28).
+     * Enforces customer isolation guard: rejects any attempt to reset customer passwords.
+     * Generates a secure random temporary password, hashes it, emails it to staff,
+     * unlocks brute-force cooldown, invalidates existing sessions, and writes a clean audit log.
+     *
+     * @param adminId authenticated administrator performing the reset
+     * @param targetUserId staff user whose password should be reset
+     * @param ipAddress originating client IP
+     */
+    @Override
+    @Transactional
+    public void resetStaffPassword(Long adminId, Long targetUserId, String ipAddress) {
+        if (targetUserId == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        }
+        if (adminId != null && adminId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.CANNOT_RESET_SELF_PASSWORD);
+        }
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        Role targetRole = targetUser.getRole();
+        if (targetRole == null || "ROLE_CUSTOMER".equalsIgnoreCase(targetRole.getRoleName())
+                || !ALLOWED_INTERNAL_ROLES.contains(targetRole.getRoleName())) {
+            throw new AppException(ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD);
+        }
+
+        String tempPassword = generateTemporaryPassword();
+        targetUser.setPasswordHash(passwordEncoder.encode(tempPassword));
+        userRepository.save(targetUser);
+
+        // 1. Send temporary password directly to staff email before revoking sessions or clearing attempts
+        JavaMailSender sender = mailSenderProvider != null ? mailSenderProvider.getIfAvailable() : null;
+        if (sender == null || targetUser.getEmail() == null || targetUser.getEmail().isBlank()) {
+            log.error("Mail dispatch unavailable for staff password reset [{}]", targetUser.getEmail());
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(mailFrom);
+            message.setTo(targetUser.getEmail());
+            message.setSubject(OtpMailContent.STAFF_PASSWORD_RESET_SUBJECT);
+            message.setText(OtpMailContent.staffPasswordResetBody(targetUser.getFullName(), tempPassword));
+            sender.send(message);
+        } catch (Exception ex) {
+            log.error("Failed to send temporary password email to staff [{}]", targetUser.getEmail(), ex);
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+        }
+
+        // 2. Clear brute-force cooldown if locked
+        if (loginAttemptService != null) {
+            loginAttemptService.resetAttempts(targetUserId);
+        }
+
+        // 3. Expire existing sessions
+        expireUserSessions(targetUserId);
+
+        // 4. Record audit entry (clean - no password or hash)
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("action", "RESET_STAFF_PASSWORD");
+        details.put("actor_id", adminId);
+        details.put("target_user_id", targetUserId);
+        details.put("target_email", targetUser.getEmail());
+        details.put("target_role", targetRole.getRoleName());
+
+        auditLogService.record(
+                adminId,
+                "RESET_STAFF_PASSWORD",
+                "users",
+                targetUserId,
+                toJson(details),
+                ipAddress
+        );
+
+        log.info("Admin [{}] reset temporary password for staff [{}] ({}) from IP [{}]",
+                adminId, targetUserId, targetUser.getEmail(), ipAddress);
+    }
+
+    /**
+     * Generates a cryptographically strong random temporary password meeting system policy:
+     * 12 chars containing uppercase, lowercase, digits, and special characters, <= 72 bytes.
+     */
+    private String generateTemporaryPassword() {
+        String upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        String lower = "abcdefghjkmnpqrstuvwxyz";
+        String digits = "23456789";
+        String special = "@#$%&*!";
+        SecureRandom rng = new SecureRandom();
+        StringBuilder sb = new StringBuilder();
+        sb.append(upper.charAt(rng.nextInt(upper.length())));
+        sb.append(lower.charAt(rng.nextInt(lower.length())));
+        sb.append(digits.charAt(rng.nextInt(digits.length())));
+        sb.append(special.charAt(rng.nextInt(special.length())));
+        String all = upper + lower + digits + special;
+        for (int i = 0; i < 8; i++) {
+            sb.append(all.charAt(rng.nextInt(all.length())));
+        }
+        char[] chars = sb.toString().toCharArray();
+        for (int i = chars.length - 1; i > 0; i--) {
+            int j = rng.nextInt(i + 1);
+            char temp = chars[i];
+            chars[i] = chars[j];
+            chars[j] = temp;
+        }
+        return new String(chars);
+    }
+
+    /**
+     * Sends initial credentials with auto-generated temporary password directly to staff email.
+     * Fails gracefully with warning logging if mail dispatch fails.
+     *
+     * @param user newly provisioned staff entity
+     * @param initialPassword cryptographically generated plaintext password
+     */
+    private void sendInitialPasswordEmail(User user, String initialPassword) {
+        JavaMailSender sender = mailSenderProvider != null ? mailSenderProvider.getIfAvailable() : null;
+        if (sender == null || user.getEmail() == null || user.getEmail().isBlank()) {
+            log.error("Mail dispatch unavailable for staff initial password [{}]", user.getEmail());
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+        }
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(mailFrom);
+            message.setTo(user.getEmail());
+            message.setSubject(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
+            message.setText(OtpMailContent.staffAccountCreatedBody(user.getFullName(), initialPassword));
+            sender.send(message);
+        } catch (Exception ex) {
+            log.error("Failed to send initial password email to staff [{}]", user.getEmail(), ex);
+            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+        }
+    }
     /**
      * Serializes any payload object into a JSON string for audit storage.
      *

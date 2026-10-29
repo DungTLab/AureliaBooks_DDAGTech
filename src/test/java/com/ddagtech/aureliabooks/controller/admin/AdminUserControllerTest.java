@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -135,7 +136,6 @@ class AdminUserControllerTest {
                         .with(user(adminUserDetails))
                         .param("fullName", "Nguyen Van B")
                         .param("email", "staff_b@aureliabook.vn")
-                        .param("password", "SecureP@ss123")
                         .param("phone", "0987654321")
                         .param("roleId", "3"))
                 .andExpect(status().is3xxRedirection())
@@ -153,7 +153,6 @@ class AdminUserControllerTest {
                         .with(user(adminUserDetails))
                         .param("fullName", "")
                         .param("email", "not-an-email")
-                        .param("password", "weak")
                         .param("phone", "123")
                         .param("roleId", "3"))
                 .andExpect(status().is3xxRedirection())
@@ -176,7 +175,6 @@ class AdminUserControllerTest {
                         .with(user(adminUserDetails))
                         .param("fullName", "Nguyen Van B")
                         .param("email", "existing@aureliabook.vn")
-                        .param("password", "SecureP@ss123")
                         .param("phone", "0987654321")
                         .param("roleId", "3"))
                 .andExpect(status().is3xxRedirection())
@@ -214,5 +212,133 @@ class AdminUserControllerTest {
                 .andExpect(flash().attribute("successMessage", "Cập nhật vai trò thành công!"));
 
         verify(adminUserService).changeRole(eq(1L), eq(10L), eq(2L), any());
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/reset-password invokes service and redirects with success message")
+    void testResetPassword_Success() throws Exception {
+        mockMvc.perform(post("/admin/users/10/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("successMessage", org.hamcrest.Matchers.containsString("Cấp lại mật khẩu tạm thời thành công")));
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/reset-password when target is self redirects with error message")
+    void testResetPassword_SelfResetRejected_Error() throws Exception {
+        doThrow(new AppException(ErrorCode.CANNOT_RESET_SELF_PASSWORD))
+                .when(adminUserService).resetStaffPassword(eq(1L), eq(1L), any());
+
+        mockMvc.perform(post("/admin/users/1/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", ErrorCode.CANNOT_RESET_SELF_PASSWORD.getMessage()))
+                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(1L), any());
+    }
+
+    @Test
+    @DisplayName("GET /admin/users does not render reset password action for authenticated admin's own row")
+    void testList_DoesNotRenderResetPasswordForSelf() throws Exception {
+        UserSummary selfAdmin = new UserSummary(
+                1L,
+                "admin@aureliabook.vn",
+                "Administrator",
+                "0900000001",
+                1L,
+                "ROLE_ADMIN",
+                true,
+                LocalDateTime.now(),
+                true
+        );
+        UserSummary otherStaff = new UserSummary(
+                2L,
+                "staff@aureliabook.vn",
+                "Staff Member",
+                "0900000002",
+                3L,
+                "ROLE_SALE_STAFF",
+                true,
+                LocalDateTime.now(),
+                true
+        );
+        Page<UserSummary> page = new PageImpl<>(List.of(selfAdmin, otherStaff));
+        when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/admin/users/1/reset-password"))))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/admin/users/2/reset-password")));
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/reset-password when target is Customer redirects with error message")
+    void testResetPassword_CustomerRejected_Error() throws Exception {
+        doThrow(new AppException(ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD))
+                .when(adminUserService).resetStaffPassword(eq(1L), eq(50L), any());
+
+        mockMvc.perform(post("/admin/users/50/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", org.hamcrest.Matchers.containsString("không được phép")));
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(50L), any());
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/reset-password when email delivery fails redirects with error message")
+    void testResetPassword_EmailDeliveryFailed_ShowsErrorMessage() throws Exception {
+        doThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED))
+                .when(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
+
+        mockMvc.perform(post("/admin/users/10/reset-password")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", ErrorCode.EMAIL_DELIVERY_FAILED.getMessage()))
+                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
+
+        verify(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/create when email delivery fails preserves form state and shows error message")
+    void testCreate_EmailDeliveryFailed_PreservesFormAndShowsError() throws Exception {
+        when(adminUserService.create(any(), any(), any())).thenThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED));
+
+        mockMvc.perform(post("/admin/users/create")
+                        .with(csrf())
+                        .with(user(adminUserDetails))
+                        .param("email", "staff@aureliabook.vn")
+                        .param("fullName", "Staff Name")
+                        .param("phone", "0912345678")
+                        .param("roleId", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attribute("errorMessage", ErrorCode.EMAIL_DELIVERY_FAILED.getMessage()))
+                .andExpect(flash().attribute("openCreateModal", true))
+                .andExpect(flash().attributeExists("newUserForm"))
+                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
+
+        verify(adminUserService).create(eq(1L), any(), any());
+    }
+
+    @Test
+    @DisplayName("GET /admin/users list view includes overflow-x-auto for responsive horizontal scrolling")
+    void testListView_ContainsOverflowXAuto() throws Exception {
+        when(adminUserService.list(any(), any(), any(), any())).thenReturn(Page.empty());
+        mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("overflow-x-auto")));
     }
 }

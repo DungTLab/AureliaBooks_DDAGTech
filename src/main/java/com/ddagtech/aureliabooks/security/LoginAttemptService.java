@@ -64,6 +64,37 @@ public class LoginAttemptService {
         }
     }
 
+        /**
+     * Resets failed login attempts and lifts any active temporary lock for the specified user.
+     * Called when password is recovered via verified OTP or administratively reset.
+     *
+     * @param userId persistent account id
+     */
+    public void resetAttempts(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        synchronized (lockFor(userId)) {
+            attempts.remove(userId);
+        }
+    }
+
+    /**
+     * Checks if the user is currently temporarily locked due to consecutive login failures.
+     *
+     * @param userId persistent account id
+     * @return true if temporary lock is active
+     */
+    public boolean isLocked(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        synchronized (lockFor(userId)) {
+            Attempts state = attempts.get(userId);
+            return state != null && state.lockedUntil != null && clock.instant().isBefore(state.lockedUntil);
+        }
+    }
+
     private Object lockFor(Long id) {
         return locks[Math.floorMod(id.hashCode(), locks.length)];
     }

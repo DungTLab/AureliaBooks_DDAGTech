@@ -48,6 +48,10 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
         this.emailDelivery = new ContactOtpDeliveryImpl(mail, from, "", "", "");
     }
 
+    public String inbox() {
+        return inbox;
+    }
+
     @Override
     public void send(String channel, String recipient, String code) {
         if ("EMAIL".equals(channel)) {
@@ -62,13 +66,8 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
         var message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(inbox);
-        message.setSubject("[SMS DEMO] " + OtpMailContent.SUBJECT);
-        message.setText(
-            OtpMailContent.body(code) +
-                "\nThông tin bản demo: yêu cầu cho số ******" +
-                recipient.substring(6) +
-                ". Không xác minh quyền sở hữu SĐT thật.\n"
-        );
+        message.setSubject(OtpMailContent.SMS_DEMO_SUBJECT);
+        message.setText(OtpMailContent.smsDemoBody(code, recipient));
         sender.send(message);
     }
 }

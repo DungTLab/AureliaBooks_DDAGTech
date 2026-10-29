@@ -14,6 +14,10 @@
                     class="font-serif text-2xl font-bold"
                     th:text="${verification.kind == 'REGISTER' ? 'Xác minh SĐT đăng ký' : 'Khôi phục mật khẩu'}"
                 ></h1>
+                <div th:if="${smsDemoEnabled}" class="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl p-3 flex items-start gap-2">
+                    <i class="bi bi-info-circle-fill mt-0.5 text-amber-600 flex-shrink-0" aria-hidden="true"></i>
+                    <span><strong>Chế độ Demo SMS:</strong> <span th:text="${smsDemoBannerMessage}">Do không kết nối cổng viễn thông SMS thực tế, mã OTP gửi tới Số điện thoại sẽ được hệ thống chuyển tiếp giả lập về hộp thư Email demo (nhãn [SMS DEMO]).</span></span>
+                </div>
                 <p
                     th:if="${verificationMessage != null}"
                     th:text="${verificationMessage}"
@@ -133,7 +137,10 @@
                         Đặt mật khẩu mới
                     </button>
                 </form>
-                <a th:href="@{/auth/login}" class="text-sm underline">Quay về đăng nhập</a>
+                <div class="flex items-center justify-between text-sm pt-2">
+                    <a th:href="@{/auth/login}" class="underline">Quay về đăng nhập</a>
+                    <a th:href="@{/internal/login}" class="text-carbon_black-600 hover:text-blazing_flame hover:underline">Dành cho nhân sự</a>
+                </div>
             </div>
             <script th:src="@{/js/profile-forms.js}" defer></script>
         </section>

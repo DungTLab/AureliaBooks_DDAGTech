@@ -16,11 +16,64 @@
         <aside th:if="${internalWorkspace == true}" class="workspace-sidebar"><div th:replace="~{fragments/internal-navigation :: navigation}"></div></aside>
         <main id="workspace-main" class="workspace-main" tabindex="-1"><th:block th:replace="${content}"></th:block></main>
     </div>
+    <div sec:authorize="isAuthenticated()" id="internal-password-modal" th:classappend="${openPasswordModal == true} ? '' : 'hidden'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200" th:attr="aria-hidden=${openPasswordModal == true ? 'false' : 'true'}" role="dialog" aria-labelledby="internal-password-modal-title">
+        <div class="bg-white border border-dust_grey rounded-2xl p-6 w-full max-w-md shadow-2xl relative text-left">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-dust_grey">
+                <h2 id="internal-password-modal-title" class="font-serif text-xl font-bold">Đổi mật khẩu nội bộ</h2>
+                <button type="button" class="text-gray-400 hover:text-gray-600 text-2xl font-bold bg-transparent border-0 cursor-pointer" data-close-modal="internal-password-modal" aria-label="Đóng">&times;</button>
+            </div>
+            <div data-modal-error class="hidden text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 mb-4 font-medium flex items-center gap-2">
+                <i class="bi bi-exclamation-circle-fill text-red-600 flex-shrink-0" aria-hidden="true"></i>
+                <span data-modal-error-text></span>
+            </div>
+            <div th:if="${internalPasswordError != null}" class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl p-3 mb-4 font-medium flex items-center gap-2">
+                <i class="bi bi-exclamation-circle-fill text-red-600 flex-shrink-0" aria-hidden="true"></i>
+                <span th:text="${internalPasswordError}"></span>
+            </div>
+            <form th:action="@{/internal/account/change-password}" method="post" data-valid-form data-ajax-submit data-password-change class="space-y-4">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <div>
+                    <label for="internalCurrentPassword" class="block text-sm font-semibold mb-1">Mật khẩu hiện tại</label>
+                    <div class="relative" data-password-field>
+                        <input id="internalCurrentPassword" name="currentPassword" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl p-3 pr-12 text-sm" />
+                        <button type="button" data-password-toggle aria-controls="internalCurrentPassword" aria-label="Hiện mật khẩu hiện tại" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-transparent border-0 text-gray-500 cursor-pointer">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label for="internalNewPassword" class="block text-sm font-semibold mb-1">Mật khẩu mới</label>
+                    <p class="text-xs text-gray-500 mb-1">Từ 8 ký tự, có chữ hoa, số và ký tự đặc biệt.</p>
+                    <div class="relative" data-password-field>
+                        <input id="internalNewPassword" name="newPassword" type="password" required minlength="8" autocomplete="new-password" class="w-full border border-dust_grey rounded-xl p-3 pr-12 text-sm" />
+                        <button type="button" data-password-toggle aria-controls="internalNewPassword" aria-label="Hiện mật khẩu mới" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-transparent border-0 text-gray-500 cursor-pointer">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label for="internalConfirmation" class="block text-sm font-semibold mb-1">Xác nhận mật khẩu mới</label>
+                    <div class="relative" data-password-field>
+                        <input id="internalConfirmation" name="confirmPassword" type="password" required autocomplete="new-password" class="w-full border border-dust_grey rounded-xl p-3 pr-12 text-sm" />
+                        <button type="button" data-password-toggle aria-controls="internalConfirmation" aria-label="Hiện xác nhận mật khẩu" class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-transparent border-0 text-gray-500 cursor-pointer">
+                            <i class="bi bi-eye" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+                <p data-form-feedback aria-live="polite" class="text-xs text-gray-500 mt-2"></p>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" class="px-4 py-2 border border-dust_grey rounded-xl text-sm cursor-pointer bg-white hover:bg-gray-50" data-close-modal="internal-password-modal">Hủy</button>
+                    <button type="submit" disabled class="px-4 py-2 bg-blazing_flame text-white rounded-xl text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <footer class="workspace-footer">AureliaBook · Hệ thống quản lý nội bộ</footer>
     <link rel="stylesheet" th:href="@{/css/form-validation.css}">
     <link rel="stylesheet" th:href="@{/css/interaction.css}">
     <script th:src="@{/js/password-visibility.js}" defer></script>
     <script th:src="@{/js/form-validation.js}" defer></script>
+    <script th:src="@{/js/profile-forms.js}" defer></script>
     <script th:src="@{/js/interaction.js}" defer></script>
     <script th:src="@{/js/workspace.js}" defer></script>
 </body>

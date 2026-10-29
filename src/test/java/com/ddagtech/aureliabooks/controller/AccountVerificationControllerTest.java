@@ -127,6 +127,48 @@ class AccountVerificationControllerTest {
             .andExpect(flash().attribute("verificationMessage", "Vui lòng xác minh mã trước"));
     }
 
+        @Test
+    void resetInternalStaffRedirectsToInternalLogin() throws Exception {
+        var s = new MockHttpSession();
+        s.setAttribute("ACCOUNT_OTP_FLOW", "flow");
+        com.ddagtech.aureliabooks.entity.Role staffRole = com.ddagtech.aureliabooks.entity.Role.builder().roleName("ROLE_SALE_STAFF").build();
+        com.ddagtech.aureliabooks.entity.User staff = com.ddagtech.aureliabooks.entity.User.builder().id(99L).role(staffRole).build();
+        when(otp.reset(eq("flow"), anyString(), eq("NewPass1!"), eq("NewPass1!"), anyString()))
+            .thenReturn(staff);
+
+        mvc.perform(
+            post("/auth/verification/reset")
+                .session(s)
+                .with(csrf())
+                .param("password", "NewPass1!")
+                .param("confirmation", "NewPass1!")
+        )
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/internal/login?reset"))
+            .andExpect(flash().attribute("successMessage", containsString("hệ thống quản lý")));
+    }
+
+    @Test
+    void resetCustomerRedirectsToStorefrontLogin() throws Exception {
+        var s = new MockHttpSession();
+        s.setAttribute("ACCOUNT_OTP_FLOW", "flow");
+        com.ddagtech.aureliabooks.entity.Role custRole = com.ddagtech.aureliabooks.entity.Role.builder().roleName("ROLE_CUSTOMER").build();
+        com.ddagtech.aureliabooks.entity.User cust = com.ddagtech.aureliabooks.entity.User.builder().id(12L).role(custRole).build();
+        when(otp.reset(eq("flow"), anyString(), eq("NewPass1!"), eq("NewPass1!"), anyString()))
+            .thenReturn(cust);
+
+        mvc.perform(
+            post("/auth/verification/reset")
+                .session(s)
+                .with(csrf())
+                .param("password", "NewPass1!")
+                .param("confirmation", "NewPass1!")
+        )
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/auth/login"))
+            .andExpect(flash().attribute("successMessage", "Đã đặt mật khẩu mới. Vui lòng đăng nhập."));
+    }
+
     @Test
     void countdownAndResetFormsExposeClientValidationHooks() throws Exception {
         var session = new MockHttpSession();
