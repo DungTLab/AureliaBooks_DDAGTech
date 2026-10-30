@@ -95,6 +95,22 @@ class OrderRefundServiceTest {
         verifyNoInteractions(stock, audit);
     }
 
+    @Test void returnedRefundCanBeRecordedOnlyOnceWithoutRestockingAgain() {
+        found();
+        order.setOrderStatus(Order.OrderStatus.RETURNED);
+        order.setStockRestoreReason(Order.StockRestoreReason.RETURNED);
+        order.setStockRestoredAt(LocalDateTime.now());
+        order.setStockRestoredBy(actor);
+
+        service.confirmExternalRefund(12L, refund(), 7L);
+        assertThatThrownBy(() -> service.confirmExternalRefund(12L, refund(), 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode")
+                .isEqualTo(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_REFUND);
+        verify(audit, times(1)).recordRequired(eq(7L), eq("ORDER_REFUND_CONFIRMED"), eq("orders"),
+                eq(12L), anyString(), isNull());
+        verifyNoInteractions(stock);
+    }
+
     @Test void zeroValueOrderHasNoRefundableAmount() {
         found(); order.setFinalTotalAmount(BigDecimal.ZERO);
         assertThatThrownBy(() -> service.confirmExternalRefund(12L, refund(), 7L))
