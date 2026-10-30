@@ -1,6 +1,5 @@
 package com.ddagtech.aureliabooks.dto.request;
 
-import com.ddagtech.aureliabooks.util.BusinessDate;
 import jakarta.validation.Validation;
 import java.math.BigDecimal;
 import java.time.*;
@@ -9,6 +8,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 
 class RefundBusinessDateValidationTest {
     static Stream<Arguments> midnightClocks() {
@@ -22,19 +23,21 @@ class RefundBusinessDateValidationTest {
     @ParameterizedTest
     @MethodSource("midnightClocks")
     void refundUsesTheFormBusinessDayRegardlessOfTheValidatorZone(Clock clock) {
-        try (var factory = Validation.byDefaultProvider().configure().clockProvider(() -> clock)
+        ZoneId vietnam = ZoneId.of("Asia/Ho_Chi_Minh");
+        try (var clocks = mockStatic(Clock.class, CALLS_REAL_METHODS);
+             var factory = Validation.byDefaultProvider().configure().clockProvider(() -> clock)
                 .buildValidatorFactory()) {
+            clocks.when(() -> Clock.system(vietnam)).thenReturn(clock.withZone(vietnam));
             var validator = factory.getValidator();
-            LocalDate formDay = BusinessDate.today(clock);
-            assertThat(formDay).isEqualTo(clock.instant().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate());
+            LocalDate formDay = clock.instant().atZone(vietnam).toLocalDate();
             assertThat(validator.validate(request(formDay))).isEmpty();
             assertThat(validator.validate(request(formDay.minusDays(1)))).isEmpty();
             assertThat(validator.validate(request(formDay.plusDays(1))))
-                    .extracting(v -> v.getPropertyPath().toString()).containsExactly("completedDate");
+                    .extracting(v -> v.getPropertyPath().toString()).containsExactly("completedDateValid");
             assertThat(validator.validate(request(null)))
                     .extracting(v -> v.getPropertyPath().toString()).containsExactly("completedDate");
 
-            // The refund constraint must not replace the ClockProvider of unrelated validators.
+            // The DTO's Vietnam-day check must not change unrelated validators' clock policy.
             LocalDate validatorDay = LocalDate.now(clock);
             assertThat(validator.validateValue(ProfileUpdateRequest.class, "dob", validatorDay)).isNotEmpty();
             assertThat(validator.validateValue(ProfileUpdateRequest.class, "dob", validatorDay.minusDays(1))).isEmpty();
