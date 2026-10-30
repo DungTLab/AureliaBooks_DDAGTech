@@ -154,27 +154,27 @@ class OrderStateMachineServiceTest {
         verifyNoInteractions(orders);
     }
 
-    @Test void confirmReturnRestockSucceedsForShippingOrderAndRetainsStatus() {
+    @Test void confirmReturnRestockRejectsShippingOrder() {
         staff(); found();
         order.setOrderStatus(OrderStatus.SHIPPING);
         order.setShippedAt(LocalDateTime.now().minusHours(2));
         order.setPaymentStatus(Order.PaymentStatus.PAID);
         var req = new ReturnConfirmationRequest(true, "Giao không thành công, hoàn kho", "Kiện hàng nguyên vẹn");
-        service.confirmReturnRestock(12L, req, 7L);
+        assertThatThrownBy(() -> service.confirmReturnRestock(12L, req, 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.INVALID_ORDER_STATE_TRANSITION);
         assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.SHIPPING);
         assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
-        verify(stock).restoreReturnedOrder(12L, 7L);
-        verify(audit).recordRequired(eq(7L), eq("ORDER_RETURN_INSPECTION_CONFIRMED"), eq("orders"), eq(12L), contains("Giao không thành công"), isNull());
+        verifyNoInteractions(stock, audit);
     }
 
-    @Test void confirmReturnRestockSucceedsForDeliveredOrderAndRetainsStatus() {
+    @Test void confirmReturnRestockChangesDeliveredToReturned() {
         staff(); found();
         order.setOrderStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(LocalDateTime.now().minusHours(2));
         order.setPaymentStatus(Order.PaymentStatus.PAID);
         var req = new ReturnConfirmationRequest(true, "Khách đổi ý trả toàn bộ đơn", "Sách mới 100%");
         service.confirmReturnRestock(12L, req, 7L);
-        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.DELIVERED);
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.RETURNED);
         assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
         verify(stock).restoreReturnedOrder(12L, 7L);
         verify(audit).recordRequired(eq(7L), eq("ORDER_RETURN_INSPECTION_CONFIRMED"), eq("orders"), eq(12L), contains("Khách đổi ý"), isNull());
@@ -208,7 +208,7 @@ class OrderStateMachineServiceTest {
 
     @Test void confirmReturnRestockRejectsAlreadyRestoredOrder() {
         staff(); found();
-        order.setOrderStatus(OrderStatus.SHIPPING);
+        order.setOrderStatus(OrderStatus.DELIVERED);
         order.setStockRestoredAt(LocalDateTime.now().minusHours(1));
         var req = new ReturnConfirmationRequest(true, "Lý do", "Ghi chú");
         assertThatThrownBy(() -> service.confirmReturnRestock(12L, req, 7L))

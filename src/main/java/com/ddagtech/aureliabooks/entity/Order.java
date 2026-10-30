@@ -203,7 +203,8 @@ public class Order extends BaseEntity {
         CONFIRMED,
         SHIPPING,
         DELIVERED,
-        CANCELLED
+        CANCELLED,
+        RETURNED
     }
 
     public enum PaymentMethod {

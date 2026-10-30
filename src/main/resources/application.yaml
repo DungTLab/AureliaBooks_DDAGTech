@@ -36,7 +36,7 @@ spring:
   # JPA & Hibernate Configuration
   jpa:
     hibernate:
-      ddl-auto: validate # schema.sql (21 tables) is authoritative; do not alter tables from scaffold
+      ddl-auto: update # schema.sql (21 tables) is authoritative; do not alter tables from scaffold
     show-sql: false
     properties:
       hibernate:
