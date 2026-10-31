@@ -85,6 +85,12 @@ public class CartServiceImpl implements CartService {
 
         validateProductAndQuantity(product, resultingQuantity);
 
+        // The owner lock serializes additions, so concurrent requests cannot both take the last cart slot.
+        if (item == null && cart != null
+                && cartItemRepository.countByCart_Id(cart.getId()) >= CartQuantityRequest.MAX_DISTINCT_PRODUCTS) {
+            throw new AppException(ErrorCode.CART_LINE_LIMIT_EXCEEDED);
+        }
+
         if (cart == null) {
             cart = new Cart();
             cart.setUser(user);
@@ -138,7 +144,7 @@ public class CartServiceImpl implements CartService {
                 || request.getQuantity() > CartQuantityRequest.MAX_QUANTITY) {
             throw new AppException(
                     ErrorCode.INVALID_INPUT_DATA,
-                    "Số lượng phải là số nguyên từ 1 đến 99"
+                    "Số lượng phải là số nguyên từ 1 đến 10"
             );
         }
 
@@ -151,7 +157,7 @@ public class CartServiceImpl implements CartService {
         }
 
         if (quantity < 1 || quantity > CartQuantityRequest.MAX_QUANTITY) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tổng số lượng sản phẩm phải từ 1 đến 99");
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Tổng số lượng sản phẩm phải từ 1 đến 10");
         }
 
         if (quantity > product.getStockQuantity()) {

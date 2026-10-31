@@ -299,12 +299,12 @@ public class CheckoutController {
             return "redirect:/auth/login";
         }
         if (code == ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
-        if (code == ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT) return "redirect:/profile/contact-change?type=PHONE";
         if (code == ErrorCode.CHECKOUT_CHANGED) {
             reviews.remove(request.getSession(false), request.getParameter("checkoutToken"));
         }
         if (
             code == ErrorCode.CART_EMPTY || code == ErrorCode.INSUFFICIENT_STOCK || code == ErrorCode.PRODUCT_NOT_FOUND
+                || code == ErrorCode.CART_LINE_LIMIT_EXCEEDED || code == ErrorCode.CART_ITEM_QUANTITY_EXCEEDED
         ) return "redirect:/cart";
         return "redirect:/checkout";
     }

@@ -3,7 +3,7 @@ const initializeCart = () => {
         const input = control.querySelector('input[name="quantity"]');
         const buttons = control.querySelectorAll('[data-quantity-step]');
         const minimum = Number(input.min || 1);
-        const maximum = Number(input.max || 99);
+        const maximum = Number(input.max || 10);
         const refresh = () => {
             const quantity = Number(input.value);
             buttons.forEach(button => {
