@@ -156,7 +156,7 @@ public class CartController {
         if (!errors.hasErrors()) return false;
         var error = errors.getAllErrors().getFirst();
         flash.addFlashAttribute("errorMessage", error.getCode() != null && error.getCode().startsWith("typeMismatch")
-                ? "Số lượng phải là số nguyên từ 1 đến 99." : error.getDefaultMessage());
+                ? "Số lượng phải là số nguyên từ 1 đến 10." : error.getDefaultMessage());
         return true;
     }
 }

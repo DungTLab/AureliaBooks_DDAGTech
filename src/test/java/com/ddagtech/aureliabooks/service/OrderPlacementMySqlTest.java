@@ -98,6 +98,7 @@ class OrderPlacementMySqlTest {
     private static boolean created;
 
     @Autowired OrderPlacementService service;
+    @Autowired CartService cartService;
     @Autowired OrderStateMachineService stateMachine;
     @Autowired StockMutationService stockMutations;
     @Autowired JdbcTemplate jdbc;
@@ -349,15 +350,62 @@ class OrderPlacementMySqlTest {
                 Integer.class, buyer.id())).isEqualTo(1);
     }
 
-    @Test void phoneRemovedAfterReviewBlocksPosting() {
+    @Test void phoneRemovedAfterReviewStillUsesDeliveryPhone() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(1));
         Attempt reviewed = attempt(buyer, Order.PaymentMethod.COD);
         jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", buyer.id());
-        assertFailure(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT, buyer, reviewed);
-        assertNoOrder(buyer);
-        assertThat(stock(productId)).isEqualTo(5);
-        assertThat(cartLines(buyer)).isEqualTo(1);
+        assertThat(service.placeOrder(buyer.id(), reviewed.request(), reviewed.confirmation()))
+                .isEqualTo(reviewed.request().getCheckoutToken());
+        assertThat(jdbc.queryForObject("SELECT shipping_phone FROM orders WHERE order_code=?",
+                String.class, reviewed.request().getCheckoutToken())).isEqualTo("0987654321");
+        assertThat(stock(productId)).isEqualTo(4);
+        assertThat(cartLines(buyer)).isZero();
+    }
+
+    @Test void concurrentCartAdditionsCannotExceed20Products() throws Exception {
+        var ids = new java.util.ArrayList<Long>();
+        for (int i = 0; i < 19; i++) ids.add(product(5, "10000"));
+        Buyer buyer = buyer(ids, java.util.Collections.nCopies(19, 1));
+        long first = product(5, "10000");
+        long second = product(5, "10000");
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var one = executor.submit(() -> addAfter(start, buyer.id(), first));
+            var two = executor.submit(() -> addAfter(start, buyer.id(), second));
+            start.countDown();
+            var results = List.of(one.get(25, TimeUnit.SECONDS), two.get(25, TimeUnit.SECONDS));
+            assertThat(results.stream().filter(Long.class::isInstance)).hasSize(1);
+            assertThat(results.stream().filter(AppException.class::isInstance)
+                    .map(AppException.class::cast).map(AppException::getErrorCode))
+                    .containsExactly(ErrorCode.CART_LINE_LIMIT_EXCEEDED);
+        }
+        assertThat(cartLines(buyer)).isEqualTo(20);
+        assertThat(stock(first)).isEqualTo(5);
+        assertThat(stock(second)).isEqualTo(5);
+    }
+
+    @Test void recommendationBatchRollsBackWhenItWouldExceed20Products() {
+        var ids = new java.util.ArrayList<Long>();
+        for (int i = 0; i < 19; i++) ids.add(product(5, "10000"));
+        Buyer buyer = buyer(ids, java.util.Collections.nCopies(19, 1));
+        long first = product(5, "10000");
+        long second = product(5, "10000");
+        assertThatThrownBy(() -> cartService.addRecommendations(buyer.id(), List.of(first, second)))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.CART_LINE_LIMIT_EXCEEDED);
+        assertThat(cartLines(buyer)).isEqualTo(19);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM cart_items WHERE cart_id=? AND product_id IN (?,?)",
+                Integer.class, buyer.cartId(), first, second)).isZero();
+    }
+
+    private Object addAfter(CountDownLatch start, long userId, long productId) throws InterruptedException {
+        start.await();
+        var quantity = new com.ddagtech.aureliabooks.dto.request.CartQuantityRequest();
+        quantity.setQuantity(1);
+        try {
+            cartService.addItem(userId, productId, quantity);
+            return productId;
+        } catch (AppException exception) { return exception; }
     }
 
     @Test void foreignAddressIsRejectedForVerifiedCustomer() {

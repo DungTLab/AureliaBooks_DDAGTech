@@ -18,7 +18,16 @@
         <section class="checkout-card"><h2>Thông tin nhận hàng</h2><strong th:text="${order.recipientName}"></strong><p th:text="${order.phone}"></p><p th:text="${order.fullAddress}"></p></section>
         <section class="checkout-card"><h2>Sản phẩm trong đơn</h2><div th:replace="~{checkout/fragments :: items(${order.items})}"></div></section>
     </div><aside class="checkout-main">
-        <section class="checkout-card"><h2>Thanh toán</h2><p th:text="${order.paymentMethod.name() == 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'VNPay'}"></p><p th:text="${order.paymentStatusLabel()}"></p><div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.discount}, ${order.shippingFee}, ${order.finalTotalAmount})}"></div><a th:href="@{/orders/{code}(code=${order.orderCode})}" class="checkout-back-link">Xem / in xác nhận đơn</a></section>
+        <section class="checkout-card"><h2>Thanh toán</h2><p th:text="${order.paymentMethod.name() == 'COD' ? 'Thanh toán khi nhận hàng (COD)' : 'VNPay'}"></p><p th:text="${order.paymentStatusLabel()}"></p><div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.discount}, ${order.shippingFee}, ${order.finalTotalAmount})}"></div>
+            <!-- Continue payment on the existing order; the payment service rechecks ownership, state and expiry. -->
+            <div th:if="${order.awaitingOnlinePayment()}">
+                <form th:if="${onlinePaymentAvailable}" th:action="@{/orders/{code}/pay(code=${order.orderCode})}" method="post">
+                    <button class="checkout-button" type="submit">Tiếp tục thanh toán VNPay</button>
+                </form>
+                <p th:unless="${onlinePaymentAvailable}" class="checkout-notice">Cổng thanh toán tạm thời chưa khả dụng. Vui lòng thử lại sau.</p>
+                <p class="checkout-help">Thanh toán trong vòng 15 phút kể từ khi tạo đơn. Tiếp tục thanh toán không gia hạn thời gian này.</p>
+            </div>
+            <a th:href="@{/orders/{code}(code=${order.orderCode})}" class="checkout-back-link">Xem / in xác nhận đơn</a></section>
         <section class="checkout-card"><h2>Hủy đơn hàng</h2><p class="checkout-help">Bạn có thể hủy đơn trước khi bàn giao vận chuyển.</p>
             <p th:if="${detail.cancellationNotice != null}" class="checkout-notice" th:text="${detail.cancellationNotice}"></p>
             <form th:if="${detail.canCancel}" th:action="@{/orders/my-orders/{code}/cancel(code=${order.orderCode})}" method="post">

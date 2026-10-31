@@ -111,19 +111,19 @@ class CartServiceImplTest {
     }
 
     @Test
-    void resultingQuantityCannotExceed99EvenWhenStockIsEnough() {
-        item.setQuantity(95);
+    void resultingQuantityCannotExceed10EvenWhenStockIsEnough() {
+        item.setQuantity(8);
         product.setStockQuantity(200);
         stubExistingItemForAddition();
 
-        // Số lượng gửi lên là 5 hợp lệ, nhưng tổng 100 không hợp lệ.
+        // The requested increment is valid, but the resulting quantity exceeds the per-product limit.
         AppException error = assertThrows(
                 AppException.class,
                 () -> service.addItem(1L, 100L, request(5))
         );
 
         assertEquals(ErrorCode.INVALID_INPUT_DATA, error.getErrorCode());
-        assertEquals(95, item.getQuantity());
+        assertEquals(8, item.getQuantity());
 
         verify(cartItemRepository, never()).save(any(CartItem.class));
     }
@@ -267,13 +267,14 @@ class CartServiceImplTest {
 
     @Test
     void replacementBeyondStockSavesMaximumAvailableQuantity() {
+        product.setStockQuantity(6);
         when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
         when(cartItemRepository.findByIdAndCart_User_Id(1000L, 1L)).thenReturn(Optional.of(item));
 
-        service.updateQuantity(1L, 1000L, request(25));
+        service.updateQuantity(1L, 1000L, request(10));
 
-        assertEquals(20, item.getQuantity());
-        assertEquals(20, product.getStockQuantity());
+        assertEquals(6, item.getQuantity());
+        assertEquals(6, product.getStockQuantity());
         verify(cartItemRepository).save(item);
         verify(cartRepository).save(cart);
         verifyNoInteractions(productRepository);
@@ -345,6 +346,42 @@ class CartServiceImplTest {
         assertEquals(5L, service.countItems(1L));
         verifyNoInteractions(cartRepository);
         verify(cartItemRepository, never()).findAllByCart_Id(any());
+    }
+
+    @Test
+    void twentiethProductCanBeAddedButTwentyFirstCannot() {
+        cart.getItems().clear();
+        when(userRepository.findForCartUpdate(1L)).thenReturn(Optional.of(customer));
+        when(productRepository.findById(100L)).thenReturn(Optional.of(product));
+        when(productRepository.findById(101L)).thenReturn(Optional.of(Product.builder().id(101L)
+                .title("Sách B").price(BigDecimal.ONE).stockQuantity(20).build()));
+        when(cartRepository.findByUser_Id(1L)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.countByCart_Id(10L)).thenReturn(19L, 20L);
+
+        service.addItem(1L, 100L, request(1));
+        AppException error = assertThrows(AppException.class, () -> service.addItem(1L, 101L, request(1)));
+
+        assertEquals(ErrorCode.CART_LINE_LIMIT_EXCEEDED, error.getErrorCode());
+        verify(cartItemRepository, times(1)).save(any());
+        assertEquals(20, product.getStockQuantity());
+    }
+
+    @Test
+    void existingProductCanReach10WithoutUsingAnotherCartSlot() {
+        item.setQuantity(9);
+        stubExistingItemForAddition();
+
+        service.addItem(1L, 100L, request(1));
+
+        assertEquals(10, item.getQuantity());
+        verify(cartItemRepository, never()).countByCart_Id(any());
+    }
+
+    @Test
+    void updatingQuantityTo11IsRejectedWithoutSaving() {
+        assertThrows(AppException.class, () -> service.updateQuantity(1L, 1000L, request(11)));
+        assertEquals(3, item.getQuantity());
+        verify(cartItemRepository, never()).save(any());
     }
 
     private CartQuantityRequest request(int quantity) {
