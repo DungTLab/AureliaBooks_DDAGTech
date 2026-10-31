@@ -2,9 +2,28 @@
 # docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d mysql-db
 services:
   mysql-db:
+    ports: !reset []
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in the deployment environment}
       MYSQL_USER: ${DB_USER:?Set DB_USER in the deployment environment}
       MYSQL_PASSWORD: ${DB_PASS:?Set DB_PASS in the deployment environment}
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+  app:
+    image: aureliabooks:arm64-test
+    restart: unless-stopped
+
+    environment:
+      DB_HOST: mysql-db
+      DB_PORT: "3306"
+      DB_NAME: aurelia_books_db
+      DB_USER: ${DB_USER:?Set DB_USER}
+      DB_PASS: ${DB_PASS:?Set DB_PASS}
+      PORT: "8080"
+
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+    ports:
+      - "127.0.0.1:8080:8080"
