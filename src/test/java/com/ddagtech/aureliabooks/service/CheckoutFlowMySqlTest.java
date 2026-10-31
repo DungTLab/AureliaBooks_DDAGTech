@@ -108,12 +108,14 @@ class CheckoutFlowMySqlTest {
     }
 
     @Test
-    void missingAccountPhoneRedirectsToVerificationWithoutCreatingAnOrder() throws Exception {
+    void missingAccountPhoneCanCheckoutWithDeliveryPhone() throws Exception {
         jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", owner);
         mvc.perform(get("/checkout").session(session).with(user(principal)))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/profile/contact-change?type=PHONE"));
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
+                .andExpect(status().isOk());
+        CheckoutConfirmation review = prepare();
+        place(review, "");
+        assertThat(jdbc.queryForObject("SELECT shipping_phone FROM orders WHERE order_code=?",
+                String.class, review.checkoutToken())).isEqualTo("0912345678");
     }
 
     /** Complete COD checkout with verified account contact and an independent delivery phone. */
@@ -311,12 +313,13 @@ class CheckoutFlowMySqlTest {
         assertThat(remaining(code)).isEqualTo(1);
         CheckoutConfirmation review = prepare(code);
         assertThat(review.reviewedCheckout().productDiscount()).isEqualByComparingTo("50000");
-        assertThat(review.reviewedCheckout().finalTotalAmount()).isEqualByComparingTo("500000");
+        assertThat(review.reviewedCheckout().shippingFee()).isZero();
+        assertThat(review.reviewedCheckout().finalTotalAmount()).isEqualByComparingTo("450000");
         place(review, code);
         Long id = jdbc.queryForObject("SELECT id FROM orders WHERE order_code=?", Long.class, review.checkoutToken());
         assertThat(
             jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE id=?", java.math.BigDecimal.class, id)
-        ).isEqualByComparingTo("500000");
+        ).isEqualByComparingTo("450000");
         assertThat(remaining(code)).isZero();
         place(review, code); // Replay has no session review, yet returns the same committed order.
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isEqualTo(
@@ -373,6 +376,35 @@ class CheckoutFlowMySqlTest {
                 review.checkoutToken()
             )
         ).isEqualByComparingTo("10000");
+    }
+
+    @Test
+    void productDiscountBelowFreeShippingThresholdRestoresRegionalFee() throws Exception {
+        jdbc.update("UPDATE products SET price=180000 WHERE id=?", product);
+        String code = campaign(com.ddagtech.aureliabooks.entity.Voucher.Scope.PRODUCT,
+                com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT, "50000", null, 1);
+        assertThat(placement.getCheckoutView(owner, address).shippingFee()).isZero();
+        CheckoutConfirmation review = prepare(code);
+        assertThat(review.reviewedCheckout().shippingFee()).isEqualByComparingTo("50000");
+        assertThat(review.reviewedCheckout().finalTotalAmount()).isEqualByComparingTo("360000");
+        place(review, code);
+        assertThat(jdbc.queryForObject("SELECT shipping_fee FROM orders WHERE order_code=?",
+                java.math.BigDecimal.class, review.checkoutToken())).isEqualByComparingTo("50000");
+        assertThat(jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE order_code=?",
+                java.math.BigDecimal.class, review.checkoutToken())).isEqualByComparingTo("360000");
+        assertThat(remaining(code)).isZero();
+    }
+
+    @Test
+    void shippingVoucherOnFreeDeliveryDoesNotConsumeUsage() {
+        jdbc.update("UPDATE products SET price=175000 WHERE id=?", product);
+        String code = campaign(com.ddagtech.aureliabooks.entity.Voucher.Scope.SHIPPING,
+                com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT, "10000", null, 1);
+        assertThatThrownBy(() -> placement.getCheckoutView(owner, address, code))
+                .isInstanceOf(com.ddagtech.aureliabooks.exception.AppException.class);
+        assertThat(remaining(code)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
+        assertThat(jdbc.queryForObject("SELECT stock_quantity FROM products WHERE id=?", Integer.class, product)).isEqualTo(10);
     }
 
     @Test

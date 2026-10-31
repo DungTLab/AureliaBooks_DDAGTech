@@ -109,7 +109,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             throw new AppException(ErrorCode.CART_EMPTY);
         }
 
-        requireAccountPhone(checkoutCustomer(userId));
+        checkoutCustomer(userId);
         List<AddressView> addressViews = addressService.list(userId);
         AddressView selectedAddress = selectAddress(addressViews, shippingAddressId);
         return checkoutView(cartView, addressViews, selectedAddress);
@@ -130,21 +130,30 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         BigDecimal productDiscount = quote.scope() == Voucher.Scope.PRODUCT ? quote.discountAmount() : BigDecimal.ZERO;
         BigDecimal shippingDiscount =
             quote.scope() == Voucher.Scope.SHIPPING ? quote.discountAmount() : BigDecimal.ZERO;
+        // Free shipping depends on merchandise after product discounts; shipping vouchers do not lower that value.
+        BigDecimal baseShippingFee = calculateBaseShippingFee(
+            selectedAddressOf(base), base.merchandiseSubtotal().subtract(productDiscount)
+        );
+        BigDecimal shippingFee = baseShippingFee.subtract(shippingDiscount);
         return new CheckoutView(
             base.items(),
             base.addressViews(),
             base.selectedAddressId(),
             base.merchandiseSubtotal(),
             productDiscount,
-            base.baseShippingFee(),
+            baseShippingFee,
             shippingDiscount,
-            base.baseShippingFee().subtract(shippingDiscount),
-            quote.payableTotal()
+            shippingFee,
+            base.merchandiseSubtotal().subtract(productDiscount).add(shippingFee)
         );
     }
 
-    /** Calculate base regional shipping before an optional voucher is applied. */
+    /** Apply cart limits and regional free-shipping thresholds before an optional voucher is applied. */
     private CheckoutView checkoutView(CartView cartView, List<AddressView> addressViews, AddressView selectedAddress) {
+        validateCartSize(cartView.itemCount());
+        if (cartView.items().stream().anyMatch(item -> item.quantity() > CartQuantityRequest.MAX_QUANTITY)) {
+            throw new AppException(ErrorCode.CART_ITEM_QUANTITY_EXCEEDED);
+        }
         BigDecimal subTotal = cartView.merchandiseSubtotal();
         BigDecimal productDiscount = BigDecimal.ZERO;
         BigDecimal shippingDiscount = BigDecimal.ZERO;
@@ -153,7 +162,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         BigDecimal finalTotalAmount = null;
 
         if (selectedAddress != null) {
-            baseShippingFee = calculateBaseShippingFee(selectedAddress);
+            baseShippingFee = calculateBaseShippingFee(selectedAddress, subTotal);
 
             shippingFee = baseShippingFee.subtract(shippingDiscount);
 
@@ -219,7 +228,6 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             return existingOrder.getOrderCode();
         }
 
-        requireAccountPhone(owner);
         validateConfirmation(userId, request, confirmation);
 
         Cart cart = cartRepository.findByUser_Id(userId).orElseThrow(() -> new AppException(ErrorCode.CART_EMPTY));
@@ -228,6 +236,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         if (items.isEmpty()) {
             throw new AppException(ErrorCode.CART_EMPTY);
         }
+        validateCartSize(items.size());
 
         // Lock products in ascending ID order before order-item foreign keys acquire shared locks, reducing deadlock risk.
         // Refresh current prices and stock to replace product values previously loaded by OSIV while displaying the cart.
@@ -259,7 +268,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             request.getPaymentMethod() == Order.PaymentMethod.COD
                 ? Order.OrderStatus.PENDING_CONFIRMATION
                 : Order.OrderStatus.PENDING_PAYMENT;
-        Order order = orderMapper.toNewOrder(owner, address, items, request, base, status);
+        Order order = orderMapper.toNewOrder(owner, address, items, request, current, status);
+        // Redeem against the fee after the free-shipping policy but before the shipping voucher discount.
+        order.setShippingFee(current.baseShippingFee());
         orderRepository.saveAndFlush(order);
         if (!normalizeVoucher(request.getVoucherCode()).isEmpty()) {
             var applied = vouchers.redeem(userId, order.getId(), request.getVoucherCode(), null);
@@ -283,14 +294,14 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return order.getOrderCode();
     }
 
-    /** Require an account phone; existing contacts remain eligible regardless of legacy verification flags. */
-    private void requireAccountPhone(User owner) {
-        if (owner.getPhone() == null || owner.getPhone().isBlank()) {
-            throw new AppException(ErrorCode.PHONE_REQUIRED_BEFORE_CHECKOUT);
+    /** Reject legacy oversized carts as well as new additions that exceed the current purchase limit. */
+    private void validateCartSize(int size) {
+        if (size > CartQuantityRequest.MAX_DISTINCT_PRODUCTS) {
+            throw new AppException(ErrorCode.CART_LINE_LIMIT_EXCEEDED);
         }
     }
 
-    /** Reuse UC09 address constraints, including the delivery phone; the account phone is checked separately. */
+    /** Reuse UC09 address constraints; the delivery address supplies the recipient's phone. */
     private void validateShippingAddress(ShippingAddress address) {
         AddressRequest delivery = new AddressRequest(
             address.getRecipientName(),
@@ -425,12 +436,17 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         return addressViews.stream().filter(AddressView::isDefault).findFirst().orElse(null);
     }
 
-    /** Apply the three regional tariffs; reject a missing region rather than guessing a shipping fee. */
-    private BigDecimal calculateBaseShippingFee(AddressView address) {
+    /** Apply BR-03-08 to merchandise after product discounts, then charge the regional tariff if below threshold. */
+    private BigDecimal calculateBaseShippingFee(AddressView address, BigDecimal discountedMerchandise) {
         if (address.economicRegion() == null) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Địa chỉ chưa có vùng tính phí giao hàng hợp lệ.");
         }
 
+        BigDecimal threshold = address.economicRegion() == ShippingAddress.EconomicRegion.SOUTHERN_MEKONG
+            ? new BigDecimal("250000") : new BigDecimal("350000");
+        if (discountedMerchandise.compareTo(threshold) >= 0) {
+            return BigDecimal.ZERO;
+        }
         return switch (address.economicRegion()) {
             case NORTHERN -> new BigDecimal("50000");
             case CENTRAL_HIGHLANDS -> new BigDecimal("40000");
@@ -461,8 +477,11 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         Integer quantity = item.getQuantity();
         Product product = item.getProduct();
 
-        if (quantity == null || quantity < 1 || quantity > CartQuantityRequest.MAX_QUANTITY) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Số lượng sản phẩm phải từ 1 đến 99.");
+        if (quantity != null && quantity > CartQuantityRequest.MAX_QUANTITY) {
+            throw new AppException(ErrorCode.CART_ITEM_QUANTITY_EXCEEDED);
+        }
+        if (quantity == null || quantity < 1) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Số lượng sản phẩm phải từ 1 đến 10.");
         }
 
         if (!Boolean.TRUE.equals(product.getIsActive())) {

@@ -91,7 +91,7 @@ class CartControllerTest {
 
     @Test
     void invalidQuantitiesNeverReachTheService() throws Exception {
-        for (String quantity : List.of("", "abc", "1.5", "0", "100")) {
+        for (String quantity : List.of("", "abc", "1.5", "0", "11", "100")) {
             mvc.perform(post("/cart/items/9/quantity").with(user("customer").roles("CUSTOMER")).with(csrf())
                             .param("quantity", quantity))
                     .andExpect(redirectedUrl("/cart")).andExpect(flash().attributeExists("errorMessage"));

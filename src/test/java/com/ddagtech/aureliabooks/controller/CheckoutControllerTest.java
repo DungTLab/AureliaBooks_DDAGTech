@@ -76,6 +76,16 @@ class CheckoutControllerTest {
     private CheckoutView checkout;
     private OrderConfirmationView order;
 
+    @Test
+    void cartLimitErrorsRedirectToCartForCorrection() throws Exception {
+        for (ErrorCode code : List.of(ErrorCode.CART_LINE_LIMIT_EXCEEDED, ErrorCode.CART_ITEM_QUANTITY_EXCEEDED)) {
+            when(orders.getCheckoutView(eq(7L), any())).thenThrow(new AppException(code));
+            mvc.perform(get("/checkout").with(user("customer").roles("CUSTOMER")))
+                    .andExpect(redirectedUrl("/cart"))
+                    .andExpect(flash().attribute("errorMessage", code.getMessage()));
+        }
+    }
+
     @BeforeEach
     void setup() {
         when(identity.resolve(any())).thenReturn(7L);
