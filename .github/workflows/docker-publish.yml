@@ -46,7 +46,7 @@ jobs:
           context: .
           platforms: linux/arm64
           push: true
-          tags: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+          tags: ghcr.io/dungtlab/aureliabooks_ddagtech:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
