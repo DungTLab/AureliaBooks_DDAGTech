@@ -1,0 +1,183 @@
+
+name: CD - Automatic Staging Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - "Docker - Publish ARM64 to GHCR"
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: aureliabooks-staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    name: Verify CI and Deploy Staging
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+
+    steps:
+      - name: Verify commit and CI result
+        id: verify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import time
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ["REPOSITORY"]
+          sha = os.environ["DEPLOY_SHA"]
+          token = os.environ["GH_TOKEN"]
+
+          if not re.fullmatch(r"[a-f0-9]{40}", sha):
+              raise SystemExit("Invalid commit SHA")
+
+          def api(path):
+              request = urllib.request.Request(
+                  "https://api.github.com" + path,
+                  headers={
+                      "Authorization": "Bearer " + token,
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  return json.load(response)
+
+          def latest():
+              branch = api(f"/repos/{repo}/branches/main")
+              return branch["commit"]["sha"] == sha
+
+          if not latest():
+              print("SKIP: Commit is no longer main HEAD")
+              raise SystemExit(0)
+
+          query = urllib.parse.urlencode({
+              "head_sha": sha,
+              "event": "push",
+              "per_page": 30,
+          })
+
+          for attempt in range(30):
+              data = api(
+                  f"/repos/{repo}/actions/workflows/ci.yml/runs?{query}"
+              )
+
+              runs = [
+                  run for run in data["workflow_runs"]
+                  if run["head_sha"] == sha
+                  and run["event"] == "push"
+                  and run["head_branch"] == "main"
+              ]
+
+              if runs:
+                  run = max(runs, key=lambda x: x["run_number"])
+
+                  if run["status"] == "completed":
+                      if run["conclusion"] != "success":
+                          raise SystemExit("BLOCKED: CI failed")
+
+                      if not latest():
+                          print("SKIP: Newer main commit exists")
+                          raise SystemExit(0)
+
+                      with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                          f.write("deploy=true\n")
+                          f.write(f"sha={sha}\n")
+
+                      print("CI PASS:", sha)
+                      break
+
+              if attempt == 29:
+                  raise SystemExit("CI verification timed out")
+
+              time.sleep(15)
+          PY
+
+      - name: Configure SSH
+        if: steps.verify.outputs.deploy == 'true'
+        shell: bash
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_SSH_HOST_KEY" > ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null
+
+      - name: Deploy to Staging
+        if: steps.verify.outputs.deploy == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          LATEST_SHA="$(GH_TOKEN="$GH_TOKEN" gh api \
+            "repos/$REPOSITORY/branches/main" \
+            --jq '.commit.sha')"
+
+          if [[ "$LATEST_SHA" != "$DEPLOY_SHA" ]]; then
+            echo "SKIP: A newer main commit exists"
+            exit 0
+          fi
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "/opt/apps/swp391-staging/scripts/deploy-staging.sh $DEPLOY_SHA"
+
+      - name: Verify Staging
+        if: steps.verify.outputs.deploy == 'true'
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            "$VPS_USER@$VPS_HOST" \
+            "test \"\$(docker inspect aurelia-staging-app-1 --format '{{.Config.Image}}')\" = 'ghcr.io/dungtlab/aureliabooks_ddagtech:sha-$DEPLOY_SHA' && curl -fsS --max-time 20 -o /dev/null http://127.0.0.1:18080/"
+
+          echo "Staging image and HTTP readiness: PASS"
