@@ -1,0 +1,336 @@
+
+name: CD - Promote Staging to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Full 40-character SHA verified on Staging"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: aureliabooks-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Verify Staging Release Candidate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 10
+
+    outputs:
+      sha: ${{ steps.verify.outputs.sha }}
+
+    steps:
+      - name: Verify SHA and Staging deployment
+        id: verify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          DEPLOY_SHA: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+
+          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "ERROR: Invalid commit SHA"
+            exit 1
+          }
+
+          LATEST_SHA="$(gh api \
+            "repos/$REPOSITORY/branches/main" \
+            --jq '.commit.sha')"
+
+          [[ "$LATEST_SHA" == "$DEPLOY_SHA" ]] || {
+            echo "ERROR: Candidate is not current main HEAD"
+            exit 1
+          }
+
+          gh api \
+            "repos/$REPOSITORY/actions/workflows/deploy-auto.yml/runs?head_sha=$DEPLOY_SHA&per_page=100" \
+            > staging-runs.json
+
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          sha = os.environ["DEPLOY_SHA"]
+          repo = os.environ["REPOSITORY"]
+
+          with open("staging-runs.json") as f:
+              data = json.load(f)
+
+          valid = [
+              run
+              for run in data.get("workflow_runs", [])
+              if run.get("head_sha") == sha
+              and run.get("event") == "workflow_run"
+              and run.get("conclusion") == "success"
+              and run.get("head_branch") == "main"
+          ]
+
+          if not valid:
+              raise SystemExit(
+                  "ERROR: No successful Automatic Staging CD "
+                  "for this SHA"
+              )
+
+          latest_run = max(
+              valid,
+              key=lambda run: (
+                  run["run_number"],
+                  run.get("run_attempt", 1),
+              ),
+          )
+
+          print(
+              "Successful Staging workflow:",
+              latest_run["id"],
+          )
+
+          result = subprocess.run(
+              [
+                  "gh",
+                  "api",
+                  f"repos/{repo}/actions/runs/"
+                  f"{latest_run['id']}/jobs?per_page=100",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+
+          jobs = json.loads(result.stdout)["jobs"]
+
+          required_steps = {
+              "Verify commit and CI result",
+              "Configure SSH",
+              "Deploy to Staging",
+              "Verify Staging",
+          }
+
+          matching_jobs = [
+              job
+              for job in jobs
+              if job.get("name")
+              == "Verify CI and Deploy Staging"
+              and job.get("conclusion") == "success"
+              and required_steps.issubset({
+                  step.get("name")
+                  for step in job.get("steps", [])
+                  if step.get("conclusion") == "success"
+              })
+          ]
+
+          if not matching_jobs:
+              raise SystemExit(
+                  "ERROR: Staging deployment job "
+                  "or required steps did not succeed"
+              )
+
+          print(
+              "Staging deployment job "
+              "and all required steps: PASS"
+          )
+          PY
+
+          echo "sha=$DEPLOY_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+
+          umask 077
+          mkdir -p ~/.ssh
+
+          printf '%s\n' "$VPS_SSH_KEY" \
+            > ~/.ssh/id_ed25519
+
+          printf '%s\n' "$VPS_SSH_HOST_KEY" \
+            > ~/.ssh/known_hosts
+
+          ssh-keygen -y \
+            -f ~/.ssh/id_ed25519 > /dev/null
+
+      - name: Verify running Staging image and HTTP
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "bash -s -- '$DEPLOY_SHA'" <<'REMOTE'
+          set -euo pipefail
+
+          EXPECTED="ghcr.io/dungtlab/aureliabooks_ddagtech:sha-$1"
+
+          ACTUAL="$(docker inspect \
+            aurelia-staging-app-1 \
+            --format '{{.Config.Image}}')"
+
+          [[ "$ACTUAL" == "$EXPECTED" ]] || {
+            echo "ERROR: Staging image mismatch"
+            exit 1
+          }
+
+          curl -fsS \
+            -o /dev/null \
+            --max-time 20 \
+            http://127.0.0.1:18080/
+
+          echo "Staging preflight: PASS"
+          REMOTE
+
+  production:
+    name: Approve and Deploy Production
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+
+    steps:
+      - name: Configure SSH
+        shell: bash
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+
+          umask 077
+          mkdir -p ~/.ssh
+
+          printf '%s\n' "$VPS_SSH_KEY" \
+            > ~/.ssh/id_ed25519
+
+          printf '%s\n' "$VPS_SSH_HOST_KEY" \
+            > ~/.ssh/known_hosts
+
+          ssh-keygen -y \
+            -f ~/.ssh/id_ed25519 > /dev/null
+
+      - name: Revalidate release candidate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ needs.preflight.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          LATEST_SHA="$(gh api \
+            "repos/$REPOSITORY/branches/main" \
+            --jq '.commit.sha')"
+
+          [[ "$LATEST_SHA" == "$DEPLOY_SHA" ]] || {
+            echo "ERROR: main changed while awaiting approval"
+            exit 1
+          }
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "bash -s -- '$DEPLOY_SHA'" <<'REMOTE'
+          set -euo pipefail
+
+          EXPECTED="ghcr.io/dungtlab/aureliabooks_ddagtech:sha-$1"
+
+          ACTUAL="$(docker inspect \
+            aurelia-staging-app-1 \
+            --format '{{.Config.Image}}')"
+
+          [[ "$ACTUAL" == "$EXPECTED" ]] || {
+            echo "ERROR: Staging image changed"
+            exit 1
+          }
+
+          curl -fsS \
+            -o /dev/null \
+            --max-time 20 \
+            http://127.0.0.1:18080/
+
+          echo "Production release preflight: PASS"
+          REMOTE
+
+      - name: Deploy Production
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ needs.preflight.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "/opt/apps/swp391/scripts/deploy.sh $DEPLOY_SHA"
+
+      - name: Verify Production
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ needs.preflight.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "bash -s -- '$DEPLOY_SHA'" <<'REMOTE'
+          set -euo pipefail
+
+          EXPECTED="ghcr.io/dungtlab/aureliabooks_ddagtech:sha-$1"
+
+          ACTUAL="$(docker inspect \
+            aurelia-production-app-1 \
+            --format '{{.Config.Image}}')"
+
+          [[ "$ACTUAL" == "$EXPECTED" ]] || {
+            echo "ERROR: Production image mismatch"
+            exit 1
+          }
+
+          curl -fsS \
+            -o /dev/null \
+            --max-time 20 \
+            http://127.0.0.1:8080/
+
+          echo "Production image and HTTP: PASS"
+          REMOTE
