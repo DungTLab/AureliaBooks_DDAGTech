@@ -351,6 +351,40 @@ class CheckoutControllerTest {
     }
 
     @Test
+    void continuesPaymentForOwnedPendingOrderWithoutCreatingAnotherOrder() throws Exception {
+        var pending = new OrderConfirmationView(CODE, order.createdAt(), order.recipientName(), order.phone(),
+                order.fullAddress(), Order.OrderStatus.PENDING_PAYMENT, Order.PaymentMethod.VNPAY,
+                Order.PaymentStatus.UNPAID, order.items(), order.merchandiseSubtotal(), order.discount(),
+                order.shippingFee(), order.finalTotalAmount());
+        when(orders.getOrderConfirmation(7L, CODE)).thenReturn(pending);
+        when(gateway.isAvailable()).thenReturn(true);
+        when(gateway.startPayment(7L, CODE)).thenReturn("https://sandbox.example.test/pay");
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("userId", "999"))
+                .andExpect(redirectedUrl("https://sandbox.example.test/pay"));
+        verify(gateway).startPayment(7L, CODE);
+        verify(orders, never()).placeOrder(any(), any(), any());
+    }
+
+    @Test
+    void cannotContinuePaymentForForeignOrNonPendingOrder() throws Exception {
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")).with(csrf()))
+                .andExpect(redirectedUrl("/orders/" + CODE))
+                .andExpect(flash().attributeExists("errorMessage"));
+        when(orders.getOrderConfirmation(7L, CODE)).thenThrow(new AppException(ErrorCode.ORDER_NOT_FOUND));
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")).with(csrf()))
+                .andExpect(status().isNotFound());
+        verify(gateway, never()).startPayment(any(), any());
+    }
+
+    @Test
+    void continuingPaymentRequiresCsrf() throws Exception {
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isForbidden());
+        verify(gateway, never()).startPayment(any(), any());
+    }
+
+    @Test
     void foreignOrMissingOrderReturns404() throws Exception {
         when(orders.getOrderConfirmation(7L, CODE)).thenThrow(new AppException(ErrorCode.ORDER_NOT_FOUND));
         mvc.perform(get("/orders/" + CODE).with(user("customer").roles("CUSTOMER")))
