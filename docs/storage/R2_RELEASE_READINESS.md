@@ -178,3 +178,14 @@ Phiên browser bị tool delay khoảng 26 phút và chạm lease 30 phút trư�
 ### Phạm vi đóng checkpoint
 
 R2.37.2 đóng cho **QA E2E với storage fake và synthetic identities** theo yêu cầu không dùng R2 thật. Không chứng minh live SDK, bucket permissions, production account provider hoặc actual VPS/Tunnel/TLS config. Không mô phỏng network partition sau khi DB đã commit (outcome có thể không xác định); chỉ inject deterministic failure sau flush/trước commit. Không chạy full suite/GitHub CI, không tạo PR/merge/deploy. Bước tiếp theo là chuẩn bị phê duyệt riêng cho R2.37.3; chưa tự thực hiện.
+
+
+## R2.37.3 — offline harness đã chuẩn bị; live vẫn BLOCKED
+
+Người dùng chỉ cho phép chuẩn bị harness/tests offline sau review R2.37.3A. **270/270 Java tests chọn lọc PASS** (34 tests harness mới + 236 regression), 0 failure/error/skip, kết thúc 21:37:34 +07 ngày 01/11/2026. Lượt focused 55 PASS có overlap. Không full suite/CI, không chạy lại MySQL/browser/JS; không đọc secrets hoặc gọi R2 thật.
+
+Harness test-source gọi processor + storage thật với SDK thật và in-memory HTTP; một UUID/key khóa trước I/O, journal fsync, conditional PUT, normalized PNG/wire-body SHA-256, retry 0, exact-key GET/DELETE, ownership recheck và absence verification. Production chỉ thêm package-private UUID supplier seam; constructor Spring vẫn random v4. Không thêm DELETE production/auto-GC. Nhận diện 4xx rejection, timeout/late commit, foreign/corrupt object và cleanup outcome không xác định; các lỗi này không được ghi PASS.
+
+[Runbook độc lập](R2_LIVE_SMOKE_RUNBOOK.md) ghi toàn bộ protocol, giới hạn tối đa 1 PUT/1 DELETE/4 GET, yêu cầu cửa sổ độc quyền để tránh race của unconditional DELETE, lệnh tạo draft offline và các bằng chứng phải duyệt trước live. [Kết quả offline](qa-evidence/r2373-offline-results.json) có tổng/per-suite và source hashes, không raw logs. Script chuẩn bị chỉ bind key/hash vào clean commit, giữ account/endpoint/approval flags chưa xác nhận; không có live CLI hoặc credential loader.
+
+**Chưa đóng R2.37.3B.** Identity/account/jurisdiction/private bucket/domain/lifecycle/writers, bucket-scoped non-Admin Object Read & Write token hiện hành, secret source/owner/injection/rotation và approval GET/PUT/DELETE đúng key vẫn cần xác minh bên ngoài. Lượt sau phải review live entry point dùng đúng plan/fixture/revision/journal và cấp quyền kết nối riêng. Chưa PR/merge/deploy; R2.37.4–R2.37.5 chưa thực hiện.

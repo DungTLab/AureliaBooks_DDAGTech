@@ -1,10 +1,10 @@
 # AureliaBooks — Cloudflare R2: báo cáo và context bàn giao
 
-Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này bao gồm cập nhật R2.37.1 sau phần code R2.36. Nội dung lịch sử trước đó vẫn có trong Git và các bản sao báo cáo ngoài repo.
+Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này bao gồm R2.37.2 QA và phần chuẩn bị harness offline R2.37.3 sau R2.36. Nội dung lịch sử trước đó vẫn có trong Git và các bản sao báo cáo ngoài repo.
 
 ## Trạng thái hiện tại
 
-**R2.36 hoàn thành trong phạm vi đã báo cáo; R2.37.1 PASS source audit/hardening. R2.37.2 PASS / CLOSED trong phạm vi QA MySQL + local Nginx + fake storage; R2.37.3–R2.37.5 chưa chạy.** Chưa có bằng chứng live Java R2 hoặc browser end-to-end; không coi toàn bộ tính năng đã sẵn sàng Production.
+**R2.36 hoàn thành trong phạm vi đã báo cáo; R2.37.1 PASS source audit/hardening. R2.37.2 PASS / CLOSED trong phạm vi QA MySQL + local Nginx + fake storage; R2.37.3–R2.37.5 chưa chạy.** Browser E2E QA đã được xác minh; chưa có bằng chứng live Java R2; không coi toàn bộ tính năng đã sẵn sàng Production.
 
 | Checkpoint | Trạng thái | Bằng chứng |
 |---|---|---|
@@ -20,7 +20,8 @@ Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này bao gồm cập n
 | R2.36 | PASS — selected regression | 179 Java tests + 5 MySQL QA tests + 8 JavaScript tests (ba lượt riêng), tài liệu bàn giao |
 | R2.37.1 | PASS — offline/source/QA scope | Default validate, admission limits, upload pause và audit rollback |
 | R2.37.2 | PASS / CLOSED — QA scope | Real MySQL/JPA/services, browser, Nginx; 28 HTTP E2E cases và cleanup; storage/accounts synthetic |
-| R2.37.3–R2.37.5 | CHƯA CHẠY | Chưa live R2, PR/CI review, merge hoặc deploy |
+| R2.37.3 — offline preparation | PASS trong scope offline | 34 harness tests; live vẫn BLOCKED, metadata chưa được xác minh |
+| R2.37.3B–R2.37.5 | CHƯA CHẠY | Chưa live R2, PR/CI review, merge hoặc deploy |
 
 ## Repository và Git
 
@@ -204,3 +205,19 @@ python3 scripts/r2-e2e/run_checks.py
 Cần container MySQL QA đúng tên + schema đã review, Java21, Python3, Docker. Script tự chạy/dừng server và proxy, kiểm tra HTTP report/cleanup. Xem `scripts/r2-e2e/README.md` để chạy browser thủ công; không dùng tài khoản thật hoặc đăng ký harness vào production artifact.
 
 **R2.37.2 CLOSED trong phạm vi QA với storage/accounts synthetic.** Live SDK/bucket permissions còn thuộc R2.37.3; actual VPS/Tunnel/TLS thuộc release/deploy review. Không mô phỏng commit outcome không xác định do network partition sau commit. Bước kế tiếp chỉ là chuẩn bị phê duyệt live staging smoke; chưa gọi R2 thật, chưa PR/merge/deploy.
+
+
+## R2.37.3 — chuẩn bị harness offline theo yêu cầu mới
+
+Sau review chỉ đọc R2.37.3A tại `28aa2a9`, người dùng giao: **“Chuẩn bị harness và tests offline để gỡ blocker, chưa gọi R2 thật”.** Đây là phạm vi thay đổi hiện tại; nội dung review cũ không phải lệnh chạy live.
+
+- Thêm `R2SmokeProtocol` trong test source, không có live CLI, không tự đọc environment/secrets, không load application/datasource/server. Bản nháp offline qua `bash scripts/prepare-r2-smoke-offline.sh` chỉ tạo ảnh tổng hợp, một UUID v4, exact key và SHA-256 của PNG đã chuẩn hóa; bind vào clean commit. Mọi attestations ngoài hệ thống vẫn false/chưa biết.
+- Bổ sung constructor package-private nhận Supplier<UUID> cho storage; constructor public được Spring chọn rõ ràng và vẫn dùng UUID.randomUUID(). Harness gọi đúng store()/read()/processor, không viết lại PUT thay storage.
+- Plan/fixture được kiểm tra trước client creation; JSONL journal CREATE_NEW + fsync file/directory trước request. Guard khóa operation, phase, count, bucket/key/body; tối đa 1 PUT, 1 DELETE, 4 GET, không list/bulk/scan. Smoke thêm conditional PUT If-None-Match:* và metadata ownership; SDK retry tắt (1 HTTP attempt), timeout 30s/10s. Không đổi retry/metadata/delete policy production.
+- SHA-256 trên actual normalized RequestBody và wire PUT body được kiểm tra bằng SDK thật với HTTP transport RAM. Không coi ETag là hash. 4xx PUT bị từ chối không được nhận ownership, kể cả marker khớp. Sau timeout, GET 404 không chứng minh không có late commit; giữ key và dừng khi ownership chưa rõ. Cleanup cần explicit exact-key DELETE approval, ownership/content recheck và cửa sổ độc quyền đã xác nhận; sau DELETE phải đọc xác minh NoSuchKey. PUT/DELETE lỗi không thể trở thành PASS chỉ vì cleanup thành công.
+- **270 Java tests PASS, 0 failures/errors/skipped**, kết thúc 21:37:34 +07 ngày 01/11/2026. Gồm 34 harness tests mới + 236 regression hiện có. Lượt focused 55 PASS trước đó có overlap, không cộng dồn. Maven dùng -o và headless; Mockito regression cần JVM attach ngoài sandbox. Lượt đầu có lỗi compile close-stream, rồi sandbox/X11/Mockito; đã sửa compile và chạy headless ngoài sandbox trước kết quả PASS cuối.
+- Không chạy lại JS (không đổi frontend), MySQL QA/browser/proxy, full suite hoặc GitHub CI. Không đọc R2 secrets, không gọi bucket, không tạo/xóa object thật, không PR/merge/deploy hoặc thay schema.
+
+Chi tiết protocol, các điều kiện còn thiếu và lệnh offline: [R2_LIVE_SMOKE_RUNBOOK.md](storage/R2_LIVE_SMOKE_RUNBOOK.md). Bằng chứng đã loại raw logs: [r2373-offline-results.json](storage/qa-evidence/r2373-offline-results.json).
+
+**Trạng thái chốt:** các blocker về khả năng biết key trước PUT, kiểm tra bytes/hash, bounded SDK requests và thiết kế đối soát/cleanup đã có code + kiểm thử offline. **R2.37.3B vẫn BLOCKED** do account/endpoint/jurisdiction, trạng thái bucket/private/domain/lifecycle/writers, token scope/status/expiry, nguồn inject/rotation secrets và explicit live GET/PUT/DELETE approval chưa xác minh. Live entry point chỉ được bổ sung/kích hoạt ở lượt riêng đã được review và phê duyệt; không được tự bật flags của draft. Không dùng QA MySQL runner cho live smoke.

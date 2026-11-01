@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.service.ProductImageStorage;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,6 +13,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -35,11 +38,20 @@ public class R2ProductImageStorage implements ProductImageStorage {
     private final S3Client s3Client;
     private final ProductImageProcessor imageProcessor;
     private final String bucket;
+    private final Supplier<UUID> imageIds;
 
+    @Autowired
     public R2ProductImageStorage(
             S3Client s3Client,
             ProductImageProcessor imageProcessor,
             @Value("${app.r2.bucket:}") String bucket) {
+        this(s3Client, imageProcessor, bucket, UUID::randomUUID);
+    }
+
+    // Package-private seam for a smoke run whose exact key is approved before I/O.
+    // Spring and production callers always use the random-ID constructor above.
+    R2ProductImageStorage(S3Client s3Client, ProductImageProcessor imageProcessor,
+                          String bucket, Supplier<UUID> imageIds) {
 
         if (bucket == null || bucket.isBlank()) {
             throw new IllegalStateException(
@@ -50,6 +62,7 @@ public class R2ProductImageStorage implements ProductImageStorage {
         this.s3Client = s3Client;
         this.imageProcessor = imageProcessor;
         this.bucket = bucket;
+        this.imageIds = Objects.requireNonNull(imageIds);
     }
 
     @Override
@@ -57,8 +70,11 @@ public class R2ProductImageStorage implements ProductImageStorage {
 
         byte[] png = imageProcessor.toPng(file);
 
-        String objectKey =
-                "products/" + UUID.randomUUID() + ".png";
+        UUID imageId = Objects.requireNonNull(imageIds.get());
+        if (imageId.version() != 4 || imageId.variant() != 2) {
+            throw new IllegalStateException("Product image ID must be a UUID v4");
+        }
+        String objectKey = "products/" + imageId + ".png";
 
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucket)
