@@ -302,7 +302,9 @@ public class VNPayServiceImpl implements VNPayService {
 
             // Scenario 11.1.0.E6: Late payment success arriving after order was already CANCELLED
             if (order.getOrderStatus() == Order.OrderStatus.CANCELLED
+                    && order.getPaymentStatus() == Order.PaymentStatus.UNPAID
                     && outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS) {
+                order.setPaymentStatus(Order.PaymentStatus.PAID);
                 order.setVnpayPayDate(params.get("vnp_PayDate"));
                 order.setVnpayBankCode(params.get("vnp_BankCode"));
                 orderRepository.save(order);

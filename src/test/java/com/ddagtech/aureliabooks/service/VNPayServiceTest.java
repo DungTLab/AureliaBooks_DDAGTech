@@ -619,7 +619,7 @@ class VNPayServiceTest {
     }
 
     @Test
-    @DisplayName("processIpnWebhook() on late payment success for already CANCELLED order (11.1.0.E6) should log reconciliation without reactivating or deducting stock")
+    @DisplayName("processIpnWebhook() on late payment success for already CANCELLED order (11.1.0.E6) should mark PAID for staff refund without reactivating or deducting stock")
     void processIpnWebhook_LateSuccessAfterCancelled_LogsReconciliationWithoutReactivatingOrder() {
         User customer = User.builder().id(9L).fullName("Le Van C").build();
         Order cancelledOrder = Order.builder()
@@ -642,8 +642,12 @@ class VNPayServiceTest {
 
         assertThat(response.rspCode()).isEqualTo("00");
         assertThat(cancelledOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.CANCELLED);
-        assertThat(cancelledOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
+        assertThat(cancelledOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
         assertThat(cancelledOrder.getVnpayPayDate()).isEqualTo("20261016103000");
+
+        // Duplicate late-success IPN must return 02 idempotently once paymentStatus is already PAID
+        VNPayIpnResponse duplicateLateResponse = vnPayService.processIpnWebhook(params, "203.0.113.10");
+        assertThat(duplicateLateResponse.rspCode()).isEqualTo("02");
 
         verify(stockMutationService, never()).deductOrder(anyLong());
         verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
