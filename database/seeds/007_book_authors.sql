@@ -1,0 +1,64 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 007_book_authors.sql
+-- Table: book_authors
+-- ============================================================
+--
+-- Required:
+--   book_id   BIGINT NOT NULL
+--   author_id BIGINT NOT NULL
+--
+-- Primary Key:
+--   (book_id, author_id)
+--
+-- Foreign Keys:
+--   book_id   -> books.product_id
+--   author_id -> authors.id
+--
+-- Rules:
+-- 1. Do not hardcode book_id or author_id.
+-- 2. Books and Authors must exist before linking.
+-- 3. Resolve books using their unique ISBN.
+-- 4. Author names are NOT unique.
+-- 5. Verify the author identity before linking.
+-- 6. Do not create duplicate book-author relationships.
+-- 7. Do not delete existing relationships.
+-- 8. Only add approved relationships.
+-- 9. Seed execution is managed by the deployment workflow.
+--
+-- ============================================================
+-- EXAMPLE (COMMENTED OUT — DO NOT EXECUTE)
+-- ============================================================
+--
+-- INSERT INTO book_authors (book_id, author_id)
+-- SELECT
+--     b.product_id,
+--     a.id
+-- FROM books b
+-- CROSS JOIN authors a
+-- WHERE b.isbn = 'EXAMPLE-ISBN-001'
+--   AND a.name = 'Example Author'
+--   AND (
+--       SELECT COUNT(*)
+--       FROM authors
+--       WHERE name = 'Example Author'
+--   ) = 1
+--   AND NOT EXISTS (
+--       SELECT 1
+--       FROM book_authors ba
+--       WHERE ba.book_id = b.product_id
+--         AND ba.author_id = a.id
+--   );
+--
+-- WARNING:
+-- This example is illustrative, not production-ready.
+-- Validate that exactly one book and one intended author
+-- are identified BEFORE executing the INSERT.
+-- A zero-row INSERT must not silently count as success.
+-- Name matching alone cannot prove author identity.
+--
+-- ============================================================
+-- APPROVED BOOK-AUTHOR RELATIONSHIPS
+-- ============================================================
+--
+-- TODO: Team members add reviewed SQL statements here.

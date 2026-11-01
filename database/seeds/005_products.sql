@@ -1,0 +1,82 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 005_products.sql
+-- Table: products
+-- ============================================================
+--
+-- Required:
+--   barcode        VARCHAR(50) UNIQUE NOT NULL
+--   title          VARCHAR(255) NOT NULL
+--   category_id    BIGINT NOT NULL (FK -> categories.id)
+--   product_type   ENUM('BOOK', 'STATIONERY') NOT NULL
+--   price          DECIMAL(12,2) NOT NULL
+--   original_cost  DECIMAL(12,2) NOT NULL
+--
+-- Optional / Default:
+--   weight_grams   INT DEFAULT 200
+--   stock_quantity INT DEFAULT 0
+--   is_active      BOOLEAN DEFAULT TRUE
+--   main_image_url VARCHAR(500)
+--   tags           VARCHAR(255)
+--   embedding      JSON
+--   description    LONGTEXT
+--
+-- Rules:
+-- 1. Do not hardcode product IDs.
+-- 2. Barcode must uniquely identify a product.
+-- 3. Resolve category_id from existing categories.
+-- 4. Verify that category lookup returns exactly one row.
+-- 5. Product type must be BOOK or STATIONERY.
+-- 6. Price, cost, weight and stock must be non-negative.
+-- 7. Initial stock_quantity must be 0.
+-- 8. Do not overwrite existing product information.
+-- 9. Do not insert AI embeddings manually.
+-- 10. Only add approved product data.
+-- 11. Book and stationery details belong in their
+--     respective subtype seed files.
+--
+-- ============================================================
+-- EXAMPLE (COMMENTED OUT — DO NOT EXECUTE)
+-- ============================================================
+--
+-- INSERT INTO products (
+--     barcode,
+--     title,
+--     category_id,
+--     product_type,
+--     price,
+--     original_cost,
+--     weight_grams,
+--     stock_quantity,
+--     is_active
+-- )
+-- VALUES (
+--     'EXAMPLE-BARCODE-001',
+--     'Example Book',
+--     (
+--         SELECT id
+--         FROM categories
+--         WHERE name = 'Example Category'
+--           AND parent_id IS NULL
+--     ),
+--     'BOOK',
+--     79000.00,
+--     50000.00,
+--     200,
+--     0,
+--     TRUE
+-- )
+-- ON DUPLICATE KEY UPDATE id = id;
+--
+-- WARNING:
+-- The category lookup above is only illustrative.
+-- Category names are not protected by UNIQUE.
+-- Validate the category identity before execution.
+-- The no-op update must not be used to hide data
+-- conflicts involving an existing barcode.
+--
+-- ============================================================
+-- APPROVED PRODUCT RECORDS
+-- ============================================================
+--
+-- TODO: Team members add reviewed SQL statements here.
