@@ -132,3 +132,27 @@ MySQL visibility tests (5 tests) đã PASS ở phiên trước, không chạy l�
 ### Giới hạn và checkpoint tiếp theo
 
 Standalone tests không chứng minh Spring Security hay conditional bean registration trong application context thật. Chưa kiểm thử hai nội dung đó cho controller mới; đây là bước kế tiếp, dự kiến R2.30. Chưa triển khai POST upload, form admin hoặc vòng đời object orphan. Không deploy, merge, thay đổi Staging/Production.
+
+## R2.30.2 — Conditional Controller Context Tests: PASS
+
+Cập nhật 01/11/2026: R2.30.1 đã đối chiếu hai SecurityFilterChain và mẫu WebMvcTest hiện có. R2.30.2 đã hoàn thành; **toàn bộ R2.30 chưa CLOSED**.
+
+Thêm `ProductImageControllerContextTest`, dùng WebApplicationContextRunner với WebMvcAutoConfiguration và ProductImageController thật. Không scan toàn bộ ứng dụng, không khởi tạo datasource, JPA hay S3 client; không dùng MySQL QA hoặc credentials.
+
+| Trường hợp | Bằng chứng |
+|---|---|
+| Không có app.r2.enabled | Context khởi tạo thành công, không controller/route ảnh, không cần storage/repository beans |
+| app.r2.enabled=false | Context khởi tạo thành công, không controller/route ảnh, không cần storage/repository beans |
+| app.r2.enabled=true | Có đúng một controller và mapping /products/images/{imageId}; repository/storage dùng mock, không bị gọi lúc khởi tạo |
+
+Các tests kiểm tra property `app.r2.enabled`, không trực tiếp thay environment variable R2_ENABLED của máy. Cấu hình application.yaml hiện ánh xạ `${R2_ENABLED:false}` tới property này; runner cố ý không load application.yaml để cách ly datasource ứng dụng. Chưa chứng minh toàn bộ Boot application hoặc environment binding end-to-end.
+
+Lệnh:
+
+```bash
+./mvnw -B -ntp -Dtest=ProductImageControllerContextTest test
+```
+
+Kết quả **3 tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS** lúc 19:07:09 +07. Lần đầu trong sandbox gặp lỗi Mockito attach; chạy lại ngoài sandbox PASS. Không sửa production code, security config, schema hoặc Maven.
+
+Bước đang chờ: **R2.30.3** — WebMvcTest với SecurityConfig thật, không tắt filters; anonymous GET, các status 200/404/503 và headers. Sau đó R2.30.4 chạy regression và tổng kết. Kết quả R2.30.2 không phải bằng chứng Spring Security đã PASS. Chưa chuyển R2.31.
