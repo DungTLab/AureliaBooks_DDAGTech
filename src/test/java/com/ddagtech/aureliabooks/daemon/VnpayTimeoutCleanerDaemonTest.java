@@ -721,7 +721,7 @@ class VnpayTimeoutCleanerDaemonTest {
         String apiUrl = startQueryDrStubServer(200, requestJson -> {
             capturedQueryDrRequest.set(requestJson);
             return buildIndependentSpecSignedQueryDrJson(
-                    "RSP-F10-RETRY", "querydr", "00", "OK", "AURELIA01", "ORD-F10-RETRY",
+                    "RSP-F10-RETRY", "querydr", "00", "OK", "AURELIA01", "ORD-F10-RETRY-R101200",
                     "25000000", "NCB", "20261024101300", "14599911", "01", "02",
                     "Thanh toan don hang ORD-F10-RETRY", "", "", TEST_SECRET
             );
