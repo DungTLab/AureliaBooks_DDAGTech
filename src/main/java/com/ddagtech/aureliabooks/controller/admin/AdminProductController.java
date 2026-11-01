@@ -8,6 +8,9 @@ import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.service.AdminProductService;
 import com.ddagtech.aureliabooks.service.MasterDataService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.TransactionException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -118,7 +121,7 @@ public class AdminProductController {
     public String createBook(@Valid @ModelAttribute("bookForm") BookForm form,
                              BindingResult bindingResult,
                              RedirectAttributes redirectAttributes,
-                             Model model) {
+                             Model model, HttpServletResponse response) {
         if (bindingResult.hasErrors()) {
             populateBookFormData(model);
             model.addAttribute("isEdit", false);
@@ -132,6 +135,13 @@ public class AdminProductController {
         } catch (AppException e) {
             model.addAttribute("errorMessage", e.getMessage());
             populateBookFormData(model);
+            model.addAttribute("isEdit", false);
+            return "admin/products/book-form";
+        } catch (DataAccessException | TransactionException error) {
+            log.warn("Product save failed: {}", error.getClass().getSimpleName());
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            model.addAttribute("errorMessage", "Chưa thể lưu sản phẩm. Vui lòng thử lại. URL ảnh tải lên vẫn được giữ trong biểu mẫu.");
+            populateBookFormForRetry(model);
             model.addAttribute("isEdit", false);
             return "admin/products/book-form";
         }
@@ -151,7 +161,7 @@ public class AdminProductController {
                              @Valid @ModelAttribute("bookForm") BookForm form,
                              BindingResult bindingResult,
                              RedirectAttributes redirectAttributes,
-                             Model model) {
+                             Model model, HttpServletResponse response) {
         if (bindingResult.hasErrors()) {
             populateBookFormData(model);
             model.addAttribute("isEdit", true);
@@ -165,6 +175,13 @@ public class AdminProductController {
         } catch (AppException e) {
             model.addAttribute("errorMessage", e.getMessage());
             populateBookFormData(model);
+            model.addAttribute("isEdit", true);
+            return "admin/products/book-form";
+        } catch (DataAccessException | TransactionException error) {
+            log.warn("Product save failed: {}", error.getClass().getSimpleName());
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            model.addAttribute("errorMessage", "Chưa thể lưu sản phẩm. Vui lòng thử lại. URL ảnh tải lên vẫn được giữ trong biểu mẫu.");
+            populateBookFormForRetry(model);
             model.addAttribute("isEdit", true);
             return "admin/products/book-form";
         }
@@ -196,7 +213,7 @@ public class AdminProductController {
     public String createStationery(@Valid @ModelAttribute("stationeryForm") StationeryForm form,
                                   BindingResult bindingResult,
                                   RedirectAttributes redirectAttributes,
-                                  Model model) {
+                                  Model model, HttpServletResponse response) {
         if (bindingResult.hasErrors()) {
             populateStationeryFormData(model);
             model.addAttribute("isEdit", false);
@@ -210,6 +227,13 @@ public class AdminProductController {
         } catch (AppException e) {
             model.addAttribute("errorMessage", e.getMessage());
             populateStationeryFormData(model);
+            model.addAttribute("isEdit", false);
+            return "admin/products/stationery-form";
+        } catch (DataAccessException | TransactionException error) {
+            log.warn("Product save failed: {}", error.getClass().getSimpleName());
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            model.addAttribute("errorMessage", "Chưa thể lưu sản phẩm. Vui lòng thử lại. URL ảnh tải lên vẫn được giữ trong biểu mẫu.");
+            populateStationeryFormForRetry(model);
             model.addAttribute("isEdit", false);
             return "admin/products/stationery-form";
         }
@@ -229,7 +253,7 @@ public class AdminProductController {
                                   @Valid @ModelAttribute("stationeryForm") StationeryForm form,
                                   BindingResult bindingResult,
                                   RedirectAttributes redirectAttributes,
-                                  Model model) {
+                                  Model model, HttpServletResponse response) {
         if (bindingResult.hasErrors()) {
             populateStationeryFormData(model);
             model.addAttribute("isEdit", true);
@@ -245,6 +269,13 @@ public class AdminProductController {
             populateStationeryFormData(model);
             model.addAttribute("isEdit", true);
             return "admin/products/stationery-form";
+        } catch (DataAccessException | TransactionException error) {
+            log.warn("Product save failed: {}", error.getClass().getSimpleName());
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            model.addAttribute("errorMessage", "Chưa thể lưu sản phẩm. Vui lòng thử lại. URL ảnh tải lên vẫn được giữ trong biểu mẫu.");
+            populateStationeryFormForRetry(model);
+            model.addAttribute("isEdit", true);
+            return "admin/products/stationery-form";
         }
     }
 
@@ -252,4 +283,21 @@ public class AdminProductController {
         model.addAttribute("categories", masterDataService.getAllActiveCategories());
         model.addAttribute("brands", masterDataService.getAllBrands());
     }
+    private void populateBookFormForRetry(Model model) {
+        try { populateBookFormData(model); }
+        catch (DataAccessException | TransactionException unavailable) {
+            model.addAttribute("categories", java.util.List.of());
+            model.addAttribute("publishers", java.util.List.of());
+            model.addAttribute("authors", java.util.List.of());
+        }
+    }
+
+    private void populateStationeryFormForRetry(Model model) {
+        try { populateStationeryFormData(model); }
+        catch (DataAccessException | TransactionException unavailable) {
+            model.addAttribute("categories", java.util.List.of());
+            model.addAttribute("brands", java.util.List.of());
+        }
+    }
+
 }

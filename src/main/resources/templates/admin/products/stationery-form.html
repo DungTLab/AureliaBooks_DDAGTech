@@ -41,7 +41,7 @@
     </div>
 
     <!-- Main Stationery Form -->
-    <form data-form-validation th:action="${isEdit ? '/manager/stationeries/' + stationeryForm.id() + '/edit' : '/manager/stationeries'}"
+    <form data-form-validation th:action="@{${isEdit ? '/manager/stationeries/' + stationeryForm.id() + '/edit' : '/manager/stationeries'}}"
           th:object="${stationeryForm}" method="post" class="space-y-6">
 
         <!-- 1. Thông Tin Chung (Base Product) -->

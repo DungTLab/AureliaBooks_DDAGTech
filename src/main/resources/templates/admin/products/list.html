@@ -97,7 +97,7 @@
                         <td class="px-6 py-4">
                             <div class="w-12 h-16 bg-alabaster_grey rounded-lg border border-dust_grey/60 overflow-hidden flex items-center justify-center">
                                 <img th:if="${product.mainImageUrl != null and !product.mainImageUrl.isEmpty()}"
-                                     th:src="${product.mainImageUrl}" th:alt="${product.title}"
+                                     th:src="@{${product.mainImageUrl}}" th:alt="${product.title}"
                                      class="w-full h-full object-cover">
                                 <i th:unless="${product.mainImageUrl != null and !product.mainImageUrl.isEmpty()}"
                                    class="bi bi-image text-carbon_black-400"></i>

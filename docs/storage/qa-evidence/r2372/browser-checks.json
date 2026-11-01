@@ -1,0 +1,14 @@
+{
+  "mode": "manual browser verification through CUA; actual Nginx + JPA/MySQL QA; fake storage",
+  "checks": [
+    "synthetic login through /qa proxy",
+    "Book PNG upload and local preview",
+    "Book persisted as id 21 and visible in SQL-backed listing",
+    "Stationery shared uploaded image persisted as id 22",
+    "Stationery edit reloaded canonical URL from database",
+    "thumbnail loaded through /qa/products/images path, naturalWidth=160"
+  ],
+  "browserBookId": 21,
+  "browserStationeryId": 22,
+  "imageId": "7a1d33e8-b88d-4e62-b233-accecf7640e4"
+}

@@ -4,7 +4,7 @@ Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này bao gồm cập n
 
 ## Trạng thái hiện tại
 
-**R2.36 hoàn thành trong phạm vi đã báo cáo; R2.37.1 PASS source audit/hardening. R2.37.2 PARTIAL (browser harness smoke); R2.37.3–R2.37.5 chưa chạy.** Chưa có bằng chứng live Java R2 hoặc browser end-to-end; không coi toàn bộ tính năng đã sẵn sàng Production.
+**R2.36 hoàn thành trong phạm vi đã báo cáo; R2.37.1 PASS source audit/hardening. R2.37.2 PASS / CLOSED trong phạm vi QA MySQL + local Nginx + fake storage; R2.37.3–R2.37.5 chưa chạy.** Chưa có bằng chứng live Java R2 hoặc browser end-to-end; không coi toàn bộ tính năng đã sẵn sàng Production.
 
 | Checkpoint | Trạng thái | Bằng chứng |
 |---|---|---|
@@ -19,7 +19,7 @@ Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này bao gồm cập n
 | R2.35 | DONE — thiết kế lifecycle | Giữ orphan private, không auto-delete; quy trình review/cleanup trong docs/storage/R2_PRODUCT_IMAGES.md |
 | R2.36 | PASS — selected regression | 179 Java tests + 5 MySQL QA tests + 8 JavaScript tests (ba lượt riêng), tài liệu bàn giao |
 | R2.37.1 | PASS — offline/source/QA scope | Default validate, admission limits, upload pause và audit rollback |
-| R2.37.2 | PARTIAL | Đã browser smoke trên embedded Tomcat và memory doubles; chưa full QA persistence/proxy matrix |
+| R2.37.2 | PASS / CLOSED — QA scope | Real MySQL/JPA/services, browser, Nginx; 28 HTTP E2E cases và cleanup; storage/accounts synthetic |
 | R2.37.3–R2.37.5 | CHƯA CHẠY | Chưa live R2, PR/CI review, merge hoặc deploy |
 
 ## Repository và Git
@@ -114,14 +114,14 @@ Bucket staging theo context lịch sử: `aureliabooks-staging-assets`, private.
 
 Chưa live R2 smoke, chưa PR, merge, build/deploy Staging/Production. Trước bước đó cần phê duyệt và chuẩn bị:
 
-1. Môi trường/token/bucket cụ thể, secrets ngoài Git; xác minh private bucket và datasource/schema mode trước khởi động thật.
+1. Môi trường/token/bucket staging cụ thể được phê duyệt, secrets ngoài Git; xác minh private bucket và datasource/schema mode trước khởi động thật.
 2. Live Java PUT/read với key QA và cleanup riêng được duyệt; không quét/xóa objects thật.
 3. Browser E2E hai form, session/CSRF expiry, save failure/retry, thay ảnh/shared references, visibility, prefix/proxy paths và giới hạn multipart servlet thật.
 4. Quota và rate limiting upload tại backend/gateway: R2.37.1 đã thêm backend quota/concurrency per JVM; cần ingress/shared limits khi nhiều instance, không dùng client single-flight thay thế.
 5. Đối soát chi phí orphan, chính sách cleanup được nhóm duyệt. Không tự triển khai delete/GC dựa trên context này.
 6. Review PR/CI và rollback plan: tắt R2 làm internal GET không đăng ký, URL ngoài vẫn giữ; cần cân nhắc ảnh đã lưu internal khi rollout/rollback.
 
-Hướng tiếp tục: hoàn thành R2.37.2 còn thiếu, đọc audit R2_RELEASE_READINESS.md, rồi chuẩn bị live smoke R2.37.3 cụ thể để người dùng duyệt. Không tự kết nối dịch vụ thật hoặc deploy.
+Hướng tiếp tục: R2.37.2 đã đóng trong QA scope (xem cập nhật cuối). Đọc R2_RELEASE_READINESS.md rồi chuẩn bị live smoke R2.37.3 cụ thể để người dùng duyệt; chưa tự gọi R2 thật. Không tự kết nối dịch vụ thật hoặc deploy.
 
 ## Cập nhật R2.37.1 — 01/11/2026
 
@@ -156,3 +156,51 @@ Browser thật đã kiểm chứng: login, upload Book/Stationery, local preview
 Sau khi DB có internal URLs, **không tắt R2_ENABLED như một rollback an toàn**. Pause upload bằng R2_UPLOAD_ENABLED=false giữ GET nếu DB/R2 healthy. Rollback binary phải giữ GET path/visibility hoặc có kế hoạch chuyển URL/restore mapping được nhóm duyệt; không auto-delete object. Không thể khôi phục URL cũ nếu chưa có inventory/audit trước thay ảnh.
 
 Mẫu proxy, static audit và runbook có trong R2_RELEASE_READINESS.md; chưa áp dụng/kiểm chứng ở VPS. Default validate chưa chứng minh actual env không override. R2.37.2 cần tiếp tục persistence/proxy/session-expiry matrix; chỉ sau các điều kiện phù hợp mới xin phê duyệt R2.37.3 bucket staging. Chưa live smoke, PR, merge hay deploy.
+
+## R2.37.2 — Browser End-to-End Verification: PASS / CLOSED (QA scope)
+
+Cập nhật 01/11/2026. Không dùng database ứng dụng, bucket R2, VPS, PR/merge/deploy. Chi tiết và evidence: `docs/storage/R2_RELEASE_READINESS.md`, `docs/storage/qa-evidence/r2372/`.
+
+### Môi trường và thành phần thật
+
+- `R2PersistenceBrowserQaTest`: explicit QA composition, không production component scan; assert không có production root hoặc S3Client. Guard JDBC localhost + port lấy từ đúng container, cố định database r2_image_qa/user r2_qa; SELECT DATABASE()/CURRENT_USER() trước bootstrap. Credentials ngoài Git, không in ra.
+- MySQL 8.4.13 thật, canonical schema giữ nguyên, ddl-auto=validate, SQL init never; JPA repositories, entities, transaction manager, AdminProductServiceImpl, MasterDataServiceImpl và mappers thật. Không mock catalog repository/service.
+- Hai Spring contexts loopback/random ports, cùng QA DB và fake storage, một bật upload, một pause. Chỉ storage và UserDetailsService/identities synthetic; SecurityFilterChain/session/CSRF thực tế.
+- Official Nginx 1.28-alpine pin digest, container tạm read-only/host networking chỉ listen loopback, context path /qa được giữ xuyên proxy. Không dùng cấu hình proxy đang chạy trên VPS.
+
+### Các nhóm kiểm tra đã đạt
+
+1. **Persistence:** upload PNG → tạo Book/Stationery → commit SQL, stock=0 → đọc lại form URL → anonymous GET 200 PNG. Browser thật lưu Book và Stationery, mở lại edit, thumbnail naturalWidth=160 qua /qa/products/images. Browser Stationery dùng lại ảnh vừa upload cho Book; HTTP suite kiểm tra riêng Stationery upload object mới.
+2. **Auth/CSRF:** anonymous với token hợp lệ 401; ADMIN/SALE_STAFF/CUSTOMER với token hợp lệ 403; thiếu/sai token 403; session inactivity timeout 1s và CSRF cũ sau logout/login bị từ chối. Đây không phải production account-provider/database-login test.
+3. **Recovery:** storage fail 503 giữ DB/object set; fault sau em.flush() trước commit ở cả bốn create/update paths → SQL rollback, form 503 giữ URL, không redirect. Retry lưu được. Orphan trước save/rollback 404 và không bị auto-delete; shared active references giữ GET 200.
+4. **HTTP/proxy:** declared/chunked multipart quá 6 MiB bị Nginx 413; direct Tomcat chunked cũng 413 JSON; form action/img src giữ /qa, redirects không lộ backend origin. External HTTP URL/query string round-trip nguyên chuỗi.
+5. **Admission/pause:** QA quota override 6/phút (production default10), request thứ7 429 Retry-After60; giữ2 actual upload requests, thứ3 429 Retry-After1, release vềinFlight0; upload-disabled không có uploader, POST503, GET ảnh đã lưu vẫn200.
+6. **Evidence/cleanup:** reports HTTP/JUnit, SQL snapshots, screenshots, baseline/final counts đã version. Products về baseline0; không còn fixture master-data R2E2E_; 21tables/1view không đổi. Hai contexts và proxy QA đã dừng; container MySQL QA giữ nguyên.
+
+### Lỗi E2E phát hiện và sửa
+
+- Form actions mất context path → Thymeleaf link expressions cho Book/Stationery.
+- Internal image src mất context path → sửa admin/storefront/cart/shared image templates, không rewrite DB.
+- Lỗi DB/transaction save làm redirect mất form → 4 POST paths trả503 cùng form/URL. Nếu dropdown query cũng lỗi, render lists rỗng; không hứa local blob sống qua reload.
+- Existing access-denied logging có thể chứa giá trị CSRF → chỉ log exception type. Test xác nhận không lộ token vào logs/body.
+
+### Bằng chứng tests
+
+- Lượt đầu: 25 HTTP cases, 22 PASS +3 lỗi thật ở context form/image và save error redirect.
+- Sau sửa: **28 HTTP E2E cases PASS** qua Nginx + real MySQL; cả bốn transaction fault cases thực thi SQL flush trước rollback.
+- **235 Java regression PASS**, 0 failures/errors/skips, 20:48:22 +07 (bao gồm home/product/cart và form recovery).
+- Sau thay đổi logging: **75 focused security tests PASS**, 20:52:25 +07; overlap regression, không cộng thành310 independent tests.
+- Persistence harness runner tự động: **JUnit1 PASS**, HTTP28 PASS và cleanup đúng baseline. Ngưỡng bắt buộc >=28 cases; cleanup kiểm tra category ID + run prefix trước DELETE, không truncate/drop DB.
+- Không chạy full suite/GitHub CI, không chạy lại JS; 9 JS PASS ở R2.37.1 là lịch sử riêng.
+
+Phiên manual browser bị tool delay khoảng26phút và chạm lease30phút trước stopmarker nên lifecycleJUnit của lượt đó FAIL do timeout (cleanup vẫn thành công); SQL/browser observations giữ riêng trong evidence. Runner tự động sau đó chạy lại toàn matrix, explicitstop đúng hạn và PASS lifecycle mà không nới assertion. Hai lỗi setup logging test (expected CSRF token null, ObjectMapper thiếu JavaTime module) đã sửa trước focused suite cuối PASS. Không che các lượt lỗi thành PASS.
+
+### Chạy lại và phạm vi
+
+```bash
+python3 scripts/r2-e2e/run_checks.py
+```
+
+Cần container MySQL QA đúng tên + schema đã review, Java21, Python3, Docker. Script tự chạy/dừng server và proxy, kiểm tra HTTP report/cleanup. Xem `scripts/r2-e2e/README.md` để chạy browser thủ công; không dùng tài khoản thật hoặc đăng ký harness vào production artifact.
+
+**R2.37.2 CLOSED trong phạm vi QA với storage/accounts synthetic.** Live SDK/bucket permissions còn thuộc R2.37.3; actual VPS/Tunnel/TLS thuộc release/deploy review. Không mô phỏng commit outcome không xác định do network partition sau commit. Bước kế tiếp chỉ là chuẩn bị phê duyệt live staging smoke; chưa gọi R2 thật, chưa PR/merge/deploy.

@@ -50,7 +50,7 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
             isCsrfException,
             username,
             requestUri,
-            accessDeniedException.getMessage()
+            accessDeniedException.getClass().getSimpleName()
         );
 
         if (isCsrfException) {

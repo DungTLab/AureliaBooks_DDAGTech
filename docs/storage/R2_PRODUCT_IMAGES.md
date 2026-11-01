@@ -79,3 +79,7 @@ Chưa chạy R2 live smoke, mở PR, merge hoặc deploy Staging/Production tron
 ## Cập nhật hardening R2.37.1
 
 Servlet request limit 6 MiB, file 5 MiB, disk threshold 0. Backend admission trước CSRF kiểm soát 10 attempts/phút/principal và 2 concurrent requests/JVM, 429 + Retry-After. SDK call timeout 30s / attempt 10s. R2_UPLOAD_ENABLED=false tắt upload và ẩn uploader, giữ GET/storage nếu R2_ENABLED=true. Chi tiết bằng chứng/giới hạn/rollback: R2_RELEASE_READINESS.md. Chưa thay proxy, connect R2 thật, PR hay deploy.
+
+## Cập nhật R2.37.2
+
+Đã PASS QA E2E với real MySQL/JPA/services, local Nginx và browser; storage/accounts synthetic. Hai forms và các img src dùng Thymeleaf link expressions để giữ context path mà không sửa canonical URL trong DB. Save DataAccess/TransactionException trả503 và giữ form/URL; fallback lists rỗng nếu dropdown DB cũng lỗi. CSRF failure log chỉ giữ loại exception. Xem R2_RELEASE_READINESS.md và scripts/r2-e2e/README.md. Chưa live Cloudflare R2 hoặc deploy.

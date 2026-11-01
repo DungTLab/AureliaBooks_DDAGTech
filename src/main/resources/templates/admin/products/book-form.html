@@ -41,7 +41,7 @@
     </div>
 
     <!-- Main Book Form -->
-    <form data-form-validation data-required-values="authorIds" th:action="${isEdit ? '/manager/books/' + bookForm.id() + '/edit' : '/manager/books'}"
+    <form data-form-validation data-required-values="authorIds" th:action="@{${isEdit ? '/manager/books/' + bookForm.id() + '/edit' : '/manager/books'}}"
           th:object="${bookForm}" method="post" class="space-y-6">
 
         <!-- 1. Thông Tin Chung (Base Product) -->
