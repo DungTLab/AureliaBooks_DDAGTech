@@ -542,6 +542,51 @@ class VnpayTimeoutCleanerDaemonTest {
     }
 
     @Test
+    @DisplayName("F09: DefaultVNPayGatewayReconciliationClient should return VERIFIED_UNPAID_OR_FAILED when QueryDR returns spec-signed vnp_ResponseCode=91 (customer closed tab without paying)")
+    void defaultClient_QueryDrReturnsSignedCode91TransactionNotFound_ReturnsVerifiedUnpaidOrFailed() throws Exception {
+        String apiUrl = startQueryDrStubServer(200, requestJson ->
+                buildIndependentSpecSignedQueryDrJson(
+                        "RSP-NOTFOUND-2031",
+                        "querydr",
+                        "91",
+                        "Khong tim thay giao dich yeu cau",
+                        "AURELIA01",
+                        "ORD-QDR-2031",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "QueryDR order ORD-QDR-2031",
+                        "",
+                        "",
+                        TEST_SECRET
+                )
+        );
+
+        VNPayConfig config = configuredForQueryDr(apiUrl);
+        DefaultVNPayGatewayReconciliationClient client =
+                new DefaultVNPayGatewayReconciliationClient(config, objectMapper);
+
+        Order expiredOrder = Order.builder()
+                .id(2031L)
+                .orderCode("ORD-QDR-2031")
+                .vnpayTxnRef("ORD-QDR-2031")
+                .vnpayCreateDate("20261024100000")
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("180000.00"))
+                .build();
+        expiredOrder.setCreatedAt(LocalDateTime.of(2026, 10, 24, 10, 0, 0));
+
+        ReconciliationResult result = client.reconcileExpiredOrder(expiredOrder);
+
+        assertThat(result.outcome()).isEqualTo(ReconciliationOutcome.VERIFIED_UNPAID_OR_FAILED);
+        assertThat(result.diagnosticMessage()).contains("vnp_ResponseCode=91");
+    }
+
+    @Test
     @DisplayName("F09: verifyQueryDrResponseSignature and reconcileExpiredOrder must reject 14-field signature missing vnp_OrderInfo, URL-query sorted fallback signature, tampered OrderInfo, or amount/reference mismatch")
     void defaultClient_InvalidSignatureFormulasOrTamperedFields_ReturnIndeterminate() throws Exception {
         Order expiredOrder = Order.builder()
