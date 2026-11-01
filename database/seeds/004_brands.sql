@@ -1,0 +1,40 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 004_brands.sql
+-- Table: brands
+-- ============================================================
+--
+-- Required:
+--   name VARCHAR(100) NOT NULL UNIQUE
+--
+-- Optional:
+--   origin_country VARCHAR(100)
+--   is_active BOOLEAN DEFAULT TRUE
+--
+-- Rules:
+-- 1. Do not hardcode brand IDs.
+-- 2. Brand names must be unique.
+-- 3. Do not overwrite existing brand information.
+-- 4. Only add approved data.
+-- 5. Seed execution is managed by the deployment workflow.
+--
+-- ============================================================
+-- EXAMPLE (COMMENTED OUT — DO NOT EXECUTE)
+-- ============================================================
+--
+-- INSERT INTO brands (name, origin_country, is_active)
+-- VALUES (
+--     'Example Brand',
+--     'Vietnam',
+--     TRUE
+-- )
+-- ON DUPLICATE KEY UPDATE id = id;
+--
+-- The no-op update preserves existing field values.
+-- The UNIQUE(name) constraint prevents duplicate names.
+--
+-- ============================================================
+-- APPROVED BRAND RECORDS
+-- ============================================================
+--
+-- TODO: Team members add reviewed SQL statements here.

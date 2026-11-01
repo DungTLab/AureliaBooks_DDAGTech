@@ -1,0 +1,76 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 006_books.sql
+-- Table: books
+-- ============================================================
+--
+-- Required:
+--   product_id       BIGINT PK (FK -> products.id)
+--   isbn             VARCHAR(20) NOT NULL UNIQUE
+--   publisher_id     BIGINT NOT NULL (FK -> publishers.id)
+--
+-- Optional / Default:
+--   series_name      VARCHAR(150)
+--   volume_number    INT
+--   is_textbook      BOOLEAN DEFAULT FALSE
+--   publication_year INT
+--   edition          VARCHAR(50)
+--   page_count       INT
+--   language         VARCHAR(50) DEFAULT 'Tiếng Việt'
+--   cover_type       ENUM('PAPERBACK', 'HARDCOVER')
+--
+-- Rules:
+-- 1. Do not hardcode product_id or publisher_id.
+-- 2. Each Book must reference an existing Product.
+-- 3. The referenced Product must have product_type = 'BOOK'.
+-- 4. Resolve Product using its unique barcode.
+-- 5. Resolve Publisher using its unique name.
+-- 6. ISBN must be unique across all books.
+-- 7. Do not overwrite existing book information.
+-- 8. Only add approved data.
+-- 9. Authors are linked separately in 007_book_authors.sql.
+--
+-- ============================================================
+-- EXAMPLE (COMMENTED OUT — DO NOT EXECUTE)
+-- ============================================================
+--
+-- INSERT INTO books (
+--     product_id,
+--     isbn,
+--     publisher_id,
+--     publication_year,
+--     page_count,
+--     language,
+--     cover_type
+-- )
+-- VALUES (
+--     (
+--         SELECT id
+--         FROM products
+--         WHERE barcode = 'EXAMPLE-BARCODE-001'
+--           AND product_type = 'BOOK'
+--     ),
+--     'EXAMPLE-ISBN-001',
+--     (
+--         SELECT id
+--         FROM publishers
+--         WHERE name = 'Example Publisher'
+--     ),
+--     2026,
+--     250,
+--     'Tiếng Việt',
+--     'PAPERBACK'
+-- );
+--
+-- WARNING:
+-- The example values are placeholders, not real data.
+-- Product and publisher must exist before execution.
+-- Validate foreign key lookups and ISBN uniqueness.
+-- This INSERT is not safe to rerun without execution
+-- tracking and duplicate validation.
+--
+-- ============================================================
+-- APPROVED BOOK RECORDS
+-- ============================================================
+--
+-- TODO: Team members add reviewed SQL statements here.

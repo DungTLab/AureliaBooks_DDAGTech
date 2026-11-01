@@ -1,0 +1,44 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 003_authors.sql
+-- Table: authors
+-- ============================================================
+--
+-- Required:
+--   name VARCHAR(100) NOT NULL
+--
+-- Optional:
+--   biography TEXT
+--   is_active BOOLEAN DEFAULT TRUE
+--
+-- Rules:
+-- 1. Do not hardcode author IDs.
+-- 2. Author names are NOT protected by UNIQUE.
+-- 3. Review existing authors before adding new records.
+-- 4. Do not assume authors with identical names
+--    are necessarily the same person.
+-- 5. Do not overwrite existing author information.
+-- 6. Only add approved data.
+-- 7. Seed execution is managed by the deployment workflow.
+--
+-- ============================================================
+-- EXAMPLE (COMMENTED OUT — DO NOT EXECUTE)
+-- ============================================================
+--
+-- INSERT INTO authors (name, biography, is_active)
+-- VALUES (
+--     'Example Author',
+--     'Example biography',
+--     TRUE
+-- );
+--
+-- WARNING:
+-- Re-running the INSERT above creates duplicate records.
+-- Do not execute until version tracking and duplicate
+-- validation are implemented.
+--
+-- ============================================================
+-- APPROVED AUTHOR RECORDS
+-- ============================================================
+--
+-- TODO: Team members add reviewed SQL statements here.
