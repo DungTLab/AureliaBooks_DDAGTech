@@ -245,6 +245,7 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
                 .andExpect(content().string(not(containsString("href=\"/manager/vouchers\""))))
                 .andExpect(content().string(not(containsString("href=\"/manager/suppliers\""))))
                 .andExpect(content().string(not(containsString("href=\"/manager/receipts\""))))
+                .andExpect(content().string(not(containsString("href=\"/staff/receipts/new\""))))
                 .andExpect(content().string(not(containsString("href=\"/staff/orders\""))));
 
         // 3. MANAGER does NOT see /profile links or /admin/users, and sees all /manager/* links
