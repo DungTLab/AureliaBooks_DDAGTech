@@ -117,8 +117,15 @@ public class SecurityConfig {
     /** Higher-priority chain for management pages and administrative APIs. */
     @Bean
     @Order(1)
-    public SecurityFilterChain internalSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain internalSecurityFilterChain(HttpSecurity http,
+            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-enabled:true}") boolean uploadsEnabled,
+            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-requests-per-minute:10}") int requestsPerMinute,
+            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-max-concurrent:2}") int maxConcurrent) throws Exception {
         http.securityMatcher(PortalSecurity::internalRequest);
+        // Construct only inside the security chain; not a servlet Filter bean (no double registration).
+        http.addFilterBefore(new com.ddagtech.aureliabooks.security.ProductImageUploadFilter(
+                uploadsEnabled, requestsPerMinute, maxConcurrent),
+                org.springframework.security.web.csrf.CsrfFilter.class);
         portalAuthentication(http, true);
         http.addFilterBefore(new AuthEntryGuard(),
                 UsernamePasswordAuthenticationFilter.class);

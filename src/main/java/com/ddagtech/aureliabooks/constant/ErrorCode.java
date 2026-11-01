@@ -56,6 +56,8 @@ public enum ErrorCode {
     CATEGORY_CYCLE_DETECTED(4005, "Không thể chọn danh mục cha tạo thành vòng lặp phân cấp.", HttpStatus.BAD_REQUEST),
     MASTER_DATA_IN_USE(4006, "Không thể xóa dữ liệu đang được tham chiếu bởi sản phẩm hoặc danh mục con.", HttpStatus.CONFLICT),
 
+    PRODUCT_IMAGE_UNAVAILABLE(4010, "Không thể xác minh ảnh tải lên lúc này. Vui lòng thử lại sau.", HttpStatus.SERVICE_UNAVAILABLE),
+
     // 5xxx: Warehouse, Goods Receipts & Inventory Posting — Nguyễn Trần Đức Anh
     RECEIPT_NOT_FOUND(5001, "Không tìm thấy phiếu nhập kho.", HttpStatus.NOT_FOUND),
     RECEIPT_ALREADY_FINALIZED(5002, "Phiếu nhập kho đã chốt (RECEIVED) không thể chỉnh sửa hoặc xóa.", HttpStatus.CONFLICT),

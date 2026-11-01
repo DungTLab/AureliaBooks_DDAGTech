@@ -54,6 +54,7 @@ public record StationeryForm(
         Integer warrantyMonths) {
 
     public StationeryForm {
+        mainImageUrl = com.ddagtech.aureliabooks.util.ProductImageUrls.normalize(mainImageUrl);
         if (barcode != null) barcode = barcode.strip();
         if (title != null) title = title.strip();
     }
