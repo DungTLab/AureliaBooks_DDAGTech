@@ -149,11 +149,11 @@ public final class VNPayUtil {
     }
 
     /**
-     * Extracts the client IPv4 address from the HTTP servlet request, normalizing IPv6 loopback
-     * addresses (::1 / 0:0:0:0:0:0:0:1) to 127.0.0.1 for VNPay Sandbox compatibility.
+     * Extracts the client IPv4 address from the HTTP servlet request, normalizing IPv6 addresses
+     * (loopback or dual-stack proxy headers containing ':') to 127.0.0.1 for VNPay Sandbox v2.1.0 compatibility.
      *
      * @param request incoming HTTP servlet request
-     * @return resolved IP address string
+     * @return resolved IPv4 address string
      */
     public static String resolveClientIp(HttpServletRequest request) {
         if (request == null) {
@@ -162,16 +162,21 @@ public final class VNPayUtil {
         String candidateIp = null;
         String forwardedFor = request.getHeader("X-Forwarded-For");
         if (forwardedFor != null && !forwardedFor.isBlank()) {
-            candidateIp = forwardedFor.split(",")[0].trim();
-        } else {
+            for (String token : forwardedFor.split(",")) {
+                String trimmed = token.trim();
+                if (!trimmed.isEmpty() && !trimmed.contains(":")) {
+                    candidateIp = trimmed;
+                    break;
+                }
+            }
+        }
+        if (candidateIp == null) {
             String remoteAddr = request.getRemoteAddr();
             if (remoteAddr != null && !remoteAddr.isBlank()) {
                 candidateIp = remoteAddr.trim();
             }
         }
-        if (candidateIp == null || candidateIp.isEmpty()
-                || "0:0:0:0:0:0:0:1".equals(candidateIp)
-                || "::1".equals(candidateIp)) {
+        if (candidateIp == null || candidateIp.isEmpty() || candidateIp.contains(":")) {
             return "127.0.0.1";
         }
         return candidateIp;

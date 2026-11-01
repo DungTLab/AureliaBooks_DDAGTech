@@ -338,10 +338,13 @@ class VNPayServiceTest {
         vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(12)));
         String retryUrl = vnPayService.createPaymentUrl(ownerCustomer.getId(), 10L, "127.0.0.1");
 
+        assertThat(firstUrl).contains("vnp_TxnRef=ORD-20261016-001");
         assertThat(firstUrl).contains("vnp_CreateDate=20261024100300");
         assertThat(firstUrl).contains("vnp_ExpireDate=20261024101500");
+        assertThat(retryUrl).contains("vnp_TxnRef=ORD-20261016-001-R101200");
         assertThat(retryUrl).contains("vnp_CreateDate=20261024101200");
         assertThat(retryUrl).contains("vnp_ExpireDate=20261024101500");
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-001-R101200");
     }
 
     @Test
@@ -619,7 +622,7 @@ class VNPayServiceTest {
     }
 
     @Test
-    @DisplayName("processIpnWebhook() on late payment success for already CANCELLED order (11.1.0.E6) should log reconciliation without reactivating or deducting stock")
+    @DisplayName("processIpnWebhook() on late payment success for already CANCELLED order (11.1.0.E6) should mark PAID for staff refund without reactivating or deducting stock")
     void processIpnWebhook_LateSuccessAfterCancelled_LogsReconciliationWithoutReactivatingOrder() {
         User customer = User.builder().id(9L).fullName("Le Van C").build();
         Order cancelledOrder = Order.builder()
@@ -642,8 +645,12 @@ class VNPayServiceTest {
 
         assertThat(response.rspCode()).isEqualTo("00");
         assertThat(cancelledOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.CANCELLED);
-        assertThat(cancelledOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
+        assertThat(cancelledOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
         assertThat(cancelledOrder.getVnpayPayDate()).isEqualTo("20261016103000");
+
+        // Duplicate late-success IPN must return 02 idempotently once paymentStatus is already PAID
+        VNPayIpnResponse duplicateLateResponse = vnPayService.processIpnWebhook(params, "203.0.113.10");
+        assertThat(duplicateLateResponse.rspCode()).isEqualTo("02");
 
         verify(stockMutationService, never()).deductOrder(anyLong());
         verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
@@ -778,7 +785,67 @@ class VNPayServiceTest {
     }
 
     @Test
-    @DisplayName("VNPayUtil.resolveClientIp() should normalize IPv6 loopback addresses to 127.0.0.1")
+    @DisplayName("F08: evaluateBrowserReturn() when returning with a retry vnp_TxnRef must resolve the canonical orderCode for UI links")
+    void evaluateBrowserReturn_RetryTxnRef_ResolvesCanonicalOrderCode() {
+        Order order = Order.builder()
+                .id(73L)
+                .orderCode("ORD-20261016-073")
+                .vnpayTxnRef("ORD-20261016-073-R101200")
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("120000.00"))
+                .build();
+        when(orderRepository.findByVnpayTxnRefOrOrderCode("ORD-20261016-073-R101200"))
+                .thenReturn(Optional.of(order));
+
+        Map<String, String> params = signedParams("ORD-20261016-073-R101200", "12000000", "00", "00");
+        VNPayPaymentResultView view = vnPayService.evaluateBrowserReturn(params);
+
+        assertThat(view.validSignature()).isTrue();
+        assertThat(view.paymentSuccess()).isTrue();
+        assertThat(view.orderCode()).isEqualTo("ORD-20261016-073");
+        assertThat(view.orderStatus()).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(view.paymentStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    @DisplayName("processIpnWebhook() with multiple retry attempts should ignore failure from superseded attempt and settle verified success from any attempt")
+    void processIpnWebhook_SupersededRetryAttempt_IgnoresOldFailureAndAcceptsSuccess() {
+        User customer = User.builder().id(11L).fullName("Multi Tab Customer").build();
+        Order order = Order.builder()
+                .id(74L)
+                .user(customer)
+                .orderCode("ORD-20261016-074")
+                .vnpayTxnRef("ORD-20261016-074-R100800")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("150000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-074-R100500")).thenReturn(Optional.empty());
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-074")).thenReturn(Optional.of(order));
+
+        // 1. User cancels older superseded tab (R100500) while newer tab (R100800) is active -> must NOT cancel order
+        Map<String, String> oldFailParams = signedParams("ORD-20261016-074-R100500", "15000000", "24", "02");
+        VNPayIpnResponse failRes = vnPayService.processIpnWebhook(oldFailParams, "203.0.113.10");
+        assertThat(failRes.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_PAYMENT);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
+        verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
+
+        // 2. If user actually paid on an earlier tab (R100500), verified success (00/00) must still settle the order
+        Map<String, String> oldSuccessParams = signedParams("ORD-20261016-074-R100500", "15000000", "00", "00");
+        VNPayIpnResponse successRes = vnPayService.processIpnWebhook(oldSuccessParams, "203.0.113.10");
+        assertThat(successRes.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-074-R100500");
+    }
+
+    @Test
+    @DisplayName("VNPayUtil.resolveClientIp() should normalize IPv6 loopback and public IPv6 headers to IPv4 / 127.0.0.1")
     void resolveClientIp_NormalizesIpv6Loopback() {
         HttpServletRequest reqIpv6Full = mock(HttpServletRequest.class);
         when(reqIpv6Full.getRemoteAddr()).thenReturn("0:0:0:0:0:0:0:1");
@@ -787,6 +854,14 @@ class VNPayServiceTest {
         HttpServletRequest reqIpv6Short = mock(HttpServletRequest.class);
         when(reqIpv6Short.getRemoteAddr()).thenReturn("::1");
         assertThat(VNPayUtil.resolveClientIp(reqIpv6Short)).isEqualTo("127.0.0.1");
+
+        HttpServletRequest reqPublicIpv6 = mock(HttpServletRequest.class);
+        when(reqPublicIpv6.getHeader("X-Forwarded-For")).thenReturn("2402:800:61c5:1234::1");
+        assertThat(VNPayUtil.resolveClientIp(reqPublicIpv6)).isEqualTo("127.0.0.1");
+
+        HttpServletRequest reqDualStackChain = mock(HttpServletRequest.class);
+        when(reqDualStackChain.getHeader("X-Forwarded-For")).thenReturn("2402:800:61c5:1234::1, 203.113.148.25");
+        assertThat(VNPayUtil.resolveClientIp(reqDualStackChain)).isEqualTo("203.113.148.25");
     }
 
     private void authenticateAsCustomer(User user) {

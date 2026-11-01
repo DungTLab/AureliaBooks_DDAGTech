@@ -197,11 +197,19 @@ public class VNPayServiceImpl implements VNPayService {
         String createDate = nowVn.format(VNPAY_TIMESTAMP_FORMATTER);
         String expireDate = deadlineVn.format(VNPAY_TIMESTAMP_FORMATTER);
 
-        String txnRef = order.getVnpayTxnRef();
-        if (txnRef == null || txnRef.isBlank()) {
+        String existingTxnRef = order.getVnpayTxnRef();
+        String txnRef;
+        if (existingTxnRef == null || existingTxnRef.isBlank()) {
             txnRef = order.getOrderCode();
-            order.setVnpayTxnRef(txnRef);
+        } else {
+            String timeSuffix = createDate.length() >= 14 ? createDate.substring(8) : createDate;
+            String candidateRef = order.getOrderCode() + "-R" + timeSuffix;
+            if (candidateRef.equals(existingTxnRef)) {
+                candidateRef = candidateRef + "-2";
+            }
+            txnRef = candidateRef;
         }
+        order.setVnpayTxnRef(txnRef);
         // Persist the exact PAY vnp_CreateDate durably on the Order entity for QueryDR reconciliation across restarts (F10)
         order.setVnpayCreateDate(createDate);
         orderRepository.save(order);
@@ -269,6 +277,12 @@ public class VNPayServiceImpl implements VNPayService {
         // 2. Acquire pessimistic write lock on the target order and refresh state from DB
         Optional<Order> lockedOrderOpt = orderRepository.findByVnpayTxnRefWithLock(txnRef);
         if (lockedOrderOpt.isEmpty()) {
+            String baseOrderCode = extractCanonicalOrderCode(txnRef);
+            if (!baseOrderCode.equals(txnRef)) {
+                lockedOrderOpt = orderRepository.findByVnpayTxnRefWithLock(baseOrderCode);
+            }
+        }
+        if (lockedOrderOpt.isEmpty()) {
             return VNPayIpnResponse.of("01", "Order not Found");
         }
         Order order = lockedOrderOpt.get();
@@ -296,13 +310,24 @@ public class VNPayServiceImpl implements VNPayService {
         String transactionStatus = params.get("vnp_TransactionStatus");
         GatewayPaymentOutcome outcome = classifyGatewayOutcome(responseCode, transactionStatus);
 
+        boolean supersededAttempt = order.getVnpayTxnRef() != null
+                && !order.getVnpayTxnRef().isBlank()
+                && !order.getVnpayTxnRef().equals(txnRef);
+        if (supersededAttempt && outcome != GatewayPaymentOutcome.VERIFIED_SUCCESS) {
+            log.info("Ignoring non-success VNPay IPN from superseded payment attempt txnRef={} (active txnRef={}) for orderCode={}.",
+                    txnRef, order.getVnpayTxnRef(), order.getOrderCode());
+            return VNPayIpnResponse.of("00", "Confirm Success");
+        }
+
         // 5. Idempotency & Late-Success Reconciliation (11.1.0.E6)
         if (order.getOrderStatus() != Order.OrderStatus.PENDING_PAYMENT
                 || order.getPaymentStatus() != Order.PaymentStatus.UNPAID) {
 
             // Scenario 11.1.0.E6: Late payment success arriving after order was already CANCELLED
             if (order.getOrderStatus() == Order.OrderStatus.CANCELLED
+                    && order.getPaymentStatus() == Order.PaymentStatus.UNPAID
                     && outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS) {
+                order.setPaymentStatus(Order.PaymentStatus.PAID);
                 order.setVnpayPayDate(params.get("vnp_PayDate"));
                 order.setVnpayBankCode(params.get("vnp_BankCode"));
                 orderRepository.save(order);
@@ -340,6 +365,7 @@ public class VNPayServiceImpl implements VNPayService {
 
         // 6. Branch A: Verified Payment Success (00/00) -> PAID + PENDING_CONFIRMATION (NO second stock deduction!)
         if (outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS) {
+            order.setVnpayTxnRef(txnRef);
             order.setPaymentStatus(Order.PaymentStatus.PAID);
             order.setOrderStatus(Order.OrderStatus.PENDING_CONFIRMATION);
             order.setVnpayPayDate(params.get("vnp_PayDate"));
@@ -464,7 +490,11 @@ public class VNPayServiceImpl implements VNPayService {
             );
         }
 
-        Optional<Order> orderOpt = orderRepository.findByOrderCode(txnRef);
+        Optional<Order> orderOpt = orderRepository.findByVnpayTxnRefOrOrderCode(txnRef);
+        if (orderOpt.isEmpty()) {
+            orderOpt = orderRepository.findByOrderCode(extractCanonicalOrderCode(txnRef));
+        }
+        String canonicalOrderCode = orderOpt.map(Order::getOrderCode).orElseGet(() -> extractCanonicalOrderCode(txnRef));
         String orderStatus = orderOpt.map(o -> o.getOrderStatus().name()).orElse("PENDING_PAYMENT");
         String paymentStatus = orderOpt.map(o -> o.getPaymentStatus().name()).orElse("UNPAID");
         if (orderOpt.isPresent() && amountVnd.compareTo(BigDecimal.ZERO) == 0) {
@@ -499,7 +529,7 @@ public class VNPayServiceImpl implements VNPayService {
         return new VNPayPaymentResultView(
                 true,
                 verifiedSuccess,
-                txnRef,
+                canonicalOrderCode,
                 amountVnd,
                 responseCode,
                 transactionStatus,
@@ -581,6 +611,21 @@ public class VNPayServiceImpl implements VNPayService {
         if (!matchesOwner) {
             throw new AppException(ErrorCode.UNAUTHORIZED, "Order does not belong to the authenticated customer.");
         }
+    }
+
+    static String extractCanonicalOrderCode(String txnRef) {
+        if (txnRef == null || txnRef.isBlank()) {
+            return "";
+        }
+        String trimmed = txnRef.trim();
+        int retryMarkerIdx = trimmed.lastIndexOf("-R");
+        if (retryMarkerIdx > 0) {
+            String suffix = trimmed.substring(retryMarkerIdx + 2);
+            if (!suffix.isEmpty() && suffix.chars().allMatch(ch -> Character.isDigit(ch) || ch == '-')) {
+                return trimmed.substring(0, retryMarkerIdx);
+            }
+        }
+        return trimmed;
     }
 
     private void refreshUnderLockIfManaged(Order order) {

@@ -177,8 +177,14 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
                 return ReconciliationResult.indeterminate("Gateway QueryDR vnp_TmnCode mismatch.");
             }
 
-            // 3. Verify QueryDR API response code ("00" indicates the query succeeded and returned a transaction record)
+            // 3. Verify QueryDR API response code ("00" indicates the query succeeded and returned a transaction record;
+            //    "91" indicates no transaction record exists on VNPay gateway after expiration when the customer closed the tab)
             String queryResponseCode = responseMap.get("vnp_ResponseCode");
+            if ("91".equals(queryResponseCode)) {
+                return ReconciliationResult.unpaidOrFailed(
+                        "Verified transaction not found on VNPay gateway after expiration (vnp_ResponseCode=91)."
+                );
+            }
             if (!"00".equals(queryResponseCode)) {
                 return ReconciliationResult.indeterminate(
                         "Gateway QueryDR did not return conclusive query code 00: vnp_ResponseCode=" + queryResponseCode

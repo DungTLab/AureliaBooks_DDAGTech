@@ -51,6 +51,15 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     /** Look up the token before reading the cart to identify an already committed order on repeated submission. */
     Optional<Order> findByOrderCode(String orderCode);
 
+    /**
+     * Resolves an order by either its VNPay transaction reference (including retry suffixes) or canonical order code.
+     *
+     * @param txnRef VNPay vnp_TxnRef or order_code
+     * @return matching Order if found
+     */
+    @Query("SELECT o FROM Order o WHERE o.vnpayTxnRef = :txnRef OR o.orderCode = :txnRef")
+    Optional<Order> findByVnpayTxnRefOrOrderCode(@Param("txnRef") String txnRef);
+
     /** Enforce ownership in the query and fetch items for confirmation mapping within the transaction. */
     @EntityGraph(attributePaths = "items")
     Optional<Order> findByOrderCodeAndUser_Id(
