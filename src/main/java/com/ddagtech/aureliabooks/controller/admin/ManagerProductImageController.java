@@ -6,7 +6,6 @@ import com.ddagtech.aureliabooks.service.ProductImageStorage;
 import com.ddagtech.aureliabooks.util.ProductImageUrls;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +15,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "app.r2", name = "enabled", havingValue = "true")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("${app.r2.enabled:false} && ${app.r2.upload-enabled:true}")
 public class ManagerProductImageController {
     private final ProductImageStorage storage;
     public record UploadedImage(String imageUrl) { }

@@ -38,8 +38,11 @@ public class AdminProductController {
     @org.springframework.beans.factory.annotation.Value("${app.r2.enabled:false}")
     private boolean productImageUploadEnabled;
 
+    @org.springframework.beans.factory.annotation.Value("${app.r2.upload-enabled:true}")
+    private boolean uploadsEnabled;
+
     @ModelAttribute("productImageUploadEnabled")
-    public boolean productImageUploadEnabled() { return productImageUploadEnabled; }
+    public boolean productImageUploadEnabled() { return productImageUploadEnabled && uploadsEnabled; }
 
     // =========================================================================
     // PRODUCT DIRECTORY (BOOKS & STATIONERY)

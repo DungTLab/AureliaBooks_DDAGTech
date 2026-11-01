@@ -71,6 +71,7 @@
                     const messages = {400: "Ảnh không hợp lệ (PNG/JPEG, tối đa 5 MiB, 16 triệu pixel).",
                         401: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
                         403: "Bạn không có quyền hoặc phiên bảo vệ đã hết hạn. Hãy tải lại trang.",
+                        429: "Bạn đang tải ảnh quá nhanh hoặc dịch vụ đang bận. Vui lòng đợi rồi thử lại.",
                         413: "File quá lớn. Vui lòng chọn ảnh tối đa 5 MiB.",
                         503: "Dịch vụ ảnh tạm thời gián đoạn. Vui lòng thử lại sau."};
                     throw new Error(messages[response.status] || "Không thể tải ảnh lên. Vui lòng thử lại.");

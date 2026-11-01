@@ -63,6 +63,9 @@ class R2StorageConfigTest {
         ).run(context -> {
             assertThat(context.getStartupFailure()).isNull();
             assertThat(context).hasSingleBean(S3Client.class);
+            var overrides = context.getBean(S3Client.class).serviceClientConfiguration().overrideConfiguration();
+            assertThat(overrides.apiCallTimeout()).contains(java.time.Duration.ofSeconds(30));
+            assertThat(overrides.apiCallAttemptTimeout()).contains(java.time.Duration.ofSeconds(10));
         });
     }
 }

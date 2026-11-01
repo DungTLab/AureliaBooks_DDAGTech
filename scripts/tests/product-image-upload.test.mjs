@@ -70,6 +70,12 @@ export async function runTests() {
         assert.equal(f.url.value, old);
         assert.match(f.status.textContent, /tải lại trang/);
     });
+    await test('429 keeps URL and asks the user to wait', async () => {
+        const f = fixture(async () => ({ok: false, status: 429}));
+        await f.click();
+        assert.equal(f.url.value, old);
+        assert.match(f.status.textContent, /đợi/);
+    });
     await test('invalid response cannot replace old URL', async () => {
         const f = fixture(async () => ({ok: true, json: async () => ({imageUrl: 'javascript:alert(1)'})}));
         await f.click();

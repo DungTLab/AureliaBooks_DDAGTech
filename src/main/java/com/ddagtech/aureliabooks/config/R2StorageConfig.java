@@ -58,6 +58,9 @@ public class R2StorageConfig {
         return S3Client.builder()
             .endpointOverride(uri)
             .region(Region.of("auto"))
+            .overrideConfiguration(config -> config
+                    .apiCallTimeout(java.time.Duration.ofSeconds(30))
+                    .apiCallAttemptTimeout(java.time.Duration.ofSeconds(10)))
             .credentialsProvider(
                 StaticCredentialsProvider.create(
                     AwsBasicCredentials.create(

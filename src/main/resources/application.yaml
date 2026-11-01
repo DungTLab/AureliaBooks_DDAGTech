@@ -20,7 +20,7 @@ spring:
 
   # Database Connection Configuration (MySQL 8.0 utf8mb4)
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:aurelia_books_db}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:aurelia_books_db}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&useSSL=false
     username: ${DB_USER:root}
     password: ${DB_PASS:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -36,7 +36,7 @@ spring:
   # JPA & Hibernate Configuration
   jpa:
     hibernate:
-      ddl-auto: update # schema.sql (21 tables) is authoritative; do not alter tables from scaffold
+      ddl-auto: validate # Fail on schema drift; canonical schema is managed outside Hibernate.
     show-sql: false
     properties:
       hibernate:
@@ -54,7 +54,8 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 10MB
+      max-request-size: 6MB
+      file-size-threshold: 0B
 
 logging:
   level:
@@ -76,6 +77,9 @@ app:
     directory: ${AVATAR_DIRECTORY:./uploads/avatars}
   r2:
     enabled: ${R2_ENABLED:false}
+    upload-enabled: ${R2_UPLOAD_ENABLED:true}
+    upload-requests-per-minute: ${R2_UPLOAD_REQUESTS_PER_MINUTE:10}
+    upload-max-concurrent: ${R2_UPLOAD_MAX_CONCURRENT:2}
     endpoint: ${R2_ENDPOINT:}
     bucket: ${R2_BUCKET:}
     access-key-id: ${R2_ACCESS_KEY_ID:}

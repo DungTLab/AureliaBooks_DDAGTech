@@ -1,10 +1,10 @@
 # AureliaBooks — Cloudflare R2: báo cáo và context bàn giao
 
-Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này thay thế trạng thái dừng R2.30.3. Nội dung lịch sử trước đó vẫn có trong Git và các bản sao báo cáo ngoài repo.
+Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này bao gồm cập nhật R2.37.1 sau phần code R2.36. Nội dung lịch sử trước đó vẫn có trong Git và các bản sao báo cáo ngoài repo.
 
 ## Trạng thái hiện tại
 
-**R2.30.4–R2.36 hoàn thành trong phạm vi code, mock/QA tests và thiết kế lifecycle. DỪNG trước R2.37.** Chưa có bằng chứng live Java R2 hoặc browser end-to-end; không coi toàn bộ tính năng đã sẵn sàng Production.
+**R2.36 hoàn thành trong phạm vi đã báo cáo; R2.37.1 PASS source audit/hardening. R2.37.2 PARTIAL (browser harness smoke); R2.37.3–R2.37.5 chưa chạy.** Chưa có bằng chứng live Java R2 hoặc browser end-to-end; không coi toàn bộ tính năng đã sẵn sàng Production.
 
 | Checkpoint | Trạng thái | Bằng chứng |
 |---|---|---|
@@ -18,7 +18,9 @@ Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này thay thế trạn
 | R2.34 | PASS | Policy URL trên cả 4 create/update paths; 20 policy tests, 4 save guards, form binding và regression |
 | R2.35 | DONE — thiết kế lifecycle | Giữ orphan private, không auto-delete; quy trình review/cleanup trong docs/storage/R2_PRODUCT_IMAGES.md |
 | R2.36 | PASS — selected regression | 179 Java tests + 5 MySQL QA tests + 8 JavaScript tests (ba lượt riêng), tài liệu bàn giao |
-| R2.37 | CHƯA CHẠY — cần phê duyệt riêng | Live R2, PR và chuẩn bị Staging |
+| R2.37.1 | PASS — offline/source/QA scope | Default validate, admission limits, upload pause và audit rollback |
+| R2.37.2 | PARTIAL | Đã browser smoke trên embedded Tomcat và memory doubles; chưa full QA persistence/proxy matrix |
+| R2.37.3–R2.37.5 | CHƯA CHẠY | Chưa live R2, PR/CI review, merge hoặc deploy |
 
 ## Repository và Git
 
@@ -35,7 +37,7 @@ Cập nhật: **01/11/2026, giờ Việt Nam**. Báo cáo này thay thế trạn
 
 Java 21, Spring Boot 3.5.16, AWS SDK v2 2.57.8. `app.r2.enabled=${R2_ENABLED:false}`; endpoint/bucket/access-key-id/secret-access-key lấy environment R2_ENDPOINT/R2_BUCKET/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY. Không chứa credentials thật trong source/report.
 
-R2StorageConfig chỉ tạo S3Client khi bật; kiểm tra HTTPS endpoint Cloudflare, static credentials, region auto, path style bật, chunked encoding tắt; đóng client theo bean lifecycle. ProductImageStorage chỉ hoạt động khi bật.
+R2StorageConfig chỉ tạo S3Client khi bật; kiểm tra HTTPS endpoint Cloudflare, static credentials, region auto, path style bật, chunked encoding tắt; đóng client theo bean lifecycle. ProductImageStorage chỉ hoạt động khi bật. SDK call timeout 30s, attempt 10s sau R2.37.1.
 
 Processor nhận PNG/JPEG theo nội dung decode thật, không tin filename/MIME; giới hạn input/output 5 MiB, 16 triệu pixel, resize tối đa 1600 px, encode lại PNG. Storage tạo key `products/<uuid-v4>.png`, không trả public URL. Read chỉ nhận UUID v4 lowercase, kiểm tra metadata/size, đọc có giới hạn, abort stream khi lỗi. Avatar giữ nguyên local storage và URL cũ.
 
@@ -47,7 +49,7 @@ Storefront chain thật permitAll `/products/**`; internal chain không match �
 
 ### POST MANAGER upload — mới
 
-`POST /manager/products/images`, multipart part `file`, chỉ MANAGER, CSRF giữ nguyên. Không cho ADMIN/SALE_STAFF/CUSTOMER upload. Uploader chỉ đăng ký khi R2 bật.
+`POST /manager/products/images`, multipart part `file`, chỉ MANAGER, CSRF giữ nguyên. Không cho ADMIN/SALE_STAFF/CUSTOMER upload. Uploader chỉ đăng ký khi R2 bật và app.r2.upload-enabled=true (mặc định true); pause upload không gỡ GET controller.
 
 201 JSON `{ "imageUrl": "/products/images/<uuid-v4>" }`, không có object key/endpoint/credentials. 400 cho file/input/missing part; 413 cho servlet size exception; 400 cho multipart parse lỗi; 503 khi R2 upload lỗi, không lộ cause qua HTTP body. GlobalExceptionHandler chỉ có nhánh multipart JSON riêng cho đúng API này, các route khác giữ xử lý cũ. Tests mock MultipartResolver để kiểm tra lỗi trước khi dispatch controller; không chứng minh servlet/proxy limits thật.
 
@@ -106,17 +108,51 @@ Credentials QA: `~/.local/state/aureliabooks-r2-qa/mysql.env` (ngoài Git, 0600;
 
 Bucket staging theo context lịch sử: `aureliabooks-staging-assets`, private. Tài liệu cũ ghi CLI smoke đã làm; phiên này không xác minh lại bucket/token hoặc live Java SDK. Không in credentials, không dump env/docker inspect toàn bộ.
 
-**application.yaml vẫn có ddl-auto=update từ trước; không sửa trong phạm vi này và không khởi động ứng dụng với datasource thật.** Nhóm cần quyết định cấu hình validate trước live/staging. Schema/entity/migration không đổi; avatar không đổi; không tác động VPS, Staging/Production.
+**R2.37.1 đã đổi mặc định application.yaml sang ddl-auto=validate và bỏ JDBC createDatabaseIfNotExist. Không khởi động production application với datasource thật. External env/profile có thể override default, phải audit môi trường thật trước live/deploy.** Nhóm cần quyết định cấu hình validate trước live/staging. Schema/entity/migration không đổi; avatar không đổi; không tác động VPS, Staging/Production.
 
-## Điểm dừng bắt buộc — R2.37 chưa làm
+## Điểm dừng bắt buộc — live/PR/deploy chưa làm
 
 Chưa live R2 smoke, chưa PR, merge, build/deploy Staging/Production. Trước bước đó cần phê duyệt và chuẩn bị:
 
 1. Môi trường/token/bucket cụ thể, secrets ngoài Git; xác minh private bucket và datasource/schema mode trước khởi động thật.
 2. Live Java PUT/read với key QA và cleanup riêng được duyệt; không quét/xóa objects thật.
 3. Browser E2E hai form, session/CSRF expiry, save failure/retry, thay ảnh/shared references, visibility, prefix/proxy paths và giới hạn multipart servlet thật.
-4. Quota và rate limiting upload tại backend/gateway: bản này chưa có server rate limiter; client single-flight không thay thế cơ chế đó.
+4. Quota và rate limiting upload tại backend/gateway: R2.37.1 đã thêm backend quota/concurrency per JVM; cần ingress/shared limits khi nhiều instance, không dùng client single-flight thay thế.
 5. Đối soát chi phí orphan, chính sách cleanup được nhóm duyệt. Không tự triển khai delete/GC dựa trên context này.
 6. Review PR/CI và rollback plan: tắt R2 làm internal GET không đăng ký, URL ngoài vẫn giữ; cần cân nhắc ảnh đã lưu internal khi rollout/rollback.
 
-Hướng tiếp tục: đọc source và tài liệu storage, review diff đã commit, rồi chuẩn bị kế hoạch R2.37 cụ thể để người dùng duyệt. Không tự kết nối dịch vụ thật hoặc deploy.
+Hướng tiếp tục: hoàn thành R2.37.2 còn thiếu, đọc audit R2_RELEASE_READINESS.md, rồi chuẩn bị live smoke R2.37.3 cụ thể để người dùng duyệt. Không tự kết nối dịch vụ thật hoặc deploy.
+
+## Cập nhật R2.37.1 — 01/11/2026
+
+Đã hoàn thành source audit/hardening; báo cáo chi tiết: `docs/storage/R2_RELEASE_READINESS.md`.
+
+### Thay đổi
+
+- Default DDL validate, bỏ driver auto-create database. Không đổi schema/entities/migrations hoặc chạy DB thật.
+- File 5 MiB, request 6 MiB, disk threshold 0; header Content-Length quá lớn bị chặn sớm, chunked vẫn chịu servlet limits.
+- ProductImageUploadFilter trong internal chain trước CSRF: 10 attempts/phút/principal MANAGER, tối đa 2 concurrent POST uploads/JVM. Quota map tối đa 1024, prune expired, fail-closed khi đầy; không tin forwarded-IP header. 429 JSON và Retry-After, release slot cả khi lỗi.
+- Các giới hạn phải positive; cấu hình sai fail startup. Counter là per-process fixed window, reset khi restart, không global/distributed; cần edge limits để bảo vệ slow clients/multi-replica.
+- R2_UPLOAD_ENABLED=false giữ R2 GET/storage, không đăng ký POST controller, ẩn uploader. POST bị filter trả 503 trước parse. Đây là pause upload, không rollback binary/database và không freeze mọi product write.
+- S3 apiCallTimeout 30s, apiCallAttemptTimeout 10s. JS hiển thị thông báo 429, giữ URL, không auto retry.
+- .env.example bổ sung tên biến (secret rỗng). Compose .env không tự forward các biến vào app container; deployment cụ thể chưa kiểm chứng/chưa sửa.
+
+### Bằng chứng mới
+
+**192 Java tests, 0 failures/errors/skipped, BUILD SUCCESS**, kết thúc 19:45:27 +07; **9 JS tests PASS**. Không chạy lại MySQL QA trong R2.37.1; 5 MySQL PASS ở R2.36 là lịch sử riêng.
+
+```bash
+./mvnw -B -ntp -Dtest=ProductImageControllerTest,ProductImageControllerContextTest,ProductImageSecurityMvcTest,R2StorageConfigTest,R2SafetyDefaultsTest,ProductImageProcessorTest,R2ProductImageStorageTest,R2ProductImageReadTest,R2ProductImageAbortTest,ManagerProductImageUploadTest,ProductImageReferencePolicyTest,ProductImageSaveGuardTest,ProductImageFormTest,AdminProductServiceTest,AdminProductControllerTest,BookFormValidationTest,SecurityConfigIntegrationTest,PortalSeparationIntegrationTest,ProductImageUploadFilterTest,ProductImageUploadPausedMvcTest,ProductImageUploadAdmissionMvcTest test
+```
+
+Đã xây `R2BrowserQaTest` + `scripts/start-r2-browser-qa.sh`: loopback/random port, không production root component scan, loại datasource/JPA, assert không có production root/DataSource/S3Client beans. Login synthetic; catalog/storage trong RAM; actual controllers/Security/Thymeleaf/embedded Tomcat. Tự dừng tối đa 15 phút hoặc stop file. Harness đã dừng sạch 19:44:09 +07. JUnit harness 1 PASS chỉ xác nhận safety/lifecycle, không là automated browser test count.
+
+Browser thật đã kiểm chứng: login, upload Book/Stationery, local preview, fake PNG và oversized file bị từ chối giữ URL cũ, lưu form và đọc lại edit URL; orphan trước save 404, sau save anonymous GET 200 PNG/no-store/nosniff. Actual HTTP chunked >6 MiB tới QA servlet trả 413 JSON không redirect. Fault memory storage trả 503 trên browser, giữ URL cũ. Screenshot versioned: `docs/storage/qa-evidence/r2371-upload-error.jpg`.
+
+Đây là smoke trên memory doubles, không chứng minh transaction/business persistence/MySQL/R2 thật, actual proxy hay toàn bộ global layout advice. Vì vậy **R2.37.2 vẫn PARTIAL**. Lượt harness bootstrap đầu lỗi import trùng User và sau đó phát hiện Spring ghép application root; đã sửa thành explicit QA config/TestComponent trước phiên browser thành công, datasource/JPA bị exclude trong mọi lượt.
+
+### Kết luận rollback và điểm dừng
+
+Sau khi DB có internal URLs, **không tắt R2_ENABLED như một rollback an toàn**. Pause upload bằng R2_UPLOAD_ENABLED=false giữ GET nếu DB/R2 healthy. Rollback binary phải giữ GET path/visibility hoặc có kế hoạch chuyển URL/restore mapping được nhóm duyệt; không auto-delete object. Không thể khôi phục URL cũ nếu chưa có inventory/audit trước thay ảnh.
+
+Mẫu proxy, static audit và runbook có trong R2_RELEASE_READINESS.md; chưa áp dụng/kiểm chứng ở VPS. Default validate chưa chứng minh actual env không override. R2.37.2 cần tiếp tục persistence/proxy/session-expiry matrix; chỉ sau các điều kiện phù hợp mới xin phê duyệt R2.37.3 bucket staging. Chưa live smoke, PR, merge hay deploy.

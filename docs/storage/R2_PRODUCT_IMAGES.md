@@ -6,7 +6,7 @@ Backend hỗ trợ upload ảnh MANAGER, private storage, GET có visibility che
 
 ## Luồng sử dụng
 
-Khi R2 bật, MANAGER chọn PNG/JPEG trên form, xem trước local và bấm **Tải ảnh lên**. Browser gửi multipart `file`, cookie cùng origin, CSRF token và AJAX header tới `POST /manager/products/images`. Chỉ MANAGER được phép; ADMIN không mặc nhiên có quyền. Multipart boundary để browser tự tạo.
+Khi R2 và upload được bật, MANAGER chọn PNG/JPEG trên form, xem trước local và bấm **Tải ảnh lên**. Browser gửi multipart `file`, cookie cùng origin, CSRF token và AJAX header tới `POST /manager/products/images`. Chỉ MANAGER được phép; ADMIN không mặc nhiên có quyền. Multipart boundary để browser tự tạo.
 
 HTTP 201 JSON `{ "imageUrl": "/products/images/<uuid-v4>" }` cập nhật field `mainImageUrl`. Không gửi object key, endpoint hay credentials cho client. Upload chưa ghi DB. Phải lưu sản phẩm để ảnh được GET công khai; orphan vẫn trả 404. Giới hạn: input/output 5 MiB, 16 triệu pixel, PNG/JPEG decode được, resize tối đa 1600px và encode lại PNG. Tên file/MIME client không được tin cậy.
 
@@ -70,8 +70,12 @@ Các tests này dùng DOM/fetch giả, không phải browser E2E. Phiên triển
 Chưa chạy R2 live smoke, mở PR, merge hoặc deploy Staging/Production trong phạm vi này. Trước R2.37 cần phê duyệt cụ thể và kiểm tra:
 
 - Credentials secret storage, bucket private, token đúng scope, region/endpoint; không log secrets.
-- Datasource và `ddl-auto=validate` tại môi trường triển khai do nhóm quyết định; không khởi động với update trỏ DB freeze.
+- Default DDL đã đổi sang validate và bỏ JDBC tự tạo DB ở R2.37.1; vẫn phải kiểm tra env/profile overrides thật trước khi kết nối DB freeze.
 - Live Java PUT/GET với ảnh QA và cleanup key cụ thể được duyệt; không scan/delete dữ liệu thật.
 - Browser E2E cả hai form: CSRF/session expiry, validation retry, lưu/đổi ảnh, visibility, proxy/context path, multipart limits tại servlet/proxy thật.
-- Quota/rate limiting upload tại gateway hoặc backend trước mở cho môi trường dùng thật. Client single-flight không phải server rate limit; bản này chưa thêm backend rate limiter.
-- Rollback khi tắt R2: URL ngoài vẫn hiển thị, ảnh internal không phục vụ khi controller tắt; phải cân nhắc trước rollout.
+- Quota/rate limiting upload tại gateway hoặc backend trước mở cho môi trường dùng thật. Client single-flight không thay server rate limit. R2.37.1 đã thêm quota 10 requests/phút/principal và 2 concurrent uploads/JVM; vẫn cần review ingress và shared limits nếu nhiều instance.
+- Pause upload bằng R2_UPLOAD_ENABLED=false trong khi giữ R2_ENABLED=true để không mất GET ảnh. Tắt toàn R2 vẫn làm ảnh internal ngừng phục vụ; không xem đó là rollback an toàn sau khi có dữ liệu. Xem R2_RELEASE_READINESS.md.
+
+## Cập nhật hardening R2.37.1
+
+Servlet request limit 6 MiB, file 5 MiB, disk threshold 0. Backend admission trước CSRF kiểm soát 10 attempts/phút/principal và 2 concurrent requests/JVM, 429 + Retry-After. SDK call timeout 30s / attempt 10s. R2_UPLOAD_ENABLED=false tắt upload và ẩn uploader, giữ GET/storage nếu R2_ENABLED=true. Chi tiết bằng chứng/giới hạn/rollback: R2_RELEASE_READINESS.md. Chưa thay proxy, connect R2 thật, PR hay deploy.
