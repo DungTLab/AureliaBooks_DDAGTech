@@ -4,7 +4,7 @@ Cập nhật: 01/11/2026, giờ Việt Nam. Báo cáo thay thế trạng thái d
 
 ## Trạng thái
 
-**R2.25 PASS; R2.26 PASS; R2.27 PASS. Tính năng upload ảnh sản phẩm chưa hoàn tất end-to-end.**
+**R2.25–R2.29 PASS / CLOSED. Tính năng upload ảnh sản phẩm chưa hoàn tất end-to-end.**
 
 - Repo: `DungTLab/AureliaBooks_DDAGTech`.
 - Worktree: `/home/dungtlab/WorkSpace/AureliaBooks-r2-storage`.
@@ -56,7 +56,7 @@ Các thay đổi đã có từ phiên trước được review và kiểm thử 
 - `ProductImageStorage.store()` trả key `products/<UUID-v4>.png`, không trả public URL.
 - Read chỉ nhận UUID v4 lowercase; kiểm tra metadata/size, đọc tối đa 5 MiB + 1 byte, abort stream khi lỗi hoặc dữ liệu không hợp lệ; S3 404 thành RESOURCE_NOT_FOUND.
 - `ProductRepository.countVisibleProductsByMainImageUrl()` chỉ đếm product active thuộc category active. Không kiểm tra toàn bộ cây category/stock.
-- Avatar giữ nguyên; URL ngoài hiện tại giữ nguyên. Chưa có controller điều phối visibility trước storage.
+- Avatar giữ nguyên; URL ngoài hiện tại giữ nguyên. Đã bổ sung controller điều phối visibility trước storage ở R2.29 (xem phần cập nhật dưới).
 
 ## Bằng chứng kiểm thử
 
@@ -92,10 +92,43 @@ Database schema dự án vẫn freeze. Không thực hiện deploy, migration, m
 
 ## Việc tiếp theo — chưa làm
 
-1. Thiết kế và triển khai GET `/products/images/{imageId}`: UUID hợp lệ, product visibility trước đọc S3; HTTP 200/404/503 trực tiếp, tránh redirect HTML; cache và security headers cần kiểm thử.
+1. Kiểm thử điều kiện đăng ký ProductImageController khi R2 bật/tắt trong application context và tương thích Spring Security thật; GET controller và HTTP standalone tests đã hoàn tất ở R2.29.
 2. POST manager upload: role manager, CSRF, multipart validation, xử lý lỗi; trả URL nội bộ thống nhất. Không coi UUID là cơ chế phân quyền.
 3. Tích hợp form sách/văn phòng phẩm, giữ URL ngoài và URL cũ; điều chỉnh input/validation để hỗ trợ đường dẫn nội bộ.
 4. Xác định vòng đời object orphan khi upload/lưu DB thất bại hoặc thay ảnh; không tự xóa ảnh còn được tham chiếu.
 5. Controller/security tests và R2 live integration trước khi coi tính năng hoàn thành; review rồi mới xem xét staging deployment.
 
 Các checkpoint R2.09–R2.20 trong tài liệu cũ không có lịch sử gốc đầy đủ ở tài liệu thứ hai. Kết quả chạy lại 30 unit tests ở phiên này xác minh hành vi hiện tại, không phục hồi ánh xạ checkpoint lịch sử.
+
+## Cập nhật R2.28–R2.29 — 01/11/2026
+
+### R2.28 Architecture Review — PASS / CLOSED
+
+Đối chiếu controller hiện có: chưa có `/products/images/{imageId}`, không xung đột với `/products/{id}`; repository đã có visibility query. Không cần sửa database schema.
+
+### R2.29 GET Product Image Controller — PASS / CLOSED
+
+Thêm `ProductImageController` chỉ đăng ký khi `app.r2.enabled=true`; cấu hình mặc định vẫn false.
+
+- GET `/products/images/{imageId}` chỉ chấp nhận UUID v4 lowercase chuẩn, sai ID trả 404 trước database.
+- Query theo đúng URL nội bộ; count <= 0 trả 404 trước storage, tránh phục vụ ảnh orphan.
+- Count > 0 mới đọc storage; trả body PNG với Content-Type image/png.
+- AppException RESOURCE_NOT_FOUND trả 404; lỗi database/R2 và các exception khác trả 503, không lộ exception qua body.
+- Local exception handlers tránh GlobalExceptionHandler redirect HTML.
+- Success/error đều có Cache-Control no-store và X-Content-Type-Options nosniff.
+
+`ProductImageControllerTest`: 6/6 PASS, không failure/error/skip. MockMvc standalone có đăng ký GlobalExceptionHandler hiện có, xác minh local handlers ưu tiên khi có advice toàn cục. Các trường hợp: PNG thành công, UUID sai không truy cập DB/storage, ảnh chưa gắn không đọc storage, object thiếu 404, R2 lỗi 503, database lỗi 503 không đọc storage. Error responses có body rỗng, không Location, no-store, nosniff.
+
+Chạy regression chọn lọc:
+
+```bash
+./mvnw -B -ntp -Dtest=ProductImageControllerTest,R2StorageConfigTest,ProductImageProcessorTest,R2ProductImageStorageTest,R2ProductImageReadTest,R2ProductImageAbortTest test
+```
+
+Kết quả: **36 tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS**, hoàn tất 19:00:03 +07 ngày 01/11/2026. Lần chạy đầu riêng HTTP tests trong sandbox lỗi Mockito attach (6 errors); lần chạy lại regression ngoài sandbox PASS. Không thay đổi cấu hình Maven để che lỗi.
+
+MySQL visibility tests (5 tests) đã PASS ở phiên trước, không chạy lại vì R2.29 không sửa query/schema. Không cộng kết quả các phiên thành full suite mới. Không chạy MySQL/Cloudflare thật ở checkpoint này.
+
+### Giới hạn và checkpoint tiếp theo
+
+Standalone tests không chứng minh Spring Security hay conditional bean registration trong application context thật. Chưa kiểm thử hai nội dung đó cho controller mới; đây là bước kế tiếp, dự kiến R2.30. Chưa triển khai POST upload, form admin hoặc vòng đời object orphan. Không deploy, merge, thay đổi Staging/Production.
