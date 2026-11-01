@@ -16,13 +16,15 @@ import static org.mockito.Mockito.verifyNoInteractions;
 class ProductImageControllerContextTest {
     private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(WebMvcAutoConfiguration.class))
-            .withUserConfiguration(ProductImageController.class);
+            .withUserConfiguration(ProductImageController.class,
+                    com.ddagtech.aureliabooks.controller.admin.ManagerProductImageController.class);
 
     @Test
     void disabledByDefaultWithoutStorageDependencies() {
         runner.run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).doesNotHaveBean(ProductImageController.class);
+            assertThat(context).doesNotHaveBean(com.ddagtech.aureliabooks.controller.admin.ManagerProductImageController.class);
             assertThat(context).doesNotHaveBean(ProductRepository.class);
             assertThat(context).doesNotHaveBean(ProductImageStorage.class);
             assertThat(context.getBean(RequestMappingHandlerMapping.class).getHandlerMethods().values())
@@ -35,6 +37,7 @@ class ProductImageControllerContextTest {
         runner.withPropertyValues("app.r2.enabled=false").run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).doesNotHaveBean(ProductImageController.class);
+            assertThat(context).doesNotHaveBean(com.ddagtech.aureliabooks.controller.admin.ManagerProductImageController.class);
             assertThat(context).doesNotHaveBean(ProductRepository.class);
             assertThat(context).doesNotHaveBean(ProductImageStorage.class);
             assertThat(context.getBean(RequestMappingHandlerMapping.class).getHandlerMethods().values())
@@ -52,6 +55,7 @@ class ProductImageControllerContextTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(ProductImageController.class);
+                    assertThat(context).hasSingleBean(com.ddagtech.aureliabooks.controller.admin.ManagerProductImageController.class);
                     var mappings = context.getBean(RequestMappingHandlerMapping.class).getHandlerMethods();
                     assertThat(mappings.entrySet()).anySatisfy(entry -> {
                         assertThat(entry.getKey().getPatternValues())

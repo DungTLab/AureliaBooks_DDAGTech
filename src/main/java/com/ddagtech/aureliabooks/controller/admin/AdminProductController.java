@@ -35,6 +35,12 @@ public class AdminProductController {
     private final AdminProductService adminProductService;
     private final MasterDataService masterDataService;
 
+    @org.springframework.beans.factory.annotation.Value("${app.r2.enabled:false}")
+    private boolean productImageUploadEnabled;
+
+    @ModelAttribute("productImageUploadEnabled")
+    public boolean productImageUploadEnabled() { return productImageUploadEnabled; }
+
     // =========================================================================
     // PRODUCT DIRECTORY (BOOKS & STATIONERY)
     // =========================================================================

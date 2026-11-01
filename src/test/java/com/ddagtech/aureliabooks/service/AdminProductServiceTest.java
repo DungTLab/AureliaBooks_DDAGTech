@@ -63,6 +63,9 @@ class AdminProductServiceTest {
     @org.mockito.Spy
     private com.ddagtech.aureliabooks.mapper.ProductMapper productMapper = new com.ddagtech.aureliabooks.mapper.ProductMapper();
 
+    @Mock
+    private ProductImageReferencePolicy imageReferences;
+
     @InjectMocks
     private AdminProductServiceImpl adminProductService;
 
@@ -203,6 +206,7 @@ class AdminProductServiceTest {
             when(productRepository.save(any(Product.class))).thenReturn(createdProduct);
 
             Long resultId = adminProductService.createBook(form);
+            verify(imageReferences).validateForSave(form.mainImageUrl(), null);
 
             assertThat(resultId).isEqualTo(200L);
 
@@ -296,6 +300,7 @@ class AdminProductServiceTest {
             when(authorRepository.findAllById(Set.of(1L))).thenReturn(List.of(author));
 
             adminProductService.updateBook(100L, updateForm);
+            verify(imageReferences).validateForSave(updateForm.mainImageUrl(), null);
 
             // Invariant: Existing stock quantity (50) MUST NEVER be overwritten or zeroed by an update form
             assertThat(sampleBookProduct.getStockQuantity()).isEqualTo(50);
@@ -340,6 +345,7 @@ class AdminProductServiceTest {
             when(productRepository.save(any(Product.class))).thenReturn(createdProduct);
 
             Long resultId = adminProductService.createStationery(form);
+            verify(imageReferences).validateForSave(form.mainImageUrl(), null);
 
             assertThat(resultId).isEqualTo(300L);
 

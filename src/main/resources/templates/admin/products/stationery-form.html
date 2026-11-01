@@ -124,15 +124,7 @@
                     <p class="text-xs text-rose-600 mt-1" th:if="${#fields.hasErrors('originalCost')}" th:errors="*{originalCost}">Lỗi giá vốn</p>
                 </div>
 
-                <!-- Main Image URL -->
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-bold text-carbon_black uppercase tracking-wider mb-1.5" for="mainImageUrl">
-                        Đường Dẫn Ảnh Sản Phẩm (Image URL)
-                    </label>
-                    <input id="mainImageUrl" type="url" th:field="*{mainImageUrl}" maxlength="500"
-                           placeholder="https://example.com/images/pen.jpg"
-                           class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame">
-                </div>
+                <div th:replace="~{admin/products/image-field :: field}"></div>
 
                 <!-- Tags -->
                 <div class="md:col-span-2">

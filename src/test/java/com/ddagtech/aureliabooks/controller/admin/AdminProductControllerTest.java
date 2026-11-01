@@ -53,6 +53,15 @@ class AdminProductControllerTest {
     private RoleRepository roleRepository;
 
     @Test
+    @WithMockUser(roles = "MANAGER")
+    void disabledR2KeepsManualUrlAndHidesUploader() throws Exception {
+        mockMvc.perform(get("/manager/books/new"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"mainImageUrl\" type=\"text\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("data-image-uploader"))));
+    }
+
+    @Test
     @DisplayName("GET /manager/products as MANAGER returns 200 OK and model attributes")
     @WithMockUser(username = "manager", roles = {"MANAGER"})
     void getProducts_AsManager_Returns200() throws Exception {

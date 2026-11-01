@@ -77,6 +77,7 @@ public record BookForm(
         Book.CoverType coverType) {
 
     public BookForm {
+        mainImageUrl = com.ddagtech.aureliabooks.util.ProductImageUrls.normalize(mainImageUrl);
         if (barcode != null) barcode = barcode.strip();
         if (title != null) title = title.strip();
         if (isbn != null) isbn = isbn.strip();

@@ -37,6 +37,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final AuthorRepository authorRepository;
     private final BrandRepository brandRepository;
     private final ProductMapper productMapper;
+    private final com.ddagtech.aureliabooks.service.ProductImageReferencePolicy imageReferences;
 
     // =========================================================================
     // UC15: BOOK MANAGEMENT
@@ -45,6 +46,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     @Override
     @Transactional
     public Long createBook(BookForm form) {
+        imageReferences.validateForSave(form.mainImageUrl(), null);
         String barcode = form.barcode().trim();
         String isbn = form.isbn().trim();
 
@@ -104,6 +106,7 @@ public class AdminProductServiceImpl implements AdminProductService {
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách với ID: " + productId));
 
         Product product = book.getProduct();
+        imageReferences.validateForSave(form.mainImageUrl(), product.getMainImageUrl());
         String barcode = form.barcode().trim();
         String isbn = form.isbn().trim();
 
@@ -192,6 +195,7 @@ public class AdminProductServiceImpl implements AdminProductService {
     @Override
     @Transactional
     public Long createStationery(StationeryForm form) {
+        imageReferences.validateForSave(form.mainImageUrl(), null);
         String barcode = form.barcode().trim();
         if (productRepository.existsByBarcodeIgnoreCase(barcode)) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Mã vạch (Barcode) '" + barcode + "' đã tồn tại trong hệ thống.");
@@ -228,6 +232,7 @@ public class AdminProductServiceImpl implements AdminProductService {
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy văn phòng phẩm với ID: " + productId));
 
         Product product = stationery.getProduct();
+        imageReferences.validateForSave(form.mainImageUrl(), product.getMainImageUrl());
         String barcode = form.barcode().trim();
 
         if (productRepository.existsByBarcodeIgnoreCaseAndIdNot(barcode, productId)) {
