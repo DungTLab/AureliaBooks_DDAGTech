@@ -156,3 +156,40 @@ Lệnh:
 Kết quả **3 tests, 0 failures, 0 errors, 0 skipped; BUILD SUCCESS** lúc 19:07:09 +07. Lần đầu trong sandbox gặp lỗi Mockito attach; chạy lại ngoài sandbox PASS. Không sửa production code, security config, schema hoặc Maven.
 
 Bước đang chờ: **R2.30.3** — WebMvcTest với SecurityConfig thật, không tắt filters; anonymous GET, các status 200/404/503 và headers. Sau đó R2.30.4 chạy regression và tổng kết. Kết quả R2.30.2 không phải bằng chứng Spring Security đã PASS. Chưa chuyển R2.31.
+
+## R2.30.3 — MVC Security Tests: PASS
+
+Ngày 01/11/2026, thêm `ProductImageSecurityMvcTest`. Dùng `@WebMvcTest(ProductImageController.class, properties="app.r2.enabled=true")`, import SecurityConfig, CustomAuthenticationEntryPoint và CustomAccessDeniedHandler thật. Không định nghĩa filter chain giả, không tắt filters. Repository/storage là hai mocks; không khởi tạo datasource/JPA hoặc S3 client, không chạy MySQL QA, không đọc credentials hay gọi R2/VPS.
+
+| Kiểm thử | Kết quả |
+|---|---|
+| Hai chains thật đúng thứ tự internal → storefront | PASS |
+| Chọn chain đầu tiên cho ảnh, /profile, /manager/books | PASS |
+| Internal chain không match ảnh; cả hai chains có CsrfFilter | PASS |
+| Anonymous GET ảnh hợp lệ, không cần CSRF | 200 image/png, đúng bytes |
+| UUID sai | 404; không gọi repository/storage |
+| Orphan | 404; không gọi storage |
+| Object thiếu | 404 |
+| Storage lỗi | 503 |
+| Database lỗi | 503; không gọi storage |
+| Anonymous /manager/books | 302 → /internal/login |
+| Anonymous /profile | 302 → /auth/login |
+| POST /manager/products/images thiếu CSRF (MANAGER) | 403, forward /error/403, không redirect |
+| POST /products/images thiếu CSRF (MANAGER) | 403, forward /error/403, không redirect |
+
+Các response GET ảnh 200/404/503 đều được kiểm tra Cache-Control no-store, X-Content-Type-Options nosniff và không có Location; response lỗi body rỗng. Test redirect/CSRF xác minh mocks không được gọi. Test chain kiểm tra chain đầu tiên được chọn, không giả định storefront catch-all phải từ chối match internal URI.
+
+Output R2.30.3:
+
+```text
+./mvnw -B -ntp -Dtest=ProductImageSecurityMvcTest test
+Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+Finished at: 2026-11-01T19:13:12+07:00
+```
+
+Chạy ngoài sandbox để Mockito agent hoạt động. Cảnh báo Mockito self-attach còn tồn tại; stack traces từ lỗi storage/database được mock là tình huống test dự kiến, không phải test failure.
+
+Giới hạn: đây là MVC security slice, không phải full application end-to-end. Các trang manager/profile không được load controller trang thật; tests xác minh redirect của security trước MVC. POST endpoint ảnh chưa tồn tại; test CSRF chỉ chứng minh filter từ chối request trước MVC, chưa chứng minh upload hay phân quyền upload khi có CSRF hợp lệ.
+
+**R2.30.3 PASS; toàn bộ R2.30 vẫn chưa CLOSED.** Bước kế tiếp là R2.30.4 regression chọn lọc và tổng kết; chưa chạy bước này, chưa làm R2.31. Không sửa production code/security config/schema và không deploy.
