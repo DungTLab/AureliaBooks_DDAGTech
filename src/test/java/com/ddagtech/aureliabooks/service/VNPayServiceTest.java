@@ -999,6 +999,85 @@ class VNPayServiceTest {
         assertThat(VNPayUtil.resolveClientIp(reqDualStackChain)).isEqualTo("203.113.148.25");
     }
 
+    @Test
+    @DisplayName("P2 Regression: Duplicate surplus payment IPN across two separately loaded Order entities returns 02 and audits only once")
+    void processIpnWebhook_SurplusPaymentDuplicateAcrossSeparatelyLoadedEntities_Returns02AndAuditsOnce() {
+        User customer = User.builder().id(77L).fullName("Surplus Customer").build();
+
+        // Entity 1: initial PAID order
+        Order entity1 = Order.builder()
+                .id(77L)
+                .user(customer)
+                .orderCode("ORD-DUAL-ENTITY")
+                .vnpayTxnRef("ORD-DUAL-ENTITY")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("200000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        entity1.recordSettledVnpayAttempt("ORD-DUAL-ENTITY", "14500001");
+
+        // Incoming surplus IPN for retry attempt ORD-DUAL-ENTITY-R100200
+        Map<String, String> surplusParams = signedParams("ORD-DUAL-ENTITY-R100200", "20000000", "00", "00");
+        surplusParams.put("vnp_TransactionNo", "14500002");
+        surplusParams.put("vnp_BankCode", "NCB");
+        String hashData = VNPayUtil.buildHashData(surplusParams);
+        surplusParams.put("vnp_SecureHash", VNPayUtil.hmacSHA512(TEST_SECRET, hashData));
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-DUAL-ENTITY-R100200"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-DUAL-ENTITY"))
+                .thenReturn(Optional.of(entity1));
+
+        // First delivery: should be detected as surplus payment, return 00, audit VNPAY_DUPLICATE_PAYMENT_RECONCILIATION
+        VNPayIpnResponse res1 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+        assertThat(res1.rspCode()).isEqualTo("00");
+
+        verify(auditLogService, org.mockito.Mockito.times(1)).record(
+                eq(77L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(77L),
+                any(),
+                eq("203.0.113.10")
+        );
+
+        // Second delivery: simulate fresh Order entity loaded separately from database with persisted columns
+        Order entity2 = Order.builder()
+                .id(77L)
+                .user(customer)
+                .orderCode("ORD-DUAL-ENTITY")
+                .vnpayTxnRef("ORD-DUAL-ENTITY")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("200000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .vnpayBankCode(entity1.getPersistedVnpayBankCodeColumn())
+                .build();
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-DUAL-ENTITY"))
+                .thenReturn(Optional.of(entity2));
+
+        // Second delivery of the EXACT same surplus payment callback
+        VNPayIpnResponse res2 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+
+        // Must return "02" (Order already confirmed / duplicate) and NOT audit surplus again!
+        assertThat(res2.rspCode()).isEqualTo("02");
+        assertThat(res2.message()).containsIgnoringCase("Order already confirmed");
+
+        // Verify total audit log count remains 1 (no duplicate audit created!)
+        verify(auditLogService, org.mockito.Mockito.times(1)).record(
+                eq(77L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(77L),
+                any(),
+                eq("203.0.113.10")
+        );
+    }
+
     private void authenticateAsCustomer(User user) {
         lenient().when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         SecurityContextHolder.getContext().setAuthentication(

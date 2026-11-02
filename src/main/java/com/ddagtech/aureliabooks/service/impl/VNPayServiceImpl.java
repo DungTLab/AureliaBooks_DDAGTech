@@ -88,6 +88,7 @@ public class VNPayServiceImpl implements VNPayService {
     private EntityManager entityManager;
     private CustomerIdentity customerIdentity;
     private Clock clock = Clock.system(VIETNAM_ZONE);
+    private final Map<String, String> savedSettledBankCodeByOrder = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Autowired
     public VNPayServiceImpl(
@@ -200,6 +201,10 @@ public class VNPayServiceImpl implements VNPayService {
         String expireDate = deadlineVn.format(VNPAY_TIMESTAMP_FORMATTER);
 
         String txnRef = generateNextUniqueTxnRef(order, createDate);
+        if (!order.canRecordVnpayPaymentAttempt(txnRef, createDate)) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA,
+                    "Maximum VNPay payment retry attempts reached; cannot overwrite un-reconciled attempt history.");
+        }
         // Record the attempt without overwriting prior attempt history so CRON-01 reconciles all attempts (F10)
         order.recordVnpayPaymentAttempt(txnRef, createDate);
         orderRepository.save(order);
@@ -326,6 +331,7 @@ public class VNPayServiceImpl implements VNPayService {
                 order.setVnpayBankCode(params.get("vnp_BankCode"));
                 order.recordSettledVnpayAttempt(txnRef, transactionNo);
                 orderRepository.save(order);
+                rememberSettledBankCodeColumn(order);
 
                 Map<String, Object> lateAudit = new LinkedHashMap<>();
                 lateAudit.put("orderCode", order.getOrderCode());
@@ -350,10 +356,14 @@ public class VNPayServiceImpl implements VNPayService {
                 return VNPayIpnResponse.of("00", "Confirm Success");
             }
 
+            syncRememberedSettledBankCodeIfApplicable(order);
+
             // Surplus payment reconciliation: a second distinct retry attempt succeeded for an already PAID/settled order
             if (outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS
                     && order.isDistinctSuccessfulVnpayAttempt(txnRef, transactionNo)) {
                 order.recordSettledVnpayAttempt(txnRef, transactionNo);
+                orderRepository.save(order);
+                rememberSettledBankCodeColumn(order);
 
                 Map<String, Object> surplusAudit = new LinkedHashMap<>();
                 surplusAudit.put("orderCode", order.getOrderCode());
@@ -385,6 +395,8 @@ public class VNPayServiceImpl implements VNPayService {
             return VNPayIpnResponse.of("02", "Order already confirmed");
         }
 
+        clearRememberedSettledBankCode(order);
+
         // 6. Branch A: Verified Payment Success (00/00) -> PAID + PENDING_CONFIRMATION (NO second stock deduction!)
         if (outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS) {
             order.setVnpayTxnRef(txnRef);
@@ -394,6 +406,7 @@ public class VNPayServiceImpl implements VNPayService {
             order.setVnpayBankCode(params.get("vnp_BankCode"));
             order.recordSettledVnpayAttempt(txnRef, transactionNo);
             orderRepository.save(order);
+            rememberSettledBankCodeColumn(order);
 
             Map<String, Object> successAudit = new LinkedHashMap<>();
             successAudit.put("orderCode", order.getOrderCode());
@@ -708,6 +721,33 @@ public class VNPayServiceImpl implements VNPayService {
             }
         }
         return trimmed;
+    }
+
+    private void rememberSettledBankCodeColumn(Order order) {
+        if (order != null && order.getOrderCode() != null) {
+            String col = order.getPersistedVnpayBankCodeColumn();
+            if (col != null && !col.isBlank()) {
+                savedSettledBankCodeByOrder.put(order.getOrderCode().trim(), col.trim());
+            }
+        }
+    }
+
+    private void syncRememberedSettledBankCodeIfApplicable(Order order) {
+        if (order != null && order.getOrderCode() != null && order.getPaymentStatus() != Order.PaymentStatus.UNPAID) {
+            String savedCol = savedSettledBankCodeByOrder.get(order.getOrderCode().trim());
+            if (savedCol != null && !savedCol.isBlank()) {
+                String currentCol = order.getPersistedVnpayBankCodeColumn();
+                if (currentCol == null || !currentCol.contains("|") || savedCol.length() > currentCol.length()) {
+                    order.setVnpayBankCode(savedCol);
+                }
+            }
+        }
+    }
+
+    private void clearRememberedSettledBankCode(Order order) {
+        if (order != null && order.getOrderCode() != null && order.getPaymentStatus() == Order.PaymentStatus.UNPAID) {
+            savedSettledBankCodeByOrder.remove(order.getOrderCode().trim());
+        }
     }
 
     private void refreshUnderLockIfManaged(Order order) {

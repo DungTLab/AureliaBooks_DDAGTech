@@ -993,6 +993,149 @@ class VnpayTimeoutCleanerDaemonTest {
         verify(orderVoucherReleasePort, never()).releaseOrderVoucherIfPresent(anyLong());
     }
 
+    @Test
+    @DisplayName("P1 Regression: 7 payment attempts persisted losslessly without dropping middle attempt, reconciles PAID without stock loss")
+    void testReconcile_sevenAttemptsPersistedLosslessly_middleAttemptSucceeds_reconcilesPaidWithoutStockLoss() throws Exception {
+        User customer = User.builder().id(88L).fullName("Test P1 Customer").build();
+        Order order = Order.builder()
+                .id(88L)
+                .user(customer)
+                .orderCode("ORD-7ATTEMPTS")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("300000.00"))
+                .stockDeductedAt(LocalDateTime.of(2026, 10, 16, 10, 0, 0))
+                .build();
+
+        // 7 attempts across 7 different timestamps
+        order.recordVnpayPaymentAttempt("ORD-7ATTEMPTS", "20261016100100");
+        order.recordVnpayPaymentAttempt("ORD-7ATTEMPTS-R100200", "20261016100200");
+        order.recordVnpayPaymentAttempt("ORD-7ATTEMPTS-R100300", "20261016100300");
+        order.recordVnpayPaymentAttempt("ORD-7ATTEMPTS-R100400", "20261016100400");
+        order.recordVnpayPaymentAttempt("ORD-7ATTEMPTS-R100500", "20261016100500");
+        order.recordVnpayPaymentAttempt("ORD-7ATTEMPTS-R100600", "20261016100600");
+        order.recordVnpayPaymentAttempt("ORD-7ATTEMPTS-R100700", "20261016100700");
+
+        assertThat(order.getVnpayPaymentAttempts()).hasSize(7);
+        String persistedTxnRef = order.getVnpayTxnRef();
+        String persistedPayDate = order.getPersistedVnpayBankCodeColumn() != null ? "INIT:20261016100700" : null;
+        String persistedBankCode = order.getPersistedVnpayBankCodeColumn();
+
+        // Ensure encoded column fits within 50 chars and did NOT drop anything
+        assertThat(persistedBankCode).isNotNull();
+        assertThat(persistedBankCode.length()).isLessThanOrEqualTo(50);
+
+        // Simulate reloading fresh entity strictly from persisted columns (as if loaded from MySQL)
+        Order reloadedOrder = Order.builder()
+                .id(88L)
+                .user(customer)
+                .orderCode("ORD-7ATTEMPTS")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("300000.00"))
+                .stockDeductedAt(LocalDateTime.of(2026, 10, 16, 10, 0, 0))
+                .vnpayTxnRef(persistedTxnRef)
+                .vnpayPayDate(persistedPayDate)
+                .vnpayBankCode(persistedBankCode)
+                .build();
+        reloadedOrder.setCreatedAt(LocalDateTime.of(2026, 10, 16, 10, 0, 0));
+
+        // In JPA, @PostLoad triggers restoreVnpayInitiationMetadata()
+        java.lang.reflect.Method postLoadMethod = Order.class.getDeclaredMethod("restoreVnpayInitiationMetadata");
+        postLoadMethod.setAccessible(true);
+        postLoadMethod.invoke(reloadedOrder);
+
+        // Verify that ALL 7 attempts are preserved in the reloaded entity!
+        List<Order.VnpayPaymentAttempt> reloadedAttempts = reloadedOrder.getVnpayPaymentAttempts();
+        assertThat(reloadedAttempts).hasSize(7);
+        assertThat(reloadedAttempts).extracting(Order.VnpayPaymentAttempt::txnRef)
+                .containsExactly(
+                        "ORD-7ATTEMPTS",
+                        "ORD-7ATTEMPTS-R100200",
+                        "ORD-7ATTEMPTS-R100300",
+                        "ORD-7ATTEMPTS-R100400",
+                        "ORD-7ATTEMPTS-R100500",
+                        "ORD-7ATTEMPTS-R100600",
+                        "ORD-7ATTEMPTS-R100700"
+                );
+
+        // Configure stub server: Attempt #2 ("ORD-7ATTEMPTS-R100200") was paid, other 6 return NOT_FOUND (91)
+        String apiUrl = startQueryDrStubServer(200, requestJson -> {
+            JsonNode reqNode = objectMapper.readTree(requestJson);
+            String queriedRef = reqNode.path("vnp_TxnRef").asText();
+            String queriedDate = reqNode.path("vnp_TransactionDate").asText();
+            if ("ORD-7ATTEMPTS-R100200".equals(queriedRef) && "20261016100200".equals(queriedDate)) {
+                return buildIndependentSpecSignedQueryDrJson(
+                        "RSP-ATTEMPT-PAID", "querydr", "00", "OK",
+                        "AURELIA01", "ORD-7ATTEMPTS-R100200", "30000000", "NCB", "20261016100205",
+                        "14567891", "01", "00", "QueryDR ORD-7ATTEMPTS", "", "", TEST_SECRET
+                );
+            }
+            return buildIndependentSpecSignedQueryDrJson(
+                    "RSP-ATTEMPT-91", "querydr", "91", "Khong tim thay giao dich yeu cau",
+                    "AURELIA01", queriedRef, "", "", "", "", "", "",
+                    "QueryDR ORD-7ATTEMPTS", "", "", TEST_SECRET
+            );
+        });
+
+        VNPayConfig config = configuredForQueryDr(apiUrl);
+        DefaultVNPayGatewayReconciliationClient queryDrClient =
+                new DefaultVNPayGatewayReconciliationClient(config, objectMapper);
+        VnpayTimeoutCleanerDaemon daemon = new VnpayTimeoutCleanerDaemon(
+                orderRepository, config, queryDrClient, stockMutationService,
+                orderVoucherReleasePort, auditLogService, objectMapper
+        );
+
+        when(orderRepository.findExpiredPendingPaymentOrders(any())).thenReturn(List.of(reloadedOrder));
+        when(orderRepository.findByIdWithLock(88L)).thenReturn(Optional.of(reloadedOrder));
+
+        int cancelled = daemon.cleanExpiredPendingPaymentOrders();
+
+        // Order must transition to PENDING_CONFIRMATION and PAID
+        assertThat(cancelled).isZero();
+        assertThat(reloadedOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(reloadedOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        assertThat(reloadedOrder.getVnpayTxnRef()).isEqualTo("ORD-7ATTEMPTS-R100200");
+        assertThat(reloadedOrder.getVnpayBankCode()).isEqualTo("NCB");
+
+        // Stock must NEVER be restored and voucher must NEVER be cancelled
+        verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
+        verify(orderVoucherReleasePort, never()).releaseOrderVoucherIfPresent(anyLong());
+    }
+
+    @Test
+    @DisplayName("P1 Regression: canRecordVnpayPaymentAttempt blocks recording when 50-char column limit would be exceeded")
+    void testRecordVnpayPaymentAttempt_blocksBeforeOverwritingOrTruncating() {
+        Order order = Order.builder()
+                .id(89L)
+                .orderCode("ORD-VERY-LONG-BASE-CODE-12345678")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .build();
+
+        // Record several custom-format attempts until column capacity is reached
+        int recorded = 0;
+        for (int i = 1; i <= 30; i++) {
+            String time = String.format("2026101610%02d00", i % 60);
+            String ref = order.getOrderCode() + "-CUSTOM-TAG-" + i;
+            if (order.canRecordVnpayPaymentAttempt(ref, time)) {
+                order.recordVnpayPaymentAttempt(ref, time);
+                recorded++;
+            } else {
+                assertThatThrownBy(() -> order.recordVnpayPaymentAttempt(ref, time))
+                        .isInstanceOf(com.ddagtech.aureliabooks.exception.AppException.class)
+                        .hasMessageContaining("Maximum VNPay payment retry attempts reached");
+                break;
+            }
+        }
+        assertThat(recorded).isGreaterThan(0);
+        // Ensure that attempts recorded so far were not lost
+        assertThat(order.getVnpayPaymentAttempts().size()).isEqualTo(recorded);
+    }
+
     private VNPayConfig configuredForQueryDr(String apiUrl) {
         VNPayConfig config = new VNPayConfig();
         config.setTmnCode("AURELIA01");
