@@ -38,6 +38,8 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -197,21 +199,9 @@ public class VNPayServiceImpl implements VNPayService {
         String createDate = nowVn.format(VNPAY_TIMESTAMP_FORMATTER);
         String expireDate = deadlineVn.format(VNPAY_TIMESTAMP_FORMATTER);
 
-        String existingTxnRef = order.getVnpayTxnRef();
-        String txnRef;
-        if (existingTxnRef == null || existingTxnRef.isBlank()) {
-            txnRef = order.getOrderCode();
-        } else {
-            String timeSuffix = createDate.length() >= 14 ? createDate.substring(8) : createDate;
-            String candidateRef = order.getOrderCode() + "-R" + timeSuffix;
-            if (candidateRef.equals(existingTxnRef)) {
-                candidateRef = candidateRef + "-2";
-            }
-            txnRef = candidateRef;
-        }
-        order.setVnpayTxnRef(txnRef);
-        // Persist the exact PAY vnp_CreateDate durably on the Order entity for QueryDR reconciliation across restarts (F10)
-        order.setVnpayCreateDate(createDate);
+        String txnRef = generateNextUniqueTxnRef(order, createDate);
+        // Record the attempt without overwriting prior attempt history so CRON-01 reconciles all attempts (F10)
+        order.recordVnpayPaymentAttempt(txnRef, createDate);
         orderRepository.save(order);
 
         long amountInMinorUnits = order.getFinalTotalAmount()
@@ -319,7 +309,10 @@ public class VNPayServiceImpl implements VNPayService {
             return VNPayIpnResponse.of("00", "Confirm Success");
         }
 
-        // 5. Idempotency & Late-Success Reconciliation (11.1.0.E6)
+        Long actorUserId = order.getUser() != null ? order.getUser().getId() : null;
+        String transactionNo = params.get("vnp_TransactionNo");
+
+        // 5. Idempotency, Surplus-Payment Reconciliation, & Late-Success Reconciliation (11.1.0.E6)
         if (order.getOrderStatus() != Order.OrderStatus.PENDING_PAYMENT
                 || order.getPaymentStatus() != Order.PaymentStatus.UNPAID) {
 
@@ -327,24 +320,25 @@ public class VNPayServiceImpl implements VNPayService {
             if (order.getOrderStatus() == Order.OrderStatus.CANCELLED
                     && order.getPaymentStatus() == Order.PaymentStatus.UNPAID
                     && outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS) {
+                order.setVnpayTxnRef(txnRef);
                 order.setPaymentStatus(Order.PaymentStatus.PAID);
                 order.setVnpayPayDate(params.get("vnp_PayDate"));
                 order.setVnpayBankCode(params.get("vnp_BankCode"));
+                order.recordSettledVnpayAttempt(txnRef, transactionNo);
                 orderRepository.save(order);
 
                 Map<String, Object> lateAudit = new LinkedHashMap<>();
                 lateAudit.put("orderCode", order.getOrderCode());
                 lateAudit.put("vnpTxnRef", txnRef);
-                lateAudit.put("vnpTransactionNo", params.get("vnp_TransactionNo"));
+                lateAudit.put("vnpTransactionNo", transactionNo);
                 lateAudit.put("vnpPayDate", params.get("vnp_PayDate"));
                 lateAudit.put("vnpBankCode", params.get("vnp_BankCode"));
                 lateAudit.put("orderStatus", order.getOrderStatus().name());
                 lateAudit.put("paymentStatus", order.getPaymentStatus().name());
                 lateAudit.put("reconciliationNote",
                         "Late VNPay payment success arrived after order cancellation. Do not reactivate order or re-deduct stock; manual refund verification required before setting REFUNDED.");
-                Long actorId = order.getUser() != null ? order.getUser().getId() : null;
                 auditLogService.record(
-                        actorId,
+                        actorUserId,
                         "VNPAY_LATE_SUCCESS_RECONCILIATION",
                         "orders",
                         order.getId(),
@@ -356,12 +350,40 @@ public class VNPayServiceImpl implements VNPayService {
                 return VNPayIpnResponse.of("00", "Confirm Success");
             }
 
+            // Surplus payment reconciliation: a second distinct retry attempt succeeded for an already PAID/settled order
+            if (outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS
+                    && order.isDistinctSuccessfulVnpayAttempt(txnRef, transactionNo)) {
+                order.recordSettledVnpayAttempt(txnRef, transactionNo);
+
+                Map<String, Object> surplusAudit = new LinkedHashMap<>();
+                surplusAudit.put("orderCode", order.getOrderCode());
+                surplusAudit.put("settledVnpTxnRef", order.getVnpayTxnRef());
+                surplusAudit.put("surplusVnpTxnRef", txnRef);
+                surplusAudit.put("vnpTransactionNo", transactionNo);
+                surplusAudit.put("vnpPayDate", params.get("vnp_PayDate"));
+                surplusAudit.put("vnpBankCode", params.get("vnp_BankCode"));
+                surplusAudit.put("vnpAmount", rawAmount);
+                surplusAudit.put("orderStatus", order.getOrderStatus().name());
+                surplusAudit.put("paymentStatus", order.getPaymentStatus().name());
+                surplusAudit.put("reconciliationNote",
+                        "Second distinct VNPay payment attempt succeeded for an already settled order. Order processing kept once without duplicate stock deduction; manual refund reconciliation required for surplus payment.");
+                auditLogService.record(
+                        actorUserId,
+                        "VNPAY_DUPLICATE_PAYMENT_RECONCILIATION",
+                        "orders",
+                        order.getId(),
+                        toJson(surplusAudit),
+                        sourceIp
+                );
+                log.warn("Second distinct VNPay payment success detected for already settled orderCode={} (settledTxnRef={}, surplusTxnRef={}). Logged for surplus refund reconciliation.",
+                        order.getOrderCode(), order.getVnpayTxnRef(), txnRef);
+                return VNPayIpnResponse.of("00", "Confirm Success");
+            }
+
             log.info("Duplicate or out-of-order VNPay IPN ignored for orderCode={} (orderStatus={}, paymentStatus={}).",
                     order.getOrderCode(), order.getOrderStatus(), order.getPaymentStatus());
             return VNPayIpnResponse.of("02", "Order already confirmed");
         }
-
-        Long actorUserId = order.getUser() != null ? order.getUser().getId() : null;
 
         // 6. Branch A: Verified Payment Success (00/00) -> PAID + PENDING_CONFIRMATION (NO second stock deduction!)
         if (outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS) {
@@ -370,12 +392,13 @@ public class VNPayServiceImpl implements VNPayService {
             order.setOrderStatus(Order.OrderStatus.PENDING_CONFIRMATION);
             order.setVnpayPayDate(params.get("vnp_PayDate"));
             order.setVnpayBankCode(params.get("vnp_BankCode"));
+            order.recordSettledVnpayAttempt(txnRef, transactionNo);
             orderRepository.save(order);
 
             Map<String, Object> successAudit = new LinkedHashMap<>();
             successAudit.put("orderCode", order.getOrderCode());
             successAudit.put("vnpTxnRef", txnRef);
-            successAudit.put("vnpTransactionNo", params.get("vnp_TransactionNo"));
+            successAudit.put("vnpTransactionNo", transactionNo);
             successAudit.put("vnpBankCode", params.get("vnp_BankCode"));
             successAudit.put("vnpPayDate", params.get("vnp_PayDate"));
             successAudit.put("newOrderStatus", Order.OrderStatus.PENDING_CONFIRMATION.name());
@@ -611,6 +634,65 @@ public class VNPayServiceImpl implements VNPayService {
         if (!matchesOwner) {
             throw new AppException(ErrorCode.UNAUTHORIZED, "Order does not belong to the authenticated customer.");
         }
+    }
+
+    /**
+     * Generates a strictly unique vnp_TxnRef for each payment initiation and retry without ever reusing
+     * previously issued references within the same second or across retries.
+     */
+    static String generateNextUniqueTxnRef(Order order, String createDate) {
+        String existingTxnRef = order.getVnpayTxnRef();
+        List<Order.VnpayPaymentAttempt> priorAttempts = order.getVnpayPaymentAttempts();
+        if ((existingTxnRef == null || existingTxnRef.isBlank()) && priorAttempts.isEmpty()) {
+            return order.getOrderCode();
+        }
+
+        Set<String> issuedRefs = new LinkedHashSet<>();
+        if (order.getOrderCode() != null && !order.getOrderCode().isBlank()) {
+            issuedRefs.add(order.getOrderCode().trim());
+        }
+        for (Order.VnpayPaymentAttempt attempt : priorAttempts) {
+            if (attempt.txnRef() != null && !attempt.txnRef().isBlank()) {
+                issuedRefs.add(attempt.txnRef().trim());
+            }
+        }
+        if (existingTxnRef != null && !existingTxnRef.isBlank()) {
+            issuedRefs.add(existingTxnRef.trim());
+        }
+
+        String timeSuffix = createDate != null && createDate.length() >= 14
+                ? createDate.substring(8)
+                : (createDate != null ? createDate : "");
+        String baseCandidate = order.getOrderCode() + "-R" + timeSuffix;
+
+        int maxSameSecondSeq = 0;
+        for (String issued : issuedRefs) {
+            if (issued.equals(baseCandidate)) {
+                maxSameSecondSeq = Math.max(maxSameSecondSeq, 1);
+            } else if (issued.startsWith(baseCandidate + "-")) {
+                String seqPart = issued.substring(baseCandidate.length() + 1);
+                try {
+                    int parsedSeq = Integer.parseInt(seqPart);
+                    if (parsedSeq >= 1) {
+                        maxSameSecondSeq = Math.max(maxSameSecondSeq, parsedSeq);
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Non-numeric suffix; handled by set membership check below
+                }
+            }
+        }
+
+        if (maxSameSecondSeq == 0 && !issuedRefs.contains(baseCandidate)) {
+            return baseCandidate;
+        }
+
+        int nextSeq = Math.max(maxSameSecondSeq + 1, 2);
+        String candidate = baseCandidate + "-" + nextSeq;
+        while (issuedRefs.contains(candidate)) {
+            nextSeq++;
+            candidate = baseCandidate + "-" + nextSeq;
+        }
+        return candidate;
     }
 
     static String extractCanonicalOrderCode(String txnRef) {

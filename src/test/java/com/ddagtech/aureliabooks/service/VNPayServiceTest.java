@@ -845,6 +845,141 @@ class VNPayServiceTest {
     }
 
     @Test
+    @DisplayName("processIpnWebhook() when two distinct retry attempts both succeed must record surplus payment audit on the second attempt while keeping order processed once")
+    void processIpnWebhook_TwoDistinctAttemptsBothSucceed_RecordsSurplusAuditAndProcessesOrderOnce() {
+        User customer = User.builder().id(11L).fullName("Double Paid Customer").build();
+        Order order = Order.builder()
+                .id(75L)
+                .user(customer)
+                .orderCode("ORD-20261016-075")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("150000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        order.setCreatedAt(BASE_ORDER_CREATED_AT);
+
+        when(orderRepository.findByIdWithLock(75L)).thenReturn(Optional.of(order));
+        authenticateAsCustomer(customer);
+
+        // Customer initiates Attempt 1 (ORD-20261016-075) and Retry Attempt 2 (ORD-20261016-075-R100500)
+        vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(2)));
+        vnPayService.createPaymentUrl(customer.getId(), 75L, "127.0.0.1");
+        vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(5)));
+        vnPayService.createPaymentUrl(customer.getId(), 75L, "127.0.0.1");
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-075")).thenReturn(Optional.of(order));
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-075-R100500")).thenReturn(Optional.of(order));
+
+        // 1. First successful IPN (Attempt 1: ORD-20261016-075) settles the order once
+        Map<String, String> firstSuccess = signedParams("ORD-20261016-075", "15000000", "00", "00");
+        VNPayIpnResponse res1 = vnPayService.processIpnWebhook(firstSuccess, "203.0.113.10");
+        assertThat(res1.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-075");
+
+        // 2. Second successful IPN from a distinct retry attempt (ORD-20261016-075-R100500) must NOT be silently ignored as 02;
+        //    it must record a second audit log for surplus payment reconciliation/refund while keeping order processed once
+        Map<String, String> secondSuccess = signedParams("ORD-20261016-075-R100500", "15000000", "00", "00");
+        VNPayIpnResponse res2 = vnPayService.processIpnWebhook(secondSuccess, "203.0.113.10");
+        assertThat(res2.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-075");
+
+        // 3. True duplicate re-delivery of the second attempt's IPN must return 02 without creating a third audit
+        VNPayIpnResponse duplicateOfSecond = vnPayService.processIpnWebhook(secondSuccess, "203.0.113.10");
+        assertThat(duplicateOfSecond.rspCode()).isEqualTo("02");
+
+        verify(stockMutationService, never()).deductOrder(anyLong());
+        verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
+        verify(auditLogService).record(
+                eq(11L),
+                eq("VNPAY_PAYMENT_SUCCESS"),
+                eq("orders"),
+                eq(75L),
+                any(),
+                eq("203.0.113.10")
+        );
+        verify(auditLogService).record(
+                eq(11L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(75L),
+                any(),
+                eq("203.0.113.10")
+        );
+    }
+
+    @Test
+    @DisplayName("createPaymentUrl() called 4+ times within the same second must generate strictly unique non-reused vnp_TxnRef values")
+    void createPaymentUrl_FourRetriesWithinSameSecond_NeverReusesTxnRef() throws Exception {
+        Order order = Order.builder()
+                .id(76L)
+                .user(ownerCustomer)
+                .orderCode("CODE")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("250000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        order.setCreatedAt(BASE_ORDER_CREATED_AT);
+
+        when(orderRepository.findByIdWithLock(76L)).thenReturn(Optional.of(order));
+
+        // Freeze clock at 10:02:00 for all 5 calls
+        vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(2)));
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref1 = order.getVnpayTxnRef();
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref2 = order.getVnpayTxnRef();
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref3 = order.getVnpayTxnRef();
+
+        // Simulate reloading Order from persisted DB columns before the 4th call
+        java.lang.reflect.Field rawPayDateField = Order.class.getDeclaredField("vnpayPayDate");
+        rawPayDateField.setAccessible(true);
+        java.lang.reflect.Field rawBankCodeField = Order.class.getDeclaredField("vnpayBankCode");
+        rawBankCodeField.setAccessible(true);
+
+        Order reloadedOrder = Order.builder()
+                .id(76L)
+                .user(ownerCustomer)
+                .orderCode("CODE")
+                .vnpayTxnRef(order.getVnpayTxnRef())
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("250000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        reloadedOrder.setCreatedAt(BASE_ORDER_CREATED_AT);
+        rawPayDateField.set(reloadedOrder, rawPayDateField.get(order));
+        rawBankCodeField.set(reloadedOrder, rawBankCodeField.get(order));
+
+        when(orderRepository.findByIdWithLock(76L)).thenReturn(Optional.of(reloadedOrder));
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref4 = reloadedOrder.getVnpayTxnRef();
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref5 = reloadedOrder.getVnpayTxnRef();
+
+        assertThat(ref1).isEqualTo("CODE");
+        assertThat(ref2).isEqualTo("CODE-R100200");
+        assertThat(ref3).isEqualTo("CODE-R100200-2");
+        assertThat(ref4).isEqualTo("CODE-R100200-3");
+        assertThat(ref5).isEqualTo("CODE-R100200-4");
+        assertThat(List.of(ref1, ref2, ref3, ref4, ref5)).doesNotHaveDuplicates();
+    }
+
+    @Test
     @DisplayName("VNPayUtil.resolveClientIp() should normalize IPv6 loopback and public IPv6 headers to IPv4 / 127.0.0.1")
     void resolveClientIp_NormalizesIpv6Loopback() {
         HttpServletRequest reqIpv6Full = mock(HttpServletRequest.class);

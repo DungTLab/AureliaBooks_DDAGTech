@@ -4,9 +4,15 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Order entity mapping to 'orders' table in schema.sql.
@@ -130,6 +136,52 @@ public class Order extends BaseEntity {
     @Transient
     private String vnpayCreateDate;
 
+    /**
+     * Chronological ledger of all initiated VNPay payment attempts (vnp_TxnRef -> vnp_CreateDate) for this order.
+     * Synchronized with vnpay_bank_code using {@link #PAY_INIT_DATE_PREFIX} while the order is UNPAID so that
+     * CRON-01 QueryDR reconciles every prior attempt before cancelling or restoring inventory.
+     */
+    @Transient
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private final Map<String, String> vnpayAttemptHistory = new LinkedHashMap<>();
+
+    @Transient
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private final Set<String> settledVnpayTxnRefs = new LinkedHashSet<>();
+
+    @Transient
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private final Set<String> settledVnpayTransactionNos = new LinkedHashSet<>();
+
+    public record VnpayPaymentAttempt(String txnRef, String createDate) {}
+
+    public void setVnpayTxnRef(String vnpayTxnRef) {
+        if (this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()) {
+            String existingCreate = getVnpayCreateDate();
+            if (existingCreate != null && !existingCreate.isBlank()) {
+                this.vnpayAttemptHistory.putIfAbsent(this.vnpayTxnRef.trim(), existingCreate);
+            }
+        }
+        this.vnpayTxnRef = vnpayTxnRef;
+    }
+
+    public String getVnpayBankCode() {
+        if (this.vnpayBankCode != null && this.vnpayBankCode.startsWith(PAY_INIT_DATE_PREFIX)) {
+            return null;
+        }
+        return this.vnpayBankCode;
+    }
+
+    public void setVnpayBankCode(String vnpayBankCode) {
+        this.vnpayBankCode = vnpayBankCode;
+        if (vnpayBankCode != null && vnpayBankCode.startsWith(PAY_INIT_DATE_PREFIX)) {
+            decodeAttemptsFromBankCodeInto(this.vnpayAttemptHistory);
+        }
+    }
+
     public String getVnpayPayDate() {
         if (this.vnpayPayDate != null && this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
             return null;
@@ -168,6 +220,82 @@ public class Order extends BaseEntity {
         if (this.vnpayPayDate == null || this.vnpayPayDate.isBlank() || this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
             this.vnpayPayDate = PAY_INIT_DATE_PREFIX + clean;
         }
+        if (this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()) {
+            this.vnpayAttemptHistory.put(this.vnpayTxnRef.trim(), clean);
+            syncEncodedAttemptsToBankCodeIfUnpaid();
+        }
+    }
+
+    /**
+     * Atomically records a newly initiated VNPay payment attempt (vnp_TxnRef + vnp_CreateDate)
+     * while preserving all prior attempts for multi-attempt QueryDR reconciliation and retry uniqueness.
+     */
+    public void recordVnpayPaymentAttempt(String txnRef, String createDate) {
+        setVnpayTxnRef(txnRef);
+        setVnpayCreateDate(createDate);
+    }
+
+    /**
+     * Returns an immutable chronological list of all initiated VNPay payment attempts for this order.
+     */
+    public List<VnpayPaymentAttempt> getVnpayPaymentAttempts() {
+        Map<String, String> merged = new LinkedHashMap<>();
+        decodeAttemptsFromBankCodeInto(merged);
+        for (Map.Entry<String, String> entry : this.vnpayAttemptHistory.entrySet()) {
+            if (entry.getKey() != null && !entry.getKey().isBlank()
+                    && entry.getValue() != null && !entry.getValue().isBlank()) {
+                merged.put(entry.getKey().trim(), entry.getValue().trim());
+            }
+        }
+        String currentRef = this.vnpayTxnRef != null ? this.vnpayTxnRef.trim() : null;
+        String currentCreateDate = getVnpayCreateDate();
+        if (currentRef != null && !currentRef.isEmpty()
+                && currentCreateDate != null && !currentCreateDate.isEmpty()) {
+            merged.putIfAbsent(currentRef, currentCreateDate);
+        }
+        List<VnpayPaymentAttempt> result = new ArrayList<>(merged.size());
+        for (Map.Entry<String, String> entry : merged.entrySet()) {
+            result.add(new VnpayPaymentAttempt(entry.getKey(), entry.getValue()));
+        }
+        return List.copyOf(result);
+    }
+
+    /**
+     * Records a settled/confirmed VNPay transaction reference and gateway transaction number
+     * to distinguish true duplicate IPN callbacks from a second distinct successful payment attempt.
+     */
+    public void recordSettledVnpayAttempt(String txnRef, String transactionNo) {
+        if (txnRef != null && !txnRef.isBlank()) {
+            this.settledVnpayTxnRefs.add(txnRef.trim());
+        }
+        if (transactionNo != null && !transactionNo.isBlank()) {
+            this.settledVnpayTransactionNos.add(transactionNo.trim());
+        }
+    }
+
+    /**
+     * Determines whether an incoming verified-success IPN represents a distinct successful payment
+     * (surplus payment on another retry attempt or gateway transaction) rather than a duplicate callback
+     * for an already confirmed transaction.
+     */
+    public boolean isDistinctSuccessfulVnpayAttempt(String txnRef, String transactionNo) {
+        String cleanRef = txnRef != null ? txnRef.trim() : "";
+        String cleanTxNo = transactionNo != null ? transactionNo.trim() : "";
+
+        Set<String> knownSettledRefs = new LinkedHashSet<>(this.settledVnpayTxnRefs);
+        if (this.paymentStatus != PaymentStatus.UNPAID
+                && this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()) {
+            knownSettledRefs.add(this.vnpayTxnRef.trim());
+        }
+
+        if (!cleanRef.isEmpty() && !knownSettledRefs.isEmpty() && !knownSettledRefs.contains(cleanRef)) {
+            return true;
+        }
+        if (!cleanTxNo.isEmpty() && !this.settledVnpayTransactionNos.isEmpty()
+                && !this.settledVnpayTransactionNos.contains(cleanTxNo)) {
+            return true;
+        }
+        return false;
     }
 
     @PrePersist
@@ -178,6 +306,7 @@ public class Order extends BaseEntity {
                 this.vnpayPayDate = PAY_INIT_DATE_PREFIX + this.vnpayCreateDate.trim();
             }
         }
+        syncEncodedAttemptsToBankCodeIfUnpaid();
     }
 
     @PostLoad
@@ -185,6 +314,135 @@ public class Order extends BaseEntity {
         if (this.vnpayPayDate != null && this.vnpayPayDate.startsWith(PAY_INIT_DATE_PREFIX)) {
             this.vnpayCreateDate = this.vnpayPayDate.substring(PAY_INIT_DATE_PREFIX.length()).trim();
         }
+        decodeAttemptsFromBankCodeInto(this.vnpayAttemptHistory);
+        if (this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()
+                && this.vnpayCreateDate != null && !this.vnpayCreateDate.isBlank()) {
+            this.vnpayAttemptHistory.putIfAbsent(this.vnpayTxnRef.trim(), this.vnpayCreateDate);
+        }
+    }
+
+    private void syncEncodedAttemptsToBankCodeIfUnpaid() {
+        if (this.paymentStatus != null && this.paymentStatus != PaymentStatus.UNPAID) {
+            return;
+        }
+        if (this.vnpayBankCode != null && !this.vnpayBankCode.isBlank()
+                && !this.vnpayBankCode.startsWith(PAY_INIT_DATE_PREFIX)) {
+            return;
+        }
+        if (this.vnpayAttemptHistory.isEmpty()) {
+            return;
+        }
+        String baseCode = resolveCanonicalBaseOrderCode();
+        if (baseCode.isEmpty()) {
+            return;
+        }
+        List<String> tokens = new ArrayList<>(this.vnpayAttemptHistory.size());
+        for (Map.Entry<String, String> entry : this.vnpayAttemptHistory.entrySet()) {
+            String ref = entry.getKey();
+            String createDate = entry.getValue();
+            if (ref == null || createDate == null || createDate.length() != 14) {
+                continue;
+            }
+            String hhmmss = createDate.substring(8);
+            if (ref.equals(baseCode)) {
+                tokens.add(hhmmss);
+            } else if (ref.startsWith(baseCode + "-")) {
+                String suffix = ref.substring(baseCode.length() + 1);
+                if (suffix.equals("R" + hhmmss) || suffix.startsWith("R" + hhmmss + "-")) {
+                    tokens.add(suffix);
+                } else {
+                    tokens.add(suffix + "@" + hhmmss);
+                }
+            }
+        }
+        if (tokens.isEmpty()) {
+            return;
+        }
+        String encoded = PAY_INIT_DATE_PREFIX + String.join(",", tokens);
+        while (encoded.length() > 50 && tokens.size() > 1) {
+            tokens.remove(1);
+            encoded = PAY_INIT_DATE_PREFIX + String.join(",", tokens);
+        }
+        if (encoded.length() <= 50) {
+            this.vnpayBankCode = encoded;
+        }
+    }
+
+    private void decodeAttemptsFromBankCodeInto(Map<String, String> target) {
+        if (this.vnpayBankCode == null || !this.vnpayBankCode.startsWith(PAY_INIT_DATE_PREFIX)) {
+            return;
+        }
+        String rawTokens = this.vnpayBankCode.substring(PAY_INIT_DATE_PREFIX.length()).trim();
+        if (rawTokens.isEmpty()) {
+            return;
+        }
+        String baseCode = resolveCanonicalBaseOrderCode();
+        if (baseCode.isEmpty()) {
+            return;
+        }
+        String latestCreate = getVnpayCreateDate();
+        String datePrefix = null;
+        String latestHhmmss = null;
+        if (latestCreate != null && latestCreate.length() == 14) {
+            datePrefix = latestCreate.substring(0, 8);
+            latestHhmmss = latestCreate.substring(8);
+        } else if (getCreatedAt() != null) {
+            datePrefix = getCreatedAt().format(DateTimeFormatter.BASIC_ISO_DATE);
+        }
+        if (datePrefix == null) {
+            return;
+        }
+        String[] parts = rawTokens.split(",");
+        for (String rawPart : parts) {
+            String token = rawPart.trim();
+            if (token.isEmpty()) {
+                continue;
+            }
+            String ref = null;
+            String hhmmss = null;
+            if (token.length() == 6 && token.chars().allMatch(Character::isDigit)) {
+                ref = baseCode;
+                hhmmss = token;
+            } else if (token.startsWith("R")) {
+                int atIdx = token.indexOf('@');
+                if (atIdx > 1) {
+                    String suffix = token.substring(0, atIdx);
+                    hhmmss = token.substring(atIdx + 1);
+                    ref = baseCode + "-" + suffix;
+                } else if (token.length() >= 7) {
+                    ref = baseCode + "-" + token;
+                    hhmmss = token.substring(1, 7);
+                }
+            }
+            if (ref != null && hhmmss != null && hhmmss.length() == 6 && hhmmss.chars().allMatch(Character::isDigit)) {
+                String resolvedDatePrefix = datePrefix;
+                if (latestHhmmss != null && hhmmss.compareTo(latestHhmmss) > 0) {
+                    try {
+                        resolvedDatePrefix = LocalDate.parse(datePrefix, DateTimeFormatter.BASIC_ISO_DATE)
+                                .minusDays(1)
+                                .format(DateTimeFormatter.BASIC_ISO_DATE);
+                    } catch (Exception ignored) {
+                        resolvedDatePrefix = datePrefix;
+                    }
+                }
+                target.putIfAbsent(ref, resolvedDatePrefix + hhmmss);
+            }
+        }
+    }
+
+    private String resolveCanonicalBaseOrderCode() {
+        if (this.orderCode != null && !this.orderCode.isBlank()) {
+            return this.orderCode.trim();
+        }
+        if (this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()) {
+            String trimmed = this.vnpayTxnRef.trim();
+            int retryIdx = trimmed.lastIndexOf("-R");
+            if (retryIdx > 0) {
+                return trimmed.substring(0, retryIdx);
+            }
+            return trimmed;
+        }
+        return "";
     }
 
     @Builder.Default
