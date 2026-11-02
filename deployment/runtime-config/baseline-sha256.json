@@ -1,0 +1,18 @@
+{
+  "baseline": "d2baf8df47f6dabdb0eabe17e42e2a6f959c9823",
+  "files": {
+    ".github/workflows/ci.yml": "f17ee9615c6d22a60f00a0ab2b6a6134a2c0713f22e09b93719722f8e70ebb55",
+    ".github/workflows/deploy-auto.yml": "fca056972839b54c96a57e90ea9ffcb0bee3267e5584d600a0cecc921af939a4",
+    ".github/workflows/deploy-production.yml": "d00d4ad80c1d6e269077929d741fd7e36de12ea41e7c86f39f0632098ef6481a",
+    ".github/workflows/deploy-ssh-check.yml": "45d7d077a53da205460890c28c95c8453c32c1bdb6aa756536b0f1e6523240cd",
+    ".github/workflows/docker-publish.yml": "6f3792b119a66c0e669c7e1054de9b5cefb7dac15cf2e7f3e21052f3a53a700b",
+    ".github/workflows/promote-production.yml": "41df743c099604c8b4e44a34e3dbaaa6bb34f0ab644b2142b2121dd0a247d6f2",
+    "Dockerfile": "8ca56714b3eac8f291e73902e2c8d73bdfbe6361a0412c9a8f584a59e1d8c68e",
+    "docker-compose.override.yml": "296c44a979ff1fc47ed642c9e36d4bf426136a1f889515bb59fdb8016a732f34",
+    "docker-compose.prod.yml": "c54082c857cf1a4e90eadfaf50835b87f2e641ba632d5426bfbaf0429dfba585",
+    "docker-compose.yml": "0691eaf82abd1a0dbb303ee4f6b201b246ae726c3a03b7a01fccf4668b3dc7d2",
+    "src/main/resources/application-google.yaml": "f700c24fdc068505d5052ee501109d0dee2c753d3a7da7c22815d85b8be7affe",
+    "src/main/resources/application-sms-demo.yaml": "9e32d38c26e05792dab3a22e3dec8384f993724ab2f024c88d5b32a7e734dfcb",
+    "src/main/resources/application.yaml": "d334236f0acf55a43b1f0876aea122850e564b86f23560f1e29a758d36dc6501"
+  }
+}

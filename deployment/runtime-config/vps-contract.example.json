@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "verificationStatus": "BLOCKED",
+  "receiverImplementedAndReviewed": false,
+  "productionEnvironmentProtectionVerified": false,
+  "allDeploymentEntrypointsUseHostLock": false,
+  "actualComposeAndAppImageOwnershipVerified": false,
+  "runtimeReadGid": null,
+  "existingAdditionalLocationsReviewed": false,
+  "profilesAndHigherPrecedenceSourcesReviewed": false,
+  "rollbackCredentialValidityVerified": false,
+  "offlineFixturesAreNotVpsEvidence": true,
+  "note": "No setting in this file can enable the unimplemented live adapter."
+}
