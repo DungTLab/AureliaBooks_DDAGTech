@@ -35,7 +35,7 @@
             <!-- Left Column: Product Image Gallery (5 cols) -->
             <div class="lg:col-span-5 flex flex-col items-center">
                 <div class="relative w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden bg-parchment-100 border border-dust_grey flex items-center justify-center shadow-inner group">
-                    <img th:src="${product.mainImageUrl != null and !product.mainImageUrl.isBlank() ? product.mainImageUrl : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80'}"
+                    <img th:src="@{${product.mainImageUrl != null and !product.mainImageUrl.isBlank() ? product.mainImageUrl : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80'}}"
                          th:alt="${product.title}"
                          onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80';"
                          class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500">

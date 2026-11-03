@@ -417,7 +417,7 @@
 
                             <!-- Product Image with Error Fallback Image Placeholder -->
                             <img th:if="${product.mainImageUrl != null and !product.mainImageUrl.isBlank()}"
-                                 th:src="${product.mainImageUrl}"
+                                 th:src="@{${product.mainImageUrl}}"
                                  th:alt="${product.title}"
                                  loading="lazy"
                                  onerror="this.onerror=null; this.src='https://placehold.co/400x533/e6e8e6/191919?text=AureliaBook';"

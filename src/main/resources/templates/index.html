@@ -18,7 +18,7 @@
             <div class="lg:col-span-5 min-w-0">
                 <a th:if="${heroProduct != null}" th:href="@{/products/{id}(id=${heroProduct.id})}" class="block bg-white rounded-3xl border border-dust_grey p-6 shadow-soft space-y-3" data-home-hero>
                     <p class="text-xs font-bold uppercase tracking-wider text-blazing_flame">Mới lên kệ</p>
-                    <img data-product-image th:src="${heroProduct.mainImageUrl != null and !heroProduct.mainImageUrl.isBlank()} ? ${heroProduct.mainImageUrl} : @{/images/product-placeholder.svg}"
+                    <img data-product-image th:src="@{${heroProduct.mainImageUrl != null and !heroProduct.mainImageUrl.isBlank() ? heroProduct.mainImageUrl : '/images/product-placeholder.svg'}}"
                          th:attr="data-fallback-src=@{/images/product-placeholder.svg}" th:alt="${heroProduct.title}" width="240" height="320" fetchpriority="high" class="w-full h-52 sm:h-64 object-contain">
                     <h2 class="font-serif font-bold text-xl break-words" th:text="${heroProduct.title}"></h2>
                     <p class="font-extrabold text-blazing_flame" th:text="${#numbers.formatDecimal(heroProduct.price, 0, 'POINT', 0, 'COMMA') + 'đ'}"></p>

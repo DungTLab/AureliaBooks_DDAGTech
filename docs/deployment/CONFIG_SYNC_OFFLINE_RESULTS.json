@@ -1,0 +1,117 @@
+{
+  "scope": "REPOSITORY_AND_OFFLINE_ONLY",
+  "baseline": "d2baf8df47f6dabdb0eabe17e42e2a6f959c9823",
+  "python": {
+    "tests": 47,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "springBoot": {
+    "version": "3.5.16",
+    "tests": 25,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "total": 72,
+  "overlapNote": "The complete 47-test Python suite also passed under umask 077; do not add repeated or earlier focused counts.",
+  "yaml": {
+    "parsedFiles": 2,
+    "structuralChecks": "PASS",
+    "actionlint": "UNAVAILABLE_NOT_CLAIMED"
+  },
+  "security": {
+    "capturedStdoutStderrAndKnownReportLeakChecks": "PASS_INCLUDING_DELIBERATELY_FAILED_GUARDS",
+    "fixtureCleanup": "PASS",
+    "pythonBytecodeArtifacts": "NONE",
+    "preservedBaselineFiles": 13,
+    "sharedFlockDirectionsTested": 2,
+    "crashBoundariesTested": 7,
+    "normalizedPermissionsAndUmaskRegressions": "PASS",
+    "boundedChildIoTerminationAndReaping": "PASS",
+    "diagnosticFilesScanned": 5
+  },
+  "live": {
+    "adapter": "BLOCKED_NOT_IMPLEMENTED",
+    "vpsAccess": false,
+    "githubEnvironmentSecretsAccess": false,
+    "providerCalls": false,
+    "productionActivation": false,
+    "workflowDispatched": false,
+    "commit": false,
+    "push": false,
+    "prOrMerge": false
+  },
+  "limitations": [
+    "Fixture roles/modes do not prove actual root/cross-UID/SSH permissions.",
+    "Actual deploy.sh/Compose overlay persistence remains unverified.",
+    "Tests validate binding and transactions, not real provider credentials.",
+    "No full suite, GitHub CI or actionlint run.",
+    "Workflow action refs are tags; review/pinning required before any secret-bearing job.",
+    "Process-restart recovery and power-loss atomicity remain unproven; exception injection is not evidence for either.",
+    "Independent review approval remains pending after local remediation."
+  ],
+  "sourceSha256": {
+    ".github/workflows/runtime-config-sync.yml": "3723a830a5a532f283a28d8187f2b943d65c0a3d1733bd6b9333c0bbee3bf662",
+    "deployment/runtime-config/baseline-sha256.json": "e5a94aa19f184d17fdea042f056caf481f95ff5cd735a963d2e1338e69c8fe7c",
+    "deployment/runtime-config/compose.runtime.template.yml": "3fd53c7423a433eae1521542d87baab6c9d9557874c7216d2a03db6475484378",
+    "deployment/runtime-config/vps-contract.example.json": "c9485bd97dbf289efd0d6d78001846e35cc0001310b5aef8480d77d5c7524b66",
+    "docs/deployment/RUNTIME_CONFIG_SYNC.md": "2d3fa9f58137d4ed01e676bb1ec836552f01ae2322cabaf8864be5b3821efb86",
+    "scripts/runtime-config/__init__.py": "354bc654891a8e47efe76c7f9177168d410cce50aa23d0f3463156b621e59771",
+    "scripts/runtime-config/offline_store.py": "a5182b543a854e0d050877090b1b2ea8840b061902ec5be7ac65893c48ac2008",
+    "scripts/runtime-config/policy.py": "c1d5fcefce4300e77a48e774ee9f5f143fc599e28b4b44a6f4f263a5017ff37b",
+    "scripts/runtime-config/tests/test_runtime_config.py": "8f3cfd3df7cba00ef43cf357a38a992a483925167c4203d8f44babf8074df505",
+    "src/test/java/com/ddagtech/aureliabooks/config/RuntimeConfigurationContractTest.java": "42e9d928be7ea6ae21e0cd7e15268ea66628bc65178437ffe337b78d531ddacd"
+  },
+  "previousValidation": {
+    "total": 59,
+    "pythonTests": 41,
+    "springTests": 18,
+    "sourceSha256": {
+      ".github/workflows/runtime-config-sync.yml": "3723a830a5a532f283a28d8187f2b943d65c0a3d1733bd6b9333c0bbee3bf662",
+      "deployment/runtime-config/baseline-sha256.json": "e5a94aa19f184d17fdea042f056caf481f95ff5cd735a963d2e1338e69c8fe7c",
+      "deployment/runtime-config/compose.runtime.template.yml": "3fd53c7423a433eae1521542d87baab6c9d9557874c7216d2a03db6475484378",
+      "deployment/runtime-config/vps-contract.example.json": "c9485bd97dbf289efd0d6d78001846e35cc0001310b5aef8480d77d5c7524b66",
+      "docs/deployment/RUNTIME_CONFIG_SYNC.md": "ae69ef108ecb14a9338b8a8c6cfcc8a93ca437fc924c5a56d53211f15988dc3a",
+      "scripts/runtime-config/__init__.py": "354bc654891a8e47efe76c7f9177168d410cce50aa23d0f3463156b621e59771",
+      "scripts/runtime-config/offline_store.py": "74dc48f3e5d148f03d41ac1b633e8e1814d4de44d42393ad84a8559f52fc3ce8",
+      "scripts/runtime-config/policy.py": "c1d5fcefce4300e77a48e774ee9f5f143fc599e28b4b44a6f4f263a5017ff37b",
+      "scripts/runtime-config/tests/test_runtime_config.py": "e0f8c5d00738aca1e1ce65a3f985b2344a39772bc9320c82dde562e7eef06b7e",
+      "src/test/java/com/ddagtech/aureliabooks/config/RuntimeConfigurationContractTest.java": "ff5037509a54ce1e10b89aa800a4304154d5fb969266a8b7f6ef1895b98f1776"
+    }
+  },
+  "remediationRound1": {
+    "status": "AWAITING_SECOND_INDEPENDENT_CODE_REVIEW",
+    "finishedAt": "2026-11-02T13:53:02+07:00",
+    "findingsImplemented": {
+      "major": 2,
+      "minor": 1
+    },
+    "newRegressionTests": {
+      "python": 6,
+      "spring": 7,
+      "total": 13
+    },
+    "restrictiveUmaskRepeat": {
+      "umask": "077",
+      "tests": 47,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "creationExposureCheckUmask": "000",
+    "failedAssertionReports": "CAPTURED_IN_MEMORY_NO_SECRET_DISCLOSURE",
+    "childWorkDeadline": "10 seconds for serializer; shorter synthetic fault-test deadlines",
+    "childCleanupGraceSeconds": 2,
+    "processRestartRecovery": "NOT_PROVEN",
+    "powerLossAtomicity": "NOT_PROVEN",
+    "changedFilesThisRound": [
+      "docs/deployment/CONFIG_SYNC_OFFLINE_RESULTS.json",
+      "docs/deployment/RUNTIME_CONFIG_SYNC.md",
+      "scripts/runtime-config/offline_store.py",
+      "scripts/runtime-config/tests/test_runtime_config.py",
+      "src/test/java/com/ddagtech/aureliabooks/config/RuntimeConfigurationContractTest.java"
+    ]
+  }
+}
