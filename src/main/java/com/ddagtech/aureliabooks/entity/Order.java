@@ -352,15 +352,35 @@ public class Order extends BaseEntity {
         String incomingRefToken = cleanRef.isEmpty() ? "" : encodeSettledRefToken(cleanRef);
         String incomingTxNoToken = cleanTxNo.isEmpty() ? "" : encodeSettledTxNoToken(cleanTxNo);
 
+        // 1. Exact match against primary order transaction reference (orders.vnpay_txn_ref)
+        if (!cleanRef.isEmpty() && this.paymentStatus != PaymentStatus.UNPAID
+                && this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()
+                && this.vnpayTxnRef.trim().equals(cleanRef)) {
+            return false;
+        }
+
+        // 2. Exact match against known settled surplus references
+        if (!cleanRef.isEmpty() && !this.settledVnpayTxnRefs.isEmpty()) {
+            if (this.settledVnpayTxnRefs.contains(cleanRef)
+                    || (!incomingRefToken.isEmpty() && this.settledVnpayTxnRefs.contains(incomingRefToken))) {
+                return false;
+            }
+            return true;
+        }
+
+        // 3. Exact match against known settled transaction numbers
+        if (!cleanTxNo.isEmpty() && !this.settledVnpayTransactionNos.isEmpty()) {
+            if (this.settledVnpayTransactionNos.contains(cleanTxNo)
+                    || (!incomingTxNoToken.isEmpty() && this.settledVnpayTransactionNos.contains(incomingTxNoToken))) {
+                return false;
+            }
+            return true;
+        }
+
+        // 4. Fast verification via Bloom filter when exact in-memory tokens are not available
         if (this.settledBloomFilter != null) {
             boolean refMatch = (!cleanRef.isEmpty() && bloomFilterContains(this.settledBloomFilter, cleanRef))
                     || (!incomingRefToken.isEmpty() && bloomFilterContains(this.settledBloomFilter, incomingRefToken));
-            if (!refMatch && this.paymentStatus != PaymentStatus.UNPAID
-                    && this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()
-                    && this.vnpayTxnRef.trim().equals(cleanRef)) {
-                refMatch = true;
-            }
-
             boolean txNoMatch = (!cleanTxNo.isEmpty() && bloomFilterContains(this.settledBloomFilter, cleanTxNo))
                     || (!incomingTxNoToken.isEmpty() && bloomFilterContains(this.settledBloomFilter, incomingTxNoToken));
 
@@ -373,23 +393,46 @@ public class Order extends BaseEntity {
             return false;
         }
 
-        Set<String> knownRefTokens = new LinkedHashSet<>(this.settledVnpayTxnRefs);
-        if (this.paymentStatus != PaymentStatus.UNPAID
-                && this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()) {
-            knownRefTokens.add(encodeSettledRefToken(this.vnpayTxnRef.trim()));
+        // 5. If no settled surplus attempts have ever been recorded, any non-primary reference is distinct
+        return !cleanRef.isEmpty() || !cleanTxNo.isEmpty();
+    }
+
+    /**
+     * Determines whether an incoming payment attempt matches an EXACT known transaction reference
+     * or gateway transaction number in persistent order state or in-memory tracking.
+     * Guaranteed to have zero false positives (does not rely on probabilistic Bloom filter).
+     */
+    public boolean hasExactSettledVnpayAttempt(String txnRef, String transactionNo) {
+        decodeSettledAttemptsFromBankCode();
+
+        String cleanRef = txnRef != null ? txnRef.trim() : "";
+        String cleanTxNo = transactionNo != null ? transactionNo.trim() : "";
+        String incomingRefToken = cleanRef.isEmpty() ? "" : encodeSettledRefToken(cleanRef);
+        String incomingTxNoToken = cleanTxNo.isEmpty() ? "" : encodeSettledTxNoToken(cleanTxNo);
+
+        // 1. Exact match against primary order transaction reference (orders.vnpay_txn_ref)
+        if (!cleanRef.isEmpty() && this.paymentStatus != PaymentStatus.UNPAID
+                && this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()
+                && this.vnpayTxnRef.trim().equals(cleanRef)) {
+            return true;
         }
 
-        if (!incomingRefToken.isEmpty() && !knownRefTokens.isEmpty()
-                && !knownRefTokens.contains(incomingRefToken)
-                && !knownRefTokens.contains(cleanRef)) {
-            return true;
+        // 2. Exact match against known settled reference tokens
+        if (!cleanRef.isEmpty() && !this.settledVnpayTxnRefs.isEmpty()) {
+            if (this.settledVnpayTxnRefs.contains(cleanRef)
+                    || (!incomingRefToken.isEmpty() && this.settledVnpayTxnRefs.contains(incomingRefToken))) {
+                return true;
+            }
         }
-        if (!incomingTxNoToken.isEmpty() && !this.settledVnpayTransactionNos.isEmpty()
-                && (incomingRefToken.isEmpty() || this.settledVnpayTxnRefs.contains(incomingRefToken))
-                && !this.settledVnpayTransactionNos.contains(incomingTxNoToken)
-                && !this.settledVnpayTransactionNos.contains(cleanTxNo)) {
-            return true;
+
+        // 3. Exact match against known settled transaction numbers
+        if (!cleanTxNo.isEmpty() && !this.settledVnpayTransactionNos.isEmpty()) {
+            if (this.settledVnpayTransactionNos.contains(cleanTxNo)
+                    || (!incomingTxNoToken.isEmpty() && this.settledVnpayTransactionNos.contains(incomingTxNoToken))) {
+                return true;
+            }
         }
+
         return false;
     }
 

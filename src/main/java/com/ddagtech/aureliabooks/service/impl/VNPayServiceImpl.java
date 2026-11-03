@@ -361,35 +361,31 @@ public class VNPayServiceImpl implements VNPayService {
             syncRememberedSettledBankCodeIfApplicable(order);
 
             // Surplus payment reconciliation: a second distinct retry attempt succeeded for an already PAID/settled order
-            if (outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS
-                    && order.isDistinctSuccessfulVnpayAttempt(txnRef, transactionNo)) {
-                order.recordSettledVnpayAttempt(txnRef, transactionNo);
-                orderRepository.save(order);
+            if (outcome == GatewayPaymentOutcome.VERIFIED_SUCCESS) {
+                // 1. If entity confirms attempt is definitely distinct, process surplus payment
+                if (order.isDistinctSuccessfulVnpayAttempt(txnRef, transactionNo)) {
+                    return handleSurplusPayment(order, txnRef, transactionNo, params, rawAmount, actorUserId, sourceIp);
+                }
 
-                Map<String, Object> surplusAudit = new LinkedHashMap<>();
-                surplusAudit.put("orderCode", order.getOrderCode());
-                surplusAudit.put("settledVnpTxnRef", order.getVnpayTxnRef());
-                surplusAudit.put("surplusVnpTxnRef", txnRef);
-                surplusAudit.put("vnpTransactionNo", transactionNo);
-                surplusAudit.put("vnpPayDate", params.get("vnp_PayDate"));
-                surplusAudit.put("vnpBankCode", params.get("vnp_BankCode"));
-                surplusAudit.put("vnpAmount", rawAmount);
-                surplusAudit.put("orderStatus", order.getOrderStatus().name());
-                surplusAudit.put("paymentStatus", order.getPaymentStatus().name());
-                surplusAudit.put("reconciliationNote",
-                        "Second distinct VNPay payment attempt succeeded for an already settled order. Order processing kept once without duplicate stock deduction; manual refund reconciliation required for surplus payment.");
-                auditLogService.record(
-                        actorUserId,
-                        "VNPAY_DUPLICATE_PAYMENT_RECONCILIATION",
-                        "orders",
-                        order.getId(),
-                        toJson(surplusAudit),
-                        sourceIp
-                );
-                log.warn("Second distinct VNPay payment success detected for already settled orderCode={} (settledTxnRef={}, surplusTxnRef={}). Logged for surplus refund reconciliation.",
-                        order.getOrderCode(), order.getVnpayTxnRef(), txnRef);
-                registerSettledBankCodeCommitSync(order);
-                return VNPayIpnResponse.of("00", "Confirm Success");
+                // 2. If entity confirms an exact match against persistent order fields, it is a proven duplicate
+                if (order.hasExactSettledVnpayAttempt(txnRef, transactionNo)) {
+                    log.info("Duplicate or out-of-order VNPay IPN ignored for orderCode={} (orderStatus={}, paymentStatus={}).",
+                            order.getOrderCode(), order.getOrderStatus(), order.getPaymentStatus());
+                    return VNPayIpnResponse.of("02", "Order already confirmed");
+                }
+
+                // 3. Otherwise, candidate match came from Bloom filter hash collision (P1).
+                // Query durable persistent audit ledger to verify before ignoring callback.
+                boolean alreadyRecordedInLedger = auditLogService.hasSettledVnpayPayment(order.getId(), txnRef, transactionNo);
+                if (alreadyRecordedInLedger) {
+                    log.info("Duplicate VNPay IPN verified against persistent audit ledger for orderCode={}.", order.getOrderCode());
+                    return VNPayIpnResponse.of("02", "Order already confirmed");
+                }
+
+                // Not in persistent audit ledger -> Bloom filter was a false positive! Reconcile as surplus payment.
+                log.warn("Bloom filter collision detected for orderCode={} (txnRef={}, txNo={}); verified distinct against persistent ledger.",
+                        order.getOrderCode(), txnRef, transactionNo);
+                return handleSurplusPayment(order, txnRef, transactionNo, params, rawAmount, actorUserId, sourceIp);
             }
 
             log.info("Duplicate or out-of-order VNPay IPN ignored for orderCode={} (orderStatus={}, paymentStatus={}).",
@@ -725,6 +721,44 @@ public class VNPayServiceImpl implements VNPayService {
         return trimmed;
     }
 
+
+    private VNPayIpnResponse handleSurplusPayment(
+            Order order,
+            String txnRef,
+            String transactionNo,
+            Map<String, String> params,
+            String rawAmount,
+            Long actorUserId,
+            String sourceIp
+    ) {
+        order.recordSettledVnpayAttempt(txnRef, transactionNo);
+        orderRepository.save(order);
+
+        Map<String, Object> surplusAudit = new LinkedHashMap<>();
+        surplusAudit.put("orderCode", order.getOrderCode());
+        surplusAudit.put("settledVnpTxnRef", order.getVnpayTxnRef());
+        surplusAudit.put("surplusVnpTxnRef", txnRef);
+        surplusAudit.put("vnpTransactionNo", transactionNo);
+        surplusAudit.put("vnpPayDate", params.get("vnp_PayDate"));
+        surplusAudit.put("vnpBankCode", params.get("vnp_BankCode"));
+        surplusAudit.put("vnpAmount", rawAmount);
+        surplusAudit.put("orderStatus", order.getOrderStatus().name());
+        surplusAudit.put("paymentStatus", order.getPaymentStatus().name());
+        surplusAudit.put("reconciliationNote",
+                "Second distinct VNPay payment attempt succeeded for an already settled order. Order processing kept once without duplicate stock deduction; manual refund reconciliation required for surplus payment.");
+        auditLogService.record(
+                actorUserId,
+                "VNPAY_DUPLICATE_PAYMENT_RECONCILIATION",
+                "orders",
+                order.getId(),
+                toJson(surplusAudit),
+                sourceIp
+        );
+        log.warn("Second distinct VNPay payment success detected for already settled orderCode={} (settledTxnRef={}, surplusTxnRef={}). Logged for surplus refund reconciliation.",
+                order.getOrderCode(), order.getVnpayTxnRef(), txnRef);
+        registerSettledBankCodeCommitSync(order);
+        return VNPayIpnResponse.of("00", "Confirm Success");
+    }
     private void registerSettledBankCodeCommitSync(Order order) {
         if (order == null || order.getOrderCode() == null) {
             return;
