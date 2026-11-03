@@ -28,6 +28,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -331,7 +333,6 @@ public class VNPayServiceImpl implements VNPayService {
                 order.setVnpayBankCode(params.get("vnp_BankCode"));
                 order.recordSettledVnpayAttempt(txnRef, transactionNo);
                 orderRepository.save(order);
-                rememberSettledBankCodeColumn(order);
 
                 Map<String, Object> lateAudit = new LinkedHashMap<>();
                 lateAudit.put("orderCode", order.getOrderCode());
@@ -353,6 +354,7 @@ public class VNPayServiceImpl implements VNPayService {
                 );
                 log.warn("Late VNPay success detected for already CANCELLED orderCode={}. Logged for financial reconciliation.",
                         order.getOrderCode());
+                registerSettledBankCodeCommitSync(order);
                 return VNPayIpnResponse.of("00", "Confirm Success");
             }
 
@@ -363,7 +365,6 @@ public class VNPayServiceImpl implements VNPayService {
                     && order.isDistinctSuccessfulVnpayAttempt(txnRef, transactionNo)) {
                 order.recordSettledVnpayAttempt(txnRef, transactionNo);
                 orderRepository.save(order);
-                rememberSettledBankCodeColumn(order);
 
                 Map<String, Object> surplusAudit = new LinkedHashMap<>();
                 surplusAudit.put("orderCode", order.getOrderCode());
@@ -387,6 +388,7 @@ public class VNPayServiceImpl implements VNPayService {
                 );
                 log.warn("Second distinct VNPay payment success detected for already settled orderCode={} (settledTxnRef={}, surplusTxnRef={}). Logged for surplus refund reconciliation.",
                         order.getOrderCode(), order.getVnpayTxnRef(), txnRef);
+                registerSettledBankCodeCommitSync(order);
                 return VNPayIpnResponse.of("00", "Confirm Success");
             }
 
@@ -406,7 +408,6 @@ public class VNPayServiceImpl implements VNPayService {
             order.setVnpayBankCode(params.get("vnp_BankCode"));
             order.recordSettledVnpayAttempt(txnRef, transactionNo);
             orderRepository.save(order);
-            rememberSettledBankCodeColumn(order);
 
             Map<String, Object> successAudit = new LinkedHashMap<>();
             successAudit.put("orderCode", order.getOrderCode());
@@ -428,6 +429,7 @@ public class VNPayServiceImpl implements VNPayService {
             );
             log.info("VNPay IPN payment verified for orderCode={}: transitioned to PENDING_CONFIRMATION & PAID without duplicate stock deduction.",
                     order.getOrderCode());
+            registerSettledBankCodeCommitSync(order);
             return VNPayIpnResponse.of("00", "Confirm Success");
         }
 
@@ -723,12 +725,32 @@ public class VNPayServiceImpl implements VNPayService {
         return trimmed;
     }
 
-    private void rememberSettledBankCodeColumn(Order order) {
-        if (order != null && order.getOrderCode() != null) {
-            String col = order.getPersistedVnpayBankCodeColumn();
-            if (col != null && !col.isBlank()) {
-                savedSettledBankCodeByOrder.put(order.getOrderCode().trim(), col.trim());
-            }
+    private void registerSettledBankCodeCommitSync(Order order) {
+        if (order == null || order.getOrderCode() == null) {
+            return;
+        }
+        final String orderCode = order.getOrderCode().trim();
+        final String col = order.getPersistedVnpayBankCodeColumn();
+        if (col == null || col.isBlank()) {
+            return;
+        }
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    savedSettledBankCodeByOrder.put(orderCode, col.trim());
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status != STATUS_COMMITTED) {
+                        savedSettledBankCodeByOrder.remove(orderCode);
+                    }
+                }
+            });
+        } else {
+            savedSettledBankCodeByOrder.put(orderCode, col.trim());
         }
     }
 

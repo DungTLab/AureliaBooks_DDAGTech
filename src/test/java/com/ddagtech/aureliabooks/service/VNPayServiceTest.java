@@ -28,6 +28,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -1076,6 +1078,125 @@ class VNPayServiceTest {
                 any(),
                 eq("203.0.113.10")
         );
+    }
+
+    @Test
+    @DisplayName("P1: processIpnWebhook() does not update deduplication cache when transaction rolls back, enabling retry to audit")
+    void processIpnWebhook_TransactionRollbackDoesNotPolluteDeduplicationCache_SubsequentRetryAuditsSuccessfully() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            User customer = User.builder().id(88L).fullName("Pham Van Rollback").build();
+            Order entity1 = Order.builder()
+                    .id(88L)
+                    .user(customer)
+                    .orderCode("ORD-ROLLBACK-TEST")
+                    .vnpayTxnRef("ORD-ROLLBACK-TEST")
+                    .paymentMethod(Order.PaymentMethod.VNPAY)
+                    .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                    .paymentStatus(Order.PaymentStatus.PAID)
+                    .finalTotalAmount(new BigDecimal("300000.00"))
+                    .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                    .build();
+
+            when(orderRepository.findByVnpayTxnRefWithLock("ORD-ROLLBACK-TEST-R100200"))
+                    .thenReturn(Optional.of(entity1));
+
+            Map<String, String> surplusParams = signedParams("ORD-ROLLBACK-TEST-R100200", "30000000", "00", "00");
+
+            // First execution runs
+            VNPayIpnResponse res1 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+            assertThat(res1.rspCode()).isEqualTo("00");
+
+            // Simulate transaction failure / rollback: afterCommit is NOT called, only afterCompletion(ROLLED_BACK)
+            for (TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations()) {
+                sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
+            }
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        // Second delivery (retry of the exact same callback after the rollback)
+        // Entity reloaded from database has rolled-back state (no settled markers saved)
+        User customer = User.builder().id(88L).fullName("Pham Van Rollback").build();
+        Order entity2 = Order.builder()
+                .id(88L)
+                .user(customer)
+                .orderCode("ORD-ROLLBACK-TEST")
+                .vnpayTxnRef("ORD-ROLLBACK-TEST")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("300000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-ROLLBACK-TEST-R100200"))
+                .thenReturn(Optional.of(entity2));
+
+        Map<String, String> surplusParams = signedParams("ORD-ROLLBACK-TEST-R100200", "30000000", "00", "00");
+        VNPayIpnResponse res2 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+
+        // Must succeed and record audit, NOT return "02" (cache was not contaminated!)
+        assertThat(res2.rspCode()).isEqualTo("00");
+        verify(auditLogService, org.mockito.Mockito.times(2)).record(
+                eq(88L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(88L),
+                any(),
+                eq("203.0.113.10")
+        );
+    }
+
+    @Test
+    @DisplayName("P2: Order losslessly preserves deduplication for 5+ surplus payments with dummy data within 50 chars")
+    void order_SurplusPaymentsBeyondFourAttempts_PreservesDeduplicationWithoutExceedingColumnLength() {
+        Order order = Order.builder()
+                .id(99L)
+                .orderCode("ORD-SURPLUS-CHAIN")
+                .vnpayTxnRef("ORD-SURPLUS-CHAIN")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .vnpayBankCode("NCB")
+                .build();
+
+        // Record 7 consecutive distinct surplus payments using arbitrary dummy data
+        for (int i = 1; i <= 7; i++) {
+            String txnRef = "DUMMY-REF-" + i;
+            String txNo = "DUMMY-TX-" + i;
+            assertThat(order.isDistinctSuccessfulVnpayAttempt(txnRef, txNo)).isTrue();
+            order.recordSettledVnpayAttempt(txnRef, txNo);
+
+            // Column length must never exceed 50 characters at any point!
+            String col = order.getPersistedVnpayBankCodeColumn();
+            assertThat(col).isNotNull();
+            assertThat(col.length()).isLessThanOrEqualTo(50);
+        }
+
+        // Simulate persisting and reloading fresh entity from MySQL columns
+        String persistedCol = order.getPersistedVnpayBankCodeColumn();
+        Order reloaded = Order.builder()
+                .id(99L)
+                .orderCode("ORD-SURPLUS-CHAIN")
+                .vnpayTxnRef("ORD-SURPLUS-CHAIN")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .vnpayBankCode(persistedCol)
+                .build();
+
+        // All 7 previously settled attempts must be recognized as already settled (isDistinct == false)
+        for (int i = 1; i <= 7; i++) {
+            String txnRef = "DUMMY-REF-" + i;
+            String txNo = "DUMMY-TX-" + i;
+            assertThat(reloaded.isDistinctSuccessfulVnpayAttempt(txnRef, txNo))
+                    .as("Attempt %d must be recognized as already settled after entity reload", i)
+                    .isFalse();
+        }
+
+        // A brand new attempt must still be recognized as distinct (isDistinct == true)
+        assertThat(reloaded.isDistinctSuccessfulVnpayAttempt("DUMMY-REF-NEW", "DUMMY-TX-NEW")).isTrue();
     }
 
     private void authenticateAsCustomer(User user) {

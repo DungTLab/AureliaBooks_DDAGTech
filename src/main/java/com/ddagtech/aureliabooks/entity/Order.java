@@ -158,6 +158,11 @@ public class Order extends BaseEntity {
     @Setter(AccessLevel.NONE)
     private final Set<String> settledVnpayTransactionNos = new LinkedHashSet<>();
 
+    @Transient
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private long[] settledBloomFilter;
+
     public record VnpayPaymentAttempt(String txnRef, String createDate) {}
 
     public void setVnpayTxnRef(String vnpayTxnRef) {
@@ -307,15 +312,30 @@ public class Order extends BaseEntity {
      */
     public void recordSettledVnpayAttempt(String txnRef, String transactionNo) {
         decodeSettledAttemptsFromBankCode();
+        String cleanRef = txnRef != null ? txnRef.trim() : "";
+        String cleanTxNo = transactionNo != null ? transactionNo.trim() : "";
+
         if (this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()) {
             this.settledVnpayTxnRefs.add(encodeSettledRefToken(this.vnpayTxnRef.trim()));
         }
-        if (txnRef != null && !txnRef.isBlank()) {
-            this.settledVnpayTxnRefs.add(encodeSettledRefToken(txnRef.trim()));
+        if (!cleanRef.isEmpty()) {
+            this.settledVnpayTxnRefs.add(encodeSettledRefToken(cleanRef));
         }
-        if (transactionNo != null && !transactionNo.isBlank()) {
-            this.settledVnpayTransactionNos.add(encodeSettledTxNoToken(transactionNo.trim()));
+        if (!cleanTxNo.isEmpty()) {
+            this.settledVnpayTransactionNos.add(encodeSettledTxNoToken(cleanTxNo));
         }
+
+        if (this.settledBloomFilter != null) {
+            if (!cleanRef.isEmpty()) {
+                addStringToBloomFilter(this.settledBloomFilter, cleanRef);
+                addStringToBloomFilter(this.settledBloomFilter, encodeSettledRefToken(cleanRef));
+            }
+            if (!cleanTxNo.isEmpty()) {
+                addStringToBloomFilter(this.settledBloomFilter, cleanTxNo);
+                addStringToBloomFilter(this.settledBloomFilter, encodeSettledTxNoToken(cleanTxNo));
+            }
+        }
+
         syncSettledAttemptsToBankCode();
     }
 
@@ -331,6 +351,27 @@ public class Order extends BaseEntity {
         String cleanTxNo = transactionNo != null ? transactionNo.trim() : "";
         String incomingRefToken = cleanRef.isEmpty() ? "" : encodeSettledRefToken(cleanRef);
         String incomingTxNoToken = cleanTxNo.isEmpty() ? "" : encodeSettledTxNoToken(cleanTxNo);
+
+        if (this.settledBloomFilter != null) {
+            boolean refMatch = (!cleanRef.isEmpty() && bloomFilterContains(this.settledBloomFilter, cleanRef))
+                    || (!incomingRefToken.isEmpty() && bloomFilterContains(this.settledBloomFilter, incomingRefToken));
+            if (!refMatch && this.paymentStatus != PaymentStatus.UNPAID
+                    && this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()
+                    && this.vnpayTxnRef.trim().equals(cleanRef)) {
+                refMatch = true;
+            }
+
+            boolean txNoMatch = (!cleanTxNo.isEmpty() && bloomFilterContains(this.settledBloomFilter, cleanTxNo))
+                    || (!incomingTxNoToken.isEmpty() && bloomFilterContains(this.settledBloomFilter, incomingTxNoToken));
+
+            if (!cleanRef.isEmpty() && !refMatch) {
+                return true;
+            }
+            if (!cleanTxNo.isEmpty() && !txNoMatch) {
+                return true;
+            }
+            return false;
+        }
 
         Set<String> knownRefTokens = new LinkedHashSet<>(this.settledVnpayTxnRefs);
         if (this.paymentStatus != PaymentStatus.UNPAID
@@ -578,17 +619,39 @@ public class Order extends BaseEntity {
         if (this.paymentStatus == null || this.paymentStatus == PaymentStatus.UNPAID) {
             return;
         }
-        if (this.settledVnpayTxnRefs.isEmpty() && this.settledVnpayTransactionNos.isEmpty()) {
+        if (this.settledVnpayTxnRefs.isEmpty() && this.settledVnpayTransactionNos.isEmpty() && this.settledBloomFilter == null) {
             return;
         }
         String cleanBank = getVnpayBankCode();
         String bankPrefix = cleanBank != null ? cleanBank : "";
+
+        if (this.settledBloomFilter != null) {
+            this.vnpayBankCode = bankPrefix + "|#" + formatBloomFilter(this.settledBloomFilter);
+            return;
+        }
+
         String refsPart = String.join(",", this.settledVnpayTxnRefs);
         String txNosPart = String.join(",", this.settledVnpayTransactionNos);
         String candidate = bankPrefix + "|" + refsPart + (txNosPart.isEmpty() ? "" : ";" + txNosPart);
         if (candidate.length() <= BANK_CODE_COLUMN_MAX_LENGTH) {
             this.vnpayBankCode = candidate;
+            return;
         }
+
+        // Losslessly transition into 128-bit Bloom filter to prevent truncation across arbitrary retries
+        long[] filter = new long[2];
+        if (this.vnpayTxnRef != null && !this.vnpayTxnRef.isBlank()) {
+            addStringToBloomFilter(filter, this.vnpayTxnRef.trim());
+            addStringToBloomFilter(filter, encodeSettledRefToken(this.vnpayTxnRef.trim()));
+        }
+        for (String r : this.settledVnpayTxnRefs) {
+            addStringToBloomFilter(filter, r);
+        }
+        for (String t : this.settledVnpayTransactionNos) {
+            addStringToBloomFilter(filter, t);
+        }
+        this.settledBloomFilter = filter;
+        this.vnpayBankCode = bankPrefix + "|#" + formatBloomFilter(filter);
     }
 
     private void decodeSettledAttemptsFromBankCode() {
@@ -602,6 +665,13 @@ public class Order extends BaseEntity {
         String encoded = this.vnpayBankCode.substring(sepIdx + 1).trim();
         if (encoded.isEmpty()) {
             return;
+        }
+        if (encoded.startsWith("#")) {
+            long[] parsed = parseBloomFilter(encoded.substring(1));
+            if (parsed != null) {
+                this.settledBloomFilter = parsed;
+                return;
+            }
         }
         String refsPart = encoded;
         String txNosPart = "";
@@ -620,6 +690,95 @@ public class Order extends BaseEntity {
                 this.settledVnpayTransactionNos.add(t.trim());
             }
         }
+    }
+
+    private static void addStringToBloomFilter(long[] filter, String s) {
+        if (s == null || s.isBlank() || filter == null || filter.length < 2) {
+            return;
+        }
+        int h1 = fnv1a32(s);
+        int h2 = murmur3_32(s);
+        int bit1 = Math.floorMod(h1, 128);
+        int bit2 = Math.floorMod(h1 + h2, 128);
+        setBloomBit(filter, bit1);
+        setBloomBit(filter, bit2);
+    }
+
+    private static boolean bloomFilterContains(long[] filter, String s) {
+        if (s == null || s.isBlank() || filter == null || filter.length < 2) {
+            return false;
+        }
+        int h1 = fnv1a32(s);
+        int h2 = murmur3_32(s);
+        int bit1 = Math.floorMod(h1, 128);
+        int bit2 = Math.floorMod(h1 + h2, 128);
+        return isBloomBitSet(filter, bit1) && isBloomBitSet(filter, bit2);
+    }
+
+    private static void setBloomBit(long[] filter, int bitIndex) {
+        if (bitIndex < 64) {
+            filter[0] |= (1L << bitIndex);
+        } else {
+            filter[1] |= (1L << (bitIndex - 64));
+        }
+    }
+
+    private static boolean isBloomBitSet(long[] filter, int bitIndex) {
+        if (bitIndex < 64) {
+            return (filter[0] & (1L << bitIndex)) != 0;
+        } else {
+            return (filter[1] & (1L << (bitIndex - 64))) != 0;
+        }
+    }
+
+    private static String formatBloomFilter(long[] filter) {
+        return Long.toUnsignedString(filter[0], 36) + "." + Long.toUnsignedString(filter[1], 36);
+    }
+
+    private static long[] parseBloomFilter(String str) {
+        if (str == null || str.isBlank()) {
+            return null;
+        }
+        int dotIdx = str.indexOf('.');
+        if (dotIdx < 0) {
+            return null;
+        }
+        try {
+            long f0 = Long.parseUnsignedLong(str.substring(0, dotIdx), 36);
+            long f1 = Long.parseUnsignedLong(str.substring(dotIdx + 1), 36);
+            return new long[] { f0, f1 };
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static int fnv1a32(String s) {
+        int hash = 0x811c9dc5;
+        for (int i = 0; i < s.length(); i++) {
+            hash ^= s.charAt(i);
+            hash *= 0x01000193;
+        }
+        return hash;
+    }
+
+    private static int murmur3_32(String s) {
+        int hash = 0x9747b28c;
+        for (int i = 0; i < s.length(); i++) {
+            int k = s.charAt(i);
+            k *= 0xcc9e2d51;
+            k = Integer.rotateLeft(k, 15);
+            k *= 0x1b873593;
+            hash ^= k;
+            hash = Integer.rotateLeft(hash, 13);
+            hash = hash * 5 + 0xe6546b64;
+        }
+        hash ^= s.length();
+        hash ^= (hash >>> 16);
+        hash *= 0x85ebca6b;
+        hash ^= (hash >>> 13);
+        hash *= 0xc2b2ae35;
+        hash ^= (hash >>> 16);
+        return hash;
     }
 
     private String encodeSettledRefToken(String txnRef) {
