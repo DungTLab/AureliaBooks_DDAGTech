@@ -1,0 +1,52 @@
+name: Runtime Configuration - Offline Contract Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aureliabooks-runtime-config-offline
+  cancel-in-progress: false
+
+jobs:
+  offline-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require main branch
+        env:
+          SOURCE_REF: ${{ github.ref }}
+        run: |
+          test "$SOURCE_REF" = 'refs/heads/main'
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Validate disposable configuration contracts
+        run: python3 -I -B -m unittest discover -s scripts/runtime-config/tests -v
+      - name: Validate Spring Boot property loading
+        run: ./mvnw -B -ntp -Djava.awt.headless=true -Dtest=RuntimeConfigurationContractTest test
+      - name: Report real integration status
+        run: echo 'BLOCKED - VPS contracts and live adapter are not implemented or verified; no configuration was synchronized.'
+
+  production-sync:
+    # Hard block, not an Environment variable/input switch. Removing it needs review.
+    if: ${{ false }}
+    needs: offline-validation
+    environment: production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: aureliabooks-production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Fail closed
+        run: |
+          echo '::error::BLOCKED - no approved VPS configuration adapter'
+          exit 1

@@ -32,3 +32,39 @@ jobs:
 
       - name: Build and run tests
         run: ./mvnw -B -ntp verify
+
+  catalog-seed-validation:
+    name: Catalog Seed - Static Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Run SQL policy unit tests
+        run: |
+          python3 -m unittest discover \
+            -s scripts/catalog-seed/tests \
+            -p 'test_*.py' \
+            -v
+
+      - name: Validate Catalog SQL templates
+        run: |
+          python3 scripts/catalog-seed/sql_policy.py
+
+      - name: Verify Seed Runner dry-run
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ledger="$(mktemp)"
+          trap 'rm -f "$ledger"' EXIT
+
+          printf '%s\n' \
+            '{"version":1,"environment":"staging","entries":[]}' \
+            > "$ledger"
+
+          python3 scripts/catalog-seed/seed_runner.py \
+            --dry-run \
+            --environment staging \
+            --ledger "$ledger"

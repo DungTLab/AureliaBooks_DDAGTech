@@ -1,0 +1,42 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 002_publishers.sql
+-- Table: publishers
+-- ============================================================
+--
+-- Required:
+--   name VARCHAR(150) NOT NULL UNIQUE
+--
+-- Optional:
+--   address VARCHAR(255)
+--   email VARCHAR(100)
+--   is_active BOOLEAN DEFAULT TRUE
+--
+-- Rules:
+-- 1. Do not hardcode publisher IDs.
+-- 2. The publisher name must be unique.
+-- 3. Do not overwrite existing publisher information.
+-- 4. Only add approved data.
+-- 5. Seed execution is managed by the deployment workflow.
+--
+-- ============================================================
+-- EXAMPLE (COMMENTED OUT — DO NOT EXECUTE)
+-- ============================================================
+--
+-- INSERT INTO publishers (name, address, email, is_active)
+-- VALUES (
+--     'Example Publisher',
+--     NULL,
+--     NULL,
+--     TRUE
+-- )
+-- ON DUPLICATE KEY UPDATE id = id;
+--
+-- The no-op update preserves an existing publisher record.
+-- The UNIQUE(name) constraint prevents duplicate names.
+--
+-- ============================================================
+-- APPROVED PUBLISHER RECORDS
+-- ============================================================
+--
+-- TODO: Team members add reviewed SQL statements here.
