@@ -73,6 +73,17 @@ public class Order extends BaseEntity {
     @Builder.Default
     private BigDecimal finalTotalAmount = BigDecimal.ZERO;
 
+    // Retain the promotion snapshot after cancellation releases redemption rows.
+    @Column(name = "product_voucher_code", length = 30)
+    private String productVoucherCode;
+
+    @Column(name = "shipping_voucher_code", length = 30)
+    private String shippingVoucherCode;
+
+    @Column(name = "shipping_discount_amount", precision = 12, scale = 2, nullable = false)
+    @Builder.Default
+    private BigDecimal shippingDiscountAmount = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "order_status", nullable = false)
     @Builder.Default

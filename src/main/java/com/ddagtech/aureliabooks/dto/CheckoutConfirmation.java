@@ -9,6 +9,10 @@ public record CheckoutConfirmation(
         Long userId,
         CheckoutView reviewedCheckout,
         Order.PaymentMethod paymentMethod,
-        String voucherCode
+        String voucherCode,
+        String shippingVoucherCode
 ) {
+    public CheckoutConfirmation(String token, Long owner, CheckoutView view, Order.PaymentMethod method, String code) {
+        this(token, owner, view, method, code, null);
+    }
 }

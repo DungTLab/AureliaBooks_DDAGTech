@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.dto.response;
 
 import com.ddagtech.aureliabooks.entity.Order;
+import com.ddagtech.aureliabooks.entity.Voucher;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,9 +14,31 @@ public record OrderConfirmationView(
         Order.OrderStatus orderStatus, Order.PaymentMethod paymentMethod,
         Order.PaymentStatus paymentStatus, List<Item> items,
         BigDecimal merchandiseSubtotal, BigDecimal discount,
-        BigDecimal shippingFee, BigDecimal finalTotalAmount
+        BigDecimal shippingFee, BigDecimal finalTotalAmount, List<AppliedVoucher> appliedVouchers
 ) {
-    public OrderConfirmationView { items = List.copyOf(items); }
+    public OrderConfirmationView {
+        items = List.copyOf(items);
+        appliedVouchers = List.copyOf(appliedVouchers);
+    }
+
+    public OrderConfirmationView(String orderCode, LocalDateTime createdAt, String recipientName, String phone,
+            String fullAddress, Order.OrderStatus orderStatus, Order.PaymentMethod paymentMethod,
+            Order.PaymentStatus paymentStatus, List<Item> items, BigDecimal merchandiseSubtotal,
+            BigDecimal discount, BigDecimal shippingFee, BigDecimal finalTotalAmount) {
+        this(orderCode, createdAt, recipientName, phone, fullAddress, orderStatus, paymentMethod, paymentStatus,
+            items, merchandiseSubtotal, discount, shippingFee, finalTotalAmount, List.of());
+    }
+
+    public BigDecimal shippingDiscount() {
+        return appliedVouchers.stream().filter(v -> v.scope() == Voucher.Scope.SHIPPING)
+            .map(AppliedVoucher::discount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public BigDecimal productDiscount() { return discount.subtract(shippingDiscount()); }
+    public BigDecimal netShippingFee() { return shippingFee.subtract(shippingDiscount()); }
+
+    public record AppliedVoucher(String code, Voucher.Scope scope, BigDecimal discount) {}
+
 
     public String orderStatusLabel() {
         return switch (orderStatus) {

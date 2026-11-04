@@ -10,5 +10,6 @@ public record CheckoutSelectionRequest(
         @NotNull(message = "Vui lòng chọn địa chỉ giao hàng")
         @Positive(message = "Địa chỉ giao hàng không hợp lệ") Long shippingAddressId,
         @NotNull(message = "Vui lòng chọn phương thức thanh toán") Order.PaymentMethod paymentMethod,
-        @Size(max = 30, message = "Mã giảm giá tối đa 30 ký tự") String voucherCode
+        @Size(max = 30, message = "Mã giảm giá tối đa 30 ký tự") String voucherCode,
+        @Size(max = 30, message = "Mã giảm phí vận chuyển tối đa 30 ký tự") String shippingVoucherCode
 ) {}

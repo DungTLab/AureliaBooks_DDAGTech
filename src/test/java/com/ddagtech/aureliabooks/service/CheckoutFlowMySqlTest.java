@@ -343,6 +343,38 @@ class CheckoutFlowMySqlTest {
     }
 
     @Test
+    void bothVoucherScopesFlowThroughCheckoutPlacementReplayAndOrderDetails() throws Exception {
+        String productCode = campaign(com.ddagtech.aureliabooks.entity.Voucher.Scope.PRODUCT,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT, "20000", null, 2);
+        String shippingCode = campaign(com.ddagtech.aureliabooks.entity.Voucher.Scope.SHIPPING,
+            com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT, "10000", null, 2);
+        CheckoutConfirmation review = prepare(productCode, shippingCode);
+        assertThat(review.reviewedCheckout().finalTotalAmount()).isEqualByComparingTo("220000");
+        place(review, productCode);
+        place(review, productCode);
+        assertThat(remaining(productCode)).isEqualTo(1);
+        assertThat(remaining(shippingCode)).isEqualTo(1);
+        long id = jdbc.queryForObject("SELECT id FROM orders WHERE order_code=?", Long.class, review.checkoutToken());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_vouchers WHERE order_id=?", Integer.class, id)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT stock_quantity FROM products WHERE id=?", Integer.class, product)).isEqualTo(8);
+        mvc.perform(get("/orders/" + review.checkoutToken()).session(session).with(user(principal)))
+            .andExpect(status().isOk()).andExpect(content().string(containsString(productCode)))
+            .andExpect(content().string(containsString(shippingCode)));
+        var receipt = placement.getOrderConfirmation(owner, review.checkoutToken());
+        assertThat(receipt.productDiscount()).isEqualByComparingTo("20000");
+        assertThat(receipt.shippingDiscount()).isEqualByComparingTo("10000");
+        assertThat(receipt.netShippingFee()).isEqualByComparingTo("40000");
+        assertThat(receipt.finalTotalAmount()).isEqualByComparingTo("220000");
+        stock.restoreCancelledOrder(id, owner);
+        var cancelled = placement.getOrderConfirmation(owner, review.checkoutToken());
+        assertThat(cancelled.appliedVouchers()).extracting(v -> v.code()).containsExactly(productCode, shippingCode);
+        assertThat(cancelled.shippingDiscount()).isEqualByComparingTo("10000");
+        assertThat(cancelled.finalTotalAmount()).isEqualByComparingTo("220000");
+        assertThat(remaining(productCode)).isEqualTo(2);
+        assertThat(remaining(shippingCode)).isEqualTo(2);
+    }
+
+    @Test
     void fixedAndShippingVouchersPersistExactlyTheReviewedTotal() throws Exception {
         String code = campaign(
             com.ddagtech.aureliabooks.entity.Voucher.Scope.SHIPPING,
@@ -400,7 +432,7 @@ class CheckoutFlowMySqlTest {
         jdbc.update("UPDATE products SET price=175000 WHERE id=?", product);
         String code = campaign(com.ddagtech.aureliabooks.entity.Voucher.Scope.SHIPPING,
                 com.ddagtech.aureliabooks.entity.Voucher.Type.FIXED_AMOUNT, "10000", null, 1);
-        assertThatThrownBy(() -> placement.getCheckoutView(owner, address, code))
+        assertThatThrownBy(() -> placement.getCheckoutView(owner, address, null, code))
                 .isInstanceOf(com.ddagtech.aureliabooks.exception.AppException.class);
         assertThat(remaining(code)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE user_id=?", Integer.class, owner)).isZero();
@@ -634,6 +666,11 @@ class CheckoutFlowMySqlTest {
     }
 
     private CheckoutConfirmation prepare(String code) throws Exception {
+        String scope = jdbc.queryForObject("SELECT voucher_scope FROM vouchers WHERE code=?", String.class, code);
+        return prepare("PRODUCT".equals(scope) ? code : "", "SHIPPING".equals(scope) ? code : "");
+    }
+
+    private CheckoutConfirmation prepare(String code, String shippingCode) throws Exception {
         String destination = mvc
             .perform(
                 post("/checkout/review")
@@ -643,6 +680,7 @@ class CheckoutFlowMySqlTest {
                     .param("shippingAddressId", Long.toString(address))
                     .param("paymentMethod", "COD")
                     .param("voucherCode", code)
+                    .param("shippingVoucherCode", shippingCode)
             )
             .andExpect(status().is3xxRedirection())
             .andReturn()
@@ -665,7 +703,8 @@ class CheckoutFlowMySqlTest {
                 .param("checkoutToken", review.checkoutToken())
                 .param("shippingAddressId", Long.toString(address))
                 .param("paymentMethod", "COD")
-                .param("voucherCode", code)
+                .param("voucherCode", review.voucherCode() == null ? "" : review.voucherCode())
+                .param("shippingVoucherCode", review.shippingVoucherCode() == null ? "" : review.shippingVoucherCode())
                 .param("finalTotalAmount", "1")
         ).andExpect(redirectedUrl("/orders/" + review.checkoutToken()));
     }
