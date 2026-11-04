@@ -91,6 +91,7 @@ public class ProductController {
                     filterRequest.productType(),
                     filterRequest.isTextbook()
             );
+            model.addAttribute("filter", sanitizedFilter);
             products = productService.browse(sanitizedFilter,pageable);
         }
         model.addAttribute("products", products);
@@ -102,7 +103,7 @@ public class ProductController {
         model.addAttribute("currentSize", size);
         model.addAttribute("keyword", isBlankKeyWord ? "" : rawKeyword.trim());
 
-        return "product/search";
+        return "product/list";
     }
     @GetMapping("/products/{id}")
     public String detail(@PathVariable Long id, Model model, Authentication authentication) {

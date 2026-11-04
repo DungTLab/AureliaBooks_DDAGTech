@@ -54,8 +54,6 @@
                                 th:selected="${currentSize == 12 or currentSize == null}">12 / trang</option>
                         <option th:value="@{/products/search(size=24, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
                                 th:selected="${currentSize == 24}">24 / trang</option>
-                        <option th:value="@{/products/search(size=48, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
-                                th:selected="${currentSize == 48}">48 / trang</option>
                     </select>
                 </div>
 

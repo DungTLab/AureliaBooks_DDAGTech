@@ -44,7 +44,14 @@
                         <!-- Preserve current sort and size parameters -->
                         <input type="hidden" name="sort" th:value="${currentSort}">
                         <input type="hidden" name="size" th:value="${currentSize != null ? currentSize : (products != null ? products.size : 12)}">
-                        <input type="hidden" name="keyword" th:if="${filter != null and filter.keyword != null and !filter.keyword.isBlank()}" th:value="${filter.keyword}">
+                        <div>
+                            <label for="catalogKeyword" class="block text-xs font-semibold text-carbon_black mb-2">Từ khóa</label>
+                            <input id="catalogKeyword" type="search" name="keyword"
+                                   th:value="${filter != null ? filter.keyword() : ''}"
+                                   placeholder="Tên sản phẩm, tác giả, ISBN..."
+                                   class="w-full rounded-xl border border-dust_grey px-3 py-2 text-sm">
+                            <button type="submit" class="mt-2 rounded-xl bg-blazing_flame px-4 py-2 text-sm text-white">Tìm kiếm</button>
+                        </div>
 
                         <!-- Facet 1: Product Classification (Books vs. Stationery) per BR-02-01 -->
                         <div>
@@ -236,7 +243,7 @@
                                 <button type="button"
                                         onclick="applyPricePreset('', '500000')"
                                         class="py-1.5 px-1 rounded-lg bg-parchment-100 hover:bg-parchment-200 text-[11px] font-semibold text-carbon_black border border-dust_grey/70 text-center transition-colors">
-                                    &lt; 500k
+                                    &le; 500k
                                 </button>
                                 <button type="button"
                                         onclick="applyPricePreset('500000', '1000000')"
@@ -246,7 +253,7 @@
                                 <button type="button"
                                         onclick="applyPricePreset('1000000', '')"
                                         class="py-1.5 px-1 rounded-lg bg-parchment-100 hover:bg-parchment-200 text-[11px] font-semibold text-carbon_black border border-dust_grey/70 text-center transition-colors">
-                                    &gt; 1tr
+                                    &ge; 1tr
                                 </button>
                             </div>
 
@@ -318,14 +325,30 @@
                                 </label>
                             </div>
 
-                            <!-- Educational Classification (Curriculum Textbook) -->
-                            <label class="flex items-center gap-2 p-2 rounded-xl bg-parchment-100 cursor-pointer text-xs font-medium text-carbon_black hover:bg-parchment-200 transition-colors">
-                                <input type="checkbox" name="isTextbook" value="true"
-                                       th:checked="${filter != null and filter.isTextbook() != null and filter.isTextbook()}"
-                                       onchange="this.form.submit()"
-                                       class="text-blazing_flame focus:ring-blazing_flame h-4 w-4 rounded border-dust_grey">
-                                <span>Sách Giáo Khoa / Tham Khảo</span>
-                            </label>
+                            <!-- Educational Classification -->
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="radio" name="isTextbook" value=""
+                                           th:checked="${filter == null or filter.isTextbook() == null}"
+                                           onchange="this.form.submit()"
+                                           class="text-blazing_flame focus:ring-blazing_flame">
+                                    <span>Tất cả sách</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="radio" name="isTextbook" value="true"
+                                           th:checked="${filter != null and filter.isTextbook() == true}"
+                                           onchange="this.form.submit()"
+                                           class="text-blazing_flame focus:ring-blazing_flame">
+                                    <span>Sách giáo khoa</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                    <input type="radio" name="isTextbook" value="false"
+                                           th:checked="${filter != null and filter.isTextbook() == false}"
+                                           onchange="this.form.submit()"
+                                           class="text-blazing_flame focus:ring-blazing_flame">
+                                    <span>Sách không phải giáo khoa</span>
+                                </label>
+                            </div>
                         </div>
 
                         <!-- Reset Filter CTA -->
@@ -345,7 +368,9 @@
                 <!-- Control Bar: Total Count, Page Size & Sort Select -->
                 <div class="bg-white rounded-2xl border border-dust_grey p-4 mb-6 shadow-soft flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 class="font-serif font-bold text-xl text-carbon_black">Tất Cả Sản Phẩm</h1>
+                        <h1 class="font-serif font-bold text-xl text-carbon_black"
+                            th:text="${filter != null and filter.keyword() != null and !filter.keyword().isBlank()
+                                      ? 'Kết quả cho: ' + filter.keyword() : 'Tất Cả Sản Phẩm'}">Tất Cả Sản Phẩm</h1>
                         <p class="text-xs text-carbon_black-400 mt-0.5">
                             Tìm thấy <span class="font-bold text-blazing_flame" th:text="${products != null ? products.totalElements : 0}">0</span> sản phẩm sẵn sàng giao
                         </p>
@@ -353,7 +378,7 @@
 
                     <!-- Switchers Container: Page Size & Sort by -->
                     <div class="flex items-center gap-3 sm:self-auto self-end">
-                        <!-- Page Size Selector (12 / 24 / 48 per RDS Section II.2.1) -->
+                        <!-- Page Size Selector (12 / 24) -->
                         <div class="flex items-center gap-1.5">
                             <label for="sizeSelect" class="text-xs text-carbon_black-500 font-medium whitespace-nowrap">Hiện:</label>
                             <select id="sizeSelect"
@@ -363,8 +388,6 @@
                                         th:selected="${currentSize == 12 or currentSize == null}">12 / trang</option>
                                 <option th:value="@{/products(size=24, sort=${currentSort}, keyword=${filter != null ? filter.keyword : null}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
                                         th:selected="${currentSize == 24}">24 / trang</option>
-                                <option th:value="@{/products(size=48, sort=${currentSort}, keyword=${filter != null ? filter.keyword : null}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
-                                        th:selected="${currentSize == 48}">48 / trang</option>
                             </select>
                         </div>
 
@@ -472,9 +495,10 @@
                     <div class="w-16 h-16 rounded-full bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-3xl mb-4">
                         <i class="bi bi-inbox"></i>
                     </div>
-                    <h3 class="font-serif font-bold text-lg text-carbon_black">Không tìm thấy sản phẩm phù hợp</h3>
-                    <p class="text-xs text-carbon_black-400 max-w-md mx-auto mt-1 mb-6">
-                        Hiện không có cuốn sách hoặc văn phòng phẩm nào thỏa mãn các điều kiện bộ lọc bạn đã chọn.
+                    <h3 class="font-serif font-bold text-lg text-carbon_black"
+                        th:text="${keywordMessage != null ? keywordMessage : 'Không tìm thấy sản phẩm phù hợp'}">Không tìm thấy sản phẩm phù hợp</h3>
+                    <p th:if="${keywordMessage == null}" class="text-xs text-carbon_black-400 max-w-md mx-auto mt-1 mb-6">
+                        Thử từ khóa khác hoặc thay đổi các điều kiện bộ lọc.
                     </p>
                     <a th:href="@{/products}"
                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">

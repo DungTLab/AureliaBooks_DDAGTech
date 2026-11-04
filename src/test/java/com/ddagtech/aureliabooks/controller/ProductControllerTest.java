@@ -199,16 +199,48 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("GET /products/search renders search template with model attributes")
+    @DisplayName("GET /products/search renders catalog template with model attributes")
     void getSearchPage() throws Exception {
         when(productService.browse(any(), any())).thenReturn(Page.empty());
         when(productService.getActiveCategories()).thenReturn(List.of());
 
-        mockMvc.perform(get("/products/search").param("keyword", "Harry Potter"))
+        mockMvc.perform(get("/products/search")
+                        .param("keyword", "  Harry Potter  ")
+                        .param("isTextbook", "false"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("product/search"))
+                .andExpect(view().name("product/list"))
                 .andExpect(model().attributeExists("products"))
-                .andExpect(model().attribute("keyword", "Harry Potter"));
+                .andExpect(model().attribute("keyword", "Harry Potter"))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .containsPattern("<input[^>]*id=\"catalogKeyword\"[^>]*value=\"Harry Potter\""))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .containsPattern("<input[^>]*name=\"isTextbook\"[^>]*value=\"false\"[^>]*checked"))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .doesNotContainPattern("<input[^>]*name=\"isTextbook\"[^>]*value=\"true\"[^>]*checked"))
+                .andExpect(content().string(containsString("name=\"authorId\"")))
+                .andExpect(content().string(containsString("name=\"publisherId\"")))
+                .andExpect(content().string(containsString("name=\"brandId\"")));
+
+        ArgumentCaptor<ProductFilterRequest> filterCaptor = ArgumentCaptor.forClass(ProductFilterRequest.class);
+        verify(productService).browse(filterCaptor.capture(), any(Pageable.class));
+        assertThat(filterCaptor.getValue().keyword()).isEqualTo("Harry Potter");
+        assertThat(filterCaptor.getValue().isTextbook()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Blank search renders the keyword prompt without querying product results")
+    void blankSearchRendersKeywordPrompt() throws Exception {
+        mockMvc.perform(get("/products/search").param("keyword", "   "))
+                .andExpect(status().isOk())
+                .andExpect(view().name("product/list"))
+                .andExpect(content().string(containsString("Vui lòng nhập từ khóa để tìm kiếm sản phẩm")))
+                .andExpect(content().string(not(containsString("Thử từ khóa khác hoặc thay đổi các điều kiện bộ lọc."))))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .containsPattern("<input[^>]*name=\"isTextbook\"[^>]*value=\"\"[^>]*checked"))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .doesNotContainPattern("<input[^>]*name=\"isTextbook\"[^>]*value=\"false\"[^>]*checked"));
+
+        verify(productService, org.mockito.Mockito.never()).browse(any(), any());
     }
 
     @Test
