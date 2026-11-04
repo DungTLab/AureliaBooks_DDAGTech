@@ -241,4 +241,51 @@ public class AuditLogServiceImpl implements AuditLogService {
             }
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasSettledVnpayPayment(Long orderId, String txnRef, String transactionNo) {
+        if (orderId == null) {
+            return false;
+        }
+        String cleanRef = txnRef != null ? txnRef.trim() : "";
+        String cleanTxNo = transactionNo != null ? transactionNo.trim() : "";
+        if (cleanRef.isEmpty() && cleanTxNo.isEmpty()) {
+            return false;
+        }
+        List<AuditLog> logs = auditLogRepository.findSettledVnpayAuditLogs(orderId);
+        if (logs == null || logs.isEmpty()) {
+            return false;
+        }
+
+        for (AuditLog audit : logs) {
+            String json = audit.getDetailsJson();
+            if (json == null || json.isBlank()) {
+                continue;
+            }
+            try {
+                JsonNode root = objectMapper.readTree(json);
+                String loggedRef = root.path("vnpTxnRef").asText("");
+                if (loggedRef.isBlank()) {
+                    loggedRef = root.path("surplusVnpTxnRef").asText("");
+                }
+                String loggedTxNo = root.path("vnpTransactionNo").asText("");
+
+                if (!cleanRef.isEmpty() && cleanRef.equals(loggedRef)) {
+                    return true;
+                }
+                if (!cleanTxNo.isEmpty() && !"0".equals(cleanTxNo) && cleanTxNo.equals(loggedTxNo)) {
+                    return true;
+                }
+            } catch (Exception ex) {
+                if (!cleanRef.isEmpty() && json.contains("\"" + cleanRef + "\"")) {
+                    return true;
+                }
+                if (!cleanTxNo.isEmpty() && !"0".equals(cleanTxNo) && json.contains("\"" + cleanTxNo + "\"")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

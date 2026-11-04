@@ -68,4 +68,16 @@ public interface AuditLogService {
      * @return sorted list of unique ActorOption records
      */
     List<ActorOption> getDistinctActors();
+
+    /**
+     * Checks whether a specific VNPay transaction reference or gateway transaction number
+     * has already been durably recorded in the persistent audit ledger for the specified order.
+     * Used for exact deduplication verification before discarding callbacks.
+     *
+     * @param orderId primary key identifier of the order
+     * @param txnRef VNPay transaction reference (vnp_TxnRef)
+     * @param transactionNo VNPay gateway transaction number (vnp_TransactionNo)
+     * @return true if an audit log for this order with matching transaction reference or number exists
+     */
+    boolean hasSettledVnpayPayment(Long orderId, String txnRef, String transactionNo);
 }
