@@ -26,6 +26,9 @@ public class CheckoutRequest {
     @Size(max = 30, message = "Mã giảm giá tối đa 30 ký tự")
     private String voucherCode;
 
+    @Size(max = 30, message = "Mã giảm phí vận chuyển tối đa 30 ký tự")
+    private String shippingVoucherCode;
+
     // Use a UUID without hyphens as both the confirmation token and order_code for duplicate detection.
     @NotBlank(message = "Phiên xác nhận đặt hàng không hợp lệ")
     @Pattern(

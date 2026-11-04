@@ -62,7 +62,9 @@
                         );
                         notes.set(field, note);
                     }
-                    const invalid = touched.has(field) && !field.validity.valid;
+                    // Optional voucher entry stays neutral while empty; validity still disables submission.
+                    const silentEmpty = field.hasAttribute("data-silent-empty") && !field.value.trim();
+                    const invalid = touched.has(field) && !field.validity.valid && !silentEmpty;
                     notes.get(field).textContent = errorMessage(field);
                     notes.get(field).hidden = !invalid;
                     field.setAttribute("aria-invalid", String(invalid));
