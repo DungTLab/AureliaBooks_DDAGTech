@@ -146,10 +146,10 @@
 
                     <div class="mt-3 pt-3 border-t border-dust_grey/40 flex items-baseline justify-between">
                         <div class="text-sm sm:text-base font-extrabold text-blazing_flame font-sans">
-                            <span th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')}">100.000</span>
-                            <span class="text-xs font-semibold">đ</span>
+                            <span th:text="${#numbers.formatDecimal(product.price, 0, 'POINT', 0, 'COMMA')}">100.000</span>
+                            <span class="text-xs font-semibold">₫</span>
                         </div>
-                        <span class="text-[10px] text-carbon_black-400 font-medium">Kho: [[${product.stockQuantity}]]</span>
+
                     </div>
                 </div>
             </div>

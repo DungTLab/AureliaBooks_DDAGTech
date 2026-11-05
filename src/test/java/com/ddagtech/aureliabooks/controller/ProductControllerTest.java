@@ -212,7 +212,7 @@ class ProductControllerTest {
                 .andExpect(model().attributeExists("products"))
                 .andExpect(model().attribute("keyword", "Harry Potter"))
                 .andExpect(result -> assertThat(result.getResponse().getContentAsString())
-                        .containsPattern("<input[^>]*id=\"catalogKeyword\"[^>]*value=\"Harry Potter\""))
+                        .containsPattern("<input[^>]*type=\"hidden\"[^>]*name=\"keyword\"[^>]*value=\"Harry Potter\""))
                 .andExpect(result -> assertThat(result.getResponse().getContentAsString())
                         .containsPattern("<input[^>]*name=\"isTextbook\"[^>]*value=\"false\"[^>]*checked"))
                 .andExpect(result -> assertThat(result.getResponse().getContentAsString())
