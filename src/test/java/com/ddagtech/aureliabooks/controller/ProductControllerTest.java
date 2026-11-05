@@ -86,6 +86,8 @@ class ProductControllerTest {
     @Test
     @DisplayName("GET /products with filters binds request parameters and preserves sort and size in model")
     void getProductsWithFilters() throws Exception {
+        when(productService.getCategoriesForType(Product.ProductType.BOOK))
+                .thenReturn(List.of(new CategorySummary(2L, "Books", null)));
         when(productService.browse(any(), any())).thenReturn(Page.empty());
         when(productService.getActiveCategories()).thenReturn(List.of());
 
@@ -152,7 +154,7 @@ class ProductControllerTest {
         assertThat(filter.productType()).isEqualTo(Product.ProductType.BOOK);
         assertThat(filter.authorId()).isEqualTo(7L);
         assertThat(filter.publisherId()).isEqualTo(8L);
-        assertThat(filter.brandId()).isEqualTo(9L);
+        assertThat(filter.brandId()).isNull();
         assertThat(filter.keyword()).isEqualTo("Conan");
         assertThat(filter.coverType()).isEqualTo(Book.CoverType.PAPERBACK);
         assertThat(filter.isTextbook()).isTrue();
@@ -225,6 +227,51 @@ class ProductControllerTest {
         verify(productService).browse(filterCaptor.capture(), any(Pageable.class));
         assertThat(filterCaptor.getValue().keyword()).isEqualTo("Harry Potter");
         assertThat(filterCaptor.getValue().isTextbook()).isFalse();
+    }
+
+    @Test
+    void stationeryClearsBookOnlyCriteriaAndResetsInvalidCategoryPage() throws Exception {
+        when(productService.getCategoriesForType(Product.ProductType.STATIONERY))
+                .thenReturn(List.of(new CategorySummary(10L, "Pens", null)));
+        when(productService.browse(any(), any())).thenReturn(Page.empty());
+        mockMvc.perform(get("/products").param("productType", "STATIONERY")
+                        .param("categoryId", "2").param("authorId", "7").param("publisherId", "8")
+                        .param("coverType", "PAPERBACK").param("isTextbook", "true")
+                        .param("brandId", "9").param("keyword", "pen")
+                        .param("minPrice", "1000").param("sort", "price_asc").param("page", "3"))
+                .andExpect(status().isOk());
+        ArgumentCaptor<ProductFilterRequest> filters = ArgumentCaptor.forClass(ProductFilterRequest.class);
+        ArgumentCaptor<Pageable> pages = ArgumentCaptor.forClass(Pageable.class);
+        verify(productService).browse(filters.capture(), pages.capture());
+        assertThat(filters.getValue().categoryId()).isNull();
+        assertThat(filters.getValue().authorId()).isNull();
+        assertThat(filters.getValue().publisherId()).isNull();
+        assertThat(filters.getValue().coverType()).isNull();
+        assertThat(filters.getValue().isTextbook()).isNull();
+        assertThat(filters.getValue().brandId()).isEqualTo(9L);
+        assertThat(filters.getValue().keyword()).isEqualTo("pen");
+        assertThat(filters.getValue().minPrice()).isEqualByComparingTo("1000");
+        assertThat(pages.getValue().getPageNumber()).isZero();
+    }
+
+    @Test
+    void navigationRendersDatabaseRootsWithBoundedPreviewsAndFullGroupLinks() throws Exception {
+        List<CategorySummary> categories = new java.util.ArrayList<>();
+        categories.add(new CategorySummary(100L, "Database Root", null));
+        for (long id = 101; id <= 116; id++) {
+            categories.add(new CategorySummary(id, "Child " + id, 100L));
+        }
+        when(productService.getActiveCategories()).thenReturn(categories);
+        when(productService.groupCategoriesForMenu(categories))
+                .thenReturn(java.util.Map.of(categories.get(0), categories.subList(1, 13)));
+        when(productService.browse(any(), any())).thenReturn(Page.empty());
+        var response = mockMvc.perform(get("/products")).andExpect(status().isOk()).andReturn();
+        String html = response.getResponse().getContentAsString();
+        assertThat(html).contains("data-target=\"mega-tab-100\"", "Xem tất cả Database Root");
+        String panel = html.substring(html.indexOf("id=\"mega-tab-100\""));
+        panel = panel.substring(0, panel.indexOf("</div>"));
+        assertThat(panel).contains("Child 112").doesNotContain("Child 113");
+        assertThat(panel).contains("/products?categoryId=100");
     }
 
     @Test

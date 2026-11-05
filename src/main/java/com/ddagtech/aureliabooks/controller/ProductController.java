@@ -5,6 +5,7 @@ import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
+import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.service.ProductService;
 import com.ddagtech.aureliabooks.service.RecommendationService;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
@@ -44,10 +45,15 @@ public class ProductController {
             @RequestParam(defaultValue = "newest") String sort,
             Model model) {
 
+        List<CategorySummary> categorySummaryList = filterRequest.productType() == null
+                ? productService.getActiveCategories() : productService.getCategoriesForType(filterRequest.productType());
+        ProductFilterRequest normalized = normalizeFilter(filterRequest, categorySummaryList);
+        if (!normalized.equals(filterRequest)) page = 1;
+        filterRequest = normalized;
+        model.addAttribute("filter", filterRequest);
         Pageable pageable = PageableUtils.create(page,size,sort);
 
         Page<ProductSummary> productSummaryPage = productService.browse(filterRequest, pageable);
-        List<CategorySummary> categorySummaryList = productService.getActiveCategories();
         model.addAttribute("products", productSummaryPage);
         model.addAttribute("categories", categorySummaryList);
         model.addAttribute("authors", productService.getAuthors());
@@ -65,15 +71,19 @@ public class ProductController {
             @RequestParam(defaultValue = "12") Integer size,
             @RequestParam(defaultValue = "newest") String sort,
             Model model) {
+        List<CategorySummary> categories = filterRequest.productType() == null
+                ? productService.getActiveCategories() : productService.getCategoriesForType(filterRequest.productType());
+        ProductFilterRequest normalized = normalizeFilter(filterRequest, categories);
+        if (!normalized.equals(filterRequest)) page = 1;
+        filterRequest = normalized;
+        model.addAttribute("filter", filterRequest);
         Pageable pageable = PageableUtils.create(page, size, sort);
-        List<CategorySummary> categories = productService.getActiveCategories();
 
         String rawKeyword = filterRequest != null ? filterRequest.keyword() : null;
         boolean isBlankKeyWord = rawKeyword == null || rawKeyword.trim().isBlank();
 
 
 
-//        Page<ProductSummary> products = productService.browse(filterRequest, pageable);
         Page<ProductSummary> products;
         if(isBlankKeyWord){
             products = Page.empty(pageable);
@@ -104,6 +114,20 @@ public class ProductController {
         model.addAttribute("keyword", isBlankKeyWord ? "" : rawKeyword.trim());
 
         return "product/list";
+    }
+
+    private ProductFilterRequest normalizeFilter(ProductFilterRequest filter, List<CategorySummary> categories) {
+        boolean books = filter.productType() == Product.ProductType.BOOK;
+        boolean stationery = filter.productType() == Product.ProductType.STATIONERY;
+        Long categoryId = filter.categoryId();
+        if (filter.productType() != null && categoryId != null
+                && categories.stream().noneMatch(category -> category.id().equals(filter.categoryId()))) {
+            categoryId = null;
+        }
+        return new ProductFilterRequest(filter.keyword(), categoryId, filter.minPrice(), filter.maxPrice(),
+                stationery ? null : filter.authorId(), stationery ? null : filter.publisherId(),
+                books ? null : filter.brandId(), stationery ? null : filter.coverType(),
+                filter.productType(), stationery ? null : filter.isTextbook());
     }
     @GetMapping("/products/{id}")
     public String detail(@PathVariable Long id, Model model, Authentication authentication) {

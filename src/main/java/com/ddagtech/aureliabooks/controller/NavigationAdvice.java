@@ -8,6 +8,8 @@ import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.ui.Model;
+import java.util.Map;
 
 /** Resolves storefront links from current categories rather than seed identifiers. */
 @ControllerAdvice
@@ -20,9 +22,14 @@ public class NavigationAdvice {
     }
 
     @ModelAttribute("navigationCategories")
-    public List<CategorySummary> categories(HttpServletRequest request) {
-        if (PortalSecurity.internalRequest(request)) return List.of();
+    public List<CategorySummary> categories(HttpServletRequest request, Model model) {
+        if (PortalSecurity.internalRequest(request)) {
+            model.addAttribute("navigationGroups", Map.of());
+            return List.of();
+        }
         ProductService service = products.getIfAvailable();
-        return service == null ? List.of() : service.getActiveCategories();
+        List<CategorySummary> categories = service == null ? List.of() : service.getActiveCategories();
+        model.addAttribute("navigationGroups", service == null ? Map.of() : service.groupCategoriesForMenu(categories));
+        return categories;
     }
 }

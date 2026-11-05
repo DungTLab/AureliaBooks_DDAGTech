@@ -442,53 +442,13 @@
                                         Nhóm chính
                                     </div>
 
-                                    <!-- Domestic books tab (selected by default) -->
-                                    <div
-                                        class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors bg-white text-blazing_flame shadow-sm"
-                                        data-target="mega-tab-books"
-                                    >
-                                        <span class="flex items-center gap-2">
-                                            <i class="bi bi-book-half text-blazing_flame"></i>
-                                            <span>Sách Trong Nước</span>
-                                        </span>
-                                        <i class="bi bi-chevron-right text-[11px]"></i>
-                                    </div>
-
-                                    <!-- Stationery tab -->
-                                    <div
-                                        class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
-                                        data-target="mega-tab-stationery"
-                                    >
-                                        <span class="flex items-center gap-2">
-                                            <i class="bi bi-pencil-fill text-carbon_black-400"></i>
-                                            <span>Văn Phòng Phẩm</span>
-                                        </span>
-                                        <i class="bi bi-chevron-right text-[11px]"></i>
-                                    </div>
-
-                                    <!-- Foreign-language books tab -->
-                                    <div
-                                        class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
-                                        data-target="mega-tab-foreign"
-                                    >
-                                        <span class="flex items-center gap-2">
-                                            <i class="bi bi-globe2 text-carbon_black-400"></i>
-                                            <span>Sách Ngoại Văn</span>
-                                        </span>
-                                        <i class="bi bi-chevron-right text-[11px]"></i>
-                                    </div>
-
-                                    <!-- Textbooks and reference books tab -->
-                                    <div
-                                        class="mega-tab-btn flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer font-bold text-xs transition-colors text-carbon_black hover:bg-white hover:text-blazing_flame"
-                                        data-target="mega-tab-textbook"
-                                    >
-                                        <span class="flex items-center gap-2">
-                                            <i class="bi bi-backpack-fill text-carbon_black-400"></i>
-                                            <span>Sách Giáo Khoa 2026</span>
-                                        </span>
-                                        <i class="bi bi-chevron-right text-[11px]"></i>
-                                    </div>
+                                    <button type="button" th:each="group, position : ${navigationGroups}"
+                                            class="mega-tab-btn w-full text-left flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold text-xs transition-colors"
+                                            th:classappend="${position.first ? 'bg-white text-blazing_flame shadow-sm' : 'text-carbon_black'}"
+                                            th:attr="data-target=${'mega-tab-' + group.key.id},aria-pressed=${position.first}">
+                                        <span th:text="${group.key.name}"></span>
+                                        <i class="bi bi-chevron-right text-[11px]" aria-hidden="true"></i>
+                                    </button>
 
                                     <div class="pt-2 border-t border-dust_grey/40">
                                         <a
@@ -503,13 +463,21 @@
 
                                 <!-- Right Column: Multi-column subcategories panel per Fahasa design -->
                                 <div class="flex-1 p-5 bg-white">
-                                    <div id="mega-tab-books" class="mega-tab-content grid grid-cols-2 gap-3">
-                                        <a th:each="category : ${navigationCategories}" th:href="@{/products(categoryId=${category.id})}"
-                                           th:text="${category.name}" class="p-2 rounded-lg text-sm hover:bg-parchment hover:text-blazing_flame">Danh mục</a>
+                                    <div th:each="group, position : ${navigationGroups}"
+                                         th:id="${'mega-tab-' + group.key.id}"
+                                         class="mega-tab-content grid-cols-3 gap-x-4 gap-y-2"
+                                         th:classappend="${position.first ? 'grid' : 'hidden'}">
+                                        <h3 class="col-span-3 font-bold text-base mb-2" th:text="${group.key.name}"></h3>
+                                        <a th:each="category : ${group.value}"
+                                           th:href="@{/products(categoryId=${category.id})}"
+                                           th:text="${category.name}"
+                                           class="p-2 rounded-lg text-sm hover:bg-parchment hover:text-blazing_flame"></a>
+                                        <a th:href="@{/products(categoryId=${group.key.id})}"
+                                           th:text="${'Xem tất cả ' + group.key.name + ' →'}"
+                                           class="col-span-3 mt-4 pt-3 border-t border-dust_grey text-sm font-bold text-blazing_flame"></a>
                                     </div>
-                                    <div id="mega-tab-stationery" class="mega-tab-content hidden"><a th:href="@{/products(productType='STATIONERY')}" class="font-bold">Xem văn phòng phẩm</a></div>
-                                    <div id="mega-tab-foreign" class="mega-tab-content hidden"><a th:href="@{/products(productType='BOOK')}" class="font-bold">Xem các đầu sách đang kinh doanh</a></div>
-                                    <div id="mega-tab-textbook" class="mega-tab-content hidden"><a th:href="@{/products(isTextbook=true)}" class="font-bold">Xem sách giáo khoa và tham khảo</a></div>
+                                    <p th:if="${navigationGroups == null or #maps.isEmpty(navigationGroups)}"
+                                       class="text-sm text-carbon_black-500">Chưa có danh mục.</p>
                                 </div>
                             </div>
                         </div>
@@ -820,38 +788,24 @@
                     setupAutocomplete("globalSearchInput", "autocompleteDropdown", "autocompleteList");
                     setupAutocomplete("mobileSearchInput", "mobileAutocompleteDropdown", "mobileAutocompleteList");
 
-                    // Fahasa-style Mega Menu tab switching logic
-                    const megaTabBtns = document.querySelectorAll(".mega-tab-btn");
-                    megaTabBtns.forEach((btn) => {
-                        btn.addEventListener("mouseenter", function () {
-                            megaTabBtns.forEach((b) => {
-                                b.classList.remove("bg-white", "text-blazing_flame", "shadow-sm");
-                                b.classList.add("text-carbon_black");
-                                const icon = b.querySelector("i");
-                                if (icon) {
-                                    icon.classList.remove("text-blazing_flame");
-                                    icon.classList.add("text-carbon_black-400");
-                                }
-                            });
-
-                            btn.classList.add("bg-white", "text-blazing_flame", "shadow-sm");
-                            btn.classList.remove("text-carbon_black");
-                            const activeIcon = btn.querySelector("i");
-                            if (activeIcon) {
-                                activeIcon.classList.remove("text-carbon_black-400");
-                                activeIcon.classList.add("text-blazing_flame");
-                            }
-
-                            const targetId = btn.getAttribute("data-target");
-                            document.querySelectorAll(".mega-tab-content").forEach((content) => {
-                                content.classList.add("hidden");
-                                content.classList.remove("grid");
-                            });
-                            const activePanel = document.getElementById(targetId);
-                            if (activePanel) {
-                                activePanel.classList.remove("hidden");
-                                activePanel.classList.add("grid");
-                            }
+                    const megaTabBtns = document.querySelectorAll('.mega-tab-btn');
+                    function activateCategoryTab(button) {
+                        megaTabBtns.forEach(item => {
+                            const selected = item === button;
+                            item.setAttribute('aria-pressed', String(selected));
+                            item.classList.toggle('bg-white', selected);
+                            item.classList.toggle('text-blazing_flame', selected);
+                            item.classList.toggle('shadow-sm', selected);
+                        });
+                        document.querySelectorAll('.mega-tab-content').forEach(panel => {
+                            const selected = panel.id === button.dataset.target;
+                            panel.classList.toggle('hidden', !selected);
+                            panel.classList.toggle('grid', selected);
+                        });
+                    }
+                    megaTabBtns.forEach(button => {
+                        ['mouseenter', 'click', 'focus'].forEach(event => {
+                            button.addEventListener(event, () => activateCategoryTab(button));
                         });
                     });
 

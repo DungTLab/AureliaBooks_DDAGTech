@@ -59,21 +59,21 @@
                                        th:classappend="${filter == null or filter.productType() == null} ? 'bg-white text-blazing_flame shadow-sm' : 'text-carbon_black-500 hover:text-carbon_black'">
                                     <input type="radio" name="productType" value="" class="hidden"
                                            th:checked="${filter == null or filter.productType() == null}"
-                                           onchange="this.form.requestSubmit()">
+                                           onchange="changeCatalogType(this)">
                                     Tất cả
                                 </label>
                                 <label class="text-center py-2 text-xs font-bold rounded-lg cursor-pointer transition-all"
                                        th:classappend="${filter != null and filter.productType()?.name() == 'BOOK'} ? 'bg-white text-blazing_flame shadow-sm' : 'text-carbon_black-500 hover:text-carbon_black'">
                                     <input type="radio" name="productType" value="BOOK" class="hidden"
                                            th:checked="${filter != null and filter.productType()?.name() == 'BOOK'}"
-                                           onchange="this.form.requestSubmit()">
+                                           onchange="changeCatalogType(this)">
                                     Sách
                                 </label>
                                 <label class="text-center py-2 text-xs font-bold rounded-lg cursor-pointer transition-all"
                                        th:classappend="${filter != null and filter.productType()?.name() == 'STATIONERY'} ? 'bg-white text-blazing_flame shadow-sm' : 'text-carbon_black-500 hover:text-carbon_black'">
                                     <input type="radio" name="productType" value="STATIONERY" class="hidden"
                                            th:checked="${filter != null and filter.productType()?.name() == 'STATIONERY'}"
-                                           onchange="this.form.requestSubmit()">
+                                           onchange="changeCatalogType(this)">
                                     Văn phòng phẩm
                                 </label>
                             </div>
@@ -609,6 +609,23 @@
     </style>
 
     <script>
+        function changeCatalogType(input) {
+            const form = input.form;
+            const incompatible = input.value === 'BOOK' ? ['categoryId', 'brandId']
+                : input.value === 'STATIONERY'
+                    ? ['categoryId', 'authorId', 'publisherId', 'coverType', 'isTextbook']
+                    : ['categoryId'];
+            const disabled = [];
+            form.querySelectorAll('[name]').forEach(field => {
+                if (incompatible.includes(field.name) && !field.disabled) {
+                    field.disabled = true;
+                    disabled.push(field);
+                }
+            });
+            form.requestSubmit();
+            disabled.forEach(field => { field.disabled = false; });
+        }
+
         document.querySelectorAll('[data-facet-toggle]').forEach(button => {
             const panel = document.getElementById(button.getAttribute('aria-controls'));
             if (!panel) return;
