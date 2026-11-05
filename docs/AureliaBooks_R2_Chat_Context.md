@@ -199,7 +199,7 @@ Phiên manual browser bị tool delay khoảng26phút và chạm lease30phút tr
 ### Chạy lại và phạm vi
 
 ```bash
-python3 scripts/r2-e2e/run_checks.py
+bash scripts/java-tools.sh R2QaTools all
 ```
 
 Cần container MySQL QA đúng tên + schema đã review, Java21, Python3, Docker. Script tự chạy/dừng server và proxy, kiểm tra HTTP report/cleanup. Xem `scripts/r2-e2e/README.md` để chạy browser thủ công; không dùng tài khoản thật hoặc đăng ký harness vào production artifact.

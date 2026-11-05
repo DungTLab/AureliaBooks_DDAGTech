@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "verificationStatus": "BLOCKED",
+  "verificationStatus": "STAGE_RECEIVER_CANDIDATE_PROVISIONING_REQUIRED_ACTIVATION_BLOCKED",
+  "stageReceiverCandidateAvailable": true,
   "receiverImplementedAndReviewed": false,
   "productionEnvironmentProtectionVerified": false,
   "allDeploymentEntrypointsUseHostLock": false,
@@ -10,5 +11,5 @@
   "profilesAndHigherPrecedenceSourcesReviewed": false,
   "rollbackCredentialValidityVerified": false,
   "offlineFixturesAreNotVpsEvidence": true,
-  "note": "No setting in this file can enable the unimplemented live adapter."
+  "note": "This is evidence metadata, not executable configuration. The receiver does not read this file. Root-owned provisioning is required for stage; activation is not implemented."
 }

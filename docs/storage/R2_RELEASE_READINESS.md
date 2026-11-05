@@ -161,7 +161,7 @@ Trong QA log còn phát hiện CustomAccessDeniedHandler ghi exception message c
 
 ### Evidence và kết quả cuối
 
-- **28/28 actual HTTP E2E checks PASS** qua Nginx + Tomcat + MySQL. Script có thể chạy lại: `python3 scripts/r2-e2e/run_checks.py` (xem README cùng thư mục).
+- **28/28 actual HTTP E2E checks PASS** qua Nginx + Tomcat + MySQL là kết quả lịch sử của runner Python. Runner hiện đã chuyển sang Java: `bash scripts/java-tools.sh R2QaTools all` (xem README cùng thư mục); chưa chạy lại ma trận MySQL/Nginx bằng bản Java, không chuyển kết quả PASS cũ thành bằng chứng cho bản mới.
 - **JUnit persistence harness 1/1 PASS**, lượt cuối kết thúc 20:57:02 +07, kiểm tra đủ >=28 cases và category ID/run-prefix ownership trước cleanup.
 - **235/235 Java regression PASS**, 20:48:22 +07, gồm homepage/product/cart templates và 4 recovery tests khi dropdown DB cũng lỗi.
 - Sau thay đổi logging: **75/75 focused security tests PASS**, 20:52:25 +07. Nhóm này overlap regression, không cộng thành tổng 310 tests độc lập.

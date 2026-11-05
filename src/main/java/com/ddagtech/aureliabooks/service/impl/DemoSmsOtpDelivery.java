@@ -45,7 +45,7 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
         this.mail = mail;
         this.from = from;
         this.inbox = inbox;
-        this.emailDelivery = new ContactOtpDeliveryImpl(mail, from, "", "", "");
+        this.emailDelivery = new ContactOtpDeliveryImpl(mail, from);
     }
 
     public String inbox() {

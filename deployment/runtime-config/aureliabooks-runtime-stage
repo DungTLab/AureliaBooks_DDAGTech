@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Candidate root-owned fixed-command wrapper. Provision manually after review.
+set +x
+set -euo pipefail
+umask 077
+[[ $# -ge 3 && "$EUID" -eq 0 ]] || exit 2
+if [[ "$1" == status ]]; then
+  [[ $# -eq 4 && "$4" =~ ^[a-f0-9]{32}$ ]] || exit 2
+else
+  [[ $# -eq 3 && ( "$1" == check || "$1" == stage ) ]] || exit 2
+fi
+[[ "$2" == staging || "$2" == production ]] || exit 2
+[[ "$3" =~ ^[a-f0-9]{40}$ ]] || exit 2
+tool=/usr/local/lib/aureliabooks-runtime/runtime-config-tool.jar
+[[ -f "$tool" && ! -L "$tool" ]] || exit 2
+[[ "$(stat -c '%u:%a' /usr/local/lib/aureliabooks-runtime)" == '0:755' ]] || exit 2
+[[ ! -L /usr/local/lib/aureliabooks-runtime ]] || exit 2
+[[ "$(stat -c '%u:%a' "$tool")" == '0:644' ]] || exit 2
+exec /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/java -jar "$tool" "$@"

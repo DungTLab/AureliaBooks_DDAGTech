@@ -1,6 +1,6 @@
 package com.ddagtech.aureliabooks.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ddagtech.aureliabooks.runtimeconfig.ConfigPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -58,7 +58,7 @@ class RuntimeConfigurationContractTest {
         @Override public Map<String, Object> getSystemProperties() { return Map.of(); }
     }
 
-    private record Serialized(int exit, byte[] body, String error) {}
+    record Serialized(int exit, byte[] body, String error) {}
 
     private enum ChildCode { TIMEOUT, OUTPUT_LIMIT, IO_FAILURE, INTERRUPTED, CLEANUP_FAILED }
 
@@ -83,7 +83,7 @@ class RuntimeConfigurationContractTest {
         }, io);
     }
 
-    private static Serialized runChild(Process process, byte[] input, Duration budget) {
+    static Serialized runChild(Process process, byte[] input, Duration budget) {
         long deadline = System.nanoTime() + budget.toNanos();
         ExecutorService io = Executors.newFixedThreadPool(3, task -> {
             Thread thread = new Thread(task, "runtime-config-io-" + process.pid());
@@ -147,26 +147,8 @@ class RuntimeConfigurationContractTest {
     }
 
     private Serialized serialize(Map<String, String> values, List<String> groups) throws Exception {
-        // Values go only over a private pipe, never command args, stdout logs or artifacts.
-        String code = """
-                import sys,json
-                sys.path.insert(0,sys.argv[1])
-                import policy
-                try:
-                    fixture=json.load(sys.stdin)
-                    sys.stdout.buffer.write(policy.render(fixture["values"],fixture["groups"]))
-                except policy.Rejected as error:
-                    sys.stderr.write(str(error))
-                    sys.exit(2)
-                except Exception:
-                    sys.stderr.write("INVALID_SYNTHETIC_FIXTURE")
-                    sys.exit(2)
-                """;
-        ProcessBuilder builder = new ProcessBuilder("/usr/bin/python3", "-I", "-B", "-c", code,
-                Path.of("scripts/runtime-config").toAbsolutePath().toString());
-        builder.environment().clear();
-        byte[] input = new ObjectMapper().writeValueAsBytes(Map.of("values", values, "groups", groups));
-        return runChild(builder.start(), input, Duration.ofSeconds(10));
+        try { return new Serialized(0, ConfigPolicy.render(values, groups), ""); }
+        catch (ConfigPolicy.Rejected e) { return new Serialized(2, new byte[0], e.getMessage()); }
     }
 
     private Path file(Map<String, String> values, List<String> groups) throws Exception {
@@ -182,11 +164,16 @@ class RuntimeConfigurationContractTest {
 
     private GenericApplicationContext load(Path file, boolean google, Map<String, Object> variables,
                                             Map<String, Object> system, String... args) {
+        return loadWithProfiles(file, google ? new String[]{"google"} : new String[0], variables, system, args);
+    }
+
+    private GenericApplicationContext loadWithProfiles(Path file, String[] profiles, Map<String, Object> variables,
+                                            Map<String, Object> system, String... args) {
         IsolatedEnvironment environment = new IsolatedEnvironment();
         // Restrict base locations to tracked resources, never local real config files.
         environment.setProperty("spring.config.location", "classpath:/application.yaml");
         environment.setProperty("spring.config.additional-location", file.toUri().toString());
-        if (google) { environment.setActiveProfiles("google"); }
+        environment.setActiveProfiles(profiles);
         environment.getPropertySources().addFirst(new SystemEnvironmentPropertySource("systemEnvironment", variables));
         environment.getPropertySources().addFirst(new MapPropertySource("systemProperties", system));
         environment.getPropertySources().addFirst(new SimpleCommandLinePropertySource("commandLineArgs", args));
@@ -215,7 +202,7 @@ class RuntimeConfigurationContractTest {
         assertFalse(output.getAll().contains(SENTINEL), "SECRET_LEAK_IN_LOGS");
     }
 
-    @Test void pythonEncodingRoundTripsThroughJavaProperties() throws Exception {
+    @Test void javaEncodingRoundTripsThroughJavaProperties() throws Exception {
         Serialized result = serialize(google(), List.of("google"));
         assertTrue(result.exit() == 0);
         Properties properties = new Properties();
@@ -223,13 +210,42 @@ class RuntimeConfigurationContractTest {
         assertTrue(COMPLEX.equals(properties.getProperty("GOOGLE_CLIENT_SECRET")), "JAVA_PROPERTIES_ROUND_TRIP");
     }
 
-    @Test void pythonEncodingRoundTripsThroughRealBootLoader() throws Exception {
+    @Test void javaEncodingRoundTripsThroughRealBootLoader() throws Exception {
         try (var context = load(file(mail(), List.of("mail")), false, Map.of(), Map.of())) {
             assertTrue(COMPLEX.equals(context.getEnvironment().getProperty("spring.mail.password")),
                     "BOOT_PROPERTIES_ROUND_TRIP");
             assertEquals(587, Binder.get(context.getEnvironment()).bind("spring.mail.port", Integer.class).get());
             assertTrue(context.getEnvironment().getProperty("spring.mail.properties.mail.smtp.starttls.required",
                     Boolean.class, false));
+        }
+    }
+
+    @Test void runtimeInboxReachesExistingDemoAdapterWithoutSendingRealSmsOrMail() throws Exception {
+        var input = new HashMap<>(mail()); input.put("DEMO_SMS_INBOX", "private-team@example.test");
+        try (var context = loadWithProfiles(file(input, List.of("mail", "sms-demo")),
+                new String[]{"sms-demo"}, Map.of(), Map.of())) {
+            var environment = context.getEnvironment();
+            assertEquals("private-team@example.test", environment.getProperty("demo.sms.inbox"));
+            var messages = new ArrayList<org.springframework.mail.SimpleMailMessage>();
+            var sender = new org.springframework.mail.javamail.JavaMailSenderImpl() {
+                @Override public void send(org.springframework.mail.SimpleMailMessage message) {
+                    messages.add(new org.springframework.mail.SimpleMailMessage(message));
+                }
+            };
+            var beans = new org.springframework.beans.factory.support.StaticListableBeanFactory();
+            beans.addBean("mail", sender);
+            var adapter = new com.ddagtech.aureliabooks.service.impl.DemoSmsOtpDelivery(
+                    beans.getBeanProvider(org.springframework.mail.javamail.JavaMailSender.class), environment,
+                    environment.getRequiredProperty("app.contact-verification.mail-from"),
+                    environment.getRequiredProperty("demo.sms.inbox"));
+            adapter.send("SMS", "0912345678", "135790");
+            adapter.send("EMAIL", "customer@example.test", "246810");
+            assertEquals(2, messages.size());
+            assertArrayEquals(new String[]{"private-team@example.test"}, messages.getFirst().getTo());
+            assertTrue(messages.getFirst().getSubject().contains("[SMS DEMO]"));
+            assertFalse(messages.getFirst().getText().contains("0912345678"));
+            assertArrayEquals(new String[]{"customer@example.test"}, messages.get(1).getTo());
+            assertFalse(messages.get(1).getSubject().contains("[SMS DEMO]"));
         }
     }
 
@@ -388,8 +404,10 @@ class RuntimeConfigurationContractTest {
         }
     }
 
-    private Process syntheticChild(String code) throws IOException {
-        ProcessBuilder builder = new ProcessBuilder("/usr/bin/python3", "-I", "-B", "-c", code);
+    private Process syntheticChild(String mode) throws IOException {
+        ProcessBuilder builder = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-cp", Path.of("target/test-classes").toAbsolutePath().toString(),
+                "com.ddagtech.aureliabooks.config.RuntimeConfigurationSyntheticChild", mode);
         builder.environment().clear();
         return builder.start();
     }
@@ -414,7 +432,7 @@ class RuntimeConfigurationContractTest {
 
     @Test @Timeout(6)
     void hungChildHasBoundedDeadlineAndIsReaped() throws Exception {
-        verifyChildFailure(syntheticChild("import time; time.sleep(30)"),
+        verifyChildFailure(syntheticChild("hang"),
                 new byte[0], Duration.ofMillis(250), ChildCode.TIMEOUT);
     }
 
@@ -424,45 +442,26 @@ class RuntimeConfigurationContractTest {
         Arrays.fill(input, (byte) 'x');
         byte[] secret = SENTINEL.getBytes(StandardCharsets.US_ASCII);
         System.arraycopy(secret, 0, input, 0, secret.length);
-        verifyChildFailure(syntheticChild("import time; time.sleep(30)"),
+        verifyChildFailure(syntheticChild("hang"),
                 input, Duration.ofMillis(250), ChildCode.TIMEOUT);
     }
 
     @ParameterizedTest @ValueSource(strings = {"stdout", "stderr"}) @Timeout(6)
     void floodedPipeIsBoundedWithoutDeadlockOrSecretDiagnostics(String pipe) throws Exception {
         // The source code contains no credential value: synthetic bytes use stdin only.
-        String code = """
-                import os,sys
-                payload=sys.stdin.buffer.read()
-                fd=FD
-                os.write(fd,payload)
-                while True: os.write(fd,b'x'*8192)
-                """.replace("FD", pipe.equals("stdout") ? "1" : "2");
-        verifyChildFailure(syntheticChild(code), SENTINEL.getBytes(StandardCharsets.US_ASCII),
+        verifyChildFailure(syntheticChild(pipe), SENTINEL.getBytes(StandardCharsets.US_ASCII),
                 Duration.ofSeconds(2), ChildCode.OUTPUT_LIMIT);
     }
 
     @Test @Timeout(6)
     void timeoutFailureDoesNotIncludeChildSecretStderr() throws Exception {
-        String code = """
-                import sys,time
-                sys.stderr.buffer.write(sys.stdin.buffer.read())
-                sys.stderr.flush()
-                time.sleep(30)
-                """;
-        verifyChildFailure(syntheticChild(code), SENTINEL.getBytes(StandardCharsets.US_ASCII),
+        verifyChildFailure(syntheticChild("stderr-hang"), SENTINEL.getBytes(StandardCharsets.US_ASCII),
                 Duration.ofMillis(250), ChildCode.TIMEOUT);
     }
 
     @Test @Timeout(6)
     void nonzeroExitAssertionDoesNotPrintSecretDiagnostic() throws Exception {
-        String code = """
-                import sys
-                sys.stderr.buffer.write(sys.stdin.buffer.read())
-                sys.stderr.flush()
-                sys.exit(7)
-                """;
-        Process process = syntheticChild(code);
+        Process process = syntheticChild("nonzero");
         Serialized result = runChild(process, SENTINEL.getBytes(StandardCharsets.US_ASCII),
                 Duration.ofSeconds(2));
         assertFalse(process.isAlive(), "CHILD_NOT_REAPED");
@@ -476,7 +475,7 @@ class RuntimeConfigurationContractTest {
 
     @Test @Timeout(6)
     void interruptedCallerStillReapsChildAndPreservesInterruptStatus() throws Exception {
-        Process process = syntheticChild("import time; time.sleep(30)");
+        Process process = syntheticChild("hang");
         try {
             Thread.currentThread().interrupt();
             verifyChildFailure(process, new byte[0], Duration.ofSeconds(1), ChildCode.INTERRUPTED);
