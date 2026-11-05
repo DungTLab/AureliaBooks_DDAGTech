@@ -54,7 +54,16 @@ public final class RuntimeConfigCli {
                 System.out.write(new StagingConfigEnvelope(environment, args[3], revision, now, now + 300, values, GROUPS).encode());
                 System.out.flush(); check(!System.out.checkError(), "FRAME_OUTPUT_FAILED");
             } else {
-                check(args.length == (mode.equals("status") ? 4 : 3), "INVALID_ARGUMENTS");
+                check(args.length == (Set.of("status", "activate-google").contains(mode) ? 4 : 3), "INVALID_ARGUMENTS");
+                if (mode.equals("activate-google")) {
+                    System.out.println(RuntimeActivation.deployed(environment).activateGoogle(args[3], revision));
+                } else if (mode.equals("verify-active")) {
+                    System.out.println(RuntimeActivation.deployed(environment).verify());
+                } else if (mode.equals("recover")) {
+                    System.out.println(RuntimeActivation.deployed(environment).recover());
+                } else if (mode.equals("integrate-deploy")) {
+                    RuntimeDeployIntegration.deployed(environment); System.out.println("DEPLOY_RUNTIME_INTEGRATED");
+                } else
                 if (mode.equals("status")) {
                     System.out.println(RuntimeSnapshotStore.deployed(environment).status(args[3], revision));
                 } else if (mode.equals("check")) {

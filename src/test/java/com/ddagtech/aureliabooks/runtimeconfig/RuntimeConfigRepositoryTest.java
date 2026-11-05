@@ -21,7 +21,7 @@ class RuntimeConfigRepositoryTest {
             assertTrue(workflow.contains("/opt/apps/swp391/scripts/deploy.sh $DEPLOY_SHA"));
         }
     }
-    @Test void manualWorkflowRestrictsSecretTransferToExplicitStageAndNeverActivates() throws Exception {
+    @Test void manualWorkflowRequiresExplicitStageOrActivationAndEnvironmentApproval() throws Exception {
         String body = Files.readString(Path.of(".github/workflows/runtime-config-sync.yml"));
         for (String forbidden : List.of("upload-artifact", "python3", "secrets.R2_ACCESS_KEY_ID", "secrets.R2_SECRET_ACCESS_KEY")) assertFalse(body.contains(forbidden));
         assertTrue(body.contains("refs/heads/main"));
@@ -34,6 +34,9 @@ class RuntimeConfigRepositoryTest {
         Map<?, ?> stage = (Map<?, ?>)jobs.get("stage-snapshot");
         assertEquals("${{ inputs.target_environment }}", stage.get("environment"));
         assertTrue(stage.get("if").toString().contains("inputs.operation == 'stage'"));
+        assertTrue(stage.get("if").toString().contains("inputs.operation == 'activate-google'"));
+        assertTrue(body.contains("options: [validate, stage, activate-google]"));
+        assertTrue(body.contains("default: validate"));
         assertTrue(stage.get("if").toString().contains("refs/heads/main"));
         assertEquals("offline-validation", stage.get("needs"));
         assertFalse(jobs.get("offline-validation").toString().contains("secrets."));
