@@ -381,6 +381,11 @@ class AuditLogSecurityTest {
             public List<com.ddagtech.aureliabooks.dto.response.ActorOption> findDistinctActors() {
                 return List.of();
             }
+
+            @Override
+            public List<AuditLog> findSettledVnpayAuditLogs(Long orderId) {
+                return List.of();
+            }
         };
 
         @Test

@@ -50,6 +50,11 @@ class AuditLogRepositoryTest {
         public java.util.List<com.ddagtech.aureliabooks.dto.response.ActorOption> findDistinctActors() {
             return java.util.List.of(new com.ddagtech.aureliabooks.dto.response.ActorOption(1L, "Admin User", "admin@aureliabook.vn"));
         }
+
+        @Override
+        public java.util.List<AuditLog> findSettledVnpayAuditLogs(Long orderId) {
+            return java.util.List.of();
+        }
     };
 
     @Test

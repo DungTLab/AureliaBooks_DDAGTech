@@ -41,16 +41,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Run SQL policy unit tests
-        run: |
-          python3 -m unittest discover \
-            -s scripts/catalog-seed/tests \
-            -p 'test_*.py' \
-            -v
+      - name: Set up Java 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Validate Catalog SQL templates
         run: |
-          python3 scripts/catalog-seed/sql_policy.py
+          bash scripts/java-tools.sh CatalogSeed --policy
 
       - name: Verify Seed Runner dry-run
         shell: bash
@@ -64,7 +63,7 @@ jobs:
             '{"version":1,"environment":"staging","entries":[]}' \
             > "$ledger"
 
-          python3 scripts/catalog-seed/seed_runner.py \
+          bash scripts/java-tools.sh CatalogSeed \
             --dry-run \
             --environment staging \
             --ledger "$ledger"

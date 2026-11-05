@@ -10,6 +10,7 @@ import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.entity.OrderItem;
 import com.ddagtech.aureliabooks.entity.ShippingAddress;
 import com.ddagtech.aureliabooks.entity.User;
+import com.ddagtech.aureliabooks.entity.Voucher;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -75,8 +76,23 @@ public class OrderMapper {
             subtotal,
             subtotal.add(order.getShippingFee()).subtract(order.getFinalTotalAmount()).max(BigDecimal.ZERO),
             order.getShippingFee(),
-            order.getFinalTotalAmount()
+            order.getFinalTotalAmount(),
+            appliedVouchers(order, subtotal)
         );
+    }
+
+    private List<OrderConfirmationView.AppliedVoucher> appliedVouchers(Order order, BigDecimal subtotal) {
+        var applied = new ArrayList<OrderConfirmationView.AppliedVoucher>();
+        if (order.getProductVoucherCode() != null) {
+            BigDecimal discount = subtotal.add(order.getShippingFee()).subtract(order.getFinalTotalAmount())
+                .subtract(order.getShippingDiscountAmount()).max(BigDecimal.ZERO);
+            applied.add(new OrderConfirmationView.AppliedVoucher(order.getProductVoucherCode(), Voucher.Scope.PRODUCT, discount));
+        }
+        if (order.getShippingVoucherCode() != null) {
+            applied.add(new OrderConfirmationView.AppliedVoucher(order.getShippingVoucherCode(), Voucher.Scope.SHIPPING,
+                order.getShippingDiscountAmount()));
+        }
+        return List.copyOf(applied);
     }
 
     /** Build order and item entities from validated service data without persisting them or changing stock. */

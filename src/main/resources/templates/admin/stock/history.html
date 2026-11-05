@@ -430,11 +430,12 @@
             </div>
 
             <div class="p-4 bg-parchment-100 border-t border-dust_grey flex items-center justify-between">
-                <a th:href="@{/manager/receipts}" target="_blank"
+                <a sec:authorize="hasRole('MANAGER')" th:href="@{/manager/receipts}" target="_blank"
                    class="text-xs font-semibold text-blazing_flame hover:underline flex items-center gap-1">
                     <span>Mở trang quản lý phiếu nhập</span>
                     <i class="bi bi-box-arrow-up-right text-[10px]"></i>
                 </a>
+                <span sec:authorize="!hasRole('MANAGER')"></span>
                 <button type="button" id="closeReceiptModalBottomBtn"
                         class="px-5 py-2 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl text-sm transition shadow-sm">
                     Đóng

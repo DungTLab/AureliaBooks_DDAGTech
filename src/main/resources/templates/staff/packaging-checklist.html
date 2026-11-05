@@ -221,7 +221,8 @@
                 </div>
 
                 <div class="pt-2 border-t border-dust_grey/60">
-                    <div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.discount}, ${order.shippingFee}, ${order.finalTotalAmount})}"></div>
+                    <div th:replace="~{checkout/fragments :: totals(${order.merchandiseSubtotal}, ${order.productDiscount}, ${order.netShippingFee}, ${order.finalTotalAmount})}"></div><p th:each="voucher : ${order.appliedVouchers}" class="checkout-help"
+            th:text="${(voucher.scope.name() == 'PRODUCT' ? 'Mã giảm tiền hàng: ' : 'Mã giảm phí giao hàng: ') + voucher.code + ' (−' + #numbers.formatDecimal(voucher.discount, 0, 'POINT', 0, 'COMMA') + ' đ)'}"></p>
                 </div>
 
                 <div th:if="${order.paymentMethod.name() == 'COD' and order.paymentStatus.name() == 'UNPAID' and order.orderStatus.name() != 'CANCELLED'}"

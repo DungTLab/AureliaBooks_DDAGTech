@@ -239,14 +239,14 @@ class OrderPlacementServiceTest {
     }
 
     @Test void shippingVoucherKeepsTheRegionalFeeAsItsRedemptionBasis() {
-        request.setVoucherCode("SHIP20");
+        request.setShippingVoucherCode("SHIP20");
         var quote = new VoucherQuote(9L, "SHIP20", Voucher.Scope.SHIPPING, new BigDecimal("200000"),
                 new BigDecimal("50000"), new BigDecimal("20000"), new BigDecimal("230000"));
         when(vouchers.preview(eq(1L), eq("SHIP20"), any(), any())).thenReturn(quote);
         when(vouchers.redeem(1L, 100L, "SHIP20", null)).thenReturn(quote);
-        CheckoutView view = service.getCheckoutView(1L, 10L, "SHIP20");
+        CheckoutView view = service.getCheckoutView(1L, 10L, null, "SHIP20");
         assertThat(view.shippingFee()).isEqualByComparingTo("30000");
-        service.placeOrder(1L, request, new CheckoutConfirmation(TOKEN, 1L, view, Order.PaymentMethod.COD, "SHIP20"));
+        service.placeOrder(1L, request, new CheckoutConfirmation(TOKEN, 1L, view, Order.PaymentMethod.COD, null, "SHIP20"));
         assertThat(savedOrder.getShippingFee()).isEqualByComparingTo("50000");
         assertThat(savedOrder.getFinalTotalAmount()).isEqualByComparingTo("230000");
     }
@@ -255,9 +255,40 @@ class OrderPlacementServiceTest {
         product.setPrice(new BigDecimal("175000"));
         when(vouchers.preview(eq(1L), eq("SHIP20"), any(), eq(BigDecimal.ZERO)))
                 .thenThrow(new AppException(ErrorCode.INVALID_INPUT_DATA, "Đơn hàng không còn phí vận chuyển để áp dụng mã này."));
-        assertThatThrownBy(() -> service.getCheckoutView(1L, 10L, "SHIP20")).isInstanceOf(AppException.class);
+        assertThatThrownBy(() -> service.getCheckoutView(1L, 10L, null, "SHIP20")).isInstanceOf(AppException.class);
         verify(vouchers, never()).redeem(any(), any(), any(), any());
         verifyNoInteractions(stockMutations);
+    }
+
+    @Test void combinesBothScopesAfterRecalculatingTheFreeShippingThreshold() {
+        product.setPrice(new BigDecimal("180000"));
+        when(vouchers.preview(1L, "PRODUCT20", new BigDecimal("360000"), BigDecimal.ZERO))
+            .thenReturn(new VoucherQuote(8L, "PRODUCT20", Voucher.Scope.PRODUCT, new BigDecimal("360000"),
+                BigDecimal.ZERO, new BigDecimal("20000"), new BigDecimal("340000")));
+        when(vouchers.preview(1L, "SHIP20", new BigDecimal("360000"), new BigDecimal("50000")))
+            .thenReturn(new VoucherQuote(9L, "SHIP20", Voucher.Scope.SHIPPING, new BigDecimal("360000"),
+                new BigDecimal("50000"), new BigDecimal("20000"), new BigDecimal("390000")));
+        CheckoutView view = service.getCheckoutView(1L, 10L, "PRODUCT20", "SHIP20");
+        assertThat(view.productDiscount()).isEqualByComparingTo("20000");
+        assertThat(view.baseShippingFee()).isEqualByComparingTo("50000");
+        assertThat(view.shippingDiscount()).isEqualByComparingTo("20000");
+        assertThat(view.shippingFee()).isEqualByComparingTo("30000");
+        assertThat(view.finalTotalAmount()).isEqualByComparingTo("370000");
+    }
+
+    @Test void rejectsVoucherInTheWrongScope() {
+        when(vouchers.preview(eq(1L), eq("SHIP20"), any(), any()))
+            .thenReturn(new VoucherQuote(9L, "SHIP20", Voucher.Scope.SHIPPING, new BigDecimal("200000"),
+                new BigDecimal("50000"), new BigDecimal("20000"), new BigDecimal("230000")));
+        assertThatThrownBy(() -> service.getCheckoutView(1L, 10L, "SHIP20", null))
+            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VOUCHER_INVALID_OR_EXPIRED);
+    }
+
+    @Test void rejectsShippingCodeChangedAfterReview() {
+        var review = confirmation();
+        request.setShippingVoucherCode("SHIP20");
+        assertError(ErrorCode.CHECKOUT_CHANGED, review);
+        verifyNoInteractions(vouchers, stockMutations);
     }
 
     @Test void supportsPreviewWithoutAddress() {

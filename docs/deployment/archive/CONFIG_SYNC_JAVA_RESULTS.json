@@ -1,0 +1,91 @@
+{
+  "scope": "HISTORICAL_JAVA_MIGRATION_REPOSITORY_AND_OFFLINE_ONLY",
+  "snapshotNote": "Historical Java migration evidence, not current test counts. Subsequent business alignment removes Twilio and supports the project's phone-OTP email demo; application.yaml has an explicit exception in approved-baseline-changes.json. Latest work notes are kept outside the source repository.",
+  "date": "2026-11-03",
+  "baselineHead": "be6189942bb7f92e1fc8632dee164acf0cfa8472",
+  "reviewStatus": "USER_APPROVED_JAVA_MIGRATION_IN_CHAT_SUBSEQUENT_ENVELOPE_REVIEW_SEPARATE",
+  "configurationSync": {
+    "language": "Java 21",
+    "pythonRuntimeRequired": false,
+    "junit": {
+      "RuntimeConfigurationContractTest": 25,
+      "RuntimeConfigPolicyTest": 31,
+      "RuntimeConfigStoreTest": 27,
+      "RuntimeConfigStagingPlanTest": 6,
+      "RuntimeConfigRepositoryTest": 5,
+      "RuntimeConfigInventoryTest": 5,
+      "total": 99,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "umask077": "99_PASS",
+    "umask000": "99_PASS",
+    "overlapNote": "Repeated umask runs overlap and must not be added to the distinct test total."
+  },
+  "selectedR2Regression": {
+    "classes": [
+      "R2SafetyDefaultsTest",
+      "ProductImageControllerTest",
+      "ProductImageControllerContextTest",
+      "ProductImageSecurityMvcTest"
+    ],
+    "tests": 22,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "initialAttempt": "4_PASS_18_ERRORS_MOCKITO_SELF_ATTACH_ENVIRONMENT_LIMIT",
+    "retry": "22_PASS_WITH_CACHED_MOCKITO_5_17_0_JAVAAGENT_NO_REPOSITORY_CONFIG_CHANGE"
+  },
+  "distinctFinalTestsPassed": 121,
+  "earlierMigrationFailure": "One initial test incorrectly expected 27 mapping fields; corrected to the actual 25-field allowlist. Final suites pass.",
+  "checks": {
+    "springBootVersion": "3.5.16",
+    "springBootPackage": "PASS_OFFLINE_SKIP_TESTS_AFTER_SEPARATE_TEST_RUNS",
+    "applicationStartClass": "com.ddagtech.aureliabooks.AureliaBooksApplication",
+    "standaloneJar": "PASS",
+    "jdepsModules": ["java.base"],
+    "standaloneEntrypoint": "EXPECTED_BLOCKED_EXIT_2",
+    "baselineFilesUnchanged": 13,
+    "pythonFilesRemainingInConfigurationSync": 0,
+    "yamlStructure": "PASS_JUNIT_SNAKEYAML",
+    "bashSyntax": "PASS",
+    "gitDiffCheck": "PASS",
+    "syntheticSecretPrefixInConfigurationSyncReports": "NONE_FOUND",
+    "actionlint": "UNAVAILABLE_NOT_RUN"
+  },
+  "security": {
+    "failedAssertionLeakage": "PASS",
+    "normalizedPermissionsPrivateCreationAndPromotion": "PASS_BOTH_UMASKS",
+    "immutableGenerationsAndSymlinkRejection": "PASS",
+    "flockConcurrencyDirections": 2,
+    "exceptionInjectionBoundaries": 7,
+    "rollbackAndPendingRecovery": "PASS_IN_DISPOSABLE_FIXTURES",
+    "javaChildDeadlinePipesKillReapAndInterruption": "PASS",
+    "r2Flags": "BOTH_FALSE_IN_GENERATED_CONFIGURATION",
+    "implicitGoogleActivation": false
+  },
+  "limitations": [
+    "No new independent review approval is claimed for Java code.",
+    "No actual Docker Compose merge/container recreation was tested; overlay tests parse YAML only.",
+    "Real receiver, privileged resolver, installer and SSH authorization remain unimplemented/unverified.",
+    "The standalone entrypoint is blocked; no live sender or secret-binding workflow exists.",
+    "Metadata fixture format changed from JSON to properties; no deployed generation migration was attempted.",
+    "Exception injection does not prove process-restart recovery or power-loss atomicity.",
+    "Real root/cross-UID permissions and host Java 21 availability remain unverified.",
+    "The POSIX fixture deliberately retains flock and a static shell lease rather than incompatible Java FileLock.",
+    "No production performance or JVM RSS/latency guarantee is claimed.",
+    "The complete application suite and GitHub CI were not run.",
+    "Python embedded in existing VPS deployment scripts and unrelated repository tooling is outside migration scope."
+  ],
+  "liveOperations": {
+    "credentialsRead": false,
+    "vpsAccess": false,
+    "providerCalls": false,
+    "productionWorkflowRun": false,
+    "configurationActivation": false,
+    "commit": false,
+    "push": false,
+    "prOrMerge": false
+  }
+}

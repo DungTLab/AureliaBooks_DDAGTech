@@ -13,7 +13,7 @@
             <script th:src="@{/js/checkout.js}" defer></script>
             <nav class="checkout-breadcrumb" aria-label="Đường dẫn">
                 <a th:href="@{/cart}">Giỏ hàng</a><span>/</span><a
-                    th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod},voucherCode=${review.voucherCode})}"
+                    th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod},voucherCode=${review.voucherCode},shippingVoucherCode=${review.shippingVoucherCode})}"
                     >Thanh toán</a><span>/</span><span aria-current="page">Xác nhận</span>
             </nav>
             <div class="checkout-heading">
@@ -31,7 +31,7 @@
                         <div class="checkout-card-heading">
                             <h2><i class="bi bi-geo-alt" aria-hidden="true"></i> Giao đến</h2>
                             <a
-                                th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod},voucherCode=${review.voucherCode})}"
+                                th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod},voucherCode=${review.voucherCode},shippingVoucherCode=${review.shippingVoucherCode})}"
                                 class="checkout-text-link"
                                 >Thay đổi</a>
                         </div>
@@ -71,11 +71,15 @@
                     <div
                         th:replace="~{checkout/fragments :: totals(${checkout.merchandiseSubtotal}, ${checkout.productDiscount}, ${checkout.shippingFee}, ${checkout.finalTotalAmount})}"
                     ></div>
+                    <p th:if="${checkout.shippingDiscount != null and checkout.shippingDiscount.signum() > 0}"
+                       class="checkout-notice" th:text="${'Đã giảm phí giao hàng: ' + #numbers.formatDecimal(checkout.shippingDiscount, 0, 'POINT', 0, 'COMMA') + ' đ'}"></p>
                     <p
                         th:if="${review.voucherCode != null}"
                         class="checkout-notice"
-                        th:text="${'Đã áp dụng mã: ' + review.voucherCode}"
+                        th:text="${'Mã giảm tiền hàng: ' + review.voucherCode}"
                     ></p>
+                    <p th:if="${review.shippingVoucherCode != null}" class="checkout-notice"
+                       th:text="${'Mã giảm phí vận chuyển: ' + review.shippingVoucherCode}"></p>
                     <!-- Submit only the token and selections; never submit prices, totals, or a browser-supplied confirmation as trusted data. -->
                     <form
                         th:action="@{/checkout/place}"
@@ -84,6 +88,7 @@
                         data-required-values="checkoutToken shippingAddressId paymentMethod"
                         th:data-server-blocked="${review.paymentMethod.name() == 'VNPAY' and !onlinePaymentAvailable}"
                     >
+                        <input type="hidden" name="shippingVoucherCode" th:value="${review.shippingVoucherCode}" />
                         <input type="hidden" name="checkoutToken" th:value="${review.checkoutToken}" /><input
                             type="hidden"
                             name="voucherCode"
@@ -105,7 +110,7 @@
                         xác nhận lại.
                     </p>
                     <a
-                        th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod},voucherCode=${review.voucherCode})}"
+                        th:href="@{/checkout(shippingAddressId=${checkout.selectedAddressId},paymentMethod=${review.paymentMethod},voucherCode=${review.voucherCode},shippingVoucherCode=${review.shippingVoucherCode})}"
                         class="checkout-back-link"
                         >Quay lại chỉnh sửa</a>
                 </aside>

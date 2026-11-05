@@ -1,7 +1,20 @@
-name: Runtime Configuration - Offline Contract Validation
+name: Runtime Configuration - Validate or Stage Snapshot
 
 on:
   workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Validate only, or transfer an immutable snapshot (does not activate)'
+        type: choice
+        options: [validate, stage]
+        default: validate
+        required: true
+      target_environment:
+        description: 'GitHub Environment supplying the snapshot and SSH credentials'
+        type: choice
+        options: [staging, production]
+        default: staging
+        required: true
 
 permissions:
   contents: read
@@ -20,33 +33,79 @@ jobs:
           SOURCE_REF: ${{ github.ref }}
         run: |
           test "$SOURCE_REF" = 'refs/heads/main'
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: '21'
-      - name: Validate disposable configuration contracts
-        run: python3 -I -B -m unittest discover -s scripts/runtime-config/tests -v
-      - name: Validate Spring Boot property loading
-        run: ./mvnw -B -ntp -Djava.awt.headless=true -Dtest=RuntimeConfigurationContractTest test
+      - name: Validate Java configuration contracts and Spring Boot property loading
+        run: ./mvnw -B -ntp -Djava.awt.headless=true '-Dtest=RuntimeConfig*Test,RuntimeConfigurationContractTest' test
+      - name: Package standalone JDK-only configuration tool
+        run: jar --create --file target/runtime-config-tool.jar --main-class com.ddagtech.aureliabooks.runtimeconfig.RuntimeConfigCli -C target/classes com/ddagtech/aureliabooks/runtimeconfig
       - name: Report real integration status
-        run: echo 'BLOCKED - VPS contracts and live adapter are not implemented or verified; no configuration was synchronized.'
+        run: echo 'Validation complete. Stage requires a provisioned receiver; activation remains blocked.'
 
-  production-sync:
-    # Hard block, not an Environment variable/input switch. Removing it needs review.
-    if: ${{ false }}
+  stage-snapshot:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.operation == 'stage' }}
     needs: offline-validation
-    environment: production
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    timeout-minutes: 10
+    environment: ${{ inputs.target_environment }}
     concurrency:
-      group: aureliabooks-production-deploy
+      # Staging an inactive file cannot race with application recreation. Separate
+      # group avoids replacing a pending image deployment in GitHub's queue.
+      group: aureliabooks-runtime-stage-${{ inputs.target_environment }}
       cancel-in-progress: false
     steps:
-      - name: Fail closed
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Verify approved revision is still main HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ github.sha }}
         run: |
-          echo '::error::BLOCKED - no approved VPS configuration adapter'
-          exit 1
+          set -euo pipefail
+          [[ "$REVISION" =~ ^[a-f0-9]{40}$ ]]
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" = "$REVISION"
+      - name: Build sender without starting the application
+        run: |
+          mkdir -p target/runtime-config-standalone
+          javac --release 21 -d target/runtime-config-standalone src/main/java/com/ddagtech/aureliabooks/runtimeconfig/*.java
+          jar --create --file target/runtime-config-tool.jar --main-class com.ddagtech.aureliabooks.runtimeconfig.RuntimeConfigCli -C target/runtime-config-standalone .
+      - name: Transfer protected snapshot without activation
+        env:
+          TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          REVISION: ${{ github.sha }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          VNPAY_TMN_CODE: ${{ secrets.VNPAY_TMN_CODE }}
+          VNPAY_HASH_SECRET: ${{ secrets.VNPAY_HASH_SECRET }}
+          MAIL_HOST: ${{ vars.MAIL_HOST }}
+          MAIL_PORT: ${{ vars.MAIL_PORT }}
+          MAIL_AUTH: ${{ vars.MAIL_AUTH }}
+          MAIL_STARTTLS: ${{ vars.MAIL_STARTTLS }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          DEMO_SMS_INBOX: ${{ vars.DEMO_SMS_INBOX }}
+          VNPAY_PAY_URL: ${{ vars.VNPAY_PAY_URL }}
+          VNPAY_API_URL: ${{ vars.VNPAY_API_URL }}
+          VNPAY_RETURN_URL: ${{ vars.VNPAY_RETURN_URL }}
+          VNPAY_VERSION: ${{ vars.VNPAY_VERSION }}
+          VNPAY_COMMAND: ${{ vars.VNPAY_COMMAND }}
+          VNPAY_ORDER_TYPE: ${{ vars.VNPAY_ORDER_TYPE }}
+          VNPAY_EXPIRE_MINUTES: ${{ vars.VNPAY_EXPIRE_MINUTES }}
+          R2_ENABLED: 'false'
+          R2_UPLOAD_ENABLED: 'false'
+        run: bash scripts/runtime-config/stage.sh "$TARGET_ENVIRONMENT" "$REVISION"

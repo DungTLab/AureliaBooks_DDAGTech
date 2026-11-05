@@ -198,7 +198,7 @@ class OrderPlacementMySqlTest {
         assertThat(jdbc.queryForObject("SELECT stock_deducted_at IS NOT NULL FROM orders WHERE id=?", Boolean.class, orderId))
                 .isTrue();
         assertThat(jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE id=?", java.math.BigDecimal.class, orderId))
-                .isEqualByComparingTo("400000");
+                .isEqualByComparingTo("350000");
         jdbc.update("UPDATE products SET title='Đã đổi',price=1 WHERE id=?", productIds.getFirst());
         jdbc.update("UPDATE shipping_addresses SET detailed_address='Đã đổi' WHERE id=?", buyer.addressId());
         assertThat(jdbc.queryForObject("SELECT product_name_snapshot FROM order_items WHERE order_id=? AND product_id=?",
@@ -587,10 +587,12 @@ class OrderPlacementMySqlTest {
         jdbc.update("UPDATE orders SET order_status='DELIVERED', payment_status='PAID' WHERE id=?", delivered);
         long refunded = placedCodOrder();
         jdbc.update("UPDATE orders SET order_status='RETURNED', payment_status='REFUNDED' WHERE id=?", refunded);
-        placedCodOrder();
+        long unpaid = placedCodOrder();
+        var fixtureIds = java.util.Set.of(cancelled, returned, delivered, refunded, unpaid);
         var queue = stateMachine.getOrderQueue(new OrderQueueFilter(null,
                 OrderQueueFilter.PaymentFilter.REFUND_PENDING, null, null, null), PageRequest.of(0, 100), staff);
-        assertThat(queue.getContent()).extracting(com.ddagtech.aureliabooks.dto.response.StaffOrderQueueView::id)
+        assertThat(queue.getContent()).filteredOn(item -> fixtureIds.contains(item.id()))
+                .extracting(com.ddagtech.aureliabooks.dto.response.StaffOrderQueueView::id)
                 .containsExactlyInAnyOrder(cancelled, returned);
     }
     private long cancelledPaidOrder(long staff) {

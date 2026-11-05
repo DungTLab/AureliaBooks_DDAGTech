@@ -86,6 +86,42 @@ class CheckoutControllerTest {
         }
     }
 
+    @Test
+    void rendersBothVoucherInputsAndCarriesBothCodesIntoTheReview() throws Exception {
+        when(orders.getCheckoutView(7L, 10L, "SAVE10")).thenReturn(checkout);
+        when(orders.getCheckoutView(7L, 10L, "SAVE10", "SHIP20")).thenReturn(checkout);
+        mvc.perform(get("/checkout").param("shippingAddressId", "10")
+                .param("voucherCode", "SAVE10").param("shippingVoucherCode", "SHIP20")
+                .with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Mã giảm tiền hàng")))
+            .andExpect(content().string(containsString("Mã giảm phí vận chuyển")))
+            .andExpect(model().attribute("appliedVoucherCode", "SAVE10"))
+            .andExpect(model().attribute("appliedShippingVoucherCode", "SHIP20"));
+        MockHttpSession session = new MockHttpSession();
+        String location = mvc.perform(post("/checkout/review").session(session).with(csrf())
+                .with(user("customer").roles("CUSTOMER")).param("shippingAddressId", "10")
+                .param("paymentMethod", "COD").param("voucherCode", "SAVE10")
+                .param("shippingVoucherCode", "SHIP20"))
+            .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
+        String token = location.substring(location.lastIndexOf('/') + 1);
+        assertThat(reviews.find(session, token, 7L).voucherCode()).isEqualTo("SAVE10");
+        assertThat(reviews.find(session, token, 7L).shippingVoucherCode()).isEqualTo("SHIP20");
+    }
+
+    @Test
+    void invalidShippingCodePreservesValidProductCode() throws Exception {
+        when(orders.getCheckoutView(7L, 10L, "SAVE10")).thenReturn(checkout);
+        when(orders.getCheckoutView(7L, 10L, "SAVE10", "BAD"))
+            .thenThrow(new AppException(ErrorCode.VOUCHER_NOT_FOUND));
+        mvc.perform(get("/checkout").param("shippingAddressId", "10")
+                .param("voucherCode", "SAVE10").param("shippingVoucherCode", "BAD")
+                .with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk()).andExpect(model().attribute("appliedVoucherCode", "SAVE10"))
+            .andExpect(model().attribute("appliedShippingVoucherCode", ""))
+            .andExpect(model().attributeExists("shippingVoucherError"));
+    }
+
     @BeforeEach
     void setup() {
         when(identity.resolve(any())).thenReturn(7L);

@@ -13,6 +13,7 @@ import com.ddagtech.aureliabooks.dto.response.OrderConfirmationView;
 import com.ddagtech.aureliabooks.entity.Cart;
 import com.ddagtech.aureliabooks.entity.CartItem;
 import com.ddagtech.aureliabooks.entity.Order;
+import com.ddagtech.aureliabooks.entity.OrderVoucher;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.entity.ShippingAddress;
 import com.ddagtech.aureliabooks.entity.User;
@@ -118,34 +119,43 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     @Override
     @Transactional(readOnly = true)
     public CheckoutView getCheckoutView(Long userId, Long shippingAddressId, String voucherCode) {
-        return applyVoucher(userId, getCheckoutView(userId, shippingAddressId), voucherCode);
+        return getCheckoutView(userId, shippingAddressId, voucherCode, null);
     }
 
-    private CheckoutView applyVoucher(Long owner, CheckoutView base, String code) {
-        if (normalizeVoucher(code).isEmpty()) return base;
+    @Override
+    @Transactional(readOnly = true)
+    public CheckoutView getCheckoutView(Long userId, Long shippingAddressId, String voucherCode, String shippingVoucherCode) {
+        return applyVouchers(userId, getCheckoutView(userId, shippingAddressId), voucherCode, shippingVoucherCode);
+    }
+
+    private CheckoutView applyVouchers(Long owner, CheckoutView base, String productCode, String shippingCode) {
+        if (normalizeVoucher(productCode).isEmpty() && normalizeVoucher(shippingCode).isEmpty()) return base;
         if (base.selectedAddressId() == null) {
             throw new AppException(ErrorCode.ADDRESS_NOT_FOUND, "Vui lòng chọn địa chỉ trước khi áp mã.");
         }
-        var quote = vouchers.preview(owner, code, base.merchandiseSubtotal(), base.baseShippingFee());
-        BigDecimal productDiscount = quote.scope() == Voucher.Scope.PRODUCT ? quote.discountAmount() : BigDecimal.ZERO;
-        BigDecimal shippingDiscount =
-            quote.scope() == Voucher.Scope.SHIPPING ? quote.discountAmount() : BigDecimal.ZERO;
-        // Free shipping depends on merchandise after product discounts; shipping vouchers do not lower that value.
+        BigDecimal productDiscount = discount(owner, productCode, Voucher.Scope.PRODUCT,
+            base.merchandiseSubtotal(), base.baseShippingFee());
+        // Product discounts can move merchandise below the regional free-shipping threshold.
         BigDecimal baseShippingFee = calculateBaseShippingFee(
             selectedAddressOf(base), base.merchandiseSubtotal().subtract(productDiscount)
         );
+        BigDecimal shippingDiscount = discount(owner, shippingCode, Voucher.Scope.SHIPPING,
+            base.merchandiseSubtotal(), baseShippingFee);
         BigDecimal shippingFee = baseShippingFee.subtract(shippingDiscount);
-        return new CheckoutView(
-            base.items(),
-            base.addressViews(),
-            base.selectedAddressId(),
-            base.merchandiseSubtotal(),
-            productDiscount,
-            baseShippingFee,
-            shippingDiscount,
-            shippingFee,
-            base.merchandiseSubtotal().subtract(productDiscount).add(shippingFee)
-        );
+        return new CheckoutView(base.items(), base.addressViews(), base.selectedAddressId(),
+            base.merchandiseSubtotal(), productDiscount, baseShippingFee, shippingDiscount, shippingFee,
+            base.merchandiseSubtotal().subtract(productDiscount).add(shippingFee));
+    }
+
+    private BigDecimal discount(Long owner, String code, Voucher.Scope scope, BigDecimal subtotal, BigDecimal shipping) {
+        if (normalizeVoucher(code).isEmpty()) return BigDecimal.ZERO;
+        var quote = vouchers.preview(owner, code, subtotal, shipping);
+        if (quote.scope() != scope) {
+            throw new AppException(ErrorCode.VOUCHER_INVALID_OR_EXPIRED,
+                scope == Voucher.Scope.PRODUCT ? "Vui lòng nhập mã giảm tiền hàng vào ô này."
+                    : "Vui lòng nhập mã giảm phí vận chuyển vào ô này.");
+        }
+        return quote.discountAmount();
     }
 
     /** Apply cart limits and regional free-shipping thresholds before an optional voucher is applied. */
@@ -218,11 +228,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
                 throw new AppException(ErrorCode.CHECKOUT_CHANGED);
             }
 
-            String storedCode = orderVouchers
-                .findByOrderId(existingOrder.getId())
-                .map(applied -> applied.getVoucher().getCode())
-                .orElse("");
-            if (!normalizeVoucher(request.getVoucherCode()).equals(storedCode)) {
+            var applied = orderVouchers.findAllByOrderId(existingOrder.getId());
+            if (!matchesVoucher(applied, Voucher.Scope.PRODUCT, request.getVoucherCode())
+                    || !matchesVoucher(applied, Voucher.Scope.SHIPPING, request.getShippingVoucherCode())) {
                 throw new AppException(ErrorCode.CHECKOUT_CHANGED);
             }
             return existingOrder.getOrderCode();
@@ -258,7 +266,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         // Recalculate using current locked data; the saved review is a comparison baseline, not the source of persisted prices.
         AddressView selectedAddress = addressMapper.toView(address);
         CheckoutView base = checkoutView(cartMapper.toCartView(items), List.of(selectedAddress), selectedAddress);
-        CheckoutView current = applyVoucher(userId, base, request.getVoucherCode());
+        CheckoutView current = applyVouchers(userId, base, request.getVoucherCode(), request.getShippingVoucherCode());
         if (!sameReviewedCheckout(confirmation.reviewedCheckout(), current)) {
             throw new AppException(ErrorCode.CHECKOUT_CHANGED);
         }
@@ -271,12 +279,19 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         Order order = orderMapper.toNewOrder(owner, address, items, request, current, status);
         // Redeem against the fee after the free-shipping policy but before the shipping voucher discount.
         order.setShippingFee(current.baseShippingFee());
+        order.setProductVoucherCode(normalizeVoucher(request.getVoucherCode()).isEmpty() ? null : normalizeVoucher(request.getVoucherCode()));
+        order.setShippingVoucherCode(normalizeVoucher(request.getShippingVoucherCode()).isEmpty() ? null : normalizeVoucher(request.getShippingVoucherCode()));
+        order.setShippingDiscountAmount(current.shippingDiscount());
         orderRepository.saveAndFlush(order);
+        // All orders lock PRODUCT before SHIPPING; a failure rolls back both redemptions and quota changes.
         if (!normalizeVoucher(request.getVoucherCode()).isEmpty()) {
-            var applied = vouchers.redeem(userId, order.getId(), request.getVoucherCode(), null);
-            if (!sameMoney(applied.payableTotal(), current.finalTotalAmount())) {
-                throw new AppException(ErrorCode.CHECKOUT_CHANGED);
-            }
+            vouchers.redeem(userId, order.getId(), request.getVoucherCode(), null);
+        }
+        if (!normalizeVoucher(request.getShippingVoucherCode()).isEmpty()) {
+            vouchers.redeem(userId, order.getId(), request.getShippingVoucherCode(), null);
+        }
+        if (!sameMoney(order.getFinalTotalAmount(), current.finalTotalAmount())) {
+            throw new AppException(ErrorCode.CHECKOUT_CHANGED);
         }
 
         // Stock posting refreshes the order; persist its discounted snapshot before that refresh.
@@ -454,6 +469,13 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         };
     }
 
+    private boolean matchesVoucher(List<OrderVoucher> applied,
+            Voucher.Scope scope, String code) {
+        String stored = applied.stream().filter(v -> v.getScope() == scope)
+            .map(v -> v.getVoucher().getCode()).findFirst().orElse("");
+        return stored.equals(normalizeVoucher(code));
+    }
+
     /** Bind the server review to the request's owner, token, address, payment method, and voucher. */
     private void validateConfirmation(Long userId, CheckoutRequest request, CheckoutConfirmation confirmation) {
         if (
@@ -463,7 +485,8 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             !Objects.equals(confirmation.checkoutToken(), request.getCheckoutToken()) ||
             !Objects.equals(confirmation.reviewedCheckout().selectedAddressId(), request.getShippingAddressId()) ||
             confirmation.paymentMethod() != request.getPaymentMethod() ||
-            !normalizeVoucher(confirmation.voucherCode()).equals(normalizeVoucher(request.getVoucherCode()))
+            !normalizeVoucher(confirmation.voucherCode()).equals(normalizeVoucher(request.getVoucherCode())) ||
+            !normalizeVoucher(confirmation.shippingVoucherCode()).equals(normalizeVoucher(request.getShippingVoucherCode()))
         ) {
             throw new AppException(
                 ErrorCode.CHECKOUT_CHANGED,

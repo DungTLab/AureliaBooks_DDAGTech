@@ -80,7 +80,7 @@
             </a>
 
             <!-- Lập phiếu nhập kho -->
-            <a th:href="@{/staff/receipts/new}"
+            <a sec:authorize="hasAnyRole('SALE_STAFF','MANAGER')" th:href="@{/staff/receipts/new}"
                class="bg-white border border-dust_grey hover:border-blazing_flame rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
                 <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl flex-shrink-0 group-hover:scale-105 transition-transform">
                     <i class="bi bi-plus-circle-fill"></i>

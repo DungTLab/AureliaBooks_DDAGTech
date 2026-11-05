@@ -5,7 +5,8 @@ import lombok.*;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "order_vouchers")
+@Table(name = "order_vouchers", uniqueConstraints =
+        @UniqueConstraint(name = "uk_ov_order_scope", columnNames = {"order_id", "scope"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,6 +23,9 @@ public class OrderVoucher {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "voucher_id", nullable = false)
     private Voucher voucher;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scope", nullable = false, length = 10)
+    private Voucher.Scope scope;
     @Column(name = "discount_applied", nullable = false, precision = 12, scale = 2)
     private BigDecimal discountApplied;
 }

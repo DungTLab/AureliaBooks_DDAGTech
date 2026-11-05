@@ -31,6 +31,16 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      - name: Checkout trusted workflow sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Java gate runtime
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Verify commit and CI result
         id: verify
         shell: bash
@@ -41,82 +51,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-          import time
-          import urllib.parse
-          import urllib.request
-
-          repo = os.environ["REPOSITORY"]
-          sha = os.environ["DEPLOY_SHA"]
-          token = os.environ["GH_TOKEN"]
-
-          if not re.fullmatch(r"[a-f0-9]{40}", sha):
-              raise SystemExit("Invalid commit SHA")
-
-          def api(path):
-              request = urllib.request.Request(
-                  "https://api.github.com" + path,
-                  headers={
-                      "Authorization": "Bearer " + token,
-                      "Accept": "application/vnd.github+json",
-                      "X-GitHub-Api-Version": "2022-11-28",
-                  },
-              )
-              with urllib.request.urlopen(request, timeout=20) as response:
-                  return json.load(response)
-
-          def latest():
-              branch = api(f"/repos/{repo}/branches/main")
-              return branch["commit"]["sha"] == sha
-
-          if not latest():
-              print("SKIP: Commit is no longer main HEAD")
-              raise SystemExit(0)
-
-          query = urllib.parse.urlencode({
-              "head_sha": sha,
-              "event": "push",
-              "per_page": 30,
-          })
-
-          for attempt in range(30):
-              data = api(
-                  f"/repos/{repo}/actions/workflows/ci.yml/runs?{query}"
-              )
-
-              runs = [
-                  run for run in data["workflow_runs"]
-                  if run["head_sha"] == sha
-                  and run["event"] == "push"
-                  and run["head_branch"] == "main"
-              ]
-
-              if runs:
-                  run = max(runs, key=lambda x: x["run_number"])
-
-                  if run["status"] == "completed":
-                      if run["conclusion"] != "success":
-                          raise SystemExit("BLOCKED: CI failed")
-
-                      if not latest():
-                          print("SKIP: Newer main commit exists")
-                          raise SystemExit(0)
-
-                      with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                          f.write("deploy=true\n")
-                          f.write(f"sha={sha}\n")
-
-                      print("CI PASS:", sha)
-                      break
-
-              if attempt == 29:
-                  raise SystemExit("CI verification timed out")
-
-              time.sleep(15)
-          PY
+          bash scripts/java-tools.sh WorkflowGate ci
 
       - name: Configure SSH
         if: steps.verify.outputs.deploy == 'true'

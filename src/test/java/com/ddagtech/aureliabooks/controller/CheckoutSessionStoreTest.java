@@ -18,6 +18,15 @@ class CheckoutSessionStoreTest {
                 BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.valueOf(2));
     }
 
+    @Test void shippingCodeIsBoundToTheReviewToken() {
+        var session = new MockHttpSession();
+        var first = store.save(session, 1L, view(10L), Order.PaymentMethod.COD, "SAVE10", "SHIP20");
+        var second = store.save(session, 1L, view(10L), Order.PaymentMethod.COD, "SAVE10", "SHIP30");
+        assertThat(first.checkoutToken()).isNotEqualTo(second.checkoutToken());
+        assertThat(store.save(session, 1L, view(10L), Order.PaymentMethod.COD, "SAVE10", "SHIP20"))
+            .isEqualTo(first);
+    }
+
     /** Reuse tokens for identical details and keep separate reviews accessible when different addresses are selected. */
     @Test void repeatedReviewReusesTokenAndAnotherTabDoesNotOverwriteIt() {
         var session = new MockHttpSession();

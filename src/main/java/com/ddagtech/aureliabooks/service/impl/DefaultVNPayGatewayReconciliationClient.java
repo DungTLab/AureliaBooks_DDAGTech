@@ -20,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,6 +32,9 @@ import java.util.UUID;
  * - Executes an authenticated server-to-server QueryDR HTTP POST against the configured VNPay API endpoint,
  *   verifies the official 15-field QueryDR response signature (F09), transaction reference, and amount,
  *   and classifies the outcome.
+ * - Reconciles every initiated payment attempt (initial + retries) before concluding an order is unpaid:
+ *   vnp_ResponseCode = "91" on the latest retry only means that specific retry attempt was not found and
+ *   never proves earlier payment attempts were unpaid.
  * - Uses the exact vnp_CreateDate recorded during PAY initiation/retry as vnp_TransactionDate (F10).
  *   Never guesses timestamps from order.createdAt or current time when initiation metadata is missing.
  */
@@ -101,16 +105,58 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
                     "Order has no initiated VNPay transaction reference (vnpayTxnRef is missing)."
             );
         }
-        String expectedTxnRef = order.getVnpayTxnRef().trim();
 
-        // Require exact PAY initiation timestamp (vnp_CreateDate); never guess from order.createdAt or current time (F10)
-        String transactionDate = resolvePayInitiationTimestamp(order, expectedTxnRef);
-        if (transactionDate == null || !isValidVnpayTimestamp(transactionDate)) {
+        List<Order.VnpayPaymentAttempt> attempts = order.getVnpayPaymentAttempts();
+        if (attempts.isEmpty()) {
             return ReconciliationResult.indeterminate(
                     "Order is missing VNPay PAY initiation timestamp (vnp_CreateDate) metadata."
             );
         }
+        for (Order.VnpayPaymentAttempt attempt : attempts) {
+            if (attempt.txnRef() == null || attempt.txnRef().isBlank()
+                    || !isValidVnpayTimestamp(attempt.createDate())) {
+                return ReconciliationResult.indeterminate(
+                        "Order has incomplete VNPay PAY initiation metadata for attempt."
+                );
+            }
+        }
 
+        ReconciliationResult firstIndeterminate = null;
+        ReconciliationResult lastUnpaidOrFailed = null;
+
+        // Reconcile from latest attempt back to the earliest attempt so every initiated transaction is verified
+        for (int i = attempts.size() - 1; i >= 0; i--) {
+            Order.VnpayPaymentAttempt attempt = attempts.get(i);
+            String attemptTxnRef = attempt.txnRef().trim();
+            String attemptCreateDate = attempt.createDate().trim();
+
+            ReconciliationResult singleResult = reconcileSingleAttempt(order, attemptTxnRef, attemptCreateDate);
+            if (singleResult.outcome() == ReconciliationOutcome.VERIFIED_PAID) {
+                order.setVnpayTxnRef(attemptTxnRef);
+                return singleResult;
+            }
+            if (singleResult.outcome() == ReconciliationOutcome.INDETERMINATE) {
+                if (firstIndeterminate == null) {
+                    firstIndeterminate = singleResult;
+                }
+            } else {
+                lastUnpaidOrFailed = singleResult;
+            }
+        }
+
+        if (firstIndeterminate != null) {
+            return firstIndeterminate;
+        }
+        return lastUnpaidOrFailed != null
+                ? lastUnpaidOrFailed
+                : ReconciliationResult.indeterminate("No conclusive QueryDR result obtained.");
+    }
+
+    private ReconciliationResult reconcileSingleAttempt(
+            Order order,
+            String expectedTxnRef,
+            String transactionDate
+    ) {
         try {
             String requestId = UUID.randomUUID().toString().replace("-", "");
             String version = (vnPayConfig.getVersion() != null && !vnPayConfig.getVersion().isBlank())
@@ -167,7 +213,7 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
                 return ReconciliationResult.indeterminate("Gateway QueryDR response signature verification failed.");
             }
 
-            // 2. Verify transaction reference and merchant code match the order
+            // 2. Verify transaction reference and merchant code match the queried attempt
             String respTxnRef = responseMap.get("vnp_TxnRef");
             if (respTxnRef == null || !expectedTxnRef.equals(respTxnRef.trim())) {
                 return ReconciliationResult.indeterminate("Gateway QueryDR vnp_TxnRef mismatch.");
@@ -177,8 +223,14 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
                 return ReconciliationResult.indeterminate("Gateway QueryDR vnp_TmnCode mismatch.");
             }
 
-            // 3. Verify QueryDR API response code ("00" indicates the query succeeded and returned a transaction record)
+            // 3. Verify QueryDR API response code ("00" indicates the query succeeded and returned a transaction record;
+            //    "91" indicates no transaction record exists on VNPay gateway for this specific vnp_TxnRef)
             String queryResponseCode = responseMap.get("vnp_ResponseCode");
+            if ("91".equals(queryResponseCode)) {
+                return ReconciliationResult.unpaidOrFailed(
+                        "Verified transaction not found on VNPay gateway after expiration (vnp_ResponseCode=91) for txnRef=" + expectedTxnRef
+                );
+            }
             if (!"00".equals(queryResponseCode)) {
                 return ReconciliationResult.indeterminate(
                         "Gateway QueryDR did not return conclusive query code 00: vnp_ResponseCode=" + queryResponseCode
@@ -215,12 +267,12 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
                 return ReconciliationResult.paid(
                         responseMap.get("vnp_PayDate"),
                         responseMap.get("vnp_BankCode"),
-                        "Verified PAID via VNPay QueryDR."
+                        "Verified PAID via VNPay QueryDR for txnRef=" + expectedTxnRef
                 );
             }
             if ("02".equals(cleanTxStatus)) {
                 return ReconciliationResult.unpaidOrFailed(
-                        "Verified terminal unpaid/failed transaction (vnp_TransactionStatus=02) via VNPay QueryDR."
+                        "Verified terminal unpaid/failed transaction (vnp_TransactionStatus=02) via VNPay QueryDR for txnRef=" + expectedTxnRef
                 );
             }
 
@@ -228,7 +280,8 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
                     "Gateway QueryDR transaction status is non-terminal or unknown: vnp_TransactionStatus=" + cleanTxStatus
             );
         } catch (Exception ex) {
-            log.warn("VNPay QueryDR reconciliation failed for orderCode={}: {}", order.getOrderCode(), ex.getMessage());
+            log.warn("VNPay QueryDR reconciliation failed for orderCode={}, txnRef={}: {}",
+                    order.getOrderCode(), expectedTxnRef, ex.getMessage());
             return ReconciliationResult.indeterminate("Gateway QueryDR error: " + ex.getMessage());
         }
     }
@@ -268,13 +321,6 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
         );
         String computedPipeHash = VNPayUtil.hmacSHA512(secretKey, pipeData);
         return VNPayUtil.constantTimeEquals(computedPipeHash, receivedHash);
-    }
-
-    private static String resolvePayInitiationTimestamp(Order order, String expectedTxnRef) {
-        if (order.getVnpayCreateDate() != null && !order.getVnpayCreateDate().isBlank()) {
-            return order.getVnpayCreateDate().trim();
-        }
-        return null;
     }
 
     private static boolean isValidVnpayTimestamp(String timestamp) {

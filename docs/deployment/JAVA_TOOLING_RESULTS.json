@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-05",
+  "scope": "repository-wide Python to Java migration, including existing uncommitted configuration sync work",
+  "main_integrated": "ad2c12c",
+  "verification": {
+    "command": "./mvnw -o -B -ntp -Djava.awt.headless=true -DargLine=<cached Mockito javaagent> verify",
+    "build": "SUCCESS",
+    "tests_total": 1660,
+    "tests_passed": 1530,
+    "tests_skipped": 130,
+    "failures": 0,
+    "errors": 0,
+    "catalog_seed_java_tests": 43,
+    "java_tools_tests": 31,
+    "workflow_gate_mock_cli_tests": 8,
+    "migrated_http_e2e_tests_skipped": 28,
+    "spring_boot_jar": "PASS",
+    "umask": "077"
+  },
+  "limitations": [
+    "First restricted-environment full run could not open loopback sockets; final verify reran with loopback mock servers permitted",
+    "No real MySQL/Nginx HTTP matrix, provider request or VPS operation was run",
+    "130 conditional tests skipped; these are not counted as PASS",
+    "actionlint and shellcheck not installed; workflow YAML parsed by JUnit/SnakeYAML and Bash syntax checked",
+    "Runtime snapshot activation and real deployment rollback remain unimplemented"
+  ],
+  "r2_enabled_by_migration": false,
+  "r2_upload_enabled_by_migration": false,
+  "vps_or_production_workflow_executed": false
+}

@@ -125,16 +125,17 @@ public class VoucherServiceImpl implements VoucherService {
         String normalized = normalizeCode(code);
         BigDecimal subtotal = subtotal(orderId);
         BigDecimal shipping = money(order.getShippingFee());
-        var previous = redemptions.findByOrderId(orderId);
+        Voucher voucher = vouchers.findByCodeForUpdate(normalized)
+                .orElseThrow(() -> new AppException(ErrorCode.VOUCHER_NOT_FOUND));
+        var previous = redemptions.findByOrderIdAndScope(orderId, voucher.getScope());
         if (previous.isPresent()) {
             OrderVoucher existing = previous.get();
             if (!existing.getVoucher().getCode().equals(normalized)) {
-                throw invalid("Mỗi đơn hàng chỉ được sử dụng một mã giảm giá.");
+                throw invalid("Mỗi đơn hàng chỉ được sử dụng một mã cho mỗi loại ưu đãi.");
             }
             return quote(existing.getVoucher(), subtotal, shipping, existing.getDiscountApplied());
         }
-        Voucher voucher = vouchers.findByCodeForUpdate(normalized)
-                .orElseThrow(() -> new AppException(ErrorCode.VOUCHER_NOT_FOUND));
+
         if (redemptions.existsByUserIdAndVoucherId(customerId, voucher.getId())) {
             throw new AppException(ErrorCode.VOUCHER_ALREADY_USED_BY_USER);
         }
@@ -149,6 +150,7 @@ public class VoucherServiceImpl implements VoucherService {
         redemption.setOrder(order);
         redemption.setUser(customer);
         redemption.setVoucher(voucher);
+        redemption.setScope(voucher.getScope());
         redemption.setDiscountApplied(applied.discountAmount());
         try {
             redemptions.saveAndFlush(redemption);
@@ -156,7 +158,15 @@ public class VoucherServiceImpl implements VoucherService {
             // A concurrent transaction can win the unique user/voucher constraint. Entire placement rolls back.
             throw new AppException(ErrorCode.VOUCHER_ALREADY_USED_BY_USER);
         }
-        order.setFinalTotalAmount(applied.payableTotal());
+        BigDecimal totalDiscount = redemptions.findAllByOrderId(orderId).stream()
+                .map(OrderVoucher::getDiscountApplied).reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setFinalTotalAmount(subtotal.add(shipping).subtract(totalDiscount));
+        if (voucher.getScope() == Voucher.Scope.PRODUCT) {
+            order.setProductVoucherCode(voucher.getCode());
+        } else {
+            order.setShippingVoucherCode(voucher.getCode());
+            order.setShippingDiscountAmount(applied.discountAmount());
+        }
         // Persist the payable snapshot before downstream stock posting refreshes this order.
         // This flush does not commit; the enclosing placement transaction still owns rollback.
         orders.flush();
@@ -178,14 +188,16 @@ public class VoucherServiceImpl implements VoucherService {
         if (existing.isEmpty()) {
             return;
         }
-        OrderVoucher redemption = existing.get();
-        Voucher voucher = vouchers.findByIdForUpdate(redemption.getVoucher().getId())
-                .orElseThrow(() -> new AppException(ErrorCode.VOUCHER_NOT_FOUND));
-        redemptions.delete(redemption);
-        redemptions.flush();
-        vouchers.restoreRemainingUse(voucher.getId());
-        entities.refresh(voucher);
-        record(actorId, "VOUCHER_RELEASED", voucher.getId(), Map.of("orderId", orderId), clientIp);
+        // Match placement lock order: PRODUCT before SHIPPING.
+        for (OrderVoucher redemption : existing) {
+            Voucher voucher = vouchers.findByIdForUpdate(redemption.getVoucher().getId())
+                    .orElseThrow(() -> new AppException(ErrorCode.VOUCHER_NOT_FOUND));
+            redemptions.delete(redemption);
+            redemptions.flush();
+            vouchers.restoreRemainingUse(voucher.getId());
+            entities.refresh(voucher);
+            record(actorId, "VOUCHER_RELEASED", voucher.getId(), Map.of("orderId", orderId), clientIp);
+        }
         // Keep the cancelled order's monetary snapshot; the refund uses the amount actually paid.
     }
 

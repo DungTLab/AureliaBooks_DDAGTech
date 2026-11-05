@@ -29,6 +29,16 @@ jobs:
       sha: ${{ steps.verify.outputs.sha }}
 
     steps:
+      - name: Checkout trusted workflow sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Java gate runtime
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: Verify SHA and Staging deployment
         id: verify
         shell: bash
@@ -39,108 +49,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          [[ "$DEPLOY_SHA" =~ ^[a-f0-9]{40}$ ]] || {
-            echo "ERROR: Invalid commit SHA"
-            exit 1
-          }
-
-          LATEST_SHA="$(gh api \
-            "repos/$REPOSITORY/branches/main" \
-            --jq '.commit.sha')"
-
-          [[ "$LATEST_SHA" == "$DEPLOY_SHA" ]] || {
-            echo "ERROR: Candidate is not current main HEAD"
-            exit 1
-          }
-
-          gh api \
-            "repos/$REPOSITORY/actions/workflows/deploy-auto.yml/runs?head_sha=$DEPLOY_SHA&per_page=100" \
-            > staging-runs.json
-
-          python3 - <<'PY'
-          import json
-          import os
-          import subprocess
-
-          sha = os.environ["DEPLOY_SHA"]
-          repo = os.environ["REPOSITORY"]
-
-          with open("staging-runs.json") as f:
-              data = json.load(f)
-
-          valid = [
-              run
-              for run in data.get("workflow_runs", [])
-              if run.get("head_sha") == sha
-              and run.get("event") == "workflow_run"
-              and run.get("conclusion") == "success"
-              and run.get("head_branch") == "main"
-          ]
-
-          if not valid:
-              raise SystemExit(
-                  "ERROR: No successful Automatic Staging CD "
-                  "for this SHA"
-              )
-
-          latest_run = max(
-              valid,
-              key=lambda run: (
-                  run["run_number"],
-                  run.get("run_attempt", 1),
-              ),
-          )
-
-          print(
-              "Successful Staging workflow:",
-              latest_run["id"],
-          )
-
-          result = subprocess.run(
-              [
-                  "gh",
-                  "api",
-                  f"repos/{repo}/actions/runs/"
-                  f"{latest_run['id']}/jobs?per_page=100",
-              ],
-              check=True,
-              capture_output=True,
-              text=True,
-          )
-
-          jobs = json.loads(result.stdout)["jobs"]
-
-          required_steps = {
-              "Verify commit and CI result",
-              "Configure SSH",
-              "Deploy to Staging",
-              "Verify Staging",
-          }
-
-          matching_jobs = [
-              job
-              for job in jobs
-              if job.get("name")
-              == "Verify CI and Deploy Staging"
-              and job.get("conclusion") == "success"
-              and required_steps.issubset({
-                  step.get("name")
-                  for step in job.get("steps", [])
-                  if step.get("conclusion") == "success"
-              })
-          ]
-
-          if not matching_jobs:
-              raise SystemExit(
-                  "ERROR: Staging deployment job "
-                  "or required steps did not succeed"
-              )
-
-          print(
-              "Staging deployment job "
-              "and all required steps: PASS"
-          )
-          PY
+          bash scripts/java-tools.sh WorkflowGate promotion
 
           echo "sha=$DEPLOY_SHA" >> "$GITHUB_OUTPUT"
 
