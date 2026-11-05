@@ -30,12 +30,16 @@ class RuntimeConfigTransportTest {
                     data=$(cat)
                     [[ "$data" == PRIVATE_FRAME_ONLY ]] || exit 2
                     RESPONSE ;;
+                  *' activate-google '*)
+                    ACTIVATION ;;
                   *) exit 2 ;;
                 esac
                 """.replace("MODE", mode.equals("not-ready") ? "printf PRIVATE_FRAME_ONLY; exit 1" : ":")
                 .replace("RESPONSE", mode.equals("bad-receipt") ? "printf PRIVATE_FRAME_ONLY" :
-                        "printf '%s\\n' 'STAGED_NOT_ACTIVE 11111111111111111111111111111111'"));
+                        "printf '%s\\n' 'STAGED_NOT_ACTIVE 11111111111111111111111111111111'")
+                .replace("ACTIVATION", mode.equals("activation-fails") ? "printf PRIVATE_FRAME_ONLY; exit 1" : "printf '%s\\n' 'ACTIVE 11111111111111111111111111111111'"));
         ProcessBuilder builder = new ProcessBuilder("/bin/bash", "scripts/runtime-config/stage.sh", "staging", "a".repeat(40));
+        if (mode.startsWith("activation-")) builder.command().add("activate-google");
         builder.environment().clear();
         builder.environment().put("PATH", directory + ":/usr/bin:/bin");
         builder.environment().put("RUNNER_TEMP", directory.toString());
@@ -57,4 +61,6 @@ class RuntimeConfigTransportTest {
     @Test void transferUsesPrivatePipeAndOnlyLogsGenerationReceipt() throws Exception { run("ok", true); }
     @Test void failedPreflightCannotPrintRemoteData() throws Exception { run("not-ready", false); }
     @Test void unexpectedStageOutputIsNotPrinted() throws Exception { run("bad-receipt", false); }
+    @Test void explicitActivationUsesReceiptAndNoProviderValuesInSsh() throws Exception { run("activation-ok", true); }
+    @Test void failedActivationDoesNotPrintRemoteDiagnostics() throws Exception { run("activation-fails", false); }
 }

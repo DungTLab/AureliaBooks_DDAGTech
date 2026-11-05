@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "verificationStatus": "STAGE_RECEIVER_CANDIDATE_PROVISIONING_REQUIRED_ACTIVATION_BLOCKED",
+  "verificationStatus": "EXAMPLE_ONLY_OPERATOR_VERIFICATION_REQUIRED",
   "stageReceiverCandidateAvailable": true,
   "receiverImplementedAndReviewed": false,
   "productionEnvironmentProtectionVerified": false,
@@ -11,5 +11,5 @@
   "profilesAndHigherPrecedenceSourcesReviewed": false,
   "rollbackCredentialValidityVerified": false,
   "offlineFixturesAreNotVpsEvidence": true,
-  "note": "This is evidence metadata, not executable configuration. The receiver does not read this file. Root-owned provisioning is required for stage; activation is not implemented."
+  "note": "Example metadata, not executable configuration or live evidence. Receiver ignores this file. Activation/recovery and audited deploy integration exist; provisioning and scoped sudoers need explicit authorization. Do not change booleans to bypass real checks."
 }

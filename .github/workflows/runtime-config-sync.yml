@@ -1,12 +1,12 @@
-name: Runtime Configuration - Validate or Stage Snapshot
+name: Runtime Configuration - Validate, Stage or Activate
 
 on:
   workflow_dispatch:
     inputs:
       operation:
-        description: 'Validate only, or transfer an immutable snapshot (does not activate)'
+        description: 'Validate, stage only, or explicitly activate Google/Mail/VNPay with rollback'
         type: choice
-        options: [validate, stage]
+        options: [validate, stage, activate-google]
         default: validate
         required: true
       target_environment:
@@ -45,17 +45,17 @@ jobs:
       - name: Package standalone JDK-only configuration tool
         run: jar --create --file target/runtime-config-tool.jar --main-class com.ddagtech.aureliabooks.runtimeconfig.RuntimeConfigCli -C target/classes com/ddagtech/aureliabooks/runtimeconfig
       - name: Report real integration status
-        run: echo 'Validation complete. Stage requires a provisioned receiver; activation remains blocked.'
+        run: echo 'Validation complete. Transfer/activation requires provisioned receiver and environment approval.'
 
   stage-snapshot:
-    if: ${{ github.ref == 'refs/heads/main' && inputs.operation == 'stage' }}
+    if: ${{ github.ref == 'refs/heads/main' && (inputs.operation == 'stage' || inputs.operation == 'activate-google') }}
     needs: offline-validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: ${{ inputs.target_environment }}
     concurrency:
-      # Staging an inactive file cannot race with application recreation. Separate
-      # group avoids replacing a pending image deployment in GitHub's queue.
+      # The VPS wrapper serializes activation with image deploy using flock.
+      # Separate GitHub group avoids replacing pending image deployment jobs.
       group: aureliabooks-runtime-stage-${{ inputs.target_environment }}
       cancel-in-progress: false
     steps:
@@ -79,9 +79,10 @@ jobs:
           mkdir -p target/runtime-config-standalone
           javac --release 21 -d target/runtime-config-standalone src/main/java/com/ddagtech/aureliabooks/runtimeconfig/*.java
           jar --create --file target/runtime-config-tool.jar --main-class com.ddagtech.aureliabooks.runtimeconfig.RuntimeConfigCli -C target/runtime-config-standalone .
-      - name: Transfer protected snapshot without activation
+      - name: Transfer snapshot and perform selected activation
         env:
           TARGET_ENVIRONMENT: ${{ inputs.target_environment }}
+          CONFIG_OPERATION: ${{ inputs.operation }}
           REVISION: ${{ github.sha }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -108,4 +109,4 @@ jobs:
           VNPAY_EXPIRE_MINUTES: ${{ vars.VNPAY_EXPIRE_MINUTES }}
           R2_ENABLED: 'false'
           R2_UPLOAD_ENABLED: 'false'
-        run: bash scripts/runtime-config/stage.sh "$TARGET_ENVIRONMENT" "$REVISION"
+        run: bash scripts/runtime-config/stage.sh "$TARGET_ENVIRONMENT" "$REVISION" "$CONFIG_OPERATION"
