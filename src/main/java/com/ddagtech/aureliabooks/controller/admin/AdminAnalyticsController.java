@@ -43,9 +43,8 @@ public class AdminAnalyticsController {
     public void exportRevenueExcel(@ModelAttribute RevenueFilterRequest filter, HttpServletResponse response) throws IOException {
         RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
 
-        String startStr = report.getFilter().getStartDate() != null ? report.getFilter().getStartDate().format(FILE_DATE_FMT) : "all";
-        String endStr = report.getFilter().getEndDate() != null ? report.getFilter().getEndDate().format(FILE_DATE_FMT) : "all";
-        String filename = "Bao_Cao_Doanh_Thu_" + startStr + "_" + endStr + ".xlsx";
+        String todayStr = LocalDate.now().format(FILE_DATE_FMT);
+        String filename = "Bao_Cao_Doanh_Thu_" + todayStr + ".xlsx";
 
         response.setContentType(EXCEL_MIME_TYPE);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
@@ -66,9 +65,8 @@ public class AdminAnalyticsController {
         List<StockMovementReportItemDto> movementItems = analyticsService.getPeriodStockMovementReport(filter);
         List<StockValuationItemDto> valuationItems = analyticsService.getStockValuationReport();
 
-        String startStr = filter.getStartDate() != null ? filter.getStartDate().format(FILE_DATE_FMT) : "all";
-        String endStr = filter.getEndDate() != null ? filter.getEndDate().format(FILE_DATE_FMT) : "all";
-        String filename = "Bao_Cao_Ton_Kho_Bien_Dong_" + startStr + "_" + endStr + ".xlsx";
+        String todayStr = LocalDate.now().format(FILE_DATE_FMT);
+        String filename = "Bao_Cao_Bien_Dong_Kho_" + todayStr + ".xlsx";
 
         response.setContentType(EXCEL_MIME_TYPE);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");

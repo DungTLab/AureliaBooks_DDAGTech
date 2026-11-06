@@ -30,6 +30,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -243,7 +245,8 @@ class AdminReceiptControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/stock/alerts"))
                 .andExpect(model().attributeExists("metrics"))
-                .andExpect(model().attributeExists("alertsPage"));
+                .andExpect(model().attributeExists("alertsPage"))
+                .andExpect(content().string(containsString("Lập phiếu nhập kho")));
     }
 
     @Test
@@ -255,7 +258,8 @@ class AdminReceiptControllerTest {
 
         mvc.perform(get("/staff/stock/alerts").with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
                 .andExpect(status().isOk())
-                .andExpect(view().name("admin/stock/alerts"));
+                .andExpect(view().name("admin/stock/alerts"))
+                .andExpect(content().string(containsString("Lập phiếu nhập kho")));
     }
 
     @Test
@@ -268,7 +272,8 @@ class AdminReceiptControllerTest {
         mvc.perform(get("/manager/stock/alerts").with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/stock/alerts"))
-                .andExpect(model().attribute("baseUri", "/manager/stock/alerts"));
+                .andExpect(model().attribute("baseUri", "/manager/stock/alerts"))
+                .andExpect(content().string(containsString("Lập phiếu nhập kho")));
     }
 
     @Test

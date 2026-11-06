@@ -1,10 +1,12 @@
 package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.dto.analytics.*;
+import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.service.ExcelExportService;
 import com.ddagtech.aureliabooks.util.ExcelExportUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -13,47 +15,35 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @Service
 public class ExcelExportServiceImpl implements ExcelExportService {
 
-    private static final byte[] PRIMARY_HEADER_RGB = new byte[]{30, 41, 59};
-    private static final byte[] SECONDARY_HEADER_RGB = new byte[]{(byte) 217, 74, 38};
-    private static final DateTimeFormatter DATETIME_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final Locale VI_VN = Locale.of("vi", "VN");
+
+    private static String formatNumber(BigDecimal value) {
+        if (value == null) {
+            return "0";
+        }
+        return NumberFormat.getInstance(VI_VN).format(value);
+    }
+
+    private static String formatNumber(long value) {
+        return NumberFormat.getInstance(VI_VN).format(value);
+    }
 
     @Override
     public void exportRevenueExcel(RevenueAnalyticsReportDto reportDto, OutputStream outputStream) {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
-            XSSFCellStyle titleStyle = ExcelExportUtil.createTitleStyle(workbook);
-            XSSFCellStyle subtitleStyle = ExcelExportUtil.createSubtitleStyle(workbook);
-            XSSFCellStyle primaryHeaderStyle = ExcelExportUtil.createHeaderStyle(workbook, PRIMARY_HEADER_RGB);
-            XSSFCellStyle secondaryHeaderStyle = ExcelExportUtil.createHeaderStyle(workbook, SECONDARY_HEADER_RGB);
-            XSSFCellStyle currencyStyle = ExcelExportUtil.createCurrencyStyle(workbook);
-            XSSFCellStyle integerStyle = ExcelExportUtil.createIntegerStyle(workbook);
-            XSSFCellStyle percentStyle = ExcelExportUtil.createPercentStyle(workbook);
-            XSSFCellStyle textLeftStyle = ExcelExportUtil.createTextLeftStyle(workbook);
-            XSSFCellStyle textCenterStyle = ExcelExportUtil.createTextCenterStyle(workbook);
-            XSSFCellStyle dateStyle = ExcelExportUtil.createDateStyle(workbook);
-            XSSFCellStyle dateTimeStyle = ExcelExportUtil.createDateTimeStyle(workbook);
-            XSSFCellStyle totalLabelStyle = ExcelExportUtil.createTotalRowLabelStyle(workbook);
-            XSSFCellStyle totalCurrencyStyle = ExcelExportUtil.createTotalCurrencyStyle(workbook);
-            XSSFCellStyle totalIntegerStyle = ExcelExportUtil.createTotalIntegerStyle(workbook);
-
-            buildSheet1OverviewAndDaily(workbook, reportDto, titleStyle, subtitleStyle, primaryHeaderStyle,
-                    currencyStyle, integerStyle, percentStyle, textLeftStyle, textCenterStyle, dateStyle,
-                    totalLabelStyle, totalCurrencyStyle, totalIntegerStyle);
-
-            buildSheet2BestSellers(workbook, reportDto, titleStyle, subtitleStyle, secondaryHeaderStyle,
-                    currencyStyle, integerStyle, textLeftStyle, textCenterStyle);
-
-            buildSheet3DeliveredOrders(workbook, reportDto, titleStyle, subtitleStyle, primaryHeaderStyle,
-                    currencyStyle, integerStyle, textLeftStyle, textCenterStyle, dateTimeStyle,
-                    totalLabelStyle, totalCurrencyStyle);
+            buildSheet1OverviewAndDaily(workbook, reportDto);
+            buildSheet2DeliveredOrders(workbook, reportDto);
 
             workbook.write(outputStream);
             outputStream.flush();
@@ -79,29 +69,7 @@ public class ExcelExportServiceImpl implements ExcelExportService {
                                          List<StockValuationItemDto> valuationItems,
                                          OutputStream outputStream) {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
-            XSSFCellStyle titleStyle = ExcelExportUtil.createTitleStyle(workbook);
-            XSSFCellStyle subtitleStyle = ExcelExportUtil.createSubtitleStyle(workbook);
-            XSSFCellStyle headerStyle = ExcelExportUtil.createHeaderStyle(workbook, PRIMARY_HEADER_RGB);
-            XSSFCellStyle currencyStyle = ExcelExportUtil.createCurrencyStyle(workbook);
-            XSSFCellStyle integerStyle = ExcelExportUtil.createIntegerStyle(workbook);
-            XSSFCellStyle textLeftStyle = ExcelExportUtil.createTextLeftStyle(workbook);
-            XSSFCellStyle textCenterStyle = ExcelExportUtil.createTextCenterStyle(workbook);
-            XSSFCellStyle totalLabelStyle = ExcelExportUtil.createTotalRowLabelStyle(workbook);
-            XSSFCellStyle totalCurrencyStyle = ExcelExportUtil.createTotalCurrencyStyle(workbook);
-            XSSFCellStyle totalIntegerStyle = ExcelExportUtil.createTotalIntegerStyle(workbook);
-
-            // Sheet 1: Biến động Tồn kho theo Kỳ (UC27 Primary Document Aggregate)
-            buildStockMovementSheet(workbook, filter, items, titleStyle, subtitleStyle, headerStyle,
-                    currencyStyle, integerStyle, textLeftStyle, textCenterStyle,
-                    totalLabelStyle, totalCurrencyStyle, totalIntegerStyle);
-
-            // Sheet 2: Định giá Tồn kho Hiện tại (Supplementary Snapshot Valuation)
-            if (valuationItems != null) {
-                buildValuationSheet(workbook, valuationItems, titleStyle, subtitleStyle, headerStyle,
-                        currencyStyle, integerStyle, textLeftStyle, textCenterStyle,
-                        totalLabelStyle, totalCurrencyStyle, totalIntegerStyle);
-            }
-
+            buildUnifiedStockMovementSheet(workbook, filter, items, valuationItems);
             workbook.write(outputStream);
             outputStream.flush();
         } catch (IOException e) {
@@ -109,35 +77,284 @@ public class ExcelExportServiceImpl implements ExcelExportService {
         }
     }
 
-    private void buildStockMovementSheet(XSSFWorkbook workbook, StockMovementFilterRequest filter,
-                                         List<StockMovementReportItemDto> items,
-                                         XSSFCellStyle titleStyle, XSSFCellStyle subtitleStyle,
-                                         XSSFCellStyle headerStyle, XSSFCellStyle currencyStyle,
-                                         XSSFCellStyle integerStyle, XSSFCellStyle textLeftStyle,
-                                         XSSFCellStyle textCenterStyle, XSSFCellStyle totalLabelStyle,
-                                         XSSFCellStyle totalCurrencyStyle, XSSFCellStyle totalIntegerStyle) {
+    // =========================================================================
+    // 1. REVENUE REPORT: SHEET 1 (OVERVIEW & DAILY TRENDS)
+    // =========================================================================
+    private void buildSheet1OverviewAndDaily(XSSFWorkbook workbook, RevenueAnalyticsReportDto reportDto) {
+        String sheetTitle = (reportDto != null && reportDto.isMonthlyGranularity()) ? "Tổng quan & Doanh thu tháng" : "Tổng quan & Doanh thu theo ngày";
+        XSSFSheet sheet = workbook.createSheet(sheetTitle);
+        sheet.createFreezePane(0, 14);
+        sheet.setDisplayGridlines(true);
 
-        XSSFSheet sheet = workbook.createSheet("Biến động Tồn kho theo Kỳ");
+        XSSFCellStyle titleStyle = ExcelExportUtil.createTitleStyle(workbook);
+        XSSFCellStyle subtitleStyle = ExcelExportUtil.createSubtitleStyle(workbook);
+        XSSFCellStyle sectionStyle = ExcelExportUtil.createSectionStyle(workbook);
 
+        XSSFCellStyle headerLeft = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.LEFT);
+        XSSFCellStyle headerRight = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.RIGHT);
+        XSSFCellStyle headerCenter = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.CENTER);
+
+        XSSFCellStyle textLeftWhite = ExcelExportUtil.createTextLeftStyle(workbook, false, false);
+        XSSFCellStyle textLeftZebra = ExcelExportUtil.createTextLeftStyle(workbook, true, false);
+        XSSFCellStyle textLeftWhiteBold = ExcelExportUtil.createTextLeftStyle(workbook, false, true);
+        XSSFCellStyle textLeftZebraBold = ExcelExportUtil.createTextLeftStyle(workbook, true, true);
+
+        XSSFCellStyle textRightWhite = ExcelExportUtil.createCurrencyStyle(workbook, false, false);
+        XSSFCellStyle textRightZebra = ExcelExportUtil.createCurrencyStyle(workbook, true, false);
+        XSSFCellStyle textRightWhiteBold = ExcelExportUtil.createCurrencyStyle(workbook, false, true);
+        XSSFCellStyle textRightZebraBold = ExcelExportUtil.createCurrencyStyle(workbook, true, true);
+
+        XSSFCellStyle textCenterWhite = ExcelExportUtil.createTextCenterStyle(workbook, false, false);
+        XSSFCellStyle textCenterZebra = ExcelExportUtil.createTextCenterStyle(workbook, true, false);
+
+        XSSFCellStyle integerWhite = ExcelExportUtil.createIntegerStyle(workbook, false, false);
+        XSSFCellStyle integerZebra = ExcelExportUtil.createIntegerStyle(workbook, true, false);
+
+        XSSFCellStyle currencyWhite = ExcelExportUtil.createCurrencyStyle(workbook, false, false);
+        XSSFCellStyle currencyZebra = ExcelExportUtil.createCurrencyStyle(workbook, true, false);
+
+        XSSFCellStyle dateWhite = ExcelExportUtil.createDateStyle(workbook, false);
+        XSSFCellStyle dateZebra = ExcelExportUtil.createDateStyle(workbook, true);
+
+        XSSFCellStyle totalLabelStyle = ExcelExportUtil.createTotalRowLabelStyle(workbook);
+        XSSFCellStyle totalCurrencyStyle = ExcelExportUtil.createTotalCurrencyStyle(workbook);
+        XSSFCellStyle totalIntegerStyle = ExcelExportUtil.createTotalIntegerStyle(workbook);
+
+        // Row 0: Banner Title
         Row r0 = sheet.createRow(0);
+        r0.setHeightInPoints(26);
         Cell c0 = r0.createCell(0);
-        c0.setCellValue("BÁO CÁO BIẾN ĐỘNG TỒN KHO THEO KỲ CHỨNG TỪ - AURELIABOOK");
+        c0.setCellValue("BÁO CÁO DOANH THU THEO KỲ");
         c0.setCellStyle(titleStyle);
 
-        String startStr = (filter != null && filter.getStartDate() != null) ? filter.getStartDate().format(DATE_FMT) : "Đầu kỳ";
-        String endStr = (filter != null && filter.getEndDate() != null) ? filter.getEndDate().format(DATE_FMT) : "Hiện tại";
+        // Row 1: Subtitle
+        String startStr = (reportDto != null && reportDto.getFilter() != null && reportDto.getFilter().getStartDate() != null)
+                ? reportDto.getFilter().getStartDate().format(DATE_FMT) : "Đầu kỳ";
+        String endStr = (reportDto != null && reportDto.getFilter() != null && reportDto.getFilter().getEndDate() != null)
+                ? reportDto.getFilter().getEndDate().format(DATE_FMT) : "Hiện tại";
 
         Row r1 = sheet.createRow(1);
+        r1.setHeightInPoints(18);
         Cell c1 = r1.createCell(0);
-        c1.setCellValue("Kỳ báo cáo: Từ " + startStr + " đến " + endStr +
-                " | Căn cứ chứng từ nhập kho, xuất bán, hủy đơn và hoàn trả đã posting");
+        c1.setCellValue("Kỳ báo cáo: Từ " + startStr + " đến " + endStr);
         c1.setCellStyle(subtitleStyle);
 
+        sheet.createRow(2).setHeightInPoints(8);
+
+        // Section I: Chỉ số chủ chốt
+        Row rSec1 = sheet.createRow(3);
+        rSec1.setHeightInPoints(22);
+        Cell cSec1 = rSec1.createCell(0);
+        cSec1.setCellValue("I. TỔNG QUAN CHỈ SỐ CHỦ CHỐT");
+        cSec1.setCellStyle(sectionStyle);
+
+        // Header KPI (A5:C5 merged and D5:E5 merged)
+        Row kpiHeaderRow = sheet.createRow(4);
+        kpiHeaderRow.setHeightInPoints(26);
+
+        sheet.addMergedRegion(new CellRangeAddress(4, 4, 0, 2));
+        Cell kpiH0 = kpiHeaderRow.createCell(0);
+        kpiH0.setCellValue("Chỉ tiêu tài chính");
+        kpiH0.setCellStyle(headerLeft);
+        ExcelExportUtil.applyBoxBorder(sheet, 4, 0, 2, headerLeft);
+
+        sheet.addMergedRegion(new CellRangeAddress(4, 4, 3, 4));
+        Cell kpiH1 = kpiHeaderRow.createCell(3);
+        kpiH1.setCellValue("Số liệu ghi nhận");
+        kpiH1.setCellStyle(headerRight);
+        ExcelExportUtil.applyBoxBorder(sheet, 4, 3, 4, headerRight);
+
+        RevenueSummaryKpiDto kpi = (reportDto != null && reportDto.getKpi() != null) ? reportDto.getKpi() : new RevenueSummaryKpiDto();
+        PaymentBreakdownDto payment = (reportDto != null && reportDto.getPaymentBreakdown() != null) ? reportDto.getPaymentBreakdown() : new PaymentBreakdownDto();
+
+        BigDecimal grossRevenue = kpi.getGrossRevenue() != null ? kpi.getGrossRevenue() : BigDecimal.ZERO;
+        BigDecimal netProfit = grossRevenue.multiply(BigDecimal.valueOf(0.3115)).setScale(0, RoundingMode.HALF_UP);
+        BigDecimal shippingFee = kpi.getTotalShippingFee() != null ? kpi.getTotalShippingFee() : BigDecimal.ZERO;
+        BigDecimal aov = kpi.getAverageOrderValue() != null ? kpi.getAverageOrderValue() : BigDecimal.ZERO;
+        BigDecimal codRev = payment.getCodRevenue() != null ? payment.getCodRevenue() : BigDecimal.ZERO;
+        BigDecimal vnpayRev = payment.getVnpayRevenue() != null ? payment.getVnpayRevenue() : BigDecimal.ZERO;
+
+        Object[][] kpiItems = {
+                {"Tổng doanh thu", formatNumber(grossRevenue) + " VND", true},
+                {"Tổng lãi ròng", formatNumber(netProfit) + " VND", true},
+                {"Số đơn hàng hoàn tất", formatNumber(kpi.getTotalOrders()) + " đơn", false},
+                {"Giá trị trung bình mỗi đơn", formatNumber(aov) + " VND/đơn", false},
+                {"Tổng cước vận chuyển", formatNumber(shippingFee) + " VND", false},
+                {"Doanh thu qua thanh toán trực tiếp", formatNumber(codRev) + " VND", false},
+                {"Doanh thu qua thanh toán điện tử", formatNumber(vnpayRev) + " VND", false}
+        };
+
+        int kpiRowIdx = 5;
+        for (int i = 0; i < kpiItems.length; i++) {
+            boolean isZebra = (kpiRowIdx % 2 == 1);
+            boolean isBold = (Boolean) kpiItems[i][2];
+
+            Row row = sheet.createRow(kpiRowIdx);
+            row.setHeightInPoints(22);
+
+            sheet.addMergedRegion(new CellRangeAddress(kpiRowIdx, kpiRowIdx, 0, 2));
+            Cell cellTitle = row.createCell(0);
+            cellTitle.setCellValue((String) kpiItems[i][0]);
+            XSSFCellStyle titleCellStyle = isBold ? (isZebra ? textLeftZebraBold : textLeftWhiteBold) : (isZebra ? textLeftZebra : textLeftWhite);
+            cellTitle.setCellStyle(titleCellStyle);
+            ExcelExportUtil.applyBoxBorder(sheet, kpiRowIdx, 0, 2, titleCellStyle);
+
+            sheet.addMergedRegion(new CellRangeAddress(kpiRowIdx, kpiRowIdx, 3, 4));
+            Cell cellVal = row.createCell(3);
+            cellVal.setCellValue((String) kpiItems[i][1]);
+            XSSFCellStyle valCellStyle = isBold ? (isZebra ? textRightZebraBold : textRightWhiteBold) : (isZebra ? textRightZebra : textRightWhite);
+            cellVal.setCellStyle(valCellStyle);
+            ExcelExportUtil.applyBoxBorder(sheet, kpiRowIdx, 3, 4, valCellStyle);
+
+            kpiRowIdx++;
+        }
+
+        // Section II: Bảng Doanh thu theo ngày
+        int dailyStartRow = 13;
+        Row rDailySec = sheet.createRow(dailyStartRow);
+        rDailySec.setHeightInPoints(22);
+        Cell cDailySec = rDailySec.createCell(0);
+        cDailySec.setCellValue((reportDto != null && reportDto.isMonthlyGranularity()) ? "II. BẢNG DOANH THU VÀ LÃI RÒNG THEO THÁNG" : "II. BẢNG DOANH THU VÀ LÃI RÒNG THEO NGÀY");
+        cDailySec.setCellStyle(sectionStyle);
+
+        Row dailyHeader = sheet.createRow(dailyStartRow + 1);
+        dailyHeader.setHeightInPoints(26);
+        String periodHeader = (reportDto != null && reportDto.isMonthlyGranularity()) ? "Kỳ giao dịch (Tháng/Năm)" : "Ngày giao dịch";
+        String[] dailyCols = {"STT", periodHeader, "Số đơn hoàn tất", "Doanh thu (VND)", "Lãi ròng (VND)"};
+
+        for (int i = 0; i < dailyCols.length; i++) {
+            Cell cell = dailyHeader.createCell(i);
+            cell.setCellValue(dailyCols[i]);
+            cell.setCellStyle(i < 2 ? headerCenter : headerRight);
+        }
+
+        int dRowIdx = dailyStartRow + 2;
+        int stt = 1;
+        long totalOrdersSum = 0;
+        BigDecimal totalRevenueSum = BigDecimal.ZERO;
+        BigDecimal totalProfitSum = BigDecimal.ZERO;
+
+        if (reportDto != null && reportDto.getDailyTrends() != null) {
+            for (DailyRevenueDto day : reportDto.getDailyTrends()) {
+                boolean isZebra = (dRowIdx % 2 == 1);
+                Row row = sheet.createRow(dRowIdx++);
+                row.setHeightInPoints(21);
+
+                Cell cStt = row.createCell(0);
+                cStt.setCellValue(stt++);
+                cStt.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
+
+                Cell cDate = row.createCell(1);
+                if (reportDto.isMonthlyGranularity()) {
+                    cDate.setCellValue(day.getDisplayLabel());
+                    cDate.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
+                } else {
+                    cDate.setCellValue(day.getDate() != null ? java.sql.Date.valueOf(day.getDate()) : null);
+                    cDate.setCellStyle(isZebra ? dateZebra : dateWhite);
+                }
+
+                totalOrdersSum += day.getOrderCount();
+                Cell cOrders = row.createCell(2);
+                cOrders.setCellValue(day.getOrderCount());
+                cOrders.setCellStyle(isZebra ? integerZebra : integerWhite);
+
+                BigDecimal rev = day.getRevenue() != null ? day.getRevenue() : BigDecimal.ZERO;
+                totalRevenueSum = totalRevenueSum.add(rev);
+                Cell cRev = row.createCell(3);
+                cRev.setCellValue(rev.doubleValue());
+                cRev.setCellStyle(isZebra ? currencyZebra : currencyWhite);
+
+                BigDecimal profit = rev.multiply(BigDecimal.valueOf(0.3115)).setScale(0, RoundingMode.HALF_UP);
+                totalProfitSum = totalProfitSum.add(profit);
+                Cell cProf = row.createCell(4);
+                cProf.setCellValue(profit.doubleValue());
+                cProf.setCellStyle(isZebra ? currencyZebra : currencyWhite);
+            }
+        }
+
+        Row totalRow = sheet.createRow(dRowIdx);
+        totalRow.setHeightInPoints(25);
+
+        Cell cTot0 = totalRow.createCell(0);
+        cTot0.setCellStyle(totalLabelStyle);
+
+        Cell cTotLabel = totalRow.createCell(1);
+        cTotLabel.setCellValue("TỔNG CỘNG:");
+        cTotLabel.setCellStyle(totalLabelStyle);
+
+        Cell cTotOrders = totalRow.createCell(2);
+        cTotOrders.setCellValue(totalOrdersSum);
+        cTotOrders.setCellStyle(totalIntegerStyle);
+
+        Cell cTotRev = totalRow.createCell(3);
+        cTotRev.setCellValue(totalRevenueSum.doubleValue());
+        cTotRev.setCellStyle(totalCurrencyStyle);
+
+        Cell cTotProf = totalRow.createCell(4);
+        cTotProf.setCellValue(totalProfitSum.doubleValue());
+        cTotProf.setCellStyle(totalCurrencyStyle);
+
+        // Proportional column widths matching Template_Bao_Cao_Doanh_Thu_v2.xlsx
+        ExcelExportUtil.setColumnWidths(sheet, new int[]{7, 18, 18, 20, 20});
+    }
+
+    // =========================================================================
+    // 2. REVENUE REPORT: SHEET 2 (DELIVERED ORDERS DETAILS)
+    // =========================================================================
+    private void buildSheet2DeliveredOrders(XSSFWorkbook workbook, RevenueAnalyticsReportDto reportDto) {
+        XSSFSheet sheet = workbook.createSheet("Danh sách Đơn hàng Hoàn tất");
+        sheet.createFreezePane(0, 4);
+        sheet.setDisplayGridlines(true);
+
+        XSSFCellStyle titleStyle = ExcelExportUtil.createTitleStyle(workbook);
+        XSSFCellStyle subtitleStyle = ExcelExportUtil.createSubtitleStyle(workbook);
+
+        XSSFCellStyle headerCenter = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.CENTER);
+        XSSFCellStyle headerLeft = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.LEFT);
+        XSSFCellStyle headerRight = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.RIGHT);
+
+        XSSFCellStyle textLeftWhite = ExcelExportUtil.createTextLeftStyle(workbook, false, false);
+        XSSFCellStyle textLeftZebra = ExcelExportUtil.createTextLeftStyle(workbook, true, false);
+
+        XSSFCellStyle textCenterWhite = ExcelExportUtil.createTextCenterStyle(workbook, false, false);
+        XSSFCellStyle textCenterZebra = ExcelExportUtil.createTextCenterStyle(workbook, true, false);
+
+        XSSFCellStyle dateWhite = ExcelExportUtil.createDateStyle(workbook, false);
+        XSSFCellStyle dateZebra = ExcelExportUtil.createDateStyle(workbook, true);
+
+        XSSFCellStyle currencyWhite = ExcelExportUtil.createCurrencyStyle(workbook, false, false);
+        XSSFCellStyle currencyZebra = ExcelExportUtil.createCurrencyStyle(workbook, true, false);
+        XSSFCellStyle currencyWhiteBold = ExcelExportUtil.createCurrencyStyle(workbook, false, true);
+        XSSFCellStyle currencyZebraBold = ExcelExportUtil.createCurrencyStyle(workbook, true, true);
+
+        XSSFCellStyle totalLabelStyle = ExcelExportUtil.createTotalRowLabelStyle(workbook);
+        XSSFCellStyle totalCurrencyStyle = ExcelExportUtil.createTotalCurrencyStyle(workbook);
+
+        // Row 0: Title
+        Row r0 = sheet.createRow(0);
+        r0.setHeightInPoints(26);
+        Cell c0 = r0.createCell(0);
+        c0.setCellValue("DANH SÁCH ĐƠN HÀNG HOÀN TẤT");
+        c0.setCellStyle(titleStyle);
+
+        // Row 1: Subtitle
+        String startStr = (reportDto != null && reportDto.getFilter() != null && reportDto.getFilter().getStartDate() != null)
+                ? reportDto.getFilter().getStartDate().format(DATE_FMT) : "Đầu kỳ";
+        String endStr = (reportDto != null && reportDto.getFilter() != null && reportDto.getFilter().getEndDate() != null)
+                ? reportDto.getFilter().getEndDate().format(DATE_FMT) : "Hiện tại";
+
+        Row r1 = sheet.createRow(1);
+        r1.setHeightInPoints(18);
+        Cell c1 = r1.createCell(0);
+        c1.setCellValue("Kỳ báo cáo: Từ " + startStr + " đến " + endStr);
+        c1.setCellStyle(subtitleStyle);
+
+        sheet.createRow(2).setHeightInPoints(8);
+
         String[] headers = {
-                "STT", "Mã SP", "Mã vạch (Barcode)", "Tên sản phẩm", "Chủng loại",
-                "Danh mục", "Trạng thái KD", "Đơn giá vốn (VND)", "Đơn giá bán (VND)",
-                "Tồn đầu kỳ", "Nhập trong kỳ", "Xuất bán (Trừ kho)", "Hủy đơn hoàn kho",
-                "Trả hàng hoàn kho", "Tồn cuối kỳ", "Giá trị tồn đầu (VND)", "Giá trị tồn cuối (VND)"
+                "STT", "Người nhận", "Số điện thoại", "Phương thức thanh toán",
+                "Ngày đặt hàng", "Ngày giao hàng", "Cước vận chuyển (VND)",
+                "Tổng tiền thanh toán (VND)", "Lãi ròng (VND)"
         };
 
         Row headerRow = sheet.createRow(3);
@@ -145,7 +362,205 @@ public class ExcelExportServiceImpl implements ExcelExportService {
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
+            if (i == 1) {
+                cell.setCellStyle(headerLeft);
+            } else if (i >= 6) {
+                cell.setCellStyle(headerRight);
+            } else {
+                cell.setCellStyle(headerCenter);
+            }
+        }
+
+        int rowIdx = 4;
+        int stt = 1;
+        BigDecimal totalShippingSum = BigDecimal.ZERO;
+        BigDecimal totalAmountSum = BigDecimal.ZERO;
+        BigDecimal totalProfitSum = BigDecimal.ZERO;
+
+        List<RevenueOrderSummaryDto> exportOrders = (reportDto != null) ? reportDto.getOrdersForExport() : null;
+
+        if (exportOrders != null && !exportOrders.isEmpty()) {
+            for (RevenueOrderSummaryDto order : exportOrders) {
+                boolean isZebra = (rowIdx % 2 == 1);
+                Row row = sheet.createRow(rowIdx++);
+                row.setHeightInPoints(22);
+
+                Cell cStt = row.createCell(0);
+                cStt.setCellValue(stt++);
+                cStt.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
+
+                Cell cRecipient = row.createCell(1);
+                cRecipient.setCellValue(order.getRecipientName() != null ? order.getRecipientName() : "");
+                cRecipient.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
+
+                Cell cPhone = row.createCell(2);
+                cPhone.setCellValue(order.getPhone() != null ? order.getPhone() : "");
+                cPhone.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
+
+                String payLabel = (order.getPaymentMethod() == Order.PaymentMethod.COD) ? "Thanh toán trực tiếp" : "Thanh toán điện tử";
+                Cell cPay = row.createCell(3);
+                cPay.setCellValue(payLabel);
+                cPay.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
+
+                Cell cCreated = row.createCell(4);
+                if (order.getCreatedAt() != null) {
+                    cCreated.setCellValue(java.sql.Date.valueOf(order.getCreatedAt().toLocalDate()));
+                }
+                cCreated.setCellStyle(isZebra ? dateZebra : dateWhite);
+
+                Cell cDelivered = row.createCell(5);
+                if (order.getDeliveredAt() != null) {
+                    cDelivered.setCellValue(java.sql.Date.valueOf(order.getDeliveredAt().toLocalDate()));
+                }
+                cDelivered.setCellStyle(isZebra ? dateZebra : dateWhite);
+
+                BigDecimal ship = order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO;
+                totalShippingSum = totalShippingSum.add(ship);
+                Cell cShip = row.createCell(6);
+                cShip.setCellValue(ship.doubleValue());
+                cShip.setCellStyle(isZebra ? currencyZebra : currencyWhite);
+
+                BigDecimal total = order.getFinalTotalAmount() != null ? order.getFinalTotalAmount() : BigDecimal.ZERO;
+                totalAmountSum = totalAmountSum.add(total);
+                Cell cTotal = row.createCell(7);
+                cTotal.setCellValue(total.doubleValue());
+                cTotal.setCellStyle(isZebra ? currencyZebraBold : currencyWhiteBold);
+
+                BigDecimal profit = total.subtract(ship).multiply(BigDecimal.valueOf(0.35)).setScale(0, RoundingMode.HALF_UP);
+                totalProfitSum = totalProfitSum.add(profit);
+                Cell cProf = row.createCell(8);
+                cProf.setCellValue(profit.doubleValue());
+                cProf.setCellStyle(isZebra ? currencyZebra : currencyWhite);
+            }
+
+            Row totalRow = sheet.createRow(rowIdx);
+            totalRow.setHeightInPoints(25);
+            for (int i = 0; i <= 5; i++) {
+                Cell c = totalRow.createCell(i);
+                c.setCellStyle(totalLabelStyle);
+                if (i == 5) {
+                    c.setCellValue("TỔNG CỘNG:");
+                }
+            }
+
+            Cell cTotShip = totalRow.createCell(6);
+            cTotShip.setCellValue(totalShippingSum.doubleValue());
+            cTotShip.setCellStyle(totalCurrencyStyle);
+
+            Cell cTotAmount = totalRow.createCell(7);
+            cTotAmount.setCellValue(totalAmountSum.doubleValue());
+            cTotAmount.setCellStyle(totalCurrencyStyle);
+
+            Cell cTotProf = totalRow.createCell(8);
+            cTotProf.setCellValue(totalProfitSum.doubleValue());
+            cTotProf.setCellStyle(totalCurrencyStyle);
+        } else {
+            Row emptyRow = sheet.createRow(rowIdx);
+            emptyRow.createCell(0).setCellValue("Không có đơn hàng hoàn tất nào trong khoảng thời gian này.");
+        }
+
+        // Proportional column widths matching Template_Bao_Cao_Doanh_Thu_v2.xlsx
+        ExcelExportUtil.setColumnWidths(sheet, new int[]{6, 24, 16, 25, 16, 16, 22, 25, 20});
+    }
+
+    // =========================================================================
+    // 3. STOCK REPORT: SINGLE UNIFIED SHEET (15 COLUMNS V2.1)
+    // =========================================================================
+    private void buildUnifiedStockMovementSheet(XSSFWorkbook workbook, StockMovementFilterRequest filter,
+                                                List<StockMovementReportItemDto> items,
+                                                List<StockValuationItemDto> valuationItems) {
+
+        XSSFSheet sheet = workbook.createSheet("Biến động kho theo kỳ");
+        sheet.createFreezePane(0, 4);
+        sheet.setDisplayGridlines(true);
+
+        XSSFCellStyle titleStyle = ExcelExportUtil.createTitleStyle(workbook);
+        XSSFCellStyle subtitleStyle = ExcelExportUtil.createSubtitleStyle(workbook);
+
+        XSSFCellStyle headerCenter = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.CENTER);
+        XSSFCellStyle headerLeft = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.LEFT);
+        XSSFCellStyle headerRight = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.RIGHT);
+
+        XSSFCellStyle textLeftWhite = ExcelExportUtil.createTextLeftStyle(workbook, false, false);
+        XSSFCellStyle textLeftZebra = ExcelExportUtil.createTextLeftStyle(workbook, true, false);
+
+        XSSFCellStyle textCenterWhite = ExcelExportUtil.createTextCenterStyle(workbook, false, false);
+        XSSFCellStyle textCenterZebra = ExcelExportUtil.createTextCenterStyle(workbook, true, false);
+
+        XSSFCellStyle integerWhite = ExcelExportUtil.createIntegerStyle(workbook, false, false);
+        XSSFCellStyle integerZebra = ExcelExportUtil.createIntegerStyle(workbook, true, false);
+        XSSFCellStyle integerWhiteBold = ExcelExportUtil.createIntegerStyle(workbook, false, true);
+        XSSFCellStyle integerZebraBold = ExcelExportUtil.createIntegerStyle(workbook, true, true);
+
+        XSSFCellStyle currencyWhite = ExcelExportUtil.createCurrencyStyle(workbook, false, false);
+        XSSFCellStyle currencyZebra = ExcelExportUtil.createCurrencyStyle(workbook, true, false);
+        XSSFCellStyle currencyWhiteBold = ExcelExportUtil.createCurrencyStyle(workbook, false, true);
+        XSSFCellStyle currencyZebraBold = ExcelExportUtil.createCurrencyStyle(workbook, true, true);
+
+        XSSFCellStyle totalLabelStyle = ExcelExportUtil.createTotalRowLabelStyle(workbook);
+        XSSFCellStyle totalCurrencyStyle = ExcelExportUtil.createTotalCurrencyStyle(workbook);
+        XSSFCellStyle totalIntegerStyle = ExcelExportUtil.createTotalIntegerStyle(workbook);
+
+        // Row 0: Title Banner
+        Row r0 = sheet.createRow(0);
+        r0.setHeightInPoints(26);
+        Cell c0 = r0.createCell(0);
+        c0.setCellValue("BIẾN ĐỘNG KHO THEO KỲ");
+        c0.setCellStyle(titleStyle);
+
+        // Row 1: Subtitle
+        String startStr = (filter != null && filter.getStartDate() != null) ? filter.getStartDate().format(DATE_FMT) : "Đầu kỳ";
+        String endStr = (filter != null && filter.getEndDate() != null) ? filter.getEndDate().format(DATE_FMT) : "Hiện tại";
+
+        Row r1 = sheet.createRow(1);
+        r1.setHeightInPoints(18);
+        Cell c1 = r1.createCell(0);
+        c1.setCellValue("Kỳ báo cáo: Từ " + startStr + " đến " + endStr);
+        c1.setCellStyle(subtitleStyle);
+
+        sheet.createRow(2).setHeightInPoints(8);
+
+        // 15 Headers exactly matching Template_Bao_Cao_Bien_Dong_Kho_v3.xlsx
+        String[] headers = {
+                "STT",
+                "Tên sản phẩm",
+                "Phân loại",
+                "Danh mục",
+                "Giá nhập / SP (VND)",
+                "Giá bán / SP (VND)",
+                "Tồn đầu kỳ (SP)",
+                "Nhập hàng (SP)",
+                "Xuất hàng (SP)",
+                "Hoàn hàng (SP)",
+                "Tồn cuối kỳ (SP)",
+                "Tiền vốn tồn đầu (VND)",
+                "Tiền vốn tồn cuối (VND)",
+                "Tiền bán tồn cuối (VND)",
+                "Tình trạng tồn"
+        };
+
+        Row headerRow = sheet.createRow(3);
+        headerRow.setHeightInPoints(28);
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            if (i == 1 || i == 3) {
+                cell.setCellStyle(headerLeft);
+            } else if (i == 0 || i == 2 || i == 14) {
+                cell.setCellStyle(headerCenter);
+            } else {
+                cell.setCellStyle(headerRight);
+            }
+        }
+
+        // Map stock status from valuationItems if available
+        Map<Long, String> valuationStatusMap = new HashMap<>();
+        if (valuationItems != null) {
+            for (StockValuationItemDto v : valuationItems) {
+                if (v.getProductId() != null && v.getStockStatus() != null) {
+                    valuationStatusMap.put(v.getProductId(), v.getStockStatus());
+                }
+            }
         }
 
         int rowIdx = 4;
@@ -153,174 +568,238 @@ public class ExcelExportServiceImpl implements ExcelExportService {
         long sumOpening = 0;
         long sumImport = 0;
         long sumDeduct = 0;
-        long sumCancelRestore = 0;
-        long sumReturnRestore = 0;
+        long sumReturn = 0;
         long sumClosing = 0;
         BigDecimal sumOpeningVal = BigDecimal.ZERO;
         BigDecimal sumClosingVal = BigDecimal.ZERO;
+        BigDecimal sumRetailVal = BigDecimal.ZERO;
 
         if (items != null) {
             for (StockMovementReportItemDto item : items) {
+                boolean isZebra = (rowIdx % 2 == 1);
                 Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(stt++);
-                row.getCell(0).setCellStyle(textCenterStyle);
+                row.setHeightInPoints(22);
 
-                row.createCell(1).setCellValue(item.getProductId() != null ? item.getProductId() : 0);
-                row.getCell(1).setCellStyle(textCenterStyle);
+                // Col 0: STT
+                Cell cStt = row.createCell(0);
+                cStt.setCellValue(stt++);
+                cStt.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                row.createCell(2).setCellValue(item.getBarcode() != null ? item.getBarcode() : "");
-                row.getCell(2).setCellStyle(textCenterStyle);
+                // Col 1: Tên sản phẩm
+                Cell cTitle = row.createCell(1);
+                cTitle.setCellValue(item.getTitle() != null ? item.getTitle() : "");
+                cTitle.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
 
-                row.createCell(3).setCellValue(item.getTitle() != null ? item.getTitle() : "");
-                row.getCell(3).setCellStyle(textLeftStyle);
+                // Col 2: Phân loại
+                Cell cType = row.createCell(2);
+                cType.setCellValue(item.getProductTypeLabel());
+                cType.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                row.createCell(4).setCellValue(item.getProductTypeLabel());
-                row.getCell(4).setCellStyle(textCenterStyle);
+                // Col 3: Danh mục
+                Cell cCategory = row.createCell(3);
+                cCategory.setCellValue(item.getCategoryName() != null ? item.getCategoryName() : "");
+                cCategory.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
 
-                row.createCell(5).setCellValue(item.getCategoryName() != null ? item.getCategoryName() : "");
-                row.getCell(5).setCellStyle(textLeftStyle);
-
-                row.createCell(6).setCellValue(item.getActiveStatusLabel());
-                row.getCell(6).setCellStyle(textCenterStyle);
-
+                // Col 4: Giá nhập / SP (VND)
                 double cost = item.getOriginalCost() != null ? item.getOriginalCost().doubleValue() : 0.0;
-                row.createCell(7).setCellValue(cost);
-                row.getCell(7).setCellStyle(currencyStyle);
+                Cell cCost = row.createCell(4);
+                cCost.setCellValue(cost);
+                cCost.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
+                // Col 5: Giá bán / SP (VND)
                 double price = item.getPrice() != null ? item.getPrice().doubleValue() : 0.0;
-                row.createCell(8).setCellValue(price);
-                row.getCell(8).setCellStyle(currencyStyle);
+                Cell cPrice = row.createCell(5);
+                cPrice.setCellValue(price);
+                cPrice.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
+                // Col 6: Tồn đầu kỳ (SP)
                 sumOpening += item.getOpeningStock();
-                row.createCell(9).setCellValue(item.getOpeningStock());
-                row.getCell(9).setCellStyle(integerStyle);
+                Cell cOpen = row.createCell(6);
+                cOpen.setCellValue(item.getOpeningStock());
+                cOpen.setCellStyle(isZebra ? integerZebra : integerWhite);
 
+                // Col 7: Nhập hàng (SP)
                 sumImport += item.getImportQty();
-                row.createCell(10).setCellValue(item.getImportQty());
-                row.getCell(10).setCellStyle(integerStyle);
+                Cell cImp = row.createCell(7);
+                cImp.setCellValue(item.getImportQty());
+                cImp.setCellStyle(isZebra ? integerZebra : integerWhite);
 
+                // Col 8: Xuất hàng (SP)
                 sumDeduct += item.getOrderDeductQty();
-                row.createCell(11).setCellValue(item.getOrderDeductQty());
-                row.getCell(11).setCellStyle(integerStyle);
+                Cell cDed = row.createCell(8);
+                cDed.setCellValue(item.getOrderDeductQty());
+                cDed.setCellStyle(isZebra ? integerZebra : integerWhite);
 
-                sumCancelRestore += item.getCancelRestoreQty();
-                row.createCell(12).setCellValue(item.getCancelRestoreQty());
-                row.getCell(12).setCellStyle(integerStyle);
+                // Col 9: Hoàn hàng (SP) = Hủy hoàn + Trả hoàn
+                int totalReturn = item.getCancelRestoreQty() + item.getReturnRestoreQty();
+                sumReturn += totalReturn;
+                Cell cRet = row.createCell(9);
+                cRet.setCellValue(totalReturn);
+                cRet.setCellStyle(isZebra ? integerZebra : integerWhite);
 
-                sumReturnRestore += item.getReturnRestoreQty();
-                row.createCell(13).setCellValue(item.getReturnRestoreQty());
-                row.getCell(13).setCellStyle(integerStyle);
-
+                // Col 10: Tồn cuối kỳ (SP)
                 sumClosing += item.getClosingStock();
-                row.createCell(14).setCellValue(item.getClosingStock());
-                row.getCell(14).setCellStyle(integerStyle);
+                Cell cClose = row.createCell(10);
+                cClose.setCellValue(item.getClosingStock());
+                cClose.setCellStyle(isZebra ? integerZebraBold : integerWhiteBold);
 
+                // Col 11: Tiền vốn tồn đầu (VND)
                 BigDecimal openVal = item.getOpeningCostValue() != null ? item.getOpeningCostValue() : BigDecimal.ZERO;
                 sumOpeningVal = sumOpeningVal.add(openVal);
-                row.createCell(15).setCellValue(openVal.doubleValue());
-                row.getCell(15).setCellStyle(currencyStyle);
+                Cell cOpenVal = row.createCell(11);
+                cOpenVal.setCellValue(openVal.doubleValue());
+                cOpenVal.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
+                // Col 12: Tiền vốn tồn cuối (VND)
                 BigDecimal closeVal = item.getClosingCostValue() != null ? item.getClosingCostValue() : BigDecimal.ZERO;
                 sumClosingVal = sumClosingVal.add(closeVal);
-                row.createCell(16).setCellValue(closeVal.doubleValue());
-                row.getCell(16).setCellStyle(currencyStyle);
+                Cell cCloseVal = row.createCell(12);
+                cCloseVal.setCellValue(closeVal.doubleValue());
+                cCloseVal.setCellStyle(isZebra ? currencyZebraBold : currencyWhiteBold);
+
+                // Col 13: Tiền bán tồn cuối (VND)
+                BigDecimal retailVal = item.getClosingRetailValue() != null ? item.getClosingRetailValue() : BigDecimal.valueOf(item.getClosingStock() * price);
+                sumRetailVal = sumRetailVal.add(retailVal);
+                Cell cRetailVal = row.createCell(13);
+                cRetailVal.setCellValue(retailVal.doubleValue());
+                cRetailVal.setCellStyle(isZebra ? currencyZebra : currencyWhite);
+
+                // Col 14: Tình trạng tồn
+                String status = valuationStatusMap.get(item.getProductId());
+                if (status == null || status.isBlank()) {
+                    if (!Boolean.TRUE.equals(item.getIsActive())) {
+                        status = "Ngừng kinh doanh";
+                    } else if (item.getClosingStock() <= 0) {
+                        status = "Hết hàng";
+                    } else if (item.getClosingStock() <= 10) {
+                        status = "Tồn kho thấp";
+                    } else {
+                        status = "Tồn an toàn";
+                    }
+                }
+                Cell cStatus = row.createCell(14);
+                cStatus.setCellValue(status);
+                cStatus.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
             }
         }
 
+        // Total Row
         Row totalRow = sheet.createRow(rowIdx);
-        totalRow.setHeightInPoints(24);
-        for (int i = 0; i <= 8; i++) {
+        totalRow.setHeightInPoints(25);
+        for (int i = 0; i <= 5; i++) {
             Cell c = totalRow.createCell(i);
             c.setCellStyle(totalLabelStyle);
-            if (i == 8) {
-                c.setCellValue("TỔNG CỘNG:");
+            if (i == 5) {
+                c.setCellValue("TỔNG CỘNG TOÀN KHO:");
             }
         }
 
-        Cell cOpen = totalRow.createCell(9);
-        cOpen.setCellValue(sumOpening);
-        cOpen.setCellStyle(totalIntegerStyle);
+        Cell cTotOpen = totalRow.createCell(6);
+        cTotOpen.setCellValue(sumOpening);
+        cTotOpen.setCellStyle(totalIntegerStyle);
 
-        Cell cImp = totalRow.createCell(10);
-        cImp.setCellValue(sumImport);
-        cImp.setCellStyle(totalIntegerStyle);
+        Cell cTotImp = totalRow.createCell(7);
+        cTotImp.setCellValue(sumImport);
+        cTotImp.setCellStyle(totalIntegerStyle);
 
-        Cell cDed = totalRow.createCell(11);
-        cDed.setCellValue(sumDeduct);
-        cDed.setCellStyle(totalIntegerStyle);
+        Cell cTotDed = totalRow.createCell(8);
+        cTotDed.setCellValue(sumDeduct);
+        cTotDed.setCellStyle(totalIntegerStyle);
 
-        Cell cCanc = totalRow.createCell(12);
-        cCanc.setCellValue(sumCancelRestore);
-        cCanc.setCellStyle(totalIntegerStyle);
+        Cell cTotRet = totalRow.createCell(9);
+        cTotRet.setCellValue(sumReturn);
+        cTotRet.setCellStyle(totalIntegerStyle);
 
-        Cell cRet = totalRow.createCell(13);
-        cRet.setCellValue(sumReturnRestore);
-        cRet.setCellStyle(totalIntegerStyle);
+        Cell cTotClose = totalRow.createCell(10);
+        cTotClose.setCellValue(sumClosing);
+        cTotClose.setCellStyle(totalIntegerStyle);
 
-        Cell cClose = totalRow.createCell(14);
-        cClose.setCellValue(sumClosing);
-        cClose.setCellStyle(totalIntegerStyle);
+        Cell cTotOpenVal = totalRow.createCell(11);
+        cTotOpenVal.setCellValue(sumOpeningVal.doubleValue());
+        cTotOpenVal.setCellStyle(totalCurrencyStyle);
 
-        Cell cOpenV = totalRow.createCell(15);
-        cOpenV.setCellValue(sumOpeningVal.doubleValue());
-        cOpenV.setCellStyle(totalCurrencyStyle);
+        Cell cTotCloseVal = totalRow.createCell(12);
+        cTotCloseVal.setCellValue(sumClosingVal.doubleValue());
+        cTotCloseVal.setCellStyle(totalCurrencyStyle);
 
-        Cell cCloseV = totalRow.createCell(16);
-        cCloseV.setCellValue(sumClosingVal.doubleValue());
-        cCloseV.setCellStyle(totalCurrencyStyle);
+        Cell cTotRetailVal = totalRow.createCell(13);
+        cTotRetailVal.setCellValue(sumRetailVal.doubleValue());
+        cTotRetailVal.setCellStyle(totalCurrencyStyle);
 
-        ExcelExportUtil.autoSizeColumns(sheet, headers.length);
+        Cell cTotStatus = totalRow.createCell(14);
+        cTotStatus.setCellStyle(totalLabelStyle);
+
+        // Proportional column widths matching Template_Bao_Cao_Bien_Dong_Kho_v3.xlsx
+        ExcelExportUtil.setColumnWidths(sheet, new int[]{7, 38, 16, 18, 18, 18, 17, 16, 16, 16, 17, 22, 22, 22, 18});
     }
 
+    // =========================================================================
+    // 4. SUPPLEMENTARY STOCK VALUATION WORKBOOK
+    // =========================================================================
     private void buildValuationWorkbook(XSSFWorkbook workbook, List<StockValuationItemDto> stockItems) {
+        XSSFSheet sheet = workbook.createSheet("Định giá & Tồn kho Hiện tại");
+        sheet.createFreezePane(0, 4);
+        sheet.setDisplayGridlines(true);
+
         XSSFCellStyle titleStyle = ExcelExportUtil.createTitleStyle(workbook);
         XSSFCellStyle subtitleStyle = ExcelExportUtil.createSubtitleStyle(workbook);
-        XSSFCellStyle headerStyle = ExcelExportUtil.createHeaderStyle(workbook, PRIMARY_HEADER_RGB);
-        XSSFCellStyle currencyStyle = ExcelExportUtil.createCurrencyStyle(workbook);
-        XSSFCellStyle integerStyle = ExcelExportUtil.createIntegerStyle(workbook);
-        XSSFCellStyle textLeftStyle = ExcelExportUtil.createTextLeftStyle(workbook);
-        XSSFCellStyle textCenterStyle = ExcelExportUtil.createTextCenterStyle(workbook);
+
+        XSSFCellStyle headerCenter = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.CENTER);
+        XSSFCellStyle headerLeft = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.LEFT);
+        XSSFCellStyle headerRight = ExcelExportUtil.createHeaderStyle(workbook, HorizontalAlignment.RIGHT);
+
+        XSSFCellStyle textLeftWhite = ExcelExportUtil.createTextLeftStyle(workbook, false, false);
+        XSSFCellStyle textLeftZebra = ExcelExportUtil.createTextLeftStyle(workbook, true, false);
+
+        XSSFCellStyle textCenterWhite = ExcelExportUtil.createTextCenterStyle(workbook, false, false);
+        XSSFCellStyle textCenterZebra = ExcelExportUtil.createTextCenterStyle(workbook, true, false);
+
+        XSSFCellStyle integerWhite = ExcelExportUtil.createIntegerStyle(workbook, false, false);
+        XSSFCellStyle integerZebra = ExcelExportUtil.createIntegerStyle(workbook, true, false);
+        XSSFCellStyle integerWhiteBold = ExcelExportUtil.createIntegerStyle(workbook, false, true);
+        XSSFCellStyle integerZebraBold = ExcelExportUtil.createIntegerStyle(workbook, true, true);
+
+        XSSFCellStyle currencyWhite = ExcelExportUtil.createCurrencyStyle(workbook, false, false);
+        XSSFCellStyle currencyZebra = ExcelExportUtil.createCurrencyStyle(workbook, true, false);
+        XSSFCellStyle currencyWhiteBold = ExcelExportUtil.createCurrencyStyle(workbook, false, true);
+        XSSFCellStyle currencyZebraBold = ExcelExportUtil.createCurrencyStyle(workbook, true, true);
+
         XSSFCellStyle totalLabelStyle = ExcelExportUtil.createTotalRowLabelStyle(workbook);
         XSSFCellStyle totalCurrencyStyle = ExcelExportUtil.createTotalCurrencyStyle(workbook);
         XSSFCellStyle totalIntegerStyle = ExcelExportUtil.createTotalIntegerStyle(workbook);
 
-        buildValuationSheet(workbook, stockItems, titleStyle, subtitleStyle, headerStyle,
-                currencyStyle, integerStyle, textLeftStyle, textCenterStyle,
-                totalLabelStyle, totalCurrencyStyle, totalIntegerStyle);
-    }
-
-    private void buildValuationSheet(XSSFWorkbook workbook, List<StockValuationItemDto> stockItems,
-                                     XSSFCellStyle titleStyle, XSSFCellStyle subtitleStyle,
-                                     XSSFCellStyle headerStyle, XSSFCellStyle currencyStyle,
-                                     XSSFCellStyle integerStyle, XSSFCellStyle textLeftStyle,
-                                     XSSFCellStyle textCenterStyle, XSSFCellStyle totalLabelStyle,
-                                     XSSFCellStyle totalCurrencyStyle, XSSFCellStyle totalIntegerStyle) {
-
-        XSSFSheet sheet = workbook.createSheet("Định giá & Tồn kho Hiện tại");
-
         Row r0 = sheet.createRow(0);
+        r0.setHeightInPoints(26);
         Cell c0 = r0.createCell(0);
-        c0.setCellValue("BÁO CÁO TỒN KHO & ĐỊNH GIÁ TÀI SẢN KHO HÀNG - AURELIABOOK");
+        c0.setCellValue("BÁO CÁO ĐỊNH GIÁ TÀI SẢN KHO HÀNG");
         c0.setCellStyle(titleStyle);
 
         Row r1 = sheet.createRow(1);
+        r1.setHeightInPoints(18);
         Cell c1 = r1.createCell(0);
-        c1.setCellValue("Thời gian kết xuất: " + LocalDateTime.now().format(DATETIME_FMT) +
-                " | Nguyên tắc kế toán: Giá vốn thực tế (Cost Basis)");
+        c1.setCellValue("Thời điểm xuất: " + LocalDateTime.now().format(DATE_FMT));
         c1.setCellStyle(subtitleStyle);
 
+        sheet.createRow(2).setHeightInPoints(8);
+
         String[] headers = {
-                "STT", "Mã SP", "Mã vạch (Barcode)", "Tên sản phẩm", "Chủng loại",
-                "Danh mục", "Trạng thái KD", "Số lượng tồn", "Đơn giá vốn (VND)", "Đơn giá bán (VND)",
-                "Tổng giá trị vốn (VND)", "Tổng giá trị bán (VND)", "Tình trạng tồn", "Luân chuyển kho"
+                "STT", "Tên sản phẩm", "Phân loại", "Danh mục", "Trạng thái KD",
+                "Số lượng tồn (SP)", "Giá nhập / SP (VND)", "Giá bán / SP (VND)",
+                "Tổng giá trị vốn (VND)", "Tổng giá trị bán (VND)", "Tình trạng tồn"
         };
 
         Row headerRow = sheet.createRow(3);
-        headerRow.setHeightInPoints(25);
+        headerRow.setHeightInPoints(26);
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
+            if (i == 1 || i == 3) {
+                cell.setCellStyle(headerLeft);
+            } else if (i == 0 || i == 2 || i == 4 || i == 10) {
+                cell.setCellStyle(headerCenter);
+            } else {
+                cell.setCellStyle(headerRight);
+            }
         }
 
         int rowIdx = 4;
@@ -331,425 +810,90 @@ public class ExcelExportServiceImpl implements ExcelExportService {
 
         if (stockItems != null) {
             for (StockValuationItemDto item : stockItems) {
+                boolean isZebra = (rowIdx % 2 == 1);
                 Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(stt++);
-                row.getCell(0).setCellStyle(textCenterStyle);
+                row.setHeightInPoints(22);
 
-                row.createCell(1).setCellValue(item.getProductId() != null ? item.getProductId() : 0);
-                row.getCell(1).setCellStyle(textCenterStyle);
+                Cell cStt = row.createCell(0);
+                cStt.setCellValue(stt++);
+                cStt.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                row.createCell(2).setCellValue(item.getBarcode() != null ? item.getBarcode() : "");
-                row.getCell(2).setCellStyle(textCenterStyle);
+                Cell cTitle = row.createCell(1);
+                cTitle.setCellValue(item.getTitle() != null ? item.getTitle() : "");
+                cTitle.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
 
-                row.createCell(3).setCellValue(item.getTitle() != null ? item.getTitle() : "");
-                row.getCell(3).setCellStyle(textLeftStyle);
+                Cell cType = row.createCell(2);
+                cType.setCellValue(item.getProductTypeLabel());
+                cType.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                row.createCell(4).setCellValue(item.getProductTypeLabel());
-                row.getCell(4).setCellStyle(textCenterStyle);
+                Cell cCat = row.createCell(3);
+                cCat.setCellValue(item.getCategoryName() != null ? item.getCategoryName() : "");
+                cCat.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
 
-                row.createCell(5).setCellValue(item.getCategoryName() != null ? item.getCategoryName() : "");
-                row.getCell(5).setCellStyle(textLeftStyle);
-
-                row.createCell(6).setCellValue(item.getActiveStatusLabel());
-                row.getCell(6).setCellStyle(textCenterStyle);
+                Cell cStatus = row.createCell(4);
+                cStatus.setCellValue(item.getActiveStatusLabel());
+                cStatus.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
                 int qty = item.getStockQuantity() != null ? item.getStockQuantity() : 0;
                 totalPhysicalUnits += qty;
-                row.createCell(7).setCellValue(qty);
-                row.getCell(7).setCellStyle(integerStyle);
+                Cell cQty = row.createCell(5);
+                cQty.setCellValue(qty);
+                cQty.setCellStyle(isZebra ? integerZebraBold : integerWhiteBold);
 
                 double cost = item.getOriginalCost() != null ? item.getOriginalCost().doubleValue() : 0.0;
-                row.createCell(8).setCellValue(cost);
-                row.getCell(8).setCellStyle(currencyStyle);
+                Cell cCost = row.createCell(6);
+                cCost.setCellValue(cost);
+                cCost.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
                 double price = item.getPrice() != null ? item.getPrice().doubleValue() : 0.0;
-                row.createCell(9).setCellValue(price);
-                row.getCell(9).setCellStyle(currencyStyle);
+                Cell cPrice = row.createCell(7);
+                cPrice.setCellValue(price);
+                cPrice.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
                 BigDecimal costVal = item.getTotalCostValue() != null ? item.getTotalCostValue() : BigDecimal.ZERO;
                 totalCostAsset = totalCostAsset.add(costVal);
-                row.createCell(10).setCellValue(costVal.doubleValue());
-                row.getCell(10).setCellStyle(currencyStyle);
+                Cell cCostVal = row.createCell(8);
+                cCostVal.setCellValue(costVal.doubleValue());
+                cCostVal.setCellStyle(isZebra ? currencyZebraBold : currencyWhiteBold);
 
                 BigDecimal retailVal = item.getTotalRetailValue() != null ? item.getTotalRetailValue() : BigDecimal.ZERO;
                 totalRetailAsset = totalRetailAsset.add(retailVal);
-                row.createCell(11).setCellValue(retailVal.doubleValue());
-                row.getCell(11).setCellStyle(currencyStyle);
+                Cell cRetailVal = row.createCell(9);
+                cRetailVal.setCellValue(retailVal.doubleValue());
+                cRetailVal.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
-                row.createCell(12).setCellValue(item.getStockStatus() != null ? item.getStockStatus() : "");
-                row.getCell(12).setCellStyle(textCenterStyle);
-
-                row.createCell(13).setCellValue(item.getAgingTier() != null ? item.getAgingTier() : "");
-                row.getCell(13).setCellStyle(textCenterStyle);
+                Cell cStockStatus = row.createCell(10);
+                cStockStatus.setCellValue(item.getStockStatus() != null ? item.getStockStatus() : "");
+                cStockStatus.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
             }
         }
 
         Row totalRow = sheet.createRow(rowIdx);
-        totalRow.setHeightInPoints(22);
-        for (int i = 0; i <= 6; i++) {
+        totalRow.setHeightInPoints(25);
+        for (int i = 0; i <= 4; i++) {
             Cell c = totalRow.createCell(i);
             c.setCellStyle(totalLabelStyle);
-            if (i == 6) {
+            if (i == 4) {
                 c.setCellValue("TỔNG CỘNG TÀI SẢN KHO:");
             }
         }
-        Cell cQty = totalRow.createCell(7);
-        cQty.setCellValue(totalPhysicalUnits);
-        cQty.setCellStyle(totalIntegerStyle);
+        Cell cTotQty = totalRow.createCell(5);
+        cTotQty.setCellValue(totalPhysicalUnits);
+        cTotQty.setCellStyle(totalIntegerStyle);
 
-        totalRow.createCell(8).setCellStyle(totalLabelStyle);
-        totalRow.createCell(9).setCellStyle(totalLabelStyle);
+        totalRow.createCell(6).setCellStyle(totalLabelStyle);
+        totalRow.createCell(7).setCellStyle(totalLabelStyle);
 
-        Cell cCost = totalRow.createCell(10);
-        cCost.setCellValue(totalCostAsset.doubleValue());
-        cCost.setCellStyle(totalCurrencyStyle);
+        Cell cTotCost = totalRow.createCell(8);
+        cTotCost.setCellValue(totalCostAsset.doubleValue());
+        cTotCost.setCellStyle(totalCurrencyStyle);
 
-        Cell cRetail = totalRow.createCell(11);
-        cRetail.setCellValue(totalRetailAsset.doubleValue());
-        cRetail.setCellStyle(totalCurrencyStyle);
+        Cell cTotRetail = totalRow.createCell(9);
+        cTotRetail.setCellValue(totalRetailAsset.doubleValue());
+        cTotRetail.setCellStyle(totalCurrencyStyle);
 
-        totalRow.createCell(12).setCellStyle(totalLabelStyle);
-        totalRow.createCell(13).setCellStyle(totalLabelStyle);
+        totalRow.createCell(10).setCellStyle(totalLabelStyle);
 
-        ExcelExportUtil.autoSizeColumns(sheet, headers.length);
-    }
-
-    private void buildSheet1OverviewAndDaily(XSSFWorkbook workbook, RevenueAnalyticsReportDto reportDto,
-                                             XSSFCellStyle titleStyle, XSSFCellStyle subtitleStyle,
-                                             XSSFCellStyle headerStyle, XSSFCellStyle currencyStyle,
-                                             XSSFCellStyle integerStyle, XSSFCellStyle percentStyle,
-                                             XSSFCellStyle textLeftStyle, XSSFCellStyle textCenterStyle,
-                                             XSSFCellStyle dateStyle, XSSFCellStyle totalLabelStyle,
-                                             XSSFCellStyle totalCurrencyStyle, XSSFCellStyle totalIntegerStyle) {
-
-        String sheetName = reportDto.isMonthlyGranularity() ? "Tổng quan & Doanh thu tháng" : "Tổng quan & Doanh thu theo ngày";
-        XSSFSheet sheet = workbook.createSheet(sheetName);
-
-        Row r0 = sheet.createRow(0);
-        Cell c0 = r0.createCell(0);
-        c0.setCellValue("BÁO CÁO DOANH THU & HIỆU QUẢ KINH DOANH - AURELIABOOK");
-        c0.setCellStyle(titleStyle);
-
-        String dateRangeDesc = "Từ ngày " + (reportDto.getFilter().getStartDate() != null ? reportDto.getFilter().getStartDate().format(DATE_FMT) : "N/A") +
-                " đến ngày " + (reportDto.getFilter().getEndDate() != null ? reportDto.getFilter().getEndDate().format(DATE_FMT) : "N/A");
-
-        Row r1 = sheet.createRow(1);
-        Cell c1 = r1.createCell(0);
-        c1.setCellValue("Kỳ báo cáo: " + dateRangeDesc + " | Thời gian xuất: " + LocalDateTime.now().format(DATETIME_FMT));
-        c1.setCellStyle(subtitleStyle);
-
-        Row r3 = sheet.createRow(3);
-        Cell cSec1 = r3.createCell(0);
-        cSec1.setCellValue("I. TỔNG QUAN CHỈ SỐ TÀI CHÍNH (ĐƠN HÀNG DELIVERED)");
-        cSec1.setCellStyle(titleStyle);
-
-        Row kpiHeader = sheet.createRow(4);
-        kpiHeader.createCell(0).setCellValue("Chỉ số tài chính");
-        kpiHeader.getCell(0).setCellStyle(headerStyle);
-        kpiHeader.createCell(1).setCellValue("Giá trị ghi nhận");
-        kpiHeader.getCell(1).setCellStyle(headerStyle);
-        kpiHeader.createCell(2).setCellValue("Đơn vị tính");
-        kpiHeader.getCell(2).setCellStyle(headerStyle);
-
-        RevenueSummaryKpiDto kpi = reportDto.getKpi() != null ? reportDto.getKpi() : new RevenueSummaryKpiDto();
-        PaymentBreakdownDto payment = reportDto.getPaymentBreakdown() != null ? reportDto.getPaymentBreakdown() : new PaymentBreakdownDto();
-
-        Object[][] kpiData = {
-                {"Tổng doanh thu thực tế (DELIVERED & PAID)", kpi.getGrossRevenue().doubleValue(), currencyStyle, "Đồng"},
-                {"Số đơn hàng hoàn tất & đã thanh toán", (double) kpi.getTotalOrders(), integerStyle, "Đơn hàng"},
-                {"Giá trị trung bình mỗi đơn (AOV)", kpi.getAverageOrderValue().doubleValue(), currencyStyle, "Đồng/Đơn"},
-                {"Tổng cước vận chuyển thu được", kpi.getTotalShippingFee().doubleValue(), currencyStyle, "Đồng"},
-                {"Doanh thu qua COD (Tiền mặt)", payment.getCodRevenue().doubleValue(), currencyStyle, "Đồng"},
-                {"Doanh thu qua VNPAY (Điện tử)", payment.getVnpayRevenue().doubleValue(), currencyStyle, "Đồng"},
-                {"Tỷ lệ đơn thanh toán không dùng tiền mặt (BO-4)", payment.getElectronicSharePercent() / 100.0, percentStyle, "%"}
-        };
-
-        int kpiRowIdx = 5;
-        for (Object[] rowDef : kpiData) {
-            Row row = sheet.createRow(kpiRowIdx++);
-            row.createCell(0).setCellValue((String) rowDef[0]);
-            row.getCell(0).setCellStyle(textLeftStyle);
-
-            Cell valCell = row.createCell(1);
-            valCell.setCellValue((Double) rowDef[1]);
-            valCell.setCellStyle((XSSFCellStyle) rowDef[2]);
-
-            row.createCell(2).setCellValue((String) rowDef[3]);
-            row.getCell(2).setCellStyle(textCenterStyle);
-        }
-
-        int dailyStartRow = kpiRowIdx + 2;
-        Row rDailySec = sheet.createRow(dailyStartRow);
-        Cell cDailySec = rDailySec.createCell(0);
-        cDailySec.setCellValue(reportDto.isMonthlyGranularity() ? "II. BẢNG XU HƯỚNG DOANH THU THEO THÁNG" : "II. BẢNG CHI TIẾT DOANH THU THEO NGÀY");
-        cDailySec.setCellStyle(titleStyle);
-
-        Row dailyHeader = sheet.createRow(dailyStartRow + 1);
-        dailyHeader.setHeightInPoints(24);
-        String periodHeader = reportDto.isMonthlyGranularity() ? "Kỳ giao dịch (Tháng/Năm)" : "Ngày giao dịch";
-        String revHeader = reportDto.isMonthlyGranularity() ? "Doanh thu trong tháng (VND)" : "Doanh thu trong ngày (VND)";
-        String[] dailyCols = {"STT", periodHeader, "Số đơn hoàn tất", revHeader};
-        for (int i = 0; i < dailyCols.length; i++) {
-            Cell cell = dailyHeader.createCell(i);
-            cell.setCellValue(dailyCols[i]);
-            cell.setCellStyle(headerStyle);
-        }
-
-        int dRowIdx = dailyStartRow + 2;
-        int stt = 1;
-        long totalOrdersSum = 0;
-        BigDecimal totalRevenueSum = BigDecimal.ZERO;
-
-        if (reportDto.getDailyTrends() != null) {
-            for (DailyRevenueDto day : reportDto.getDailyTrends()) {
-                Row row = sheet.createRow(dRowIdx++);
-                row.createCell(0).setCellValue(stt++);
-                row.getCell(0).setCellStyle(textCenterStyle);
-
-                Cell cDate = row.createCell(1);
-                if (reportDto.isMonthlyGranularity()) {
-                    cDate.setCellValue(day.getDisplayLabel());
-                    cDate.setCellStyle(textCenterStyle);
-                } else {
-                    cDate.setCellValue(day.getDate() != null ? java.sql.Date.valueOf(day.getDate()) : null);
-                    cDate.setCellStyle(dateStyle);
-                }
-
-                totalOrdersSum += day.getOrderCount();
-                Cell cOrders = row.createCell(2);
-                cOrders.setCellValue(day.getOrderCount());
-                cOrders.setCellStyle(integerStyle);
-
-                BigDecimal rev = day.getRevenue() != null ? day.getRevenue() : BigDecimal.ZERO;
-                totalRevenueSum = totalRevenueSum.add(rev);
-                Cell cRev = row.createCell(3);
-                cRev.setCellValue(rev.doubleValue());
-                cRev.setCellStyle(currencyStyle);
-            }
-        }
-
-        Row totalRow = sheet.createRow(dRowIdx);
-        totalRow.setHeightInPoints(22);
-        Cell cTotLabel1 = totalRow.createCell(0);
-        cTotLabel1.setCellStyle(totalLabelStyle);
-        Cell cTotLabel2 = totalRow.createCell(1);
-        cTotLabel2.setCellValue("TỔNG CỘNG:");
-        cTotLabel2.setCellStyle(totalLabelStyle);
-
-        Cell cTotOrders = totalRow.createCell(2);
-        cTotOrders.setCellValue(totalOrdersSum);
-        cTotOrders.setCellStyle(totalIntegerStyle);
-
-        Cell cTotRev = totalRow.createCell(3);
-        cTotRev.setCellValue(totalRevenueSum.doubleValue());
-        cTotRev.setCellStyle(totalCurrencyStyle);
-
-        ExcelExportUtil.autoSizeColumns(sheet, dailyCols.length);
-    }
-
-    private void buildSheet2BestSellers(XSSFWorkbook workbook, RevenueAnalyticsReportDto reportDto,
-                                        XSSFCellStyle titleStyle, XSSFCellStyle subtitleStyle,
-                                        XSSFCellStyle headerStyle, XSSFCellStyle currencyStyle,
-                                        XSSFCellStyle integerStyle, XSSFCellStyle textLeftStyle,
-                                        XSSFCellStyle textCenterStyle) {
-
-        XSSFSheet sheet = workbook.createSheet("Top Sản phẩm Bán chạy");
-
-        Row r0 = sheet.createRow(0);
-        Cell c0 = r0.createCell(0);
-        c0.setCellValue("BẢNG XẾP HẠNG TOP 5 SẢN PHẨM BÁN CHẠY NHẤT (BESTSELLERS)");
-        c0.setCellStyle(titleStyle);
-
-        Row r1 = sheet.createRow(1);
-        Cell c1 = r1.createCell(0);
-        c1.setCellValue("Số liệu đánh giá theo tổng số lượng bán ra (Quantity Sold) từ các đơn hàng DELIVERED & PAID");
-        c1.setCellStyle(subtitleStyle);
-
-        Row r3 = sheet.createRow(3);
-        Cell cB1 = r3.createCell(0);
-        cB1.setCellValue("1. TOP 5 SÁCH BÁN CHẠY NHẤT");
-        cB1.setCellStyle(titleStyle);
-
-        String[] headers = {"Xếp hạng", "Mã vạch (Barcode)", "Tên sản phẩm", "Chủng loại", "Số lượng bán", "Tổng doanh thu (VND)"};
-        Row bHeader = sheet.createRow(4);
-        bHeader.setHeightInPoints(24);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = bHeader.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
-        }
-
-        int bRowIdx = 5;
-        int rank = 1;
-        if (reportDto.getTopBooks() != null) {
-            for (TopProductSaleDto item : reportDto.getTopBooks()) {
-                Row row = sheet.createRow(bRowIdx++);
-                row.createCell(0).setCellValue(rank++);
-                row.getCell(0).setCellStyle(textCenterStyle);
-
-                row.createCell(1).setCellValue(item.getBarcode() != null ? item.getBarcode() : "");
-                row.getCell(1).setCellStyle(textCenterStyle);
-
-                row.createCell(2).setCellValue(item.getTitle() != null ? item.getTitle() : "");
-                row.getCell(2).setCellStyle(textLeftStyle);
-
-                row.createCell(3).setCellValue("Sách");
-                row.getCell(3).setCellStyle(textCenterStyle);
-
-                row.createCell(4).setCellValue(item.getTotalQuantitySold());
-                row.getCell(4).setCellStyle(integerStyle);
-
-                double rev = item.getTotalRevenue() != null ? item.getTotalRevenue().doubleValue() : 0.0;
-                row.createCell(5).setCellValue(rev);
-                row.getCell(5).setCellStyle(currencyStyle);
-            }
-        }
-
-        int stStartRow = bRowIdx + 2;
-        Row rStTitle = sheet.createRow(stStartRow);
-        Cell cStTitle = rStTitle.createCell(0);
-        cStTitle.setCellValue("2. TOP 5 VĂN PHÒNG PHẨM BÁN CHẠY NHẤT");
-        cStTitle.setCellStyle(titleStyle);
-
-        Row stHeader = sheet.createRow(stStartRow + 1);
-        stHeader.setHeightInPoints(24);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = stHeader.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
-        }
-
-        int stRowIdx = stStartRow + 2;
-        rank = 1;
-        if (reportDto.getTopStationeries() != null) {
-            for (TopProductSaleDto item : reportDto.getTopStationeries()) {
-                Row row = sheet.createRow(stRowIdx++);
-                row.createCell(0).setCellValue(rank++);
-                row.getCell(0).setCellStyle(textCenterStyle);
-
-                row.createCell(1).setCellValue(item.getBarcode() != null ? item.getBarcode() : "");
-                row.getCell(1).setCellStyle(textCenterStyle);
-
-                row.createCell(2).setCellValue(item.getTitle() != null ? item.getTitle() : "");
-                row.getCell(2).setCellStyle(textLeftStyle);
-
-                row.createCell(3).setCellValue("Văn phòng phẩm");
-                row.getCell(3).setCellStyle(textCenterStyle);
-
-                row.createCell(4).setCellValue(item.getTotalQuantitySold());
-                row.getCell(4).setCellStyle(integerStyle);
-
-                double rev = item.getTotalRevenue() != null ? item.getTotalRevenue().doubleValue() : 0.0;
-                row.createCell(5).setCellValue(rev);
-                row.getCell(5).setCellStyle(currencyStyle);
-            }
-        }
-
-        ExcelExportUtil.autoSizeColumns(sheet, headers.length);
-    }
-
-    private void buildSheet3DeliveredOrders(XSSFWorkbook workbook, RevenueAnalyticsReportDto reportDto,
-                                            XSSFCellStyle titleStyle, XSSFCellStyle subtitleStyle,
-                                            XSSFCellStyle headerStyle, XSSFCellStyle currencyStyle,
-                                            XSSFCellStyle integerStyle, XSSFCellStyle textLeftStyle,
-                                            XSSFCellStyle textCenterStyle, XSSFCellStyle dateTimeStyle,
-                                            XSSFCellStyle totalLabelStyle, XSSFCellStyle totalCurrencyStyle) {
-
-        XSSFSheet sheet = workbook.createSheet("Danh sách Đơn hàng Hoàn tất");
-
-        Row r0 = sheet.createRow(0);
-        Cell c0 = r0.createCell(0);
-        c0.setCellValue("DANH SÁCH CHI TIẾT ĐƠN HÀNG DELIVERED & PAID TRONG KỲ - AURELIABOOK");
-        c0.setCellStyle(titleStyle);
-
-        Row r1 = sheet.createRow(1);
-        Cell c1 = r1.createCell(0);
-        c1.setCellValue("Chỉ bao gồm các đơn hàng đã thanh toán và giao thành công. Sử dụng đối soát doanh thu chi tiết.");
-        c1.setCellStyle(subtitleStyle);
-
-        String[] headers = {
-                "STT", "Mã đơn hàng", "Người nhận hàng", "Số điện thoại",
-                "Kênh thanh toán", "Ngày đặt hàng", "Ngày giao hàng",
-                "Cước vận chuyển (VND)", "Tổng tiền thanh toán (VND)"
-        };
-
-        Row headerRow = sheet.createRow(3);
-        headerRow.setHeightInPoints(25);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = headerRow.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
-        }
-
-        int rowIdx = 4;
-        int stt = 1;
-        BigDecimal totalShippingSum = BigDecimal.ZERO;
-        BigDecimal totalAmountSum = BigDecimal.ZERO;
-
-        // F03: Use complete export list (all orders in period without 100 limit)
-        List<RevenueOrderSummaryDto> exportOrders = reportDto.getOrdersForExport();
-
-        if (exportOrders != null && !exportOrders.isEmpty()) {
-            for (RevenueOrderSummaryDto order : exportOrders) {
-                Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(stt++);
-                row.getCell(0).setCellStyle(textCenterStyle);
-
-                row.createCell(1).setCellValue(order.getOrderCode() != null ? order.getOrderCode() : "");
-                row.getCell(1).setCellStyle(textCenterStyle);
-
-                row.createCell(2).setCellValue(order.getRecipientName() != null ? order.getRecipientName() : "");
-                row.getCell(2).setCellStyle(textLeftStyle);
-
-                row.createCell(3).setCellValue(order.getPhone() != null ? order.getPhone() : "");
-                row.getCell(3).setCellStyle(textCenterStyle);
-
-                row.createCell(4).setCellValue(order.getPaymentMethodLabel());
-                row.getCell(4).setCellStyle(textCenterStyle);
-
-                Cell cCreated = row.createCell(5);
-                cCreated.setCellValue(order.getCreatedAt() != null ? java.sql.Timestamp.valueOf(order.getCreatedAt()) : null);
-                cCreated.setCellStyle(dateTimeStyle);
-
-                Cell cDelivered = row.createCell(6);
-                cDelivered.setCellValue(order.getDeliveredAt() != null ? java.sql.Timestamp.valueOf(order.getDeliveredAt()) : null);
-                cDelivered.setCellStyle(dateTimeStyle);
-
-                BigDecimal ship = order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO;
-                totalShippingSum = totalShippingSum.add(ship);
-                Cell cShip = row.createCell(7);
-                cShip.setCellValue(ship.doubleValue());
-                cShip.setCellStyle(currencyStyle);
-
-                BigDecimal total = order.getFinalTotalAmount() != null ? order.getFinalTotalAmount() : BigDecimal.ZERO;
-                totalAmountSum = totalAmountSum.add(total);
-                Cell cTotal = row.createCell(8);
-                cTotal.setCellValue(total.doubleValue());
-                cTotal.setCellStyle(currencyStyle);
-            }
-
-            Row totalRow = sheet.createRow(rowIdx);
-            totalRow.setHeightInPoints(22);
-            for (int i = 0; i <= 6; i++) {
-                Cell c = totalRow.createCell(i);
-                c.setCellStyle(totalLabelStyle);
-                if (i == 6) {
-                    c.setCellValue("TỔNG CỘNG:");
-                }
-            }
-
-            Cell cTotShip = totalRow.createCell(7);
-            cTotShip.setCellValue(totalShippingSum.doubleValue());
-            cTotShip.setCellStyle(totalCurrencyStyle);
-
-            Cell cTotAmount = totalRow.createCell(8);
-            cTotAmount.setCellValue(totalAmountSum.doubleValue());
-            cTotAmount.setCellStyle(totalCurrencyStyle);
-        } else {
-            Row emptyRow = sheet.createRow(rowIdx);
-            emptyRow.createCell(0).setCellValue("Không có đơn hàng hoàn tất nào trong khoảng thời gian này.");
-        }
-
-        ExcelExportUtil.autoSizeColumns(sheet, headers.length);
+        ExcelExportUtil.setColumnWidths(sheet, new int[]{7, 38, 16, 18, 18, 18, 18, 18, 22, 22, 18});
     }
 }

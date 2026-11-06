@@ -132,7 +132,44 @@ class AdminAnalyticsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .andExpect(header().exists("Content-Disposition"))
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("Bao_Cao_Ton_Kho_Bien_Dong_")));
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("Bao_Cao_Bien_Dong_Kho_")));
+    }
+
+    @Test
+    @WithMockUser(username = "admin@aureliabook.vn", roles = {"ADMIN"})
+    @DisplayName("ROLE_ADMIN can export stock movement excel (HTTP 200)")
+    void exportPeriodStockExcel_admin_success() throws Exception {
+        when(analyticsService.getPeriodStockMovementReport(any())).thenReturn(Collections.emptyList());
+        when(analyticsService.getStockValuationReport()).thenReturn(Collections.emptyList());
+        doNothing().when(excelExportService).exportPeriodStockReport(any(), any(), any(), any(OutputStream.class));
+
+        mockMvc.perform(get("/manager/analytics/export/stock"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().exists("Content-Disposition"));
+    }
+
+    @Test
+    @WithMockUser(username = "staff@aureliabook.vn", roles = {"SALE_STAFF"})
+    @DisplayName("ROLE_SALE_STAFF is blocked from exporting stock movements (HTTP 403 Forbidden)")
+    void exportPeriodStockExcel_saleStaff_forbidden() throws Exception {
+        mockMvc.perform(get("/manager/analytics/export/stock"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("ROLE_CUSTOMER is blocked from exporting stock movements (HTTP 403 Forbidden)")
+    void exportPeriodStockExcel_customer_forbidden() throws Exception {
+        mockMvc.perform(get("/manager/analytics/export/stock"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Anonymous user is blocked from exporting stock movements (HTTP 302 Redirect to Login)")
+    void exportPeriodStockExcel_anonymous_redirect() throws Exception {
+        mockMvc.perform(get("/manager/analytics/export/stock"))
+                .andExpect(status().is3xxRedirection());
     }
 
     @Test
