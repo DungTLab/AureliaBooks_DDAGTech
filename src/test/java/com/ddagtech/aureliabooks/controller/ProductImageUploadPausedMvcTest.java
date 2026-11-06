@@ -28,12 +28,14 @@ class ProductImageUploadPausedMvcTest {
     @MockitoBean com.ddagtech.aureliabooks.service.AdminProductService adminProducts;
     @MockitoBean com.ddagtech.aureliabooks.service.MasterDataService masterData;
 
-    @Test void pausedFormsHideUploaderButKeepManualUrl() throws Exception {
+    @Test void pausedFormsKeepHiddenImageUrlAndDisablePicker() throws Exception {
         mvc.perform(get("/manager/books/new").with(
                         org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("manager").roles("MANAGER")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("data-image-uploader"))))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"mainImageUrl\" type=\"text\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"mainImageUrl\" type=\"hidden\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<input[^>]*data-image-file[^>]*disabled[^>]*>.*")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<button[^>]*data-image-choose[^>]*disabled[^>]*>.*")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<button[^>]*data-image-upload[^>]*disabled[^>]*>.*")));
     }
 
     @Test void pauseRemovesUploadControllerButPreservesAnonymousReads() throws Exception {

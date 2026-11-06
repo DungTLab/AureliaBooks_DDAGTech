@@ -54,11 +54,13 @@ class AdminProductControllerTest {
 
     @Test
     @WithMockUser(roles = "MANAGER")
-    void disabledR2KeepsManualUrlAndHidesUploader() throws Exception {
+    void disabledR2KeepsHiddenImageUrlAndDisablesPicker() throws Exception {
         mockMvc.perform(get("/manager/books/new"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"mainImageUrl\" type=\"text\"")))
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("data-image-uploader"))));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"mainImageUrl\" type=\"hidden\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<input[^>]*data-image-file[^>]*disabled[^>]*>.*")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<button[^>]*data-image-choose[^>]*disabled[^>]*>.*")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<button[^>]*data-image-upload[^>]*disabled[^>]*>.*")));
     }
 
     @Test

@@ -45,7 +45,8 @@ class AccountArchitectureTest {
     @EnableTransactionManagement
     @Import({RegistrationServiceImpl.class, AccountOtpServiceImpl.class,
         AccountSecurityServiceImpl.class, ContactChangeServiceImpl.class,
-        ContactChangeWriterImpl.class, AccountPresentationServiceImpl.class, AvatarStorageImpl.class})
+        ContactChangeWriterImpl.class, AccountPresentationServiceImpl.class, AvatarStorageImpl.class,
+        com.ddagtech.aureliabooks.service.impl.ProductImageProcessor.class})
     static class AccountBeans {
 
         @Bean

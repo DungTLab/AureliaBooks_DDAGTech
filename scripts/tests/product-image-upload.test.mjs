@@ -48,6 +48,14 @@ export async function runTests() {
         assert.equal(f.calls[0][1].body.file, f.file.files[0]);
         assert.equal(f.preview.hidden, false); // Preview stays local until DB commit.
     });
+    await test('selected but not uploaded image blocks saving the product', async () => {
+        const f = fixture(async () => ({ok: true, json: async () => ({imageUrl})}));
+        f.file.listeners.change();
+        let prevented = false;
+        f.form.listeners.submit({preventDefault() {prevented = true;}, stopImmediatePropagation() {}});
+        assert.equal(prevented, true);
+        assert.match(f.status.textContent, /tải ảnh đã chọn/);
+    });
     await test('invalid file never sends request or changes URL', async () => {
         const f = fixture(() => {throw new Error('Unexpected request');});
         f.file.files = [{size: 6 * 1024 * 1024, type: 'image/png'}];
