@@ -20,6 +20,9 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
+    @Query("SELECT DISTINCT p.category.id FROM Product p WHERE p.productType = :type AND p.category IS NOT NULL")
+    List<Long> findCategoryIdsByProductType(@Param("type") Product.ProductType type);
+
     /**
      * Checks if a product with the specified barcode exists.
      *

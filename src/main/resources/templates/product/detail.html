@@ -249,6 +249,10 @@
                         <dt class="text-carbon_black-400 font-medium">Năm xuất bản</dt>
                         <dd class="text-carbon_black font-semibold" th:text="${product.publicationYear}">-</dd>
                     </div>
+                    <div th:if="${product.edition != null and !product.edition.isBlank()}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Lần xuất bản</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.edition}"></dd>
+                    </div>
                     <div th:if="${product.coverType != null}" class="py-3 flex justify-between">
                         <dt class="text-carbon_black-400 font-medium">Hình thức bìa</dt>
                         <dd class="text-carbon_black font-semibold"
@@ -273,7 +277,10 @@
                 <th:block th:if="${product.productType?.name() == 'STATIONERY'}">
                     <div th:if="${product.brandName != null}" class="py-3 flex justify-between">
                         <dt class="text-carbon_black-400 font-medium">Thương hiệu</dt>
-                        <dd class="text-carbon_black font-semibold" th:text="${product.brandName}">-</dd>
+                        <dd class="text-carbon_black font-semibold">
+                            <a th:href="@{/products(brandId=${product.brandId})}" th:text="${product.brandName}"
+                               class="hover:text-blazing_flame"></a>
+                        </dd>
                     </div>
                     <div th:if="${product.material != null}" class="py-3 flex justify-between">
                         <dt class="text-carbon_black-400 font-medium">Chất liệu</dt>

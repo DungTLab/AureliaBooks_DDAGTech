@@ -36,6 +36,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedHashMap;
 
 /**
  * Service implementation for product catalog operations (UC01, UC02, UC03).
@@ -94,12 +99,9 @@ public class ProductServiceImpl implements ProductService {
                 List<Long> targetCategoryIds = new ArrayList<>();
                 targetCategoryIds.add(filter.categoryId());
                 if (categoryRepository != null) {
-                    List<Category> children = categoryRepository.findByParentId(filter.categoryId());
-                    if (children != null && !children.isEmpty()) {
-                        for (Category child : children) {
-                            targetCategoryIds.add(child.getId());
-                        }
-                    }
+                    collectCategoryBranch(getActiveCategories(), filter.categoryId()).stream()
+                            .map(CategorySummary::id).filter(id -> !id.equals(filter.categoryId()))
+                            .forEach(targetCategoryIds::add);
                 }
                 spec = spec.and(ProductSpecification.hasCategoryIn(targetCategoryIds));
             }
@@ -174,6 +176,69 @@ public class ProductServiceImpl implements ProductService {
         return categoryRepository.findByIsActiveTrue().stream()
                 .map(masterDataMapper::toCategorySummary)
                 .toList();
+    }
+
+    @Override
+    public Map<CategorySummary, List<CategorySummary>> groupCategoriesForMenu(List<CategorySummary> categories) {
+        Map<CategorySummary, List<CategorySummary>> groups = new LinkedHashMap<>();
+        Set<Long> ids = new HashSet<>();
+        for (CategorySummary category : categories) {
+            ids.add(category.id());
+        }
+        for (CategorySummary category : categories) {
+            if (category.parentId() == null || !ids.contains(category.parentId())) {
+                List<CategorySummary> preview = collectCategoryBranch(categories, category.id()).stream()
+                        .filter(child -> !child.id().equals(category.id()))
+                        .limit(12)
+                        .toList();
+                groups.put(category, preview);
+            }
+        }
+        return groups;
+    }
+
+    private List<CategorySummary> collectCategoryBranch(List<CategorySummary> categories, Long rootId) {
+        Map<Long, List<CategorySummary>> children = new HashMap<>();
+        Map<Long, CategorySummary> byId = new LinkedHashMap<>();
+        for (CategorySummary category : categories) {
+            byId.put(category.id(), category);
+            if (category.parentId() != null) {
+                children.computeIfAbsent(category.parentId(), key -> new ArrayList<>()).add(category);
+            }
+        }
+        List<CategorySummary> result = new ArrayList<>();
+        Deque<Long> pending = new ArrayDeque<>();
+        Set<Long> visited = new HashSet<>();
+        pending.push(rootId);
+        while (!pending.isEmpty()) {
+            Long id = pending.pop();
+            if (!visited.add(id)) continue;
+            if (byId.containsKey(id)) result.add(byId.get(id));
+            List<CategorySummary> descendants = children.getOrDefault(id, List.of());
+            for (int index = descendants.size() - 1; index >= 0; index--) {
+                pending.push(descendants.get(index).id());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CategorySummary> getCategoriesForType(Product.ProductType type) {
+        List<CategorySummary> categories = getActiveCategories();
+        if (type == null) return categories;
+        Map<Long, CategorySummary> byId = new HashMap<>();
+        categories.forEach(category -> byId.put(category.id(), category));
+        Set<Long> matching = new HashSet<>();
+        for (Long categoryId : productRepository.findCategoryIdsByProductType(type)) {
+            CategorySummary current = byId.get(categoryId);
+            Set<Long> visited = new HashSet<>();
+            while (current != null && visited.add(current.id())) {
+                matching.add(current.id());
+                current = byId.get(current.parentId());
+            }
+        }
+        return categories.stream().filter(category -> matching.contains(category.id())).toList();
     }
 
     @Transactional(readOnly = true)

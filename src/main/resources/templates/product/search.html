@@ -54,8 +54,6 @@
                                 th:selected="${currentSize == 12 or currentSize == null}">12 / trang</option>
                         <option th:value="@{/products/search(size=24, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
                                 th:selected="${currentSize == 24}">24 / trang</option>
-                        <option th:value="@{/products/search(size=48, sort=${currentSort}, keyword=${filter != null and filter.keyword != null ? filter.keyword : (keyword != null ? keyword : null)}, categoryId=${filter != null ? filter.categoryId : null}, productType=${filter != null ? filter.productType : null}, minPrice=${filter != null ? filter.minPrice : null}, maxPrice=${filter != null ? filter.maxPrice : null}, authorId=${filter != null ? filter.authorId : null}, publisherId=${filter != null ? filter.publisherId : null}, brandId=${filter != null ? filter.brandId : null}, coverType=${filter != null ? filter.coverType : null}, isTextbook=${filter != null ? filter.isTextbook : null})}"
-                                th:selected="${currentSize == 48}">48 / trang</option>
                     </select>
                 </div>
 
@@ -148,10 +146,10 @@
 
                     <div class="mt-3 pt-3 border-t border-dust_grey/40 flex items-baseline justify-between">
                         <div class="text-sm sm:text-base font-extrabold text-blazing_flame font-sans">
-                            <span th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')}">100.000</span>
-                            <span class="text-xs font-semibold">đ</span>
+                            <span th:text="${#numbers.formatDecimal(product.price, 0, 'POINT', 0, 'COMMA')}">100.000</span>
+                            <span class="text-xs font-semibold">₫</span>
                         </div>
-                        <span class="text-[10px] text-carbon_black-400 font-medium">Kho: [[${product.stockQuantity}]]</span>
+
                     </div>
                 </div>
             </div>
