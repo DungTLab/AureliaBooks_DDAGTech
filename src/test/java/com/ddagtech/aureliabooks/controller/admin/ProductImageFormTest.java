@@ -28,14 +28,18 @@ class ProductImageFormTest {
     private static final String URL = "/products/images/550e8400-e29b-41d4-a716-446655440000";
 
     @ParameterizedTest @ValueSource(strings = {"books", "stationeries"})
-    void bothFormsRenderUploaderWithCsrfAndManualUrl(String type) throws Exception {
+    void bothFormsRenderFileChooserWithoutManualUrl(String type) throws Exception {
         String html = mvc.perform(get("/manager/" + type + "/new").with(user("manager").roles("MANAGER")))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertThat(html).contains("id=\"mainImageUrl\" type=\"text\"", "data-upload-url=\"/manager/products/images\"",
+        assertThat(html).contains("id=\"mainImageUrl\" type=\"hidden\"", "data-upload-url=\"/manager/products/images\"",
                 "data-header=\"X-CSRF-TOKEN\"", "/js/product-image-upload.js");
+        assertThat(html).contains("data-image-choose", "Chọn ảnh").doesNotContain("Đường dẫn ảnh sản phẩm", "https://example.com/cover.jpg");
         var token = java.util.regex.Pattern.compile("<input[^>]*data-image-csrf[^>]*>").matcher(html);
         assertThat(token.find()).isTrue();
         assertThat(token.group()).containsPattern("value=\"[^\"]+\"");
+        var capture = java.nio.file.Path.of("target/qa/product-images");
+        java.nio.file.Files.createDirectories(capture);
+        java.nio.file.Files.writeString(capture.resolve(type + ".html"), html);
     }
 
     @Test void bookFormSubmitsCanonicalInternalUrl() throws Exception {

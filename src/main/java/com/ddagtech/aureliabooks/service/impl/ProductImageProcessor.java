@@ -21,9 +21,17 @@ public class ProductImageProcessor {
     private static final int MAX_DIMENSION = 1600;
 
     public byte[] toPng(MultipartFile file) {
+        return normalize(file, MAX_FILE_SIZE, MAX_DIMENSION, "Ảnh sản phẩm phải có dung lượng từ 1 byte đến 5 MB.");
+    }
+
+    public byte[] toAvatarPng(MultipartFile file) {
+        return normalize(file, 2L * 1024 * 1024, 512, "Ảnh đại diện phải có dung lượng từ 1 byte đến 2 MB.");
+    }
+
+    private byte[] normalize(MultipartFile file, long maxFileSize, int maxDimension, String sizeMessage) {
         if (file == null || file.isEmpty()
-                || file.getSize() > MAX_FILE_SIZE) {
-            throw invalid("Ảnh sản phẩm phải có dung lượng từ 1 byte đến 5 MB.");
+                || file.getSize() > maxFileSize) {
+            throw invalid(sizeMessage);
         }
 
         try (var stream = file.getInputStream();
@@ -63,7 +71,7 @@ public class ProductImageProcessor {
 
                 double scale = Math.min(
                         1.0,
-                        (double) MAX_DIMENSION / Math.max(width, height)
+                        (double) maxDimension / Math.max(width, height)
                 );
 
                 int targetWidth = Math.max(1, (int) (width * scale));
@@ -103,7 +111,7 @@ public class ProductImageProcessor {
 
                 byte[] result = output.toByteArray();
 
-                if (result.length == 0 || result.length > MAX_FILE_SIZE) {
+                if (result.length == 0 || result.length > maxFileSize) {
                     throw invalid("Ảnh sau xử lý vượt quá dung lượng cho phép.");
                 }
 
@@ -114,7 +122,7 @@ public class ProductImageProcessor {
             }
 
         } catch (IOException e) {
-            throw invalid("Không thể xử lý ảnh sản phẩm.");
+            throw invalid("Không thể xử lý ảnh.");
         }
     }
 

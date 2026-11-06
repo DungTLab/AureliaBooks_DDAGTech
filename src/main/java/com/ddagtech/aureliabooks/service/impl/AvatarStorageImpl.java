@@ -2,97 +2,140 @@ package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.exception.AppException;
-import com.ddagtech.aureliabooks.service.*;
-import java.io.*;
+import com.ddagtech.aureliabooks.service.AvatarStorage;
+import java.io.IOException;
 import java.nio.file.*;
 import java.util.UUID;
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
-/** Private local storage. Decode/re-encode removes uploaded metadata and executable payloads. */
+/** Private avatar URLs remain stable across local storage and R2. */
+@Slf4j
 @Service
 public class AvatarStorageImpl implements AvatarStorage {
-
+    private static final String PREFIX = "/profile/avatar/";
+    private static final int MAX_BYTES = 2 * 1024 * 1024;
     private final Path root;
+    private final ProductImageProcessor images;
+    private final S3Client r2;
+    private final String bucket;
+    private final boolean uploadsEnabled;
 
-    public AvatarStorageImpl(@Value("${app.avatar.directory:./uploads/avatars}") String directory) {
-        root = Path.of(directory).toAbsolutePath().normalize();
+    public AvatarStorageImpl(String directory) {
+        this(directory, new ProductImageProcessor(), null, "", false, true);
     }
 
+    @Autowired
+    public AvatarStorageImpl(@Value("${app.avatar.directory:./uploads/avatars}") String directory,
+            ProductImageProcessor images, ObjectProvider<S3Client> clients,
+            @Value("${app.r2.bucket:}") String bucket,
+            @Value("${app.r2.enabled:false}") boolean enabled,
+            @Value("${app.r2.upload-enabled:true}") boolean uploadsEnabled) {
+        this.root = Path.of(directory).toAbsolutePath().normalize();
+        this.images = images;
+        this.r2 = enabled ? clients.getIfAvailable() : null;
+        this.bucket = bucket;
+        this.uploadsEnabled = uploadsEnabled;
+        if (enabled && (r2 == null || bucket.isBlank())) throw new IllegalStateException("Avatar R2 configuration is incomplete");
+    }
+
+    @Override
     public String store(MultipartFile file) {
-        if (file == null || file.isEmpty() || file.getSize() > 2L * 1024 * 1024) throw invalid(
-            "Ảnh đại diện phải có dung lượng từ 1 byte đến 2 MB."
-        );
-        Path target = null;
-        try (var uploaded = file.getInputStream(); var input = ImageIO.createImageInputStream(uploaded)) {
-            var readers = ImageIO.getImageReaders(input);
-            if (!readers.hasNext()) throw invalid("Vui lòng chọn ảnh PNG hoặc JPEG hợp lệ.");
-            ImageReader reader = readers.next();
+        byte[] png = images.toAvatarPng(file);
+        String filename = UUID.randomUUID() + ".png";
+        if (r2 != null) {
+            if (!uploadsEnabled) throw invalid("Chức năng tải ảnh đang tạm dừng. Vui lòng thử lại sau.");
             try {
-                reader.setInput(input, true, true);
-                String format = reader.getFormatName();
-                if (
-                    !(format.equalsIgnoreCase("png") || format.equalsIgnoreCase("jpeg")) ||
-                    (long) reader.getWidth(0) * reader.getHeight(0) > 16_000_000
-                ) throw invalid("Ảnh phải là PNG/JPEG và không quá 16 triệu điểm ảnh.");
-                var image = reader.read(0);
-                double scale = Math.min(1.0, 512.0 / Math.max(image.getWidth(), image.getHeight()));
-                if (scale < 1.0) {
-                    var thumbnail = new java.awt.image.BufferedImage(
-                        Math.max(1, (int) (image.getWidth() * scale)),
-                        Math.max(1, (int) (image.getHeight() * scale)),
-                        java.awt.image.BufferedImage.TYPE_INT_ARGB
-                    );
-                    var graphics = thumbnail.createGraphics();
-                    try {
-                        graphics.setRenderingHint(
-                            java.awt.RenderingHints.KEY_INTERPOLATION,
-                            java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR
-                        );
-                        graphics.drawImage(image, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), null);
-                    } finally {
-                        graphics.dispose();
-                    }
-                    image = thumbnail;
-                }
-                Files.createDirectories(root);
-                String filename = UUID.randomUUID() + ".png";
-                target = path(filename);
-                try (var output = Files.newOutputStream(target, StandardOpenOption.CREATE_NEW)) {
-                    if (!ImageIO.write(image, "png", output)) throw new IOException("PNG encoder unavailable");
-                }
-                return "/profile/avatar/" + filename;
-            } finally {
-                reader.dispose();
+                r2.putObject(PutObjectRequest.builder().bucket(bucket).key("avatars/" + filename)
+                    .contentType("image/png").build(), RequestBody.fromBytes(png));
+            } catch (SdkException error) {
+                log.warn("Avatar R2 upload failed ({})", error instanceof S3Exception s3 ? s3.statusCode() : "connection");
+                throw invalid("Không thể lưu ảnh đại diện. Vui lòng thử lại.");
             }
-        } catch (IOException e) {
-            if (target != null) delete("/profile/avatar/" + target.getFileName());
-            throw invalid("Không thể lưu ảnh đại diện. Vui lòng thử lại.");
+        } else {
+            try {
+                Files.createDirectories(root);
+                Files.write(path(filename), png, StandardOpenOption.CREATE_NEW);
+            } catch (IOException error) {
+                delete(PREFIX + filename);
+                log.warn("Local avatar write failed ({})", error.getClass().getSimpleName());
+                throw invalid("Không thể lưu ảnh đại diện. Vui lòng thử lại.");
+            }
         }
+        return PREFIX + filename;
     }
 
+    @Override
     public byte[] read(String filename) {
+        path(filename);
+        if (r2 != null) {
+            try (var stream = r2.getObject(GetObjectRequest.builder().bucket(bucket).key("avatars/" + filename).build())) {
+                Long length = stream.response().contentLength();
+                if (!"image/png".equals(stream.response().contentType()) || (length != null && (length <= 0 || length > MAX_BYTES))) {
+                    stream.abort();
+                    throw invalid("Không thể đọc ảnh đại diện.");
+                }
+                byte[] bytes;
+                try {
+                    bytes = stream.readNBytes(MAX_BYTES + 1);
+                } catch (IOException error) {
+                    stream.abort();
+                    throw error;
+                }
+                if (bytes.length == 0 || bytes.length > MAX_BYTES || (length != null && bytes.length != length)) {
+                    stream.abort();
+                    throw invalid("Không thể đọc ảnh đại diện.");
+                }
+                return bytes;
+            } catch (S3Exception error) {
+                if (error.statusCode() != 404) {
+                    log.warn("Avatar R2 read failed ({})", error.statusCode());
+                    throw invalid("Không thể đọc ảnh đại diện. Vui lòng thử lại.");
+                }
+                // Existing avatars may still live on the old local volume during rollout.
+            } catch (SdkException | IOException error) {
+                log.warn("Avatar R2 read failed ({})", error.getClass().getSimpleName());
+                throw invalid("Không thể đọc ảnh đại diện. Vui lòng thử lại.");
+            }
+        }
         try {
             return Files.readAllBytes(path(filename));
-        } catch (IOException e) {
+        } catch (IOException error) {
             throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
+    @Override
     public void delete(String url) {
-        if (url == null || !url.startsWith("/profile/avatar/")) return;
+        if (url == null || !url.startsWith(PREFIX)) return;
+        String filename = url.substring(PREFIX.length());
+        path(filename);
+        if (r2 != null) {
+            try {
+                r2.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key("avatars/" + filename).build());
+            } catch (SdkException error) {
+                log.warn("Avatar R2 cleanup failed ({})", error.getClass().getSimpleName());
+            }
+        }
         try {
-            Files.deleteIfExists(path(url.substring("/profile/avatar/".length())));
-        } catch (IOException e) {
-            /* Old orphan may be cleaned by operations; never undo committed profile. */
+            Files.deleteIfExists(path(filename));
+        } catch (IOException error) {
+            log.warn("Local avatar cleanup failed ({})", error.getClass().getSimpleName());
         }
     }
 
     private Path path(String filename) {
-        if (!filename.matches("[0-9a-f-]{36}\\.png")) throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        if (filename == null || !filename.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.png")) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         return root.resolve(filename);
     }
 

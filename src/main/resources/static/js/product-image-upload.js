@@ -9,33 +9,46 @@
         const preview = panel.querySelector("[data-image-preview]");
         const csrf = panel.querySelector("[data-image-csrf]");
         let busy = false;
+        let pending = false;
+        const originalUrl = url.value;
+        const choose = panel.querySelector("[data-image-choose]");
+        choose?.addEventListener("click", () => file.click());
         let localPreview;
         const internalUrl = /^\/products\/images\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
         function discardPreview() {
             if (localPreview) URL.revokeObjectURL(localPreview);
             localPreview = undefined;
-            preview.hidden = true;
-            preview.removeAttribute("src");
+            preview.hidden = !originalUrl;
+            if (originalUrl) preview.src = originalUrl;
+            else preview.removeAttribute("src");
         }
         file.addEventListener("change", () => {
             discardPreview();
             status.textContent = "";
+            pending = false;
+            button.disabled = true;
             const selected = file.files[0];
             if (selected && selected.size > 0 && selected.size <= 5 * 1024 * 1024
                     && ["image/png", "image/jpeg"].includes(selected.type)) {
                 localPreview = URL.createObjectURL(selected);
                 preview.src = localPreview;
                 preview.hidden = false;
+                pending = true;
+                button.disabled = false;
+                status.textContent = "Đã chọn ảnh. Nhấn Tải ảnh lên trước khi lưu sản phẩm.";
+            } else if (selected) {
+                status.textContent = "Chọn ảnh PNG/JPEG hợp lệ, tối đa 5 MB.";
+                file.value = "";
             }
         });
         url.addEventListener("input", () => {
             if (!busy) { discardPreview(); status.textContent = ""; }
         });
         form.addEventListener("submit", (event) => {
-            if (busy) {
+            if (busy || pending) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
-                status.textContent = "Vui lòng đợi tải ảnh hoàn tất trước khi lưu.";
+                status.textContent = busy ? "Vui lòng đợi tải ảnh hoàn tất trước khi lưu." : "Vui lòng tải ảnh đã chọn lên trước khi lưu sản phẩm.";
             }
         }, true);
         window.addEventListener("pagehide", discardPreview);
@@ -53,6 +66,7 @@
             }
             const wasBlocked = form.dataset.serverBlocked;
             busy = true;
+            pending = true;
             button.disabled = true;
             file.disabled = true;
             url.readOnly = true;
@@ -79,13 +93,14 @@
                 const result = await response.json();
                 if (!internalUrl.test(result.imageUrl || "")) throw new Error("Phản hồi ảnh không hợp lệ.");
                 url.value = result.imageUrl;
+                pending = false;
                 status.textContent = "Đã tải ảnh. Hãy lưu sản phẩm để hiển thị ảnh này.";
             } catch (error) {
                 status.textContent = error instanceof TypeError ? "Không thể kết nối dịch vụ ảnh. Hãy thử lại."
                     : error.message;
             } finally {
                 busy = false;
-                button.disabled = false;
+                button.disabled = !pending;
                 file.disabled = false;
                 url.readOnly = false;
                 if (wasBlocked === undefined) delete form.dataset.serverBlocked;
