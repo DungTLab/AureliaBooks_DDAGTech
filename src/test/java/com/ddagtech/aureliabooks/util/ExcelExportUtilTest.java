@@ -27,7 +27,7 @@ class ExcelExportUtilTest {
     private final ExcelExportServiceImpl excelExportService = new ExcelExportServiceImpl();
 
     @Test
-    @DisplayName("exportRevenueExcel - Generates 3 well-formed sheets with correct headers and styles")
+    @DisplayName("exportRevenueExcel - Generates 2 well-formed sheets with correct headers, net profit and styles")
     void exportRevenueExcel_happyPath() throws IOException {
         RevenueFilterRequest filter = RevenueFilterRequest.builder()
                 .startDate(LocalDate.of(2026, 10, 1))
@@ -99,21 +99,44 @@ class ExcelExportUtilTest {
         assertThat(bytes).isNotEmpty();
 
         try (XSSFWorkbook parsedWb = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
-            assertThat(parsedWb.getNumberOfSheets()).isEqualTo(3);
+            // Updated V2.1 specification: 2 Sheets (Top Bán chạy removed)
+            assertThat(parsedWb.getNumberOfSheets()).isEqualTo(2);
 
             // Sheet 1: Tổng quan & Doanh thu theo ngày
             Sheet sheet1 = parsedWb.getSheetAt(0);
             assertThat(sheet1.getSheetName()).contains("Tổng quan");
-            assertThat(sheet1.getRow(0).getCell(0).getStringCellValue()).contains("BÁO CÁO DOANH THU");
+            assertThat(sheet1.getRow(0).getCell(0).getStringCellValue()).contains("BÁO CÁO DOANH THU THEO KỲ");
 
-            // Sheet 2: Top Sản phẩm Bán chạy
+            // Section I: KPI Header at row 4
+            Row kpiHeaderRow = sheet1.getRow(4);
+            assertThat(kpiHeaderRow.getCell(0).getStringCellValue()).isEqualTo("Chỉ tiêu tài chính");
+            assertThat(kpiHeaderRow.getCell(3).getStringCellValue()).isEqualTo("Số liệu ghi nhận");
+
+            // Row 5: KPI Tổng doanh thu (Col 3 is numeric double with custom format, verifying Issue 2)
+            Row kpiRow0 = sheet1.getRow(5);
+            assertThat(kpiRow0.getCell(0).getStringCellValue()).isEqualTo("Tổng doanh thu");
+            assertThat(kpiRow0.getCell(3).getCellType()).isEqualTo(org.apache.poi.ss.usermodel.CellType.NUMERIC);
+            assertThat(kpiRow0.getCell(3).getNumericCellValue()).isEqualTo(5000000.0);
+
+            // Daily Header at row 13 (no hardcoded profit column)
+            Row dailyHeaderRow = sheet1.getRow(13);
+            assertThat(dailyHeaderRow.getCell(0).getStringCellValue()).isEqualTo("STT");
+            assertThat(dailyHeaderRow.getCell(1).getStringCellValue()).isEqualTo("Ngày giao dịch");
+            assertThat(dailyHeaderRow.getCell(2).getStringCellValue()).isEqualTo("Số đơn hoàn tất");
+            assertThat(dailyHeaderRow.getCell(3).getStringCellValue()).isEqualTo("Doanh thu (VND)");
+            assertThat(dailyHeaderRow.getCell(4)).isNull();
+
+            // Sheet 2: Danh sách Đơn hàng Hoàn tất
             Sheet sheet2 = parsedWb.getSheetAt(1);
-            assertThat(sheet2.getSheetName()).contains("Top");
+            assertThat(sheet2.getSheetName()).contains("Đơn hàng");
+            assertThat(sheet2.getRow(0).getCell(0).getStringCellValue()).contains("DANH SÁCH ĐƠN HÀNG HOÀN TẤT");
 
-            // Sheet 3: Danh sách Đơn hàng Hoàn tất
-            Sheet sheet3 = parsedWb.getSheetAt(2);
-            assertThat(sheet3.getSheetName()).contains("Đơn hàng");
-            assertThat(sheet3.getRow(0).getCell(0).getStringCellValue()).contains("DANH SÁCH");
+            Row orderHeaderRow = sheet2.getRow(3);
+            assertThat(orderHeaderRow.getCell(0).getStringCellValue()).isEqualTo("STT");
+            assertThat(orderHeaderRow.getCell(1).getStringCellValue()).isEqualTo("Người nhận");
+            assertThat(orderHeaderRow.getCell(3).getStringCellValue()).isEqualTo("Phương thức thanh toán");
+            assertThat(orderHeaderRow.getCell(7).getStringCellValue()).isEqualTo("Tổng tiền thanh toán (VND)");
+            assertThat(orderHeaderRow.getCell(8)).isNull();
         }
     }
 
@@ -137,7 +160,7 @@ class ExcelExportUtilTest {
         assertThat(bytes).isNotEmpty();
 
         try (XSSFWorkbook parsedWb = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
-            assertThat(parsedWb.getNumberOfSheets()).isEqualTo(3);
+            assertThat(parsedWb.getNumberOfSheets()).isEqualTo(2);
         }
     }
 
@@ -156,7 +179,7 @@ class ExcelExportUtilTest {
                 .price(BigDecimal.valueOf(120000))
                 .totalCostValue(BigDecimal.valueOf(2000000))
                 .totalRetailValue(BigDecimal.valueOf(3000000))
-                .stockStatus("ĐỦ HÀNG")
+                .stockStatus("Tồn an toàn")
                 .agingTier("HEALTHY")
                 .build();
 
@@ -172,7 +195,7 @@ class ExcelExportUtilTest {
                 .price(BigDecimal.valueOf(70000))
                 .totalCostValue(BigDecimal.valueOf(350000))
                 .totalRetailValue(BigDecimal.valueOf(490000))
-                .stockStatus("CẢNH BÁO TỒN THẤP")
+                .stockStatus("Tồn kho thấp")
                 .agingTier("DEAD_STOCK")
                 .build();
 
@@ -189,37 +212,37 @@ class ExcelExportUtilTest {
 
             // Row 0 is Title
             Row titleRow = sheet.getRow(0);
-            assertThat(titleRow.getCell(0).getStringCellValue()).contains("BÁO CÁO TỒN KHO & ĐỊNH GIÁ");
+            assertThat(titleRow.getCell(0).getStringCellValue()).contains("BÁO CÁO ĐỊNH GIÁ TÀI SẢN KHO HÀNG");
 
             // Row 3 is Header
             Row headerRow = sheet.getRow(3);
             assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("STT");
-            assertThat(headerRow.getCell(2).getStringCellValue()).isEqualTo("Mã vạch (Barcode)");
-            assertThat(headerRow.getCell(3).getStringCellValue()).isEqualTo("Tên sản phẩm");
-            assertThat(headerRow.getCell(6).getStringCellValue()).isEqualTo("Trạng thái KD");
+            assertThat(headerRow.getCell(1).getStringCellValue()).isEqualTo("Tên sản phẩm");
+            assertThat(headerRow.getCell(2).getStringCellValue()).isEqualTo("Phân loại");
+            assertThat(headerRow.getCell(4).getStringCellValue()).isEqualTo("Trạng thái KD");
 
             // Row 4 is Data row 1 (Active)
             Row dataRow1 = sheet.getRow(4);
             assertThat(dataRow1.getCell(0).getNumericCellValue()).isEqualTo(1.0);
-            assertThat(dataRow1.getCell(2).getStringCellValue()).isEqualTo("8930001");
-            assertThat(dataRow1.getCell(6).getStringCellValue()).isEqualTo("Đang kinh doanh");
+            assertThat(dataRow1.getCell(1).getStringCellValue()).isEqualTo("Bút Máy Cao Cấp");
+            assertThat(dataRow1.getCell(4).getStringCellValue()).isEqualTo("Đang kinh doanh");
 
             // Row 5 is Data row 2 (Inactive item retained with stock)
             Row dataRow2 = sheet.getRow(5);
             assertThat(dataRow2.getCell(0).getNumericCellValue()).isEqualTo(2.0);
-            assertThat(dataRow2.getCell(2).getStringCellValue()).isEqualTo("8930002");
-            assertThat(dataRow2.getCell(6).getStringCellValue()).isEqualTo("Ngừng kinh doanh");
+            assertThat(dataRow2.getCell(1).getStringCellValue()).isEqualTo("Sách Cũ Tồn");
+            assertThat(dataRow2.getCell(4).getStringCellValue()).isEqualTo("Ngừng kinh doanh");
 
             // Row 6 is Total row: total units = 25 + 7 = 32, total cost = 2,000,000 + 350,000 = 2,350,000
             Row totalRow = sheet.getRow(6);
-            assertThat(totalRow.getCell(6).getStringCellValue()).isEqualTo("TỔNG CỘNG TÀI SẢN KHO:");
-            assertThat(totalRow.getCell(7).getNumericCellValue()).isEqualTo(32.0);
-            assertThat(totalRow.getCell(10).getNumericCellValue()).isEqualTo(2350000.0);
+            assertThat(totalRow.getCell(4).getStringCellValue()).isEqualTo("TỔNG CỘNG TÀI SẢN KHO:");
+            assertThat(totalRow.getCell(5).getNumericCellValue()).isEqualTo(32.0);
+            assertThat(totalRow.getCell(8).getNumericCellValue()).isEqualTo(2350000.0);
         }
     }
 
     @Test
-    @DisplayName("exportPeriodStockReport - Generates 2 sheets with document movement aggregates and accounting identity (F04)")
+    @DisplayName("exportPeriodStockReport - Generates single unified sheet with 15 columns V2.1 (F04)")
     void exportPeriodStockReport_generatesDocumentMovementAndValuationSheets() throws IOException {
         StockMovementFilterRequest filter = StockMovementFilterRequest.builder()
                 .startDate(LocalDate.of(2026, 10, 1))
@@ -258,49 +281,99 @@ class ExcelExportUtilTest {
                 .price(BigDecimal.valueOf(40000))
                 .totalCostValue(BigDecimal.valueOf(325000))
                 .totalRetailValue(BigDecimal.valueOf(520000))
+                .stockStatus("Tồn an toàn")
+                .build();
+
+        // Item 2: Closing stock = 0 in report period, but real-time valuation has high stock and "ĐỦ HÀNG" (Issue 3 defect test)
+        StockMovementReportItemDto itemZeroStock = StockMovementReportItemDto.builder()
+                .productId(20L)
+                .barcode("8936037749999")
+                .title("Sách Bán Hết Trong Kỳ")
+                .categoryName("Sách kinh tế")
+                .productType(Product.ProductType.BOOK)
+                .isActive(true)
+                .originalCost(BigDecimal.valueOf(50000))
+                .price(BigDecimal.valueOf(100000))
+                .openingStock(5)
+                .importQty(0)
+                .orderDeductQty(5)
+                .cancelRestoreQty(0)
+                .returnRestoreQty(0)
+                .closingStock(0)
+                .openingCostValue(BigDecimal.valueOf(250000))
+                .closingCostValue(BigDecimal.ZERO)
+                .closingRetailValue(BigDecimal.ZERO)
+                .build();
+
+        StockValuationItemDto valuationItemZero = StockValuationItemDto.builder()
+                .productId(20L)
+                .barcode("8936037749999")
+                .title("Sách Bán Hết Trong Kỳ")
+                .stockQuantity(100)
+                .stockStatus("ĐỦ HÀNG")
                 .build();
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        excelExportService.exportPeriodStockReport(filter, List.of(item), List.of(valuationItem), baos);
+        excelExportService.exportPeriodStockReport(filter, List.of(item, itemZeroStock), List.of(valuationItem, valuationItemZero), baos);
 
         byte[] bytes = baos.toByteArray();
         assertThat(bytes).isNotEmpty();
 
         try (XSSFWorkbook parsedWb = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
-            assertThat(parsedWb.getNumberOfSheets()).isEqualTo(2);
+            // Single unified sheet V2.1 specification
+            assertThat(parsedWb.getNumberOfSheets()).isEqualTo(1);
 
-            // Sheet 1: Biến động Tồn kho theo Kỳ
             Sheet sheet1 = parsedWb.getSheetAt(0);
             assertThat(sheet1.getSheetName()).contains("Biến động");
-            assertThat(sheet1.getRow(0).getCell(0).getStringCellValue()).contains("BÁO CÁO BIẾN ĐỘNG TỒN KHO");
+            assertThat(sheet1.getRow(0).getCell(0).getStringCellValue()).contains("BIẾN ĐỘNG KHO THEO KỲ");
 
             Row headerRow = sheet1.getRow(3);
-            assertThat(headerRow.getCell(9).getStringCellValue()).isEqualTo("Tồn đầu kỳ");
-            assertThat(headerRow.getCell(10).getStringCellValue()).isEqualTo("Nhập trong kỳ");
-            assertThat(headerRow.getCell(11).getStringCellValue()).isEqualTo("Xuất bán (Trừ kho)");
-            assertThat(headerRow.getCell(12).getStringCellValue()).isEqualTo("Hủy đơn hoàn kho");
-            assertThat(headerRow.getCell(13).getStringCellValue()).isEqualTo("Trả hàng hoàn kho");
-            assertThat(headerRow.getCell(14).getStringCellValue()).isEqualTo("Tồn cuối kỳ");
+            assertThat(headerRow.getCell(0).getStringCellValue()).isEqualTo("STT");
+            assertThat(headerRow.getCell(1).getStringCellValue()).isEqualTo("Tên sản phẩm");
+            assertThat(headerRow.getCell(2).getStringCellValue()).isEqualTo("Phân loại");
+            assertThat(headerRow.getCell(3).getStringCellValue()).isEqualTo("Danh mục");
+            assertThat(headerRow.getCell(4).getStringCellValue()).isEqualTo("Giá nhập / SP (VND)");
+            assertThat(headerRow.getCell(5).getStringCellValue()).isEqualTo("Giá bán / SP (VND)");
+            assertThat(headerRow.getCell(6).getStringCellValue()).isEqualTo("Tồn đầu kỳ (SP)");
+            assertThat(headerRow.getCell(7).getStringCellValue()).isEqualTo("Nhập hàng (SP)");
+            assertThat(headerRow.getCell(8).getStringCellValue()).isEqualTo("Xuất hàng (SP)");
+            assertThat(headerRow.getCell(9).getStringCellValue()).isEqualTo("Hoàn hàng (SP)");
+            assertThat(headerRow.getCell(10).getStringCellValue()).isEqualTo("Tồn cuối kỳ (SP)");
+            assertThat(headerRow.getCell(11).getStringCellValue()).isEqualTo("Tiền vốn tồn đầu (VND)");
+            assertThat(headerRow.getCell(12).getStringCellValue()).isEqualTo("Tiền vốn tồn cuối (VND)");
+            assertThat(headerRow.getCell(13).getStringCellValue()).isEqualTo("Tiền bán tồn cuối (VND)");
+            assertThat(headerRow.getCell(14).getStringCellValue()).isEqualTo("Tình trạng tồn");
 
-            Row dataRow = sheet1.getRow(4);
-            assertThat(dataRow.getCell(9).getNumericCellValue()).isEqualTo(10.0);
-            assertThat(dataRow.getCell(10).getNumericCellValue()).isEqualTo(5.0);
-            assertThat(dataRow.getCell(11).getNumericCellValue()).isEqualTo(3.0);
-            assertThat(dataRow.getCell(12).getNumericCellValue()).isEqualTo(1.0);
-            assertThat(dataRow.getCell(13).getNumericCellValue()).isEqualTo(0.0);
-            assertThat(dataRow.getCell(14).getNumericCellValue()).isEqualTo(13.0);
+            // Row 4: Pilot G2 (closingStock = 13 -> "Tồn an toàn")
+            Row dataRow1 = sheet1.getRow(4);
+            assertThat(dataRow1.getCell(0).getNumericCellValue()).isEqualTo(1.0);
+            assertThat(dataRow1.getCell(1).getStringCellValue()).isEqualTo("Bút Bi Pilot G2");
+            assertThat(dataRow1.getCell(2).getStringCellValue()).isEqualTo("Văn phòng phẩm");
+            assertThat(dataRow1.getCell(6).getNumericCellValue()).isEqualTo(10.0);
+            assertThat(dataRow1.getCell(7).getNumericCellValue()).isEqualTo(5.0);
+            assertThat(dataRow1.getCell(8).getNumericCellValue()).isEqualTo(3.0);
+            assertThat(dataRow1.getCell(9).getNumericCellValue()).isEqualTo(1.0);
+            assertThat(dataRow1.getCell(10).getNumericCellValue()).isEqualTo(13.0);
+            assertThat(dataRow1.getCell(11).getNumericCellValue()).isEqualTo(250000.0);
+            assertThat(dataRow1.getCell(12).getNumericCellValue()).isEqualTo(325000.0);
+            assertThat(dataRow1.getCell(13).getNumericCellValue()).isEqualTo(520000.0);
+            assertThat(dataRow1.getCell(14).getStringCellValue()).isEqualTo("Tồn an toàn");
 
-            // Total row at Row 5
-            Row totalRow = sheet1.getRow(5);
-            assertThat(totalRow.getCell(8).getStringCellValue()).isEqualTo("TỔNG CỘNG:");
-            assertThat(totalRow.getCell(9).getNumericCellValue()).isEqualTo(10.0);
-            assertThat(totalRow.getCell(14).getNumericCellValue()).isEqualTo(13.0);
-            assertThat(totalRow.getCell(15).getNumericCellValue()).isEqualTo(250000.0);
-            assertThat(totalRow.getCell(16).getNumericCellValue()).isEqualTo(325000.0);
+            // Row 5: Zero stock item (closingStock = 0 -> MUST display "Hết hàng", NOT "ĐỦ HÀNG" from real-time stock)
+            Row dataRow2 = sheet1.getRow(5);
+            assertThat(dataRow2.getCell(0).getNumericCellValue()).isEqualTo(2.0);
+            assertThat(dataRow2.getCell(1).getStringCellValue()).isEqualTo("Sách Bán Hết Trong Kỳ");
+            assertThat(dataRow2.getCell(10).getNumericCellValue()).isEqualTo(0.0);
+            assertThat(dataRow2.getCell(14).getStringCellValue()).isEqualTo("Hết hàng");
 
-            // Sheet 2: Định giá Tồn kho Hiện tại
-            Sheet sheet2 = parsedWb.getSheetAt(1);
-            assertThat(sheet2.getSheetName()).contains("Định giá");
+            // Total row at Row 6
+            Row totalRow = sheet1.getRow(6);
+            assertThat(totalRow.getCell(5).getStringCellValue()).isEqualTo("TỔNG CỘNG TOÀN KHO:");
+            assertThat(totalRow.getCell(6).getNumericCellValue()).isEqualTo(15.0);
+            assertThat(totalRow.getCell(10).getNumericCellValue()).isEqualTo(13.0);
+            assertThat(totalRow.getCell(11).getNumericCellValue()).isEqualTo(500000.0);
+            assertThat(totalRow.getCell(12).getNumericCellValue()).isEqualTo(325000.0);
+            assertThat(totalRow.getCell(13).getNumericCellValue()).isEqualTo(520000.0);
         }
     }
 }
