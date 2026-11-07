@@ -142,6 +142,25 @@ public final class ExcelExportUtil {
         return style;
     }
 
+        public static XSSFCellStyle createFormattedNumberStyle(XSSFWorkbook wb, String pattern, boolean isZebra, boolean isBold) {
+        XSSFCellStyle style = wb.createCellStyle();
+        XSSFFont font = createFont(wb, "Segoe UI", 10, isBold, false, IndexedColors.BLACK);
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.RIGHT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        DataFormat format = wb.createDataFormat();
+        style.setDataFormat(format.getFormat(pattern));
+
+        if (isZebra) {
+            style.setFillForegroundColor(new XSSFColor(ZEBRA_RGB, null));
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
+
+        setThinBorders(style);
+        return style;
+    }
+
     public static XSSFCellStyle createPercentStyle(XSSFWorkbook wb) {
         XSSFCellStyle style = wb.createCellStyle();
         XSSFFont font = createFont(wb, "Segoe UI", 10, false, false, IndexedColors.BLACK);

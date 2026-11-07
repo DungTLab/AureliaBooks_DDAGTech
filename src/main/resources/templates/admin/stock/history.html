@@ -764,12 +764,15 @@
             exportStockBtn.addEventListener('click', function(e) {
                 const sInput = document.getElementById('startDateInput');
                 const eInput = document.getElementById('endDateInput');
-                const url = new URL(exportStockBtn.getAttribute('href'), window.location.origin);
-                if (sInput && sInput.value) {
-                    url.searchParams.set('startDate', sInput.value);
+                const baseHref = (exportStockBtn.getAttribute('href') || '/manager/analytics/export/stock').split('?')[0];
+                const url = new URL(baseHref, window.location.origin);
+                const sVal = sInput && sInput.value ? sInput.value.trim() : '';
+                const eVal = eInput && eInput.value ? eInput.value.trim() : '';
+                if (sVal) {
+                    url.searchParams.set('startDate', sVal);
                 }
-                if (eInput && eInput.value) {
-                    url.searchParams.set('endDate', eInput.value);
+                if (eVal) {
+                    url.searchParams.set('endDate', eVal);
                 }
                 exportStockBtn.setAttribute('href', url.pathname + url.search);
             });
