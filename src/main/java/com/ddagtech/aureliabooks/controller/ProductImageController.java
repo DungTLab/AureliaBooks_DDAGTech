@@ -5,6 +5,7 @@ import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.service.ProductImageStorage;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -18,6 +19,7 @@ import java.util.regex.Pattern;
 
 @Slf4j
 @RestController
+@ConditionalOnProperty(prefix = "app.r2", name = "enabled", havingValue = "true")
 public class ProductImageController {
 
     private static final Pattern IMAGE_ID = Pattern.compile(

@@ -16,8 +16,8 @@
         </div>
         <input type="hidden" data-image-csrf th:data-header="${_csrf.headerName}" th:value="${_csrf.token}">
         <p data-image-status role="status" aria-live="polite" class="text-sm"></p>
-        <p th:if="${productImageUploadEnabled}" class="text-xs">PNG hoặc JPEG, tối đa 5 MB. Chọn ảnh, tải lên rồi lưu sản phẩm để cập nhật. Ảnh hiện tại được giữ nếu tải lên thất bại.</p>
-        <p th:unless="${productImageUploadEnabled}" class="text-xs text-carbon_black-500">Chức năng tải ảnh đang chưa sẵn sàng. Ảnh hiện tại vẫn được giữ khi lưu sản phẩm.</p>
+        <p th:if="${productImageUploadEnabled}" class="text-xs">PNG hoặc JPEG, tối đa 5 MB. Chọn ảnh để xem trước, nhấn “Tải ảnh lên”, sau đó lưu sản phẩm để cập nhật. Ảnh hiện tại được giữ nếu tải lên thất bại.</p>
+        <p th:unless="${productImageUploadEnabled}" class="text-xs text-carbon_black-500">Chức năng tải ảnh hiện chưa được bật. Vui lòng liên hệ quản trị viên.</p>
     </div>
 </div>
 </body></html>

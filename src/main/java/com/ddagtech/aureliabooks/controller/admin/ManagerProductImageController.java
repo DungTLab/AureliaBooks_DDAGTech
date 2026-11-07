@@ -15,7 +15,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "app.r2.upload-enabled", havingValue = "true", matchIfMissing = true)
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("${app.r2.enabled:false} && ${app.r2.upload-enabled:true}")
 public class ManagerProductImageController {
     private final ProductImageStorage storage;
     public record UploadedImage(String imageUrl) { }
