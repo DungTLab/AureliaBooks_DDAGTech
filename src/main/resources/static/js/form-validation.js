@@ -30,7 +30,8 @@
             if (validity.rangeOverflow) return `Giá trị không vượt quá ${field.max}.`;
             if (validity.stepMismatch) return "Giá trị chưa đúng số chữ số hoặc bước tăng cho phép.";
             if (validity.badInput) return "Vui lòng nhập giá trị hợp lệ.";
-            if (validity.patternMismatch || validity.typeMismatch) return "Thông tin chưa đúng định dạng yêu cầu.";
+            if (validity.patternMismatch) return field.title || "Thông tin chưa đúng định dạng yêu cầu.";
+            if (validity.typeMismatch) return "Thông tin chưa đúng định dạng yêu cầu.";
             return "Vui lòng kiểm tra lại trường này.";
         }
 
@@ -64,7 +65,8 @@
                     }
                     // Optional voucher entry stays neutral while empty; validity still disables submission.
                     const silentEmpty = field.hasAttribute("data-silent-empty") && !field.value.trim();
-                    const invalid = touched.has(field) && !field.validity.valid && !silentEmpty;
+                    // Existing invalid data must explain a disabled submit immediately.
+                    const invalid = (touched.has(field) || !!field.value.trim()) && !field.validity.valid && !silentEmpty;
                     notes.get(field).textContent = errorMessage(field);
                     notes.get(field).hidden = !invalid;
                     field.setAttribute("aria-invalid", String(invalid));

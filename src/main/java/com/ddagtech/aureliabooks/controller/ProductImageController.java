@@ -19,11 +19,7 @@ import java.util.regex.Pattern;
 
 @Slf4j
 @RestController
-@ConditionalOnProperty(
-        prefix = "app.r2",
-        name = "enabled",
-        havingValue = "true"
-)
+@ConditionalOnProperty(prefix = "app.r2", name = "enabled", havingValue = "true")
 public class ProductImageController {
 
     private static final Pattern IMAGE_ID = Pattern.compile(
