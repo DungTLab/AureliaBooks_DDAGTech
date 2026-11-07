@@ -8,6 +8,7 @@ import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.*;
 import com.ddagtech.aureliabooks.service.CustomerOrderService;
+import com.ddagtech.aureliabooks.service.CheckoutPaymentGateway;
 import com.ddagtech.aureliabooks.service.impl.AccountPresentationServiceImpl;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,7 @@ class CustomerOrderControllerTest {
     @MockitoBean CustomerOrderService orders;
     @MockitoBean CustomerIdentity identity;
     @MockitoBean UserRepository users;
+    @MockitoBean CheckoutPaymentGateway gateway;
 
     @BeforeEach void setup() { when(identity.resolve(any())).thenReturn(7L); }
 
@@ -78,6 +80,49 @@ class CustomerOrderControllerTest {
         when(orders.getMyOrderDetail(7L, "foreign")).thenThrow(new AppException(ErrorCode.ORDER_NOT_FOUND));
         mvc.perform(get("/orders/my-orders/foreign").with(user("customer").roles("CUSTOMER")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test void pendingVnpayOrderOffersPaymentOnExistingOrderWithCsrf() throws Exception {
+        stubPaymentDetail(Order.OrderStatus.PENDING_PAYMENT, Order.PaymentMethod.VNPAY, Order.PaymentStatus.UNPAID);
+        when(gateway.isAvailable()).thenReturn(true);
+        mvc.perform(get("/orders/my-orders/code").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("action=\"/orders/code/pay\"")))
+                .andExpect(content().string(containsString("Tiếp tục thanh toán VNPay")))
+                .andExpect(content().string(containsString("name=\"_csrf\"")));
+        verify(gateway, never()).startPayment(any(), any());
+    }
+
+    @Test void unavailableGatewayExplainsWhyPaymentCannotContinue() throws Exception {
+        stubPaymentDetail(Order.OrderStatus.PENDING_PAYMENT, Order.PaymentMethod.VNPAY, Order.PaymentStatus.UNPAID);
+        mvc.perform(get("/orders/my-orders/code").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Cổng thanh toán tạm thời chưa khả dụng")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("action=\"/orders/code/pay\""))));
+    }
+
+    @Test void paidCancelledAndCodOrdersDoNotOfferOnlinePayment() throws Exception {
+        when(gateway.isAvailable()).thenReturn(true);
+        for (var status : List.of(Order.OrderStatus.CANCELLED, Order.OrderStatus.CONFIRMED, Order.OrderStatus.RETURNED)) {
+            stubPaymentDetail(status, Order.PaymentMethod.VNPAY, Order.PaymentStatus.UNPAID);
+            assertNoPaymentForm();
+        }
+        stubPaymentDetail(Order.OrderStatus.PENDING_PAYMENT, Order.PaymentMethod.VNPAY, Order.PaymentStatus.PAID);
+        assertNoPaymentForm();
+        stubPaymentDetail(Order.OrderStatus.PENDING_CONFIRMATION, Order.PaymentMethod.COD, Order.PaymentStatus.UNPAID);
+        assertNoPaymentForm();
+    }
+
+    private void assertNoPaymentForm() throws Exception {
+        mvc.perform(get("/orders/my-orders/code").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("action=\"/orders/code/pay\""))));
+    }
+
+    private void stubPaymentDetail(Order.OrderStatus status, Order.PaymentMethod method, Order.PaymentStatus payment) {
+        var confirmation = new OrderConfirmationView("code", LocalDateTime.now(), "Người nhận", "0912345678", "Địa chỉ",
+                status, method, payment, List.of(), BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.TEN);
+        when(orders.getMyOrderDetail(7L, "code")).thenReturn(new OrderDetailView(confirmation, null, null, List.of(), false, null));
     }
 
     @Test void cancellationRequiresCsrf() throws Exception {

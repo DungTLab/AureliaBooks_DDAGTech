@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
     controllers = { AuthController.class, HomeController.class, LoginLogoutIntegrationTest.ProtectedPage.class }
 )
 @Import({
+
     SecurityConfig.class,
     CustomUserDetailsService.class,
     RoleBasedAuthenticationSuccessHandler.class,
@@ -43,6 +44,17 @@ import org.springframework.web.bind.annotation.RestController;
     com.ddagtech.aureliabooks.controller.admin.DashboardController.class,
 })
 class LoginLogoutIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.ProductService homepageProducts;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setupHomepageCatalogue() {
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(homepageProducts.browse(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(org.springframework.data.domain.Page.empty());
+    }
+
 
     @Autowired
     MockMvc mvc;
@@ -154,7 +166,8 @@ class LoginLogoutIntegrationTest {
     void oneRoleControlsLandingAndSessionAuthorities(String role) throws Exception {
         account.setId(700L + role.hashCode());
         account.setRole(Role.builder().roleName(role).build());
-        var result = login(" MEMBER@EXAMPLE.COM ", "Strong@123")
+        var result = mvc.perform(post(role.equals("ROLE_CUSTOMER") ? "/auth/login" : "/internal/login")
+                .with(csrf()).param("username", " MEMBER@EXAMPLE.COM ").param("password", "Strong@123"))
             .andExpect(redirectedUrl(role.equals("ROLE_CUSTOMER") ? "/" : "/dashboard"))
             .andReturn();
         var session = (MockHttpSession) result.getRequest().getSession(false);

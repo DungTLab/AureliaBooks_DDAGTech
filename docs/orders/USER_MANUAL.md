@@ -10,7 +10,7 @@ Chức năng dùng khóa bi quan trên bản ghi đơn hàng, không yêu cầu 
 
 Chọn trạng thái đơn, trạng thái thanh toán, phương thức thanh toán hoặc khoảng ngày đặt rồi bấm **Lọc đơn**. Hai ngày đầu/cuối đều được tính. **Xóa bộ lọc** trở về toàn bộ hàng đợi. Đơn đặt sớm nằm trước; sử dụng Trang trước/Trang sau để xem thêm, bộ lọc được giữ nguyên.
 
-Mỗi dòng có mã đơn, ngày đặt, khách hàng, người nhận, trạng thái, thanh toán, tổng tiền và **Xử lý đơn**. Đơn `PENDING_PAYMENT` không xuất hiện và không thể mở chi tiết bằng đường dẫn trực tiếp trong hàng đợi này. Khi không có kết quả, đổi bộ lọc hoặc xóa bộ lọc. Đơn hủy đã thanh toán có nhãn **Cần hoàn tiền**.
+Mỗi dòng có mã đơn, ngày đặt, khách hàng, người nhận, trạng thái, thanh toán, tổng tiền và **Xử lý đơn**. Đơn `PENDING_PAYMENT` không xuất hiện và không thể mở chi tiết bằng đường dẫn trực tiếp trong hàng đợi này. Khi không có kết quả, đổi bộ lọc hoặc xóa bộ lọc. Bộ lọc thanh toán **Chưa hoàn tiền** chỉ lấy đơn CANCELLED/RETURNED còn PAID. Đơn hủy hoặc đã trả hàng (RETURNED) còn PAID có nhãn **Cần hoàn tiền**; nhãn biến mất sau khi ghi nhận REFUNDED.
 
 ## 2. Kiểm hàng và in phiếu đóng gói
 
@@ -38,15 +38,15 @@ Hệ thống lưu người thao tác/lý do, thời điểm hủy, hoàn tồn n
 
 ## 5. Xác nhận nhận lại hàng hoàn và hoàn kho (POP-DB-02)
 
-Sale Staff/Admin mở đơn hàng đang giao (SHIPPING) giao thất bại hoặc đơn đã giao (DELIVERED) khách hoàn trả toàn bộ. Khối **Xác nhận nhận lại hàng hoàn** chỉ hiển thị khi đơn đang ở trạng thái phù hợp, đã trừ tồn và chưa từng hoàn tồn.
+Sale Staff/Admin mở đơn đã giao thành công (DELIVERED) khi khách hoàn trả toàn bộ. Khối **Xác nhận nhận lại hàng hoàn** chỉ hiển thị khi đơn đang ở trạng thái phù hợp, đã trừ tồn và chưa từng hoàn tồn.
 
-Nhân viên kiểm đếm hàng thực tế, nhập lý do hoàn hàng (bắt buộc) và ghi chú kiểm hàng (nếu có), tích xác nhận đã nhận lại đủ 100% số lượng các mặt hàng trong đơn, sau đó bấm **Xác nhận nhận hàng & Hoàn tồn kho**. Hệ thống tự động hoàn tồn kho đúng một lần, ghi nhận thời điểm, nhân viên xác nhận và giữ nguyên trạng thái đơn hàng. Theo Baseline V2.4, nghiệp vụ này được tích hợp trực tiếp tại đây thay thế cho UC24 trước đây.
+Nhân viên kiểm đếm hàng thực tế, nhập lý do hoàn hàng (bắt buộc) và ghi chú kiểm hàng (nếu có), tích xác nhận đã nhận lại đủ 100% số lượng các mặt hàng trong đơn, sau đó bấm **Xác nhận nhận hàng & Hoàn tồn kho**. Hệ thống tự động hoàn tồn kho đúng một lần, ghi nhận thời điểm, nhân viên xác nhận và chuyển trạng thái đơn sang RETURNED. Theo Baseline V2.4, nghiệp vụ này được tích hợp trực tiếp tại đây thay thế cho UC24 trước đây.
 
 ## 6. Xác nhận khoản hoàn tiền đã thực hiện
 
-Sale Staff/Admin mở đơn hủy đã PAID hoặc đơn SHIPPING/DELIVERED đã có xác nhận nhận lại toàn bộ hàng hoàn thành công (RETURNED). Form **Xác nhận hoàn tiền** chỉ hiện khi đơn đủ điều kiện và chưa có xác nhận hoàn trước đó.
+Sale Staff/Admin mở đơn hủy đã PAID hoặc đơn RETURNED đã có xác nhận nhận lại toàn bộ hàng hoàn thành công. Form **Xác nhận hoàn tiền** chỉ hiện khi đơn đủ điều kiện và chưa có xác nhận hoàn trước đó.
 
-Nhập đúng toàn bộ tổng tiền của đơn, phương thức hoàn, ngày hoàn tất (không ở tương lai), mã giao dịch hoặc thông tin chứng minh. Tích xác nhận đã hoàn tiền thực tế bên ngoài hệ thống, rồi bấm **Ghi nhận hoàn tiền** và xác nhận. Không dùng chức năng này để thực hiện chuyển tiền.
+Nhập đúng toàn bộ tổng tiền của đơn, phương thức hoàn (Tiền mặt mặc định hoặc Chuyển khoản), ngày hoàn tất (mặc định ngày hiện tại, có thể chọn lại nhưng không ở tương lai), thông tin chứng minh. Tích xác nhận đã hoàn tiền thực tế bên ngoài hệ thống, rồi bấm **Ghi nhận hoàn tiền** và xác nhận. Không dùng chức năng này để thực hiện chuyển tiền.
 
 Thành công: payment status chuyển thành REFUNDED, trạng thái đơn và tồn kho giữ nguyên. Lịch sử hiển thị nhân viên, thời điểm ghi nhận, số tiền, phương thức, ngày hoàn tất và chứng từ. Thông tin thiếu, sai số tiền, hoàn một phần hoặc hoàn trùng đều bị từ chối. Thao tác hoàn tiền độc lập với hoàn kho và không cộng lại tồn kho.
 

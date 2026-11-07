@@ -162,7 +162,7 @@ public class AccountVerificationController {
     ) {
         var s = request.getSession();
         try {
-            otp.reset(
+            var user = otp.reset(
                 (String) s.getAttribute("ACCOUNT_OTP_FLOW"),
                 s.getId(),
                 password,
@@ -170,6 +170,12 @@ public class AccountVerificationController {
                 HttpRequestUtil.getClientIp(request)
             );
             new SecurityContextLogoutHandler().logout(request, response, auth);
+            boolean isInternal = user != null && user.getRole() != null
+                && !"ROLE_CUSTOMER".equals(user.getRole().getRoleName());
+            if (isInternal) {
+                flash.addFlashAttribute("successMessage", "Đã đặt mật khẩu mới thành công. Vui lòng đăng nhập hệ thống quản lý.");
+                return "redirect:/internal/login?reset";
+            }
             flash.addFlashAttribute("successMessage", "Đã đặt mật khẩu mới. Vui lòng đăng nhập.");
             return "redirect:/auth/login";
         } catch (RuntimeException ex) {

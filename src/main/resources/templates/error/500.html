@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/base :: layout('500 - Lỗi Máy Chủ Nội Bộ | AureliaBook', ~{::#main-content})}">
+      th:replace="~{${internalPage == true ? 'layout/internal' : 'layout/base'} :: layout('500 - Lỗi Máy Chủ Nội Bộ | AureliaBook', ~{::#main-content})}">
 <head>
     <title>500 - Lỗi Máy Chủ Nội Bộ</title>
 </head>

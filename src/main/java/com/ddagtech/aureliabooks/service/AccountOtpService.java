@@ -42,5 +42,5 @@ public interface AccountOtpService {
 
     Result verify(String id, String session, String code, String ip);
 
-    void reset(String id, String session, String password, String confirmation, String ip);
+    User reset(String id, String session, String password, String confirmation, String ip);
 }

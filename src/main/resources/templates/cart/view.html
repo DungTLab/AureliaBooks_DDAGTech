@@ -46,7 +46,7 @@
                 <article th:each="item : ${cart.items}" class="p-5 sm:p-6" th:attr="data-cart-item=${item.itemId}">
                     <div class="flex gap-4 sm:gap-5">
                         <a th:href="@{/products/{id}(id=${item.productId})}" class="shrink-0 w-20 sm:w-24 aspect-[3/4] self-start rounded-xl overflow-hidden bg-parchment-100 border border-dust_grey/50">
-                            <img th:if="${item.mainImageUrl != null and !#strings.isEmpty(item.mainImageUrl)}" th:src="${item.mainImageUrl}" th:alt="${item.title}" loading="lazy"
+                            <img th:if="${item.mainImageUrl != null and !#strings.isEmpty(item.mainImageUrl)}" th:src="@{${item.mainImageUrl}}" th:alt="${item.title}" loading="lazy"
                                  onerror="this.hidden=true;this.nextElementSibling.classList.remove('hidden')" class="w-full h-full object-cover">
                             <div class="w-full h-full flex items-center justify-center text-dust_grey-600" th:classappend="${item.mainImageUrl != null and !#strings.isEmpty(item.mainImageUrl)} ? 'hidden'"><i class="bi bi-book text-3xl" aria-hidden="true"></i></div>
                         </a>

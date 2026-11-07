@@ -76,6 +76,52 @@ class CheckoutControllerTest {
     private CheckoutView checkout;
     private OrderConfirmationView order;
 
+    @Test
+    void cartLimitErrorsRedirectToCartForCorrection() throws Exception {
+        for (ErrorCode code : List.of(ErrorCode.CART_LINE_LIMIT_EXCEEDED, ErrorCode.CART_ITEM_QUANTITY_EXCEEDED)) {
+            when(orders.getCheckoutView(eq(7L), any())).thenThrow(new AppException(code));
+            mvc.perform(get("/checkout").with(user("customer").roles("CUSTOMER")))
+                    .andExpect(redirectedUrl("/cart"))
+                    .andExpect(flash().attribute("errorMessage", code.getMessage()));
+        }
+    }
+
+    @Test
+    void rendersBothVoucherInputsAndCarriesBothCodesIntoTheReview() throws Exception {
+        when(orders.getCheckoutView(7L, 10L, "SAVE10")).thenReturn(checkout);
+        when(orders.getCheckoutView(7L, 10L, "SAVE10", "SHIP20")).thenReturn(checkout);
+        mvc.perform(get("/checkout").param("shippingAddressId", "10")
+                .param("voucherCode", "SAVE10").param("shippingVoucherCode", "SHIP20")
+                .with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Mã giảm tiền hàng")))
+            .andExpect(content().string(containsString("Mã giảm phí vận chuyển")))
+            .andExpect(model().attribute("appliedVoucherCode", "SAVE10"))
+            .andExpect(model().attribute("appliedShippingVoucherCode", "SHIP20"));
+        MockHttpSession session = new MockHttpSession();
+        String location = mvc.perform(post("/checkout/review").session(session).with(csrf())
+                .with(user("customer").roles("CUSTOMER")).param("shippingAddressId", "10")
+                .param("paymentMethod", "COD").param("voucherCode", "SAVE10")
+                .param("shippingVoucherCode", "SHIP20"))
+            .andExpect(status().is3xxRedirection()).andReturn().getResponse().getRedirectedUrl();
+        String token = location.substring(location.lastIndexOf('/') + 1);
+        assertThat(reviews.find(session, token, 7L).voucherCode()).isEqualTo("SAVE10");
+        assertThat(reviews.find(session, token, 7L).shippingVoucherCode()).isEqualTo("SHIP20");
+    }
+
+    @Test
+    void invalidShippingCodePreservesValidProductCode() throws Exception {
+        when(orders.getCheckoutView(7L, 10L, "SAVE10")).thenReturn(checkout);
+        when(orders.getCheckoutView(7L, 10L, "SAVE10", "BAD"))
+            .thenThrow(new AppException(ErrorCode.VOUCHER_NOT_FOUND));
+        mvc.perform(get("/checkout").param("shippingAddressId", "10")
+                .param("voucherCode", "SAVE10").param("shippingVoucherCode", "BAD")
+                .with(user("customer").roles("CUSTOMER")))
+            .andExpect(status().isOk()).andExpect(model().attribute("appliedVoucherCode", "SAVE10"))
+            .andExpect(model().attribute("appliedShippingVoucherCode", ""))
+            .andExpect(model().attributeExists("shippingVoucherError"));
+    }
+
     @BeforeEach
     void setup() {
         when(identity.resolve(any())).thenReturn(7L);
@@ -338,6 +384,40 @@ class CheckoutControllerTest {
             .andExpect(content().string(containsString("data-print-order")))
             .andExpect(content().string(containsString("12 Đội Cấn")));
         verify(orders).getOrderConfirmation(7L, CODE);
+    }
+
+    @Test
+    void continuesPaymentForOwnedPendingOrderWithoutCreatingAnotherOrder() throws Exception {
+        var pending = new OrderConfirmationView(CODE, order.createdAt(), order.recipientName(), order.phone(),
+                order.fullAddress(), Order.OrderStatus.PENDING_PAYMENT, Order.PaymentMethod.VNPAY,
+                Order.PaymentStatus.UNPAID, order.items(), order.merchandiseSubtotal(), order.discount(),
+                order.shippingFee(), order.finalTotalAmount());
+        when(orders.getOrderConfirmation(7L, CODE)).thenReturn(pending);
+        when(gateway.isAvailable()).thenReturn(true);
+        when(gateway.startPayment(7L, CODE)).thenReturn("https://sandbox.example.test/pay");
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")).with(csrf())
+                .param("userId", "999"))
+                .andExpect(redirectedUrl("https://sandbox.example.test/pay"));
+        verify(gateway).startPayment(7L, CODE);
+        verify(orders, never()).placeOrder(any(), any(), any());
+    }
+
+    @Test
+    void cannotContinuePaymentForForeignOrNonPendingOrder() throws Exception {
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")).with(csrf()))
+                .andExpect(redirectedUrl("/orders/" + CODE))
+                .andExpect(flash().attributeExists("errorMessage"));
+        when(orders.getOrderConfirmation(7L, CODE)).thenThrow(new AppException(ErrorCode.ORDER_NOT_FOUND));
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")).with(csrf()))
+                .andExpect(status().isNotFound());
+        verify(gateway, never()).startPayment(any(), any());
+    }
+
+    @Test
+    void continuingPaymentRequiresCsrf() throws Exception {
+        mvc.perform(post("/orders/" + CODE + "/pay").with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().isForbidden());
+        verify(gateway, never()).startPayment(any(), any());
     }
 
     @Test

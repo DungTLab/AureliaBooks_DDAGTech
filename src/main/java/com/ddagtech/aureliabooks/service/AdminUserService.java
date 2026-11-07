@@ -31,5 +31,11 @@ public interface AdminUserService {
     }
 
     void setActive(Long adminId, Long userId, boolean active, String ipAddress);
+
+    default void resetStaffPassword(Long adminId, Long targetUserId) {
+        resetStaffPassword(adminId, targetUserId, null);
+    }
+
+    void resetStaffPassword(Long adminId, Long targetUserId, String ipAddress);
 }
 

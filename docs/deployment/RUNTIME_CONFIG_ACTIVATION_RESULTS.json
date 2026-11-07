@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-05",
+  "scope": "Java runtime activation, recovery and image-deploy integration",
+  "verification": {
+    "runtime_configuration_tests": 147,
+    "runtime_failures": 0,
+    "runtime_errors": 0,
+    "runtime_skipped": 0,
+    "full_maven_verify": "SUCCESS",
+    "full_tests_total": 1679,
+    "full_tests_passed": 1549,
+    "full_tests_skipped": 130,
+    "full_failures": 0,
+    "full_errors": 0,
+    "spring_boot_package": "PASS",
+    "standalone_jdk_package": "PASS",
+    "bash_syntax": "PASS",
+    "workflow_yaml": "PASS_SNAKEYAML_JUNIT"
+  },
+  "covered": [
+    "first/subsequent activation with secret-free additive overlay",
+    "container creation and health failure rollback",
+    "failed recovery blocks deployment",
+    "restarted controller reconciles synthetic persisted journal",
+    "image-change and tamper rejection",
+    "protected snapshots and provider/environment conflicts",
+    "host-script baseline checks, backup, idempotency, symlink rejection",
+    "normal/config/rollback Compose calls retain overlay",
+    "SSH payload/diagnostic isolation and explicit activation receipt"
+  ],
+  "not_claimed": [
+    "actual power-loss or host-restart recovery certification",
+    "full OAuth exchange, SMTP send, VNPay payment or R2 operation",
+    "revoked credentials remain valid for rollback"
+  ],
+  "r2_enabled": false,
+  "r2_upload_enabled": false,
+  "operator_evidence": "VPS installation/activation receipts are recorded outside source"
+}

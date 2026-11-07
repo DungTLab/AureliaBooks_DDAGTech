@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      th:replace="~{layout/base :: layout('Báo cáo Doanh thu & Hiệu quả kinh doanh', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Báo cáo Doanh thu & Hiệu quả kinh doanh', ~{::#main-content})}">
 <head>
     <title>Báo cáo Doanh thu - AureliaBooks</title>
 </head>
 <body>
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
+    <a th:href="@{/manager/analytics/stock}" class="inline-flex underline font-semibold">Xem báo cáo kho và định giá</a>
     <!-- Header & Action Bar -->
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div>

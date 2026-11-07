@@ -1,0 +1,68 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 008_stationeries.sql
+-- Table: stationeries
+-- ============================================================
+--
+-- Required:
+--   product_id       BIGINT PK (FK -> products.id)
+--   brand_id         BIGINT NOT NULL (FK -> brands.id)
+--
+-- Optional / Default:
+--   material         VARCHAR(100)
+--   color            VARCHAR(50)
+--   warranty_months  INT DEFAULT 0
+--
+-- Rules:
+-- 1. Do not hardcode product_id or brand_id.
+-- 2. Each Stationery must reference an existing Product.
+-- 3. Product must have product_type = 'STATIONERY'.
+-- 4. Resolve Product using its unique barcode.
+-- 5. Resolve Brand using its unique name.
+-- 6. One Product can have only one Stationery record.
+-- 7. Warranty months must not be negative.
+-- 8. Do not overwrite existing stationery information.
+-- 9. Only add approved data.
+-- 10. Seed execution is managed by the deployment workflow.
+--
+-- ============================================================
+-- EXAMPLE (COMMENTED OUT — DO NOT EXECUTE)
+-- ============================================================
+--
+-- INSERT INTO stationeries (
+--     product_id,
+--     brand_id,
+--     material,
+--     color,
+--     warranty_months
+-- )
+-- SELECT
+--     p.id,
+--     b.id,
+--     'Plastic',
+--     'Blue',
+--     0
+-- FROM products p
+-- CROSS JOIN brands b
+-- WHERE p.barcode = 'EXAMPLE-BARCODE-002'
+--   AND p.product_type = 'STATIONERY'
+--   AND b.name = 'Example Brand'
+--   AND NOT EXISTS (
+--       SELECT 1
+--       FROM stationeries s
+--       WHERE s.product_id = p.id
+--   );
+--
+-- WARNING:
+-- This example is illustrative, not production-ready.
+-- Product and Brand must exist before execution.
+-- Validate the product type and foreign key lookups.
+-- If the product already has a Stationery record,
+-- verify its existing data instead of silently
+-- accepting a zero-row INSERT.
+--
+-- ============================================================
+-- APPROVED STATIONERY RECORDS
+-- ============================================================
+--
+-- TODO: Team members add reviewed SQL statements here.

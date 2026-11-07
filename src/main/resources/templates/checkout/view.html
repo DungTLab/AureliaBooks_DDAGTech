@@ -46,6 +46,7 @@
                 th:data-server-blocked="${!itemsReady}"
             >
                 <input type="hidden" name="voucherCode" th:value="${appliedVoucherCode}" />
+                <input type="hidden" name="shippingVoucherCode" th:value="${appliedShippingVoucherCode}" />
             </form>
             <div class="checkout-grid">
                 <div class="checkout-main">
@@ -227,6 +228,8 @@
                     <div
                         th:replace="~{checkout/fragments :: totals(${checkout.merchandiseSubtotal}, ${checkout.productDiscount}, ${checkout.shippingFee}, ${checkout.finalTotalAmount})}"
                     ></div>
+                    <p th:if="${checkout.shippingDiscount != null and checkout.shippingDiscount.signum() > 0}"
+                       class="checkout-notice" th:text="${'Đã giảm phí giao hàng: ' + #numbers.formatDecimal(checkout.shippingDiscount, 0, 'POINT', 0, 'COMMA') + ' đ'}"></p>
                     <div th:replace="~{fragments/voucher :: voucher}"></div>
                     <button
                         type="submit"

@@ -20,17 +20,23 @@ public class CheckoutSessionStore {
     /** Reuse the token for unchanged selections and issue a new token when review details change. */
     public CheckoutConfirmation save(HttpSession session, Long owner, CheckoutView view,
                                      Order.PaymentMethod method, String voucher) {
+        return save(session, owner, view, method, voucher, null);
+    }
+
+    public CheckoutConfirmation save(HttpSession session, Long owner, CheckoutView view,
+                                     Order.PaymentMethod method, String voucher, String shippingVoucher) {
         // Serialize requests within the same session to prevent competing token lookups and creation.
         synchronized (session) {
             Map<String, CheckoutConfirmation> reviews = reviews(session);
             for (CheckoutConfirmation review : reviews.values()) {
                 if (owner.equals(review.userId()) && view.equals(review.reviewedCheckout())
-                        && method == review.paymentMethod() && Objects.equals(voucher, review.voucherCode())) {
+                        && method == review.paymentMethod() && Objects.equals(voucher, review.voucherCode())
+                        && Objects.equals(shippingVoucher, review.shippingVoucherCode())) {
                     return review;
                 }
             }
             String token = UUID.randomUUID().toString().replace("-", "");
-            CheckoutConfirmation review = new CheckoutConfirmation(token, owner, view, method, voucher);
+            CheckoutConfirmation review = new CheckoutConfirmation(token, owner, view, method, voucher, shippingVoucher);
             reviews.put(token, review);
             // LinkedHashMap preserves insertion order, allowing the oldest review to be evicted at the limit.
             while (reviews.size() > LIMIT) reviews.remove(reviews.keySet().iterator().next());

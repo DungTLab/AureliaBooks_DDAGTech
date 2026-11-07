@@ -1,0 +1,19 @@
+# OFFLINE CONTRACT TEMPLATE ONLY. Not an overlay ready for a real VPS.
+# Root installer must render exactly one immutable generation directory.
+services:
+  app:
+    environment:
+      SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/run/aureliabooks-config/runtime-integrations.properties"
+      R2_ENABLED: "false"
+      R2_UPLOAD_ENABLED: "false"
+    labels:
+      com.ddagtech.aureliabooks.runtime-config-generation: "__GENERATION__"
+    group_add:
+      - "__APPROVED_READ_GID__"
+    volumes:
+      - type: bind
+        source: "__IMMUTABLE_RELEASE_DIRECTORY__"
+        target: /run/aureliabooks-config
+        read_only: true
+        bind:
+          create_host_path: false

@@ -60,14 +60,12 @@ class SupplierControllerTest {
     }
 
     @Test
-    @DisplayName("GET /manager/suppliers as ADMIN returns 200 OK")
+    @DisplayName("GET /manager/suppliers as ADMIN returns 403 Forbidden")
     @WithMockUser(username = "admin", roles = {"ADMIN"})
-    void getSuppliers_AsAdmin_Returns200() throws Exception {
-        when(supplierService.list(any(), any(), any())).thenReturn(Page.empty());
+    void getSuppliers_AsAdmin_Returns403() throws Exception {
 
         mockMvc.perform(get("/manager/suppliers"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("admin/suppliers/list"));
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -83,7 +81,7 @@ class SupplierControllerTest {
     void getSuppliers_Unauthenticated_Redirects() throws Exception {
         mockMvc.perform(get("/manager/suppliers"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("**/auth/login"));
+                .andExpect(redirectedUrlPattern("**/internal/login"));
     }
 
     @Test

@@ -119,7 +119,7 @@ class AuditLogControllerTest {
     void testListAuditLogs_Unauthenticated_Redirects() throws Exception {
         mockMvc.perform(get("/admin/audit-logs"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("**/auth/login"));
+                .andExpect(redirectedUrlPattern("**/internal/login"));
     }
 
     @Test

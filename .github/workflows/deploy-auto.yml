@@ -1,0 +1,118 @@
+
+name: CD - Automatic Staging Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - "Docker - Publish ARM64 to GHCR"
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: aureliabooks-staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    name: Verify CI and Deploy Staging
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout trusted workflow sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Java gate runtime
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Verify commit and CI result
+        id: verify
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          bash scripts/java-tools.sh WorkflowGate ci
+
+      - name: Configure SSH
+        if: steps.verify.outputs.deploy == 'true'
+        shell: bash
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_HOST_KEY: ${{ secrets.VPS_SSH_HOST_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_SSH_HOST_KEY" > ~/.ssh/known_hosts
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null
+
+      - name: Deploy to Staging
+        if: steps.verify.outputs.deploy == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          LATEST_SHA="$(GH_TOKEN="$GH_TOKEN" gh api \
+            "repos/$REPOSITORY/branches/main" \
+            --jq '.commit.sha')"
+
+          if [[ "$LATEST_SHA" != "$DEPLOY_SHA" ]]; then
+            echo "SKIP: A newer main commit exists"
+            exit 0
+          fi
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "/opt/apps/swp391-staging/scripts/deploy-staging.sh $DEPLOY_SHA"
+
+      - name: Verify Staging
+        if: steps.verify.outputs.deploy == 'true'
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          DEPLOY_SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o BatchMode=yes \
+            "$VPS_USER@$VPS_HOST" \
+            "test \"\$(docker inspect aurelia-staging-app-1 --format '{{.Config.Image}}')\" = 'ghcr.io/dungtlab/aureliabooks_ddagtech:sha-$DEPLOY_SHA' && curl -fsS --max-time 20 -o /dev/null http://127.0.0.1:18080/"
+
+          echo "Staging image and HTTP readiness: PASS"

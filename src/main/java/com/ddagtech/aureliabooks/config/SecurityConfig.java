@@ -1,5 +1,13 @@
 package com.ddagtech.aureliabooks.config;
 
+import com.ddagtech.aureliabooks.security.AuthEntryGuard;
+import com.ddagtech.aureliabooks.security.PortalAuthenticationProvider;
+import com.ddagtech.aureliabooks.security.PortalSecurity;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationFailureHandler;
@@ -27,6 +35,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.FlashMap;
 import org.springframework.web.servlet.support.SessionFlashMapManager;
 
@@ -105,8 +114,84 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    /** Higher-priority chain for management pages and administrative APIs. */
+    @Bean
+    @Order(1)
+    public SecurityFilterChain internalSecurityFilterChain(HttpSecurity http,
+            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-enabled:true}") boolean uploadsEnabled,
+            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-requests-per-minute:10}") int requestsPerMinute,
+            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-max-concurrent:2}") int maxConcurrent) throws Exception {
+        http.securityMatcher(PortalSecurity::internalRequest);
+        // Construct only inside the security chain; not a servlet Filter bean (no double registration).
+        http.addFilterBefore(new com.ddagtech.aureliabooks.security.ProductImageUploadFilter(
+                uploadsEnabled, requestsPerMinute, maxConcurrent),
+                org.springframework.security.web.csrf.CsrfFilter.class);
+        portalAuthentication(http, true);
+        http.addFilterBefore(new AuthEntryGuard(),
+                UsernamePasswordAuthenticationFilter.class);
+        http.authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/internal/login").permitAll()
+                .requestMatchers("/admin/users", "/admin/users/**", "/admin/audit-logs", "/admin/audit-logs/**").hasRole("ADMIN")
+                .requestMatchers("/admin/analytics/**", "/manager/analytics/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/manager/stock/history", "/manager/inventory/history").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
+                .requestMatchers("/manager/stock/alerts", "/staff/stock/alerts", "/inventory/stock/alerts").hasAnyRole("MANAGER", "SALE_STAFF")
+                .requestMatchers("/manager/receipts/*/finalize").hasRole("MANAGER")
+                .requestMatchers(HttpMethod.GET, "/api/receipts/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers(
+                        "/manager/receipts",
+                        "/manager/receipts/**",
+                        "/staff/receipts",
+                        "/staff/receipts/**",
+                        "/api/receipts/**",
+                        "/api/products/quick-create"
+                ).hasAnyRole("MANAGER", "SALE_STAFF")
+                .requestMatchers("/manager", "/manager/**").hasRole("MANAGER")
+                .requestMatchers("/staff", "/staff/**").hasAnyRole("SALE_STAFF", "MANAGER")
+                .requestMatchers("/dashboard", "/dashboard/**", "/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .anyRequest().hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF"));
+        http.formLogin(login -> {
+            login.loginPage("/internal/login").loginProcessingUrl("/internal/login").permitAll();
+            var success = authenticationSuccessHandlerProvider.getIfAvailable();
+            if (success != null) login.successHandler(success);
+            else login.defaultSuccessUrl("/dashboard", true);
+            var failure = authenticationFailureHandlerProvider.getIfAvailable();
+            if (failure != null) login.failureHandler(failure);
+            else login.failureUrl("/internal/login?error=true");
+        });
+        http.logout(logout -> {
+            logout.logoutUrl("/internal/logout").logoutSuccessUrl("/internal/login?logout")
+                    .invalidateHttpSession(true).clearAuthentication(true).deleteCookies("JSESSIONID");
+            var audit = logoutAudit.getIfAvailable();
+            if (audit != null) logout.addLogoutHandler(audit);
+        });
+        http.sessionManagement(session -> session.sessionFixation(fixation -> fixation.migrateSession())
+                .maximumSessions(5).sessionRegistry(sessionRegistry()));
+        http.exceptionHandling(exceptions -> {
+            var denied = accessDeniedHandlerProvider.getIfAvailable();
+            if (denied != null) exceptions.accessDeniedHandler(denied);
+            var entry = authenticationEntryPointProvider.getIfAvailable();
+            if (entry != null) exceptions.authenticationEntryPoint(entry);
+            else exceptions.authenticationEntryPoint(
+                    new LoginUrlAuthenticationEntryPoint("/internal/login"));
+        });
+        http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
+        return http.build();
+    }
+
+    private void portalAuthentication(HttpSecurity http, boolean internal) {
+        var users = userDetailsServiceProvider.getIfAvailable();
+        if (users == null) return;
+        var throttled = new ThrottledAuthenticationProvider(users, passwordEncoder(),
+                loginAttempts.getIfAvailable(LoginAttemptService::new));
+        // Keep OAuth providers in this chain, but disallow an unrestricted parent fallback.
+        http.getSharedObject(AuthenticationManagerBuilder.class)
+                .parentAuthenticationManager(null);
+        http.authenticationProvider(new PortalAuthenticationProvider(throttled, internal));
+    }
+
     /**
-     * Primary HTTP Security Filter Chain configuring Lean RBAC authorization rules,
+     * Storefront filter chain configuring customer authorization rules,
      * session security, login handling, and logout mechanics.
      *
      * @param http HttpSecurity builder
@@ -114,16 +199,11 @@ public class SecurityConfig {
      * @throws Exception if security DSL building fails
      */
     @Bean
+    @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        CustomUserDetailsService userDetailsService = userDetailsServiceProvider.getIfAvailable();
-        if (userDetailsService != null) {
-            var authProvider = new ThrottledAuthenticationProvider(
-                userDetailsService,
-                passwordEncoder(),
-                loginAttempts.getIfAvailable(LoginAttemptService::new)
-            );
-            http.authenticationProvider(authProvider);
-        }
+        portalAuthentication(http, false);
+        http.addFilterBefore(new AuthEntryGuard(),
+                OAuth2AuthorizationRequestRedirectFilter.class);
 
         http
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/payments/vnpay-ipn"))
@@ -134,6 +214,7 @@ public class SecurityConfig {
                         "/",
                         "/home",
                         "/products/**",
+                        "/policies/**",
                         "/auth/**",
                         "/api/v1/payments/vnpay-ipn",
                         "/css/**",
@@ -145,23 +226,7 @@ public class SecurityConfig {
                     )
                     .permitAll()
 
-                    // 2. Back-Office Administrative Routes (Lean RBAC Governance)
-                    .requestMatchers("/admin/analytics/**")
-                    .hasAnyRole("ADMIN", "MANAGER")
-                    .requestMatchers("/admin", "/admin/**")
-                    .hasRole("ADMIN")
-                    .requestMatchers("/manager/stock/alerts")
-                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                    .requestMatchers("/manager", "/manager/**")
-                    .hasAnyRole("ADMIN", "MANAGER")
-                    .requestMatchers("/staff", "/staff/**")
-                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                    .requestMatchers("/inventory", "/inventory/**")
-                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                    .requestMatchers("/dashboard", "/dashboard/**")
-                    .hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-
-                    // 3. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04, F04)
+                    // 2. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04, F04)
                     .requestMatchers(
                         "/cart",
                         "/cart/**",
@@ -178,7 +243,7 @@ public class SecurityConfig {
                     )
                     .hasRole("CUSTOMER")
 
-                    // 4. Default: All other routes require an authenticated session
+                    // 3. Default: All other routes require an authenticated session
                     .anyRequest()
                     .authenticated()
             )

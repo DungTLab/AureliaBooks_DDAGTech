@@ -52,6 +52,8 @@ public class AdminBootstrapServiceImpl implements AdminBootstrapService {
             .role(role)
             .authProvider(User.AuthProvider.LOCAL)
             .isActive(true)
+            .emailVerified(true)
+            .phoneVerified(request.phone() != null && !request.phone().isBlank())
             .build();
         users.saveAndFlush(user);
         audit.record(null, "ADMIN_BOOTSTRAPPED", "users", user.getId(), "{\"source\":\"deployment\"}", null);

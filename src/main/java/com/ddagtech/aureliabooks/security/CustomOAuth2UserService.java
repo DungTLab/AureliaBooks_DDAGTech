@@ -113,11 +113,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         if (
             account.getRole() == null ||
             account.getRole().getRoleName() == null ||
-            !java.util.Set.of("ROLE_CUSTOMER", "ROLE_SALE_STAFF", "ROLE_MANAGER", "ROLE_ADMIN").contains(
-                account.getRole().getRoleName()
-            )
+            !"ROLE_CUSTOMER".equals(account.getRole().getRoleName())
         ) {
-            throw failure("Tài khoản chưa được cấp vai trò hợp lệ. Vui lòng liên hệ quản trị viên.");
+            throw failure("Google chỉ dành cho tài khoản Khách hàng. Tài khoản nội bộ sử dụng mật khẩu.");
         }
         return new SimpleGrantedAuthority(account.getRole().getRoleName());
     }

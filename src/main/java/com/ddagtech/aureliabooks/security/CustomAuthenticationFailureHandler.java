@@ -32,7 +32,9 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
     ) throws IOException {
         String errorParam;
 
-        if (exception instanceof TemporaryLoginLockException) {
+        if (exception instanceof PortalAuthenticationProvider.WrongPortalException) {
+            errorParam = "portal";
+        } else if (exception instanceof TemporaryLoginLockException) {
             errorParam = "throttled";
         } else if (exception instanceof LockedException) {
             log.warn("Authentication rejected - account locked: {}", exception.getMessage());
@@ -48,7 +50,7 @@ public class CustomAuthenticationFailureHandler implements AuthenticationFailure
             errorParam = "true";
         }
 
-        String targetUrl = "/auth/login?error=" + errorParam;
+        String targetUrl = (PortalSecurity.internalRequest(request) ? "/internal/login" : "/auth/login") + "?error=" + errorParam;
         redirectStrategy.sendRedirect(request, response, targetUrl);
     }
 }

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"><body>
+<div th:fragment="field" class="md:col-span-2" data-product-image-field>
+    <p class="block text-xs font-bold mb-2">Ảnh sản phẩm</p>
+    <input id="mainImageUrl" type="hidden" th:field="*{mainImageUrl}">
+    <div class="space-y-3" data-image-uploader th:data-upload-url="@{/manager/products/images}">
+        <img data-image-preview th:src="*{mainImageUrl}" th:hidden="*{mainImageUrl == null or mainImageUrl.isEmpty()}"
+             alt="Xem trước ảnh sản phẩm" class="max-h-48 max-w-full rounded-xl border border-dust_grey">
+        <input id="productImageFile" data-image-file type="file" accept="image/png,image/jpeg" hidden
+               aria-label="Chọn ảnh sản phẩm" th:disabled="${!productImageUploadEnabled}">
+        <div class="flex flex-wrap gap-2">
+            <button type="button" data-image-choose th:disabled="${!productImageUploadEnabled}"
+                    class="px-4 py-2.5 border border-dust_grey rounded-xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed">Chọn ảnh</button>
+            <button type="button" data-image-upload disabled
+                    class="px-4 py-2.5 border border-dust_grey rounded-xl font-semibold disabled:opacity-40 disabled:cursor-not-allowed">Tải ảnh lên</button>
+        </div>
+        <input type="hidden" data-image-csrf th:data-header="${_csrf.headerName}" th:value="${_csrf.token}">
+        <p data-image-status role="status" aria-live="polite" class="text-sm"></p>
+        <p th:if="${productImageUploadEnabled}" class="text-xs">PNG hoặc JPEG, tối đa 5 MB. Chọn ảnh, tải lên rồi lưu sản phẩm để cập nhật. Ảnh hiện tại được giữ nếu tải lên thất bại.</p>
+        <p th:unless="${productImageUploadEnabled}" class="text-xs text-carbon_black-500">Chức năng tải ảnh đang chưa sẵn sàng. Ảnh hiện tại vẫn được giữ khi lưu sản phẩm.</p>
+    </div>
+</div>
+</body></html>

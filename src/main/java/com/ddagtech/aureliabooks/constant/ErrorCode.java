@@ -33,6 +33,9 @@ public enum ErrorCode {
     OTP_DELIVERY_FAILED(1016, "Không thể gửi mã xác thực OTP lúc này. Vui lòng thử lại sau.", HttpStatus.SERVICE_UNAVAILABLE),
     GOOGLE_IDENTITY_CONFLICT(1017, "Tài khoản Google này đã được liên kết với một tài khoản khác.", HttpStatus.CONFLICT),
     PHONE_REQUIRED_BEFORE_CHECKOUT(1018, "Vui lòng bổ sung và xác minh số điện thoại trước khi đặt hàng.", HttpStatus.BAD_REQUEST),
+    CANNOT_RESET_CUSTOMER_PASSWORD(1019, "Quản trị viên không được phép đặt lại mật khẩu cho tài khoản khách hàng.", HttpStatus.FORBIDDEN),
+    EMAIL_DELIVERY_FAILED(1020, "Không thể gửi email cấp mật khẩu. Vui lòng kiểm tra cấu hình/kết nối SMTP và thử gửi lại.", HttpStatus.SERVICE_UNAVAILABLE),
+    CANNOT_RESET_SELF_PASSWORD(1021, "Bạn không thể tự cấp lại mật khẩu của chính mình. Vui lòng sử dụng chức năng Đổi mật khẩu.", HttpStatus.BAD_REQUEST),
 
     // 2xxx: Address & Shipping Constraints — Lê Tiến Dũng (3 codes)
     ADDRESS_QUOTA_EXCEEDED(2001, "Bạn chỉ có thể lưu tối đa 5 địa chỉ giao hàng đang hoạt động.", HttpStatus.BAD_REQUEST),
@@ -52,6 +55,8 @@ public enum ErrorCode {
     DUPLICATE_MASTER_DATA_NAME(4004, "Tên danh mục, nhà xuất bản hoặc thương hiệu đã tồn tại.", HttpStatus.CONFLICT),
     CATEGORY_CYCLE_DETECTED(4005, "Không thể chọn danh mục cha tạo thành vòng lặp phân cấp.", HttpStatus.BAD_REQUEST),
     MASTER_DATA_IN_USE(4006, "Không thể xóa dữ liệu đang được tham chiếu bởi sản phẩm hoặc danh mục con.", HttpStatus.CONFLICT),
+
+    PRODUCT_IMAGE_UNAVAILABLE(4010, "Không thể xác minh ảnh tải lên lúc này. Vui lòng thử lại sau.", HttpStatus.SERVICE_UNAVAILABLE),
 
     // 5xxx: Warehouse, Goods Receipts & Inventory Posting — Nguyễn Trần Đức Anh
     RECEIPT_NOT_FOUND(5001, "Không tìm thấy phiếu nhập kho.", HttpStatus.NOT_FOUND),

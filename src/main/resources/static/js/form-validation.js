@@ -19,6 +19,9 @@
                     (field.type === "radio" || field.type === "checkbox" ? field.checked : !!field.value.trim()),
             );
 
+        const missingItems = () => Number(form.dataset.minItems || 0) >
+            (form.querySelectorAll(form.dataset.itemSelector || "[data-form-item]").length);
+
         function errorMessage(field) {
             const validity = field.validity;
             if (validity.customError) return field.validationMessage;
@@ -59,7 +62,9 @@
                         );
                         notes.set(field, note);
                     }
-                    const invalid = touched.has(field) && !field.validity.valid;
+                    // Optional voucher entry stays neutral while empty; validity still disables submission.
+                    const silentEmpty = field.hasAttribute("data-silent-empty") && !field.value.trim();
+                    const invalid = touched.has(field) && !field.validity.valid && !silentEmpty;
                     notes.get(field).textContent = errorMessage(field);
                     notes.get(field).hidden = !invalid;
                     field.setAttribute("aria-invalid", String(invalid));
@@ -67,7 +72,7 @@
             });
             const invalid = fields.some((field) => !field.validity.valid);
             const blocked =
-                form.dataset.serverBlocked === "true" || requiredValues().some((name) => !valuePresent(name));
+                form.dataset.serverBlocked === "true" || missingItems() || requiredValues().some((name) => !valuePresent(name));
             buttons().forEach((button) => {
                 button.disabled = submitting || invalid || blocked;
             });
@@ -108,7 +113,7 @@
             update();
             if (
                 submitting ||
-                form.dataset.serverBlocked === "true" ||
+                form.dataset.serverBlocked === "true" || missingItems() ||
                 requiredValues().some((name) => !valuePresent(name)) ||
                 !form.checkValidity()
             ) {
@@ -132,6 +137,12 @@
             originalLabels.clear();
             update();
         });
+        const itemsContainer = form.querySelector("[data-form-items]");
+        if (itemsContainer) new MutationObserver(update).observe(itemsContainer, {childList: true});
+        // Browser autofill may occur after DOMContentLoaded without an input event.
+        form.addEventListener("focusin", update);
+        window.addEventListener("focus", update);
+        [100, 500, 1500].forEach((delay) => setTimeout(update, delay));
         update();
     });
 })();

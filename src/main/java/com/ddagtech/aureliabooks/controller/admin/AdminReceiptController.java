@@ -62,7 +62,7 @@ public class AdminReceiptController {
      * Optionally pre-populates item rows when single or multiple product IDs are passed from inventory management.
      */
     @GetMapping({"/staff/receipts/new", "/manager/receipts/new"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String draftForm(
             @AuthenticationPrincipal CustomUserDetails user,
             @RequestParam(name = "productId", required = false) List<Long> productIds,
@@ -98,7 +98,7 @@ public class AdminReceiptController {
      * Enforces that stock levels are NOT modified at this stage.
      */
     @PostMapping("/staff/receipts")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String createDraft(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @ModelAttribute("receiptForm") GoodsReceiptForm form,
@@ -134,7 +134,7 @@ public class AdminReceiptController {
      * Displays form to edit an existing DRAFT goods receipt.
      */
     @GetMapping({"/staff/receipts/{id}/edit", "/manager/receipts/{id}/edit"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String editForm(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails user,
@@ -177,7 +177,7 @@ public class AdminReceiptController {
      * UC22: Updates an existing DRAFT goods receipt.
      */
     @PostMapping({"/staff/receipts/{id}/update", "/manager/receipts/{id}/update"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String updateDraft(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails user,
@@ -211,7 +211,7 @@ public class AdminReceiptController {
      * UC22: Deletes an existing DRAFT goods receipt.
      */
     @PostMapping({"/staff/receipts/{id}/delete", "/manager/receipts/{id}/delete"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String deleteDraft(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails user,
@@ -234,7 +234,7 @@ public class AdminReceiptController {
      * Displays receipts list for staff / manager.
      */
     @GetMapping({"/manager/receipts", "/staff/receipts"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String listReceipts(
             jakarta.servlet.http.HttpServletRequest request,
             @RequestParam(required = false) GoodsReceipt.Status status,
@@ -268,7 +268,7 @@ public class AdminReceiptController {
      * Increments inventory ATP stock, updates product cost, and seals receipt lines as immutable.
      */
     @PostMapping("/manager/receipts/{id}/finalize")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @PreAuthorize("hasRole('MANAGER')")
     public String finalizeReceipt(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails user,
@@ -308,7 +308,7 @@ public class AdminReceiptController {
      * Thresholds: 0 (Hết hàng / Danger), 1-10 (Tồn kho thấp / Warning), >10 (An toàn / Success).
      */
     @GetMapping({"/manager/stock/alerts", "/staff/stock/alerts", "/inventory/stock/alerts"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String stockAlerts(
             jakarta.servlet.http.HttpServletRequest request,
             @RequestParam(required = false) String keyword,
@@ -350,7 +350,7 @@ public class AdminReceiptController {
      */
     @PostMapping("/api/products/quick-create")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public ResponseEntity<?> quickCreateProduct(
             @Valid @RequestBody QuickCreateProductRequest request,
             BindingResult bindingResult

@@ -52,20 +52,38 @@ public class CheckoutController {
         @RequestParam(required = false) Long shippingAddressId,
         @RequestParam(defaultValue = "COD") Order.PaymentMethod paymentMethod,
         @RequestParam(required = false) String voucherCode,
+        @RequestParam(required = false) String shippingVoucherCode,
         Model model
     ) {
         Long owner = identity.resolve(auth);
-        CheckoutView checkout;
         String code = normalizeVoucher(voucherCode);
-        try {
-            checkout = loadCheckout(owner, shippingAddressId, code);
-            model.addAttribute("appliedVoucherCode", code);
-        } catch (AppException error) {
-            if (code.isEmpty() || !error.getErrorCode().name().startsWith("VOUCHER_")) throw error;
-            checkout = orders.getCheckoutView(owner, shippingAddressId);
-            model.addAttribute("errorMessage", error.getMessage());
+        String shippingCode = normalizeVoucher(shippingVoucherCode);
+        CheckoutView checkout = orders.getCheckoutView(owner, shippingAddressId);
+        String appliedCode = "";
+        String appliedShippingCode = "";
+        if (!code.isEmpty()) {
+            try {
+                checkout = loadCheckout(owner, shippingAddressId, code, "");
+                appliedCode = code;
+            } catch (AppException error) {
+                if (!error.getErrorCode().name().startsWith("VOUCHER_")) throw error;
+                model.addAttribute("productVoucherError", error.getMessage());
+            }
+        }
+        if (!shippingCode.isEmpty()) {
+            try {
+                checkout = loadCheckout(owner, shippingAddressId, appliedCode, shippingCode);
+                appliedShippingCode = shippingCode;
+            } catch (AppException error) {
+                if (!error.getErrorCode().name().startsWith("VOUCHER_")
+                        && error.getErrorCode() != ErrorCode.INVALID_INPUT_DATA) throw error;
+                model.addAttribute("shippingVoucherError", error.getMessage());
+            }
         }
         model.addAttribute("voucherCode", code);
+        model.addAttribute("shippingVoucherCode", shippingCode);
+        model.addAttribute("appliedVoucherCode", appliedCode);
+        model.addAttribute("appliedShippingVoucherCode", appliedShippingCode);
         addCheckout(model, checkout, paymentMethod);
         if (!model.containsAttribute("addressForm")) {
             model.addAttribute("addressForm", new AddressRequest(null, null, null, null, null, false));
@@ -91,7 +109,8 @@ public class CheckoutController {
         CheckoutView view = loadCheckout(
             owner,
             selection.shippingAddressId(),
-            normalizeVoucher(selection.voucherCode())
+            normalizeVoucher(selection.voucherCode()),
+            normalizeVoucher(selection.shippingVoucherCode())
         );
         if (hasInvalidItems(view)) {
             flash.addFlashAttribute("errorMessage", "Một số sản phẩm cần được cập nhật. Vui lòng kiểm tra giỏ hàng.");
@@ -102,7 +121,8 @@ public class CheckoutController {
             owner,
             view,
             selection.paymentMethod(),
-            normalizeVoucher(selection.voucherCode()).isEmpty() ? null : normalizeVoucher(selection.voucherCode())
+            normalizeVoucher(selection.voucherCode()).isEmpty() ? null : normalizeVoucher(selection.voucherCode()),
+            normalizeVoucher(selection.shippingVoucherCode()).isEmpty() ? null : normalizeVoucher(selection.shippingVoucherCode())
         );
         return "redirect:/checkout/review/" + review.checkoutToken();
     }
@@ -207,7 +227,8 @@ public class CheckoutController {
         return "redirect:/checkout?shippingAddressId=" + addressId;
     }
 
-    private CheckoutView loadCheckout(Long owner, Long addressId, String code) {
+    private CheckoutView loadCheckout(Long owner, Long addressId, String code, String shippingCode) {
+        if (!shippingCode.isEmpty()) return orders.getCheckoutView(owner, addressId, code, shippingCode);
         return code.isEmpty()
             ? orders.getCheckoutView(owner, addressId)
             : orders.getCheckoutView(owner, addressId, code);
@@ -304,6 +325,7 @@ public class CheckoutController {
         }
         if (
             code == ErrorCode.CART_EMPTY || code == ErrorCode.INSUFFICIENT_STOCK || code == ErrorCode.PRODUCT_NOT_FOUND
+                || code == ErrorCode.CART_LINE_LIMIT_EXCEEDED || code == ErrorCode.CART_ITEM_QUANTITY_EXCEEDED
         ) return "redirect:/cart";
         return "redirect:/checkout";
     }

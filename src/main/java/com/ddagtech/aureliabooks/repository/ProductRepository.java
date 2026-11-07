@@ -20,6 +20,9 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
+    @Query("SELECT DISTINCT p.category.id FROM Product p WHERE p.productType = :type AND p.category IS NOT NULL")
+    List<Long> findCategoryIdsByProductType(@Param("type") Product.ProductType type);
+
     /**
      * Checks if a product with the specified barcode exists.
      *
@@ -196,4 +199,24 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
      */
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND p.embedding IS NOT NULL")
     List<Product> findActiveProductsWithEmbedding();
+    @Query("select p from Product p join p.category c where p.id in :ids and p.isActive = true and c.isActive = true and p.stockQuantity > 0")
+    List<Product> findRecommendationCandidates(@Param("ids") Collection<Long> ids);
+
+    @Query("select p from Product p join p.category c where p.isActive = true and c.isActive = true and p.stockQuantity > 0 and (:categoryId is null or c.id = :categoryId) order by p.id desc")
+    List<Product> findRecommendationFallback(@Param("categoryId") Long categoryId, Pageable pageable);
+
+    /**
+     * Counts visible products referencing a specific main image URL.
+     * Used to prevent public access to unassigned R2 images.
+     */
+    @Query("""
+        SELECT COUNT(p)
+        FROM Product p
+        JOIN p.category c
+        WHERE p.mainImageUrl = :imageUrl
+          AND p.isActive = true
+          AND c.isActive = true
+    """)
+    long countVisibleProductsByMainImageUrl(
+            @Param("imageUrl") String imageUrl);
 }

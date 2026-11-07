@@ -98,6 +98,7 @@ class OrderPlacementMySqlTest {
     private static boolean created;
 
     @Autowired OrderPlacementService service;
+    @Autowired CartService cartService;
     @Autowired OrderStateMachineService stateMachine;
     @Autowired StockMutationService stockMutations;
     @Autowired JdbcTemplate jdbc;
@@ -197,7 +198,7 @@ class OrderPlacementMySqlTest {
         assertThat(jdbc.queryForObject("SELECT stock_deducted_at IS NOT NULL FROM orders WHERE id=?", Boolean.class, orderId))
                 .isTrue();
         assertThat(jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE id=?", java.math.BigDecimal.class, orderId))
-                .isEqualByComparingTo("400000");
+                .isEqualByComparingTo("350000");
         jdbc.update("UPDATE products SET title='Đã đổi',price=1 WHERE id=?", productIds.getFirst());
         jdbc.update("UPDATE shipping_addresses SET detailed_address='Đã đổi' WHERE id=?", buyer.addressId());
         assertThat(jdbc.queryForObject("SELECT product_name_snapshot FROM order_items WHERE order_id=? AND product_id=?",
@@ -349,11 +350,68 @@ class OrderPlacementMySqlTest {
                 Integer.class, buyer.id())).isEqualTo(1);
     }
 
-    @Test void foreignAddressIsRejectedWithoutAccountPhoneVerification() {
+    @Test void phoneRemovedAfterReviewStillUsesDeliveryPhone() {
+        long productId = product(5, "100000");
+        Buyer buyer = buyer(List.of(productId), List.of(1));
+        Attempt reviewed = attempt(buyer, Order.PaymentMethod.COD);
+        jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", buyer.id());
+        assertThat(service.placeOrder(buyer.id(), reviewed.request(), reviewed.confirmation()))
+                .isEqualTo(reviewed.request().getCheckoutToken());
+        assertThat(jdbc.queryForObject("SELECT shipping_phone FROM orders WHERE order_code=?",
+                String.class, reviewed.request().getCheckoutToken())).isEqualTo("0987654321");
+        assertThat(stock(productId)).isEqualTo(4);
+        assertThat(cartLines(buyer)).isZero();
+    }
+
+    @Test void concurrentCartAdditionsCannotExceed20Products() throws Exception {
+        var ids = new java.util.ArrayList<Long>();
+        for (int i = 0; i < 19; i++) ids.add(product(5, "10000"));
+        Buyer buyer = buyer(ids, java.util.Collections.nCopies(19, 1));
+        long first = product(5, "10000");
+        long second = product(5, "10000");
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var one = executor.submit(() -> addAfter(start, buyer.id(), first));
+            var two = executor.submit(() -> addAfter(start, buyer.id(), second));
+            start.countDown();
+            var results = List.of(one.get(25, TimeUnit.SECONDS), two.get(25, TimeUnit.SECONDS));
+            assertThat(results.stream().filter(Long.class::isInstance)).hasSize(1);
+            assertThat(results.stream().filter(AppException.class::isInstance)
+                    .map(AppException.class::cast).map(AppException::getErrorCode))
+                    .containsExactly(ErrorCode.CART_LINE_LIMIT_EXCEEDED);
+        }
+        assertThat(cartLines(buyer)).isEqualTo(20);
+        assertThat(stock(first)).isEqualTo(5);
+        assertThat(stock(second)).isEqualTo(5);
+    }
+
+    @Test void recommendationBatchRollsBackWhenItWouldExceed20Products() {
+        var ids = new java.util.ArrayList<Long>();
+        for (int i = 0; i < 19; i++) ids.add(product(5, "10000"));
+        Buyer buyer = buyer(ids, java.util.Collections.nCopies(19, 1));
+        long first = product(5, "10000");
+        long second = product(5, "10000");
+        assertThatThrownBy(() -> cartService.addRecommendations(buyer.id(), List.of(first, second)))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.CART_LINE_LIMIT_EXCEEDED);
+        assertThat(cartLines(buyer)).isEqualTo(19);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM cart_items WHERE cart_id=? AND product_id IN (?,?)",
+                Integer.class, buyer.cartId(), first, second)).isZero();
+    }
+
+    private Object addAfter(CountDownLatch start, long userId, long productId) throws InterruptedException {
+        start.await();
+        var quantity = new com.ddagtech.aureliabooks.dto.request.CartQuantityRequest();
+        quantity.setQuantity(1);
+        try {
+            cartService.addItem(userId, productId, quantity);
+            return productId;
+        } catch (AppException exception) { return exception; }
+    }
+
+    @Test void foreignAddressIsRejectedForVerifiedCustomer() {
         long productId = product(5, "100000");
         Buyer buyer = buyer(List.of(productId), List.of(1));
         Attempt attempt = attempt(buyer, Order.PaymentMethod.COD);
-        jdbc.update("UPDATE users SET phone=NULL, phone_verified=FALSE WHERE id=?", buyer.id());
         Buyer other = buyer(List.of(productId), List.of(1));
         assertThatThrownBy(() -> service.getCheckoutView(buyer.id(), other.addressId()))
                 .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.ADDRESS_NOT_FOUND);
@@ -370,7 +428,7 @@ class OrderPlacementMySqlTest {
         long id = placedCodOrder();
         transition(id, staffId, Order.OrderStatus.CONFIRMED);
         assertThat(jdbc.queryForObject("SELECT confirmed_at IS NOT NULL FROM orders WHERE id=?", Boolean.class, id)).isTrue();
-        var queue = stateMachine.getOrderQueue(new OrderQueueFilter(Order.OrderStatus.CONFIRMED, Order.PaymentStatus.UNPAID,
+        var queue = stateMachine.getOrderQueue(new OrderQueueFilter(Order.OrderStatus.CONFIRMED, OrderQueueFilter.PaymentFilter.UNPAID,
                 Order.PaymentMethod.COD, java.time.LocalDate.now(), java.time.LocalDate.now()), PageRequest.of(0, 100), staffId);
         assertThat(queue.getContent()).extracting("id").contains(id);
         var checklist = stateMachine.getPackagingChecklist(id, staffId);
@@ -484,7 +542,7 @@ class OrderPlacementMySqlTest {
         assertThat(jdbc.queryForObject("SELECT payment_status FROM orders WHERE id=?", String.class, id)).isEqualTo("REFUNDED");
         assertThat(jdbc.queryForObject("SELECT order_status FROM orders WHERE id=?", String.class, id)).isEqualTo("CANCELLED");
         assertThat(stock(product)).isEqualTo(before);
-        assertThat(jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(details_json,'$.reference')) FROM audit_logs WHERE target_id=? AND action='ORDER_REFUND_CONFIRMED'", String.class, id)).isEqualTo("QA-REFUND-" + id);
+        assertThat(jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(details_json,'$.supportingInfo')) FROM audit_logs WHERE target_id=? AND action='ORDER_REFUND_CONFIRMED'", String.class, id)).isEqualTo("QA bank receipt");
         assertThat(stateMachine.getPackagingChecklist(id, staff).history()).extracting("action").contains("ORDER_REFUND_CONFIRMED");
         assertThatThrownBy(() -> stateMachine.confirmExternalRefund(id, request, staff)).isInstanceOf(AppException.class);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE target_id=? AND action='ORDER_REFUND_CONFIRMED'", Integer.class, id)).isEqualTo(1);
@@ -519,6 +577,24 @@ class OrderPlacementMySqlTest {
         try { stateMachine.confirmExternalRefund(id, request, actor); return "OK"; }
         catch (RuntimeException exception) { return exception; }
     }
+
+    @Test void pendingRefundFilterIncludesOnlyPaidCancelledOrReturnedOrders() {
+        long staff = saleStaff();
+        long cancelled = cancelledPaidOrder(staff);
+        long returned = placedCodOrder();
+        jdbc.update("UPDATE orders SET order_status='RETURNED', payment_status='PAID' WHERE id=?", returned);
+        long delivered = placedCodOrder();
+        jdbc.update("UPDATE orders SET order_status='DELIVERED', payment_status='PAID' WHERE id=?", delivered);
+        long refunded = placedCodOrder();
+        jdbc.update("UPDATE orders SET order_status='RETURNED', payment_status='REFUNDED' WHERE id=?", refunded);
+        long unpaid = placedCodOrder();
+        var fixtureIds = java.util.Set.of(cancelled, returned, delivered, refunded, unpaid);
+        var queue = stateMachine.getOrderQueue(new OrderQueueFilter(null,
+                OrderQueueFilter.PaymentFilter.REFUND_PENDING, null, null, null), PageRequest.of(0, 100), staff);
+        assertThat(queue.getContent()).filteredOn(item -> fixtureIds.contains(item.id()))
+                .extracting(com.ddagtech.aureliabooks.dto.response.StaffOrderQueueView::id)
+                .containsExactlyInAnyOrder(cancelled, returned);
+    }
     private long cancelledPaidOrder(long staff) {
         long id = placedCodOrder();
         jdbc.update("UPDATE orders SET payment_method='VNPAY', payment_status='PAID', vnpay_txn_ref=? WHERE id=?", "QA-PAID-" + id, id);
@@ -527,7 +603,7 @@ class OrderPlacementMySqlTest {
     }
     private RefundConfirmationRequest refundRequest(long id) {
         return new RefundConfirmationRequest(jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE id=?", java.math.BigDecimal.class, id),
-                "BANK_TRANSFER", java.time.LocalDate.now(), "QA-REFUND-" + id, "QA bank receipt", true);
+                "Chuyển khoản", java.time.LocalDate.now(), "QA bank receipt", true);
     }
     private long saleStaff() {
         jdbc.update("INSERT INTO roles(role_name) VALUES('ROLE_SALE_STAFF') ON DUPLICATE KEY UPDATE role_name=role_name");

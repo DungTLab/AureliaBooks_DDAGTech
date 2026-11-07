@@ -8,8 +8,10 @@
             destination.search = "";
             destination.searchParams.set("shippingAddressId", input.value);
             if (payment) destination.searchParams.set("paymentMethod", payment.value);
-            const voucher = document.querySelector('#checkoutSelection input[name="voucherCode"]');
-            if (voucher?.value) destination.searchParams.set("voucherCode", voucher.value);
+            ["voucherCode", "shippingVoucherCode"].forEach((name) => {
+                const voucher = document.querySelector(`#checkoutSelection input[name="${name}"]`);
+                if (voucher?.value) destination.searchParams.set(name, voucher.value);
+            });
             window.location.assign(destination.href);
         });
     });

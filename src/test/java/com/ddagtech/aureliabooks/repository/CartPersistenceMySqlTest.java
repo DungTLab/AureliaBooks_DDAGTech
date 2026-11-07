@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Opt-in: initialize a disposable uc10_qa_ database with docker/initdb/01_schema.sql. */
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate", showSql = false)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(CartServiceImpl.class)
+@Import({CartServiceImpl.class, com.ddagtech.aureliabooks.mapper.CartMapper.class})
 @EnabledIfSystemProperty(named = "cart.mysql", matches = "true")
 class CartPersistenceMySqlTest {
 

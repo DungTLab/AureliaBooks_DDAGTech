@@ -1,0 +1,221 @@
+{
+  "checkpoint": "R2.37.3 offline preparation ONLY",
+  "liveR2Executed": false,
+  "externalMetadataVerified": false,
+  "reviewBaseline": "28aa2a9de4024a2a0b0b5733649abaade1a231f4",
+  "finishedAt": "2026-11-01T21:37:34+07:00",
+  "scope": "Selected offline regression; actual AWS SDK/processor/storage with in-memory HTTP; no MySQL, HTTP server, secrets lookup or live R2. Not full suite/CI.",
+  "totals": {
+    "tests": 270,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "newHarnessTests": 34,
+  "overlapNote": "The earlier 55-test focused run overlaps this regression; do not add the counts.",
+  "sourceSha256": {
+    "pom.xml": "3b4f6223d83a88a6c42409f21792104518bef34b32f8893030def9f85ca3f3c1",
+    "src/main/java/com/ddagtech/aureliabooks/service/impl/R2ProductImageStorage.java": "bc8df8af8342c82866576489c29c9d96f393dd9e022e282f1f2b2e9bbe08633f",
+    "src/test/java/com/ddagtech/aureliabooks/service/impl/R2SmokeProtocol.java": "1d864faf9179b69dcf7d89bfd2ab24cf8cf6cd47af503bc01cff4007e109d5c2",
+    "src/test/java/com/ddagtech/aureliabooks/service/impl/R2SmokeProtocolTest.java": "52574c1cf473345ab220611980c44a55d3b68243d1a34abd8bd4db70f263e5ee",
+    "src/test/java/com/ddagtech/aureliabooks/service/impl/R2SmokeDraftPreparationTest.java": "3471104ec68eb49f85c27a38f9db7da0faa2888cdeeb4ee2c41ddae7f2898a2f"
+  },
+  "suites": [
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.ProductImageSecurityMvcTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.ProductControllerTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.ProductImageUploadPausedMvcTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.HomeControllerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.ProductImageControllerContextTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.CartStorefrontTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.CartControllerTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.admin.ManagerProductImageUploadTest",
+      "tests": 14,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.admin.AdminProductFailureRecoveryTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.admin.AdminProductControllerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.admin.ProductImageFormTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.ProductImageControllerTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.controller.ProductImageUploadAdmissionMvcTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.ProductImageReferencePolicyTest",
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.AdminProductServiceTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.impl.R2SmokeProtocolTest",
+      "tests": 34,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.impl.R2ProductImageAbortTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.impl.R2ProductImageStorageTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.impl.R2ProductImageReadTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.impl.ProductImageProcessorTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.service.ProductImageSaveGuardTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.SecurityConfigIntegrationTest",
+      "tests": 31,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.PortalSeparationIntegrationTest",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.CustomAccessDeniedHandlerLoggingTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.security.ProductImageUploadFilterTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.dto.request.BookFormValidationTest",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.config.R2SafetyDefaultsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "com.ddagtech.aureliabooks.config.R2StorageConfigTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ]
+}

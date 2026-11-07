@@ -8,9 +8,13 @@ public record StaffOrderQueueView(Long id, String orderCode, String recipientNam
                                    Order.OrderStatus status, Order.PaymentMethod paymentMethod,
                                    Order.PaymentStatus paymentStatus, BigDecimal total,
                                    String customerName, String customerEmail) {
-    public boolean needsRefund() { return status == Order.OrderStatus.CANCELLED && paymentStatus == Order.PaymentStatus.PAID; }
+    public boolean needsRefund() {
+        return (status == Order.OrderStatus.CANCELLED || status == Order.OrderStatus.RETURNED)
+                && paymentStatus == Order.PaymentStatus.PAID;
+    }
     public String statusLabel() { return OrderTimelineStep.label(status); }
     public String paymentLabel() {
+        if (needsRefund()) return "Chưa hoàn tiền";
         return switch (paymentStatus) {
             case UNPAID -> "Chưa thanh toán";
             case PAID -> "Đã thanh toán";

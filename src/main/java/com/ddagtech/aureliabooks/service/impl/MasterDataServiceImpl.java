@@ -27,8 +27,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -461,7 +466,58 @@ public class MasterDataServiceImpl implements MasterDataService {
 
     @Override
     public List<Category> getAllCategoriesWithParent() {
-        return categoryRepository.findAllWithParent();
+        List<Category> categories = categoryRepository.findAllWithParent();
+        if (categories == null || categories.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, List<Category>> childrenByParent = new HashMap<>();
+        Set<Long> categoryIds = new HashSet<>();
+        for (Category category : categories) {
+            categoryIds.add(category.getId());
+            if (category.getParent() != null) {
+                childrenByParent.computeIfAbsent(category.getParent().getId(), key -> new ArrayList<>())
+                        .add(category);
+            }
+        }
+
+        List<Category> ordered = new ArrayList<>(categories.size());
+        Set<Long> visited = new HashSet<>();
+        for (Category category : categories) {
+            if (category.getParent() == null) {
+                flattenCategoryTree(category, childrenByParent, ordered, visited);
+            }
+        }
+        for (Category category : categories) {
+            if (category.getParent() != null && !categoryIds.contains(category.getParent().getId())) {
+                flattenCategoryTree(category, childrenByParent, ordered, visited);
+            }
+        }
+        for (Category category : categories) {
+            if (!visited.contains(category.getId())) {
+                flattenCategoryTree(category, childrenByParent, ordered, visited);
+            }
+        }
+        return ordered;
+    }
+
+    private void flattenCategoryTree(Category root, Map<Long, List<Category>> childrenByParent,
+                                     List<Category> result, Set<Long> visited) {
+        Deque<Category> pending = new ArrayDeque<>();
+        pending.push(root);
+        while (!pending.isEmpty()) {
+            Category category = pending.pop();
+            if (!visited.add(category.getId())) {
+                continue;
+            }
+            result.add(category);
+            List<Category> children = childrenByParent.get(category.getId());
+            if (children != null) {
+                for (int index = children.size() - 1; index >= 0; index--) {
+                    pending.push(children.get(index));
+                }
+            }
+        }
     }
 
     @Override

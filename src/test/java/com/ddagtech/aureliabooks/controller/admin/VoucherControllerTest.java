@@ -98,7 +98,7 @@ class VoucherControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
+    @WithMockUser(roles = "MANAGER")
     void validCreateUsesAuthenticatedActor() throws Exception {
         when(identity.resolve(any())).thenReturn(7L);
         mvc.perform(valid().with(csrf())).andExpect(redirectedUrl("/manager/vouchers"));
@@ -179,5 +179,12 @@ class VoucherControllerTest {
             .param("usageLimit", "10")
             .param("startDate", "2026-10-17T12:00")
             .param("endDate", "2026-10-20T12:00");
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void adminCannotCreateVoucher() throws Exception {
+        mvc.perform(valid().with(csrf())).andExpect(status().isForbidden());
+        verifyNoInteractions(vouchers);
     }
 }

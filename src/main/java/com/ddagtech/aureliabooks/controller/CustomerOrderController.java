@@ -8,6 +8,8 @@ import com.ddagtech.aureliabooks.dto.response.OrderTimelineStep;
 import java.util.LinkedHashMap;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.CustomerOrderService;
+import com.ddagtech.aureliabooks.service.CheckoutPaymentGateway;
+import org.springframework.beans.factory.ObjectProvider;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -24,6 +26,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class CustomerOrderController {
     private final CustomerOrderService orders;
     private final CustomerIdentity identity;
+    private final ObjectProvider<CheckoutPaymentGateway> payments;
 
     @GetMapping
     public String history(Authentication auth, @RequestParam(defaultValue = "0") int page,
@@ -39,6 +42,8 @@ public class CustomerOrderController {
     @GetMapping("/{orderCode}")
     public String detail(Authentication auth, @PathVariable String orderCode, Model model) {
         model.addAttribute("detail", orders.getMyOrderDetail(identity.resolve(auth), orderCode));
+        CheckoutPaymentGateway gateway = payments.getIfAvailable();
+        model.addAttribute("onlinePaymentAvailable", gateway != null && gateway.isAvailable());
         return "orders/detail";
     }
 

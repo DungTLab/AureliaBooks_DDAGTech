@@ -30,7 +30,7 @@ import java.util.LinkedHashMap;
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/staff/orders")
-@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+@PreAuthorize("hasAnyRole('SALE_STAFF', 'MANAGER')")
 public class StaffOrderController {
     private final OrderStateMachineService orders;
     private final StaffIdentity identity;
@@ -50,6 +50,7 @@ public class StaffOrderController {
 
     @GetMapping("/{id}")
     public String checklist(Authentication auth, @PathVariable Long id, Model model) {
+        model.addAttribute("refundToday", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
         model.addAttribute("checklist", orders.getPackagingChecklist(id, identity.resolve(auth)));
         return "staff/packaging-checklist";
     }
@@ -73,7 +74,7 @@ public class StaffOrderController {
     }
 
     @PostMapping("/{id}/return-restock")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALE_STAFF')")
+    @PreAuthorize("hasRole('SALE_STAFF')")
     public Object returnRestock(Authentication auth, @PathVariable Long id,
                                 @Valid @ModelAttribute ReturnConfirmationRequest request, BindingResult errors,
                                 RedirectAttributes flash) {
@@ -95,7 +96,7 @@ public class StaffOrderController {
     }
 
     @PostMapping("/{id}/refund")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALE_STAFF')")
+    @PreAuthorize("hasRole('SALE_STAFF')")
     public Object refund(Authentication auth, @PathVariable Long id,
                          @Valid @ModelAttribute RefundConfirmationRequest request, BindingResult errors,
                          RedirectAttributes flash) {
@@ -114,6 +115,7 @@ public class StaffOrderController {
 
     private ModelAndView latest(Long id, Long actor, String message, HttpStatus status) {
         var result = new ModelAndView("staff/packaging-checklist");
+        result.addObject("refundToday", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
         result.addObject("checklist", orders.getPackagingChecklist(id, actor));
         result.addObject("errorMessage", message);
         result.setStatus(status);

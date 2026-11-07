@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-04",
+  "scope": "local repository-side Java configuration snapshot transfer; no activation",
+  "local_head": "be6189942bb7f92e1fc8632dee164acf0cfa8472",
+  "main_compared": "63d83a6707b02ac1cfb41c20cdfee4112e41e948",
+  "tests": {
+    "runtime_configuration": 128,
+    "otp_regression": 58,
+    "r2_mock_regression": 22,
+    "total": 208,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "umask": "077"
+  },
+  "checks": {
+    "spring_boot_configuration_precedence": "PASS",
+    "synthetic_secret_failure_leakage": "PASS",
+    "properties_round_trip_and_validation": "PASS",
+    "snapshot_permissions_immutability_and_tamper_rejection": "PASS",
+    "offline_transaction_rollback_and_concurrency": "PASS_FIXTURES_ONLY",
+    "hung_subprocess_and_stdin_deadlines": "PASS",
+    "mock_ssh_transport_cleanup_and_environment_isolation": "PASS",
+    "workflow_yaml_syntax_and_semantic_guards": "PASS_SNAKEYAML_JUNIT",
+    "shell_syntax": "PASS",
+    "git_diff_check": "PASS",
+    "existing_six_workflows_identical_to_main": "PASS",
+    "standalone_javac_and_jar": "PASS_JAVA_21_JAVA_BASE_ONLY",
+    "spring_boot_package": "PASS",
+    "fake_store_excluded_from_application_jar": "PASS",
+    "actionlint": "UNAVAILABLE",
+    "shellcheck": "UNAVAILABLE"
+  },
+  "not_verified": [
+    "GitHub Actions execution or real Environment protections",
+    "VPS provisioning, JRE, sudoers and real root/cross-UID permissions",
+    "activation, app mounts, image deployment preserving an active overlay",
+    "real application rollback, process restart or power-loss atomicity",
+    "provider integration and Cloudflare IPN routing"
+  ],
+  "live_operations_performed": false,
+  "r2_enabled": false,
+  "r2_upload_enabled": false,
+  "commit_push_pr_merge_performed": false
+}

@@ -20,6 +20,8 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
 
     Optional<CartItem> findByCart_IdAndProduct_Id(Long cartId, Long productId);
 
+    long countByCart_Id(Long cartId);
+
     @EntityGraph(attributePaths = {"cart", "product"})
     Optional<CartItem> findByIdAndCart_User_Id(Long itemId, Long userId);
 }

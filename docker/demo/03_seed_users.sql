@@ -68,13 +68,17 @@ BEGIN
                 SET conflict_message = CONCAT('Demo seed contact/role conflict for ', wanted_role, '; existing accounts unchanged.');
                 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = conflict_message;
             END IF;
-            -- Same identity already exists: leave password, role and active flag untouched.
+            -- Same identity already exists: leave password, role and active flag untouched,
+            -- but ensure internal contacts have verified flags set for demo recovery flows.
+            IF wanted_role <> 'ROLE_CUSTOMER' THEN
+                UPDATE users SET email_verified = TRUE, phone_verified = TRUE WHERE id = email_owner;
+            END IF;
         ELSEIF phone_owner IS NOT NULL THEN
             SET conflict_message = CONCAT('Demo seed phone conflict for ', wanted_role, '; existing accounts unchanged.');
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = conflict_message;
         ELSE
-            INSERT INTO users (role_id, email, phone, password_hash, full_name, dob, gender, auth_provider, is_active)
-            VALUES (role_key, wanted_email, wanted_phone, wanted_hash, wanted_name, wanted_dob, wanted_gender, 'LOCAL', TRUE);
+            INSERT INTO users (role_id, email, phone, password_hash, full_name, dob, gender, auth_provider, is_active, email_verified, phone_verified)
+            VALUES (role_key, wanted_email, wanted_phone, wanted_hash, wanted_name, wanted_dob, wanted_gender, 'LOCAL', TRUE, TRUE, TRUE);
         END IF;
     END LOOP;
     CLOSE accounts;

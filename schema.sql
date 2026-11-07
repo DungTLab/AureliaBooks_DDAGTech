@@ -308,7 +308,10 @@ CREATE TABLE orders (
     shipping_full_address VARCHAR(500) NOT NULL,
     shipping_fee DECIMAL(10,2) NOT NULL,
     final_total_amount DECIMAL(12,2) NOT NULL,
-    order_status ENUM('PENDING_PAYMENT','PENDING_CONFIRMATION','CONFIRMED','SHIPPING','DELIVERED','CANCELLED') NOT NULL DEFAULT 'PENDING_PAYMENT',
+    product_voucher_code VARCHAR(30) NULL,
+    shipping_voucher_code VARCHAR(30) NULL,
+    shipping_discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    order_status ENUM('PENDING_PAYMENT','PENDING_CONFIRMATION','CONFIRMED','SHIPPING','DELIVERED','CANCELLED','RETURNED') NOT NULL DEFAULT 'PENDING_PAYMENT',
     payment_method ENUM('COD','VNPAY') NOT NULL,
     payment_status ENUM('UNPAID','PAID','REFUNDED') NOT NULL DEFAULT 'UNPAID',
     tracking_number VARCHAR(100) NULL,
@@ -345,6 +348,7 @@ CREATE TABLE orders (
             AND stock_restored_at >= stock_deducted_at AND stock_restore_reason IS NOT NULL
             AND (stock_restore_reason <> 'RETURNED' OR stock_restored_by_user_id IS NOT NULL))
     ),
+    CONSTRAINT chk_ord_shipping_discount CHECK (shipping_discount_amount >= 0 AND shipping_discount_amount <= shipping_fee),
     CONSTRAINT chk_ord_fee CHECK (shipping_fee >= 0),
     CONSTRAINT chk_ord_total CHECK (final_total_amount >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Primary orders table (Incorporates lifecycle timeline and VNPay reconciliation) (Maps to Use Cases: UC11, UC11.1, UC12, UC12.1, UC14, UC14.1, UC26)';
@@ -375,14 +379,15 @@ CREATE TABLE order_vouchers (
     order_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL COMMENT 'Voucher redeemer; must match the order owner',
     voucher_id BIGINT NOT NULL,
+    scope ENUM('PRODUCT', 'SHIPPING') NOT NULL,
     discount_applied DECIMAL(12,2) NOT NULL,
     CONSTRAINT fk_ov_order_user FOREIGN KEY (order_id, user_id) REFERENCES orders(id, user_id) ON DELETE CASCADE,
     CONSTRAINT fk_ov_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT uk_ov_user_voucher UNIQUE (user_id, voucher_id),
     CONSTRAINT fk_ov_voucher FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE RESTRICT,
-    CONSTRAINT uk_ov_order UNIQUE (order_id) COMMENT 'Hard constraint enforcing maximum 1 voucher per order',
+    CONSTRAINT uk_ov_order_scope UNIQUE (order_id, scope) COMMENT 'Maximum one voucher per scope per order',
     CONSTRAINT chk_ov_discount CHECK (discount_applied >= 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Voucher redemptions: maximum 1 per order and 1 per user per voucher (Maps to Use Cases: UC11.2, UC13)';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Voucher redemptions: maximum 1 per scope per order and 1 per user per voucher (Maps to Use Cases: UC11.2, UC13)';
 
 -- -----------------------------------------------------------------------------
 -- SUBSYSTEM 6: SECURITY AUDIT & SYSTEM RECONCILIATION (FE-7)

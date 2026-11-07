@@ -4,6 +4,7 @@ import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.CheckoutConfirmation;
 import com.ddagtech.aureliabooks.dto.request.CheckoutRequest;
 import com.ddagtech.aureliabooks.dto.response.CheckoutView;
+import com.ddagtech.aureliabooks.dto.response.VoucherQuote;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.exception.AppException;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -83,6 +85,7 @@ class OrderPlacementServiceTest {
         cart.addItem(item);
         request = new CheckoutRequest(); request.setCheckoutToken(TOKEN);
         request.setShippingAddressId(address.getId()); request.setPaymentMethod(Order.PaymentMethod.COD);
+        lenient().when(users.findById(owner.getId())).thenReturn(Optional.of(owner));
         lenient().when(users.findOwnerForUpdate(owner.getId())).thenReturn(Optional.of(owner));
         lenient().when(carts.findByUser_Id(owner.getId())).thenReturn(Optional.of(cart));
         lenient().when(addresses.findByIdAndUserIdAndIsActiveTrue(address.getId(), owner.getId()))
@@ -106,6 +109,37 @@ class OrderPlacementServiceTest {
     private CheckoutConfirmation confirmation() {
         return new CheckoutConfirmation(TOKEN, owner.getId(),
                 service.getCheckoutView(owner.getId(), address.getId()), request.getPaymentMethod(), null);
+    }
+
+    @Test
+    void missingOrBlankAccountPhoneCanStartCheckout() {
+        owner.setPhone(null);
+        owner.setPhoneVerified(false);
+        assertThat(service.getCheckoutView(owner.getId(), address.getId()).selectedAddressId()).isEqualTo(address.getId());
+        owner.setPhone("   ");
+        assertThat(service.getCheckoutView(owner.getId(), address.getId()).selectedAddressId()).isEqualTo(address.getId());
+    }
+
+    @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
+    void placementUsesDeliveryPhoneWhenAccountPhoneIsRemovedAfterPreview(Order.PaymentMethod method) {
+        request.setPaymentMethod(method);
+        CheckoutConfirmation reviewed = confirmation();
+        owner.setPhone(null);
+        owner.setPhoneVerified(false);
+        assertThat(service.placeOrder(owner.getId(), request, reviewed)).isEqualTo(TOKEN);
+        assertThat(savedOrder.getShippingPhone()).isEqualTo(address.getPhone());
+    }
+
+    @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
+    void existingPhoneWithoutVerificationFlagCanCheckoutAndPlaceOrder(Order.PaymentMethod method) {
+        owner.setPhoneVerified(false);
+        request.setPaymentMethod(method);
+        assertThat(service.getCheckoutView(owner.getId(), address.getId()).selectedAddressId())
+                .isEqualTo(address.getId());
+        assertThat(service.placeOrder(owner.getId(), request, confirmation())).isEqualTo(TOKEN);
+        assertThat(owner.isPhoneVerified()).isFalse();
+        assertThat(savedOrder.getShippingPhone()).isEqualTo(address.getPhone());
+        verify(stockMutations).deductOrder(100L);
     }
 
     /** Apply the same snapshot and single-deduction expectations to both COD and VNPay. */
@@ -148,9 +182,113 @@ class OrderPlacementServiceTest {
         verifyNoInteractions(stockMutations, orders);
     }
 
-    @Test void doesNotInventFreeShippingAtUnconfirmedThresholds() {
-        product.setPrice(new BigDecimal("350000"));
-        assertThat(service.getCheckoutView(1L, 10L).shippingFee()).isEqualByComparingTo("50000");
+    @ParameterizedTest
+    @CsvSource({
+        "NORTHERN,349999.99,50000", "NORTHERN,350000,0", "NORTHERN,350000.01,0",
+        "CENTRAL_HIGHLANDS,349999.99,40000", "CENTRAL_HIGHLANDS,350000,0", "CENTRAL_HIGHLANDS,350000.01,0",
+        "SOUTHERN_MEKONG,249999.99,30000", "SOUTHERN_MEKONG,250000,0", "SOUTHERN_MEKONG,250000.01,0"
+    })
+    void appliesRegionalFreeShippingBoundaries(ShippingAddress.EconomicRegion region, String subtotal, String fee) {
+        address.setEconomicRegion(region);
+        cart.getItems().getFirst().setQuantity(1);
+        product.setPrice(new BigDecimal(subtotal));
+        CheckoutView view = service.getCheckoutView(1L, 10L);
+        assertThat(view.shippingFee()).isEqualByComparingTo(fee);
+        assertThat(view.finalTotalAmount()).isEqualByComparingTo(new BigDecimal(subtotal).add(new BigDecimal(fee)));
+    }
+
+    @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
+    void bothMethodsPersistFreeShippingAndUseDeliveryPhoneWithoutAccountPhone(Order.PaymentMethod method) {
+        request.setPaymentMethod(method);
+        owner.setPhone(null);
+        product.setPrice(new BigDecimal("175000"));
+        assertThat(service.placeOrder(1L, request, confirmation())).isEqualTo(TOKEN);
+        assertThat(savedOrder.getShippingFee()).isZero();
+        assertThat(savedOrder.getFinalTotalAmount()).isEqualByComparingTo("350000");
+        assertThat(savedOrder.getShippingPhone()).isEqualTo(address.getPhone());
+        verify(stockMutations).deductOrder(100L);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "NORTHERN,360000,20000,50000,390000", "NORTHERN,370000,20000,0,350000",
+        "CENTRAL_HIGHLANDS,360000,20000,40000,380000", "CENTRAL_HIGHLANDS,370000,20000,0,350000",
+        "SOUTHERN_MEKONG,260000,20000,30000,270000", "SOUTHERN_MEKONG,270000,20000,0,250000"
+    })
+    void productVoucherUsesNetMerchandiseToCalculateAndPersistShipping(
+            ShippingAddress.EconomicRegion region, String subtotal, String discount, String fee, String total) {
+        address.setEconomicRegion(region);
+        cart.getItems().getFirst().setQuantity(1);
+        product.setPrice(new BigDecimal(subtotal));
+        request.setVoucherCode("PRODUCT20");
+        // The initial preview is free; the product discount can put the order back below the threshold.
+        when(vouchers.preview(1L, "PRODUCT20", new BigDecimal(subtotal), BigDecimal.ZERO))
+                .thenReturn(new VoucherQuote(9L, "PRODUCT20", Voucher.Scope.PRODUCT, new BigDecimal(subtotal),
+                        BigDecimal.ZERO, new BigDecimal(discount), new BigDecimal(subtotal).subtract(new BigDecimal(discount))));
+        CheckoutView view = service.getCheckoutView(1L, 10L, "PRODUCT20");
+        when(vouchers.redeem(1L, 100L, "PRODUCT20", null))
+                .thenReturn(new VoucherQuote(9L, "PRODUCT20", Voucher.Scope.PRODUCT, new BigDecimal(subtotal),
+                        new BigDecimal(fee), new BigDecimal(discount), new BigDecimal(total)));
+        var review = new CheckoutConfirmation(TOKEN, 1L, view, Order.PaymentMethod.COD, "PRODUCT20");
+
+        assertThat(view.shippingFee()).isEqualByComparingTo(fee);
+        assertThat(view.finalTotalAmount()).isEqualByComparingTo(total);
+        assertThat(service.placeOrder(1L, request, review)).isEqualTo(TOKEN);
+        assertThat(savedOrder.getShippingFee()).isEqualByComparingTo(fee);
+        assertThat(savedOrder.getFinalTotalAmount()).isEqualByComparingTo(total);
+    }
+
+    @Test void shippingVoucherKeepsTheRegionalFeeAsItsRedemptionBasis() {
+        request.setShippingVoucherCode("SHIP20");
+        var quote = new VoucherQuote(9L, "SHIP20", Voucher.Scope.SHIPPING, new BigDecimal("200000"),
+                new BigDecimal("50000"), new BigDecimal("20000"), new BigDecimal("230000"));
+        when(vouchers.preview(eq(1L), eq("SHIP20"), any(), any())).thenReturn(quote);
+        when(vouchers.redeem(1L, 100L, "SHIP20", null)).thenReturn(quote);
+        CheckoutView view = service.getCheckoutView(1L, 10L, null, "SHIP20");
+        assertThat(view.shippingFee()).isEqualByComparingTo("30000");
+        service.placeOrder(1L, request, new CheckoutConfirmation(TOKEN, 1L, view, Order.PaymentMethod.COD, null, "SHIP20"));
+        assertThat(savedOrder.getShippingFee()).isEqualByComparingTo("50000");
+        assertThat(savedOrder.getFinalTotalAmount()).isEqualByComparingTo("230000");
+    }
+
+    @Test void freeShippingPassesZeroToShippingVoucherValidationWithoutRedeeming() {
+        product.setPrice(new BigDecimal("175000"));
+        when(vouchers.preview(eq(1L), eq("SHIP20"), any(), eq(BigDecimal.ZERO)))
+                .thenThrow(new AppException(ErrorCode.INVALID_INPUT_DATA, "Đơn hàng không còn phí vận chuyển để áp dụng mã này."));
+        assertThatThrownBy(() -> service.getCheckoutView(1L, 10L, null, "SHIP20")).isInstanceOf(AppException.class);
+        verify(vouchers, never()).redeem(any(), any(), any(), any());
+        verifyNoInteractions(stockMutations);
+    }
+
+    @Test void combinesBothScopesAfterRecalculatingTheFreeShippingThreshold() {
+        product.setPrice(new BigDecimal("180000"));
+        when(vouchers.preview(1L, "PRODUCT20", new BigDecimal("360000"), BigDecimal.ZERO))
+            .thenReturn(new VoucherQuote(8L, "PRODUCT20", Voucher.Scope.PRODUCT, new BigDecimal("360000"),
+                BigDecimal.ZERO, new BigDecimal("20000"), new BigDecimal("340000")));
+        when(vouchers.preview(1L, "SHIP20", new BigDecimal("360000"), new BigDecimal("50000")))
+            .thenReturn(new VoucherQuote(9L, "SHIP20", Voucher.Scope.SHIPPING, new BigDecimal("360000"),
+                new BigDecimal("50000"), new BigDecimal("20000"), new BigDecimal("390000")));
+        CheckoutView view = service.getCheckoutView(1L, 10L, "PRODUCT20", "SHIP20");
+        assertThat(view.productDiscount()).isEqualByComparingTo("20000");
+        assertThat(view.baseShippingFee()).isEqualByComparingTo("50000");
+        assertThat(view.shippingDiscount()).isEqualByComparingTo("20000");
+        assertThat(view.shippingFee()).isEqualByComparingTo("30000");
+        assertThat(view.finalTotalAmount()).isEqualByComparingTo("370000");
+    }
+
+    @Test void rejectsVoucherInTheWrongScope() {
+        when(vouchers.preview(eq(1L), eq("SHIP20"), any(), any()))
+            .thenReturn(new VoucherQuote(9L, "SHIP20", Voucher.Scope.SHIPPING, new BigDecimal("200000"),
+                new BigDecimal("50000"), new BigDecimal("20000"), new BigDecimal("230000")));
+        assertThatThrownBy(() -> service.getCheckoutView(1L, 10L, "SHIP20", null))
+            .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VOUCHER_INVALID_OR_EXPIRED);
+    }
+
+    @Test void rejectsShippingCodeChangedAfterReview() {
+        var review = confirmation();
+        request.setShippingVoucherCode("SHIP20");
+        assertError(ErrorCode.CHECKOUT_CHANGED, review);
+        verifyNoInteractions(vouchers, stockMutations);
     }
 
     @Test void supportsPreviewWithoutAddress() {
@@ -192,11 +330,42 @@ class OrderPlacementServiceTest {
         verify(orders, never()).saveAndFlush(any());
     }
 
-    @ParameterizedTest @ValueSource(ints = {0, -1, 100})
+    @ParameterizedTest @ValueSource(ints = {0, -1})
     void rejectsInvalidQuantities(int quantity) {
         CheckoutConfirmation reviewed = confirmation();
         cart.getItems().getFirst().setQuantity(quantity);
         assertError(ErrorCode.INVALID_INPUT_DATA, reviewed);
+    }
+
+    @Test void rejectsLegacyQuantityAbove10AtPreviewAndPlacement() {
+        CheckoutConfirmation reviewed = confirmation();
+        cart.getItems().getFirst().setQuantity(11);
+        assertThatThrownBy(() -> service.getCheckoutView(1L, 10L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.CART_ITEM_QUANTITY_EXCEEDED);
+        assertError(ErrorCode.CART_ITEM_QUANTITY_EXCEEDED, reviewed);
+        verify(orders, never()).saveAndFlush(any());
+    }
+
+    @Test void allows20ProductsButRejects21AtPreviewAndPlacement() {
+        for (long id = 21; id <= 39; id++) {
+            CartItem item = new CartItem();
+            item.setProduct(Product.builder().id(id).title("Sách " + id).price(BigDecimal.ONE).stockQuantity(5).build());
+            item.setQuantity(1);
+            cart.addItem(item);
+        }
+        CheckoutConfirmation reviewed = confirmation();
+        assertThat(reviewed.reviewedCheckout().items()).hasSize(20);
+        CartItem extra = new CartItem();
+        extra.setProduct(Product.builder().id(40L).title("Sách 21").price(BigDecimal.ONE).stockQuantity(5).build());
+        extra.setQuantity(1);
+        cart.addItem(extra);
+        assertThatThrownBy(() -> service.getCheckoutView(1L, 10L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.CART_LINE_LIMIT_EXCEEDED);
+        assertError(ErrorCode.CART_LINE_LIMIT_EXCEEDED, reviewed);
+        verify(orders, never()).saveAndFlush(any());
+        cart.removeItem(extra);
+        assertThat(service.placeOrder(1L, request, reviewed)).isEqualTo(TOKEN);
+        assertThat(savedOrder.getItems()).hasSize(20);
     }
 
     @Test void rejectsInsufficientStockBeforeSaving() {
@@ -207,14 +376,13 @@ class OrderPlacementServiceTest {
     }
 
     @ParameterizedTest @EnumSource(Order.PaymentMethod.class)
-    void usesDeliveryPhoneWithoutRequiringAccountPhoneVerification(Order.PaymentMethod method) {
+    void usesRecipientPhoneIndependentlyOfVerifiedAccountPhone(Order.PaymentMethod method) {
         request.setPaymentMethod(method);
-        owner.setPhone(null);
-        owner.setPhoneVerified(false);
         assertThat(service.placeOrder(1L, request, confirmation())).isEqualTo(TOKEN);
         ArgumentCaptor<Order> saved = ArgumentCaptor.forClass(Order.class);
         verify(orders).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getShippingPhone()).isEqualTo(address.getPhone());
+        assertThat(saved.getValue().getShippingPhone()).isNotEqualTo(owner.getPhone());
     }
 
     @ParameterizedTest @ValueSource(strings = {"", "123", "abcdefghij"})

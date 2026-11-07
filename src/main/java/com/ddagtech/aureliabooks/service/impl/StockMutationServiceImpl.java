@@ -377,6 +377,10 @@ public class StockMutationServiceImpl implements StockMutationService {
             throw new AppException(ErrorCode.ORDER_STOCK_NOT_DEDUCTED, "Order stock was never deducted; cannot restore return stock.");
         }
 
+        if (order.getOrderStatus() != Order.OrderStatus.DELIVERED) {
+            throw new AppException(ErrorCode.INVALID_ORDER_STATE_TRANSITION, "Chỉ nhận lại hàng hoàn của đơn đã giao thành công (DELIVERED).");
+        }
+
         List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
         if (items.isEmpty() && order.getItems() != null && !order.getItems().isEmpty()) {
             items = order.getItems();

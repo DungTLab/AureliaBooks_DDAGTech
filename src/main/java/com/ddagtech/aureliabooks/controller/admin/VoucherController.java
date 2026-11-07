@@ -23,7 +23,7 @@ import java.time.*;
 
 @Controller
 @RequestMapping("/manager/vouchers")
-@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+@PreAuthorize("hasRole('MANAGER')")
 @RequiredArgsConstructor
 public class VoucherController {
     private final VoucherService vouchers;

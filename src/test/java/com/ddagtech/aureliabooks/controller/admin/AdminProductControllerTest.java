@@ -53,6 +53,17 @@ class AdminProductControllerTest {
     private RoleRepository roleRepository;
 
     @Test
+    @WithMockUser(roles = "MANAGER")
+    void disabledR2KeepsHiddenImageUrlAndDisablesPicker() throws Exception {
+        mockMvc.perform(get("/manager/books/new"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"mainImageUrl\" type=\"hidden\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<input[^>]*data-image-file[^>]*disabled[^>]*>.*")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<button[^>]*data-image-choose[^>]*disabled[^>]*>.*")))
+                .andExpect(content().string(org.hamcrest.Matchers.matchesPattern("(?s).*<button[^>]*data-image-upload[^>]*disabled[^>]*>.*")));
+    }
+
+    @Test
     @DisplayName("GET /manager/products as MANAGER returns 200 OK and model attributes")
     @WithMockUser(username = "manager", roles = {"MANAGER"})
     void getProducts_AsManager_Returns200() throws Exception {

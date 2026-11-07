@@ -313,7 +313,8 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         return List.copyOf(channels);
     }
 
-    public synchronized void reset(String id, String session, String password, String confirmation, String ip) {
+        @Override
+    public synchronized User reset(String id, String session, String password, String confirmation, String ip) {
         var f = required(id, session);
         if (
             !"RESET".equals(f.kind) || f.authorized == null || !Instant.now().isBefore(f.authorized)
@@ -322,8 +323,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         if (!validator.validate(r).isEmpty()) throw new IllegalArgumentException(
             "Mật khẩu từ 8 ký tự, có chữ hoa, số, ký tự đặc biệt; xác nhận phải khớp và tối đa 72 byte UTF-8."
         );
-        writer.reset(f.owner, f.oldHash, f.channel, f.target, passwords.encode(password), ip);
+        User user = writer.reset(f.owner, f.oldHash, f.channel, f.target, passwords.encode(password), ip);
         flows.remove(id);
+        return user;
     }
 
     private void install(Flow f, String session) {

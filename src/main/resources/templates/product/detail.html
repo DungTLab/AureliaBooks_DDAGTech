@@ -35,7 +35,7 @@
             <!-- Left Column: Product Image Gallery (5 cols) -->
             <div class="lg:col-span-5 flex flex-col items-center">
                 <div class="relative w-full max-w-md aspect-[3/4] rounded-2xl overflow-hidden bg-parchment-100 border border-dust_grey flex items-center justify-center shadow-inner group">
-                    <img th:src="${product.mainImageUrl != null and !product.mainImageUrl.isBlank() ? product.mainImageUrl : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80'}"
+                    <img th:src="@{${product.mainImageUrl != null and !product.mainImageUrl.isBlank() ? product.mainImageUrl : 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80'}}"
                          th:alt="${product.title}"
                          onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=600&auto=format&fit=crop&q=80';"
                          class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500">
@@ -68,7 +68,7 @@
                     </div>
                     <div class="p-2.5 rounded-xl bg-parchment-100 border border-dust_grey/60 text-carbon_black">
                         <i class="bi bi-arrow-repeat text-blazing_flame text-base block mb-0.5"></i>
-                        <span class="text-[11px] font-bold block">Đổi Trả 7 Ngày</span>
+                        <span class="text-[11px] font-bold block">Đổi Trả Theo Chính Sách</span>
                     </div>
                 </div>
             </div>
@@ -177,6 +177,7 @@
 
                     <!-- Customer & Guest Cart Action Area -->
                     <form sec:authorize="!hasAnyRole('MANAGER', 'ADMIN', 'SALE_STAFF')" th:action="@{/cart/items}" method="post" class="space-y-4">
+                        <input type="hidden" name="returnTo" th:value="${'/products/' + product.id}">
                         <input type="hidden" name="productId" th:value="${product.id}">
 
                         <!-- Quantity Selector & Action Button -->
@@ -187,6 +188,7 @@
                                         class="w-8 h-8 rounded-lg hover:bg-parchment-200 text-carbon_black font-bold flex items-center justify-center transition-colors">
                                     <i class="bi bi-dash"></i>
                                 </button>
+                                <label for="qtyInput" class="sr-only">Số lượng sản phẩm</label>
                                 <input type="number" id="qtyInput" name="quantity" value="1" min="1" step="1" required
                                        th:max="${T(java.lang.Math).min(T(com.ddagtech.aureliabooks.dto.request.CartQuantityRequest).MAX_QUANTITY, product.stockQuantity)}"
                                        th:disabled="${product.stockQuantity <= 0}"
@@ -247,6 +249,10 @@
                         <dt class="text-carbon_black-400 font-medium">Năm xuất bản</dt>
                         <dd class="text-carbon_black font-semibold" th:text="${product.publicationYear}">-</dd>
                     </div>
+                    <div th:if="${product.edition != null and !product.edition.isBlank()}" class="py-3 flex justify-between">
+                        <dt class="text-carbon_black-400 font-medium">Lần xuất bản</dt>
+                        <dd class="text-carbon_black font-semibold" th:text="${product.edition}"></dd>
+                    </div>
                     <div th:if="${product.coverType != null}" class="py-3 flex justify-between">
                         <dt class="text-carbon_black-400 font-medium">Hình thức bìa</dt>
                         <dd class="text-carbon_black font-semibold"
@@ -271,7 +277,10 @@
                 <th:block th:if="${product.productType?.name() == 'STATIONERY'}">
                     <div th:if="${product.brandName != null}" class="py-3 flex justify-between">
                         <dt class="text-carbon_black-400 font-medium">Thương hiệu</dt>
-                        <dd class="text-carbon_black font-semibold" th:text="${product.brandName}">-</dd>
+                        <dd class="text-carbon_black font-semibold">
+                            <a th:href="@{/products(brandId=${product.brandId})}" th:text="${product.brandName}"
+                               class="hover:text-blazing_flame"></a>
+                        </dd>
                     </div>
                     <div th:if="${product.material != null}" class="py-3 flex justify-between">
                         <dt class="text-carbon_black-400 font-medium">Chất liệu</dt>
@@ -312,6 +321,12 @@
         </div>
 
     </div>
+
+    <th:block th:if="${product != null and product.stockQuantity > 0}" sec:authorize="isAnonymous() or hasRole('CUSTOMER')">
+        <section th:replace="~{fragments/recommendations :: suggestions}"></section>
+        <section th:replace="~{fragments/recommendations :: personal}"></section>
+    </th:block>
+    <script th:src="@{/js/recommendations.js}" defer></script>
 
     <!-- Product Not Found Fallback -->
     <div th:if="${product == null}" class="bg-white rounded-3xl border border-dust_grey p-12 text-center shadow-soft max-w-lg mx-auto">

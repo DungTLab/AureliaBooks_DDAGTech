@@ -256,4 +256,48 @@ class AuditLogServiceTest {
         assertThat(actors).hasSize(1);
         assertThat(actors.get(0).name()).isEqualTo("Admin User");
     }
+
+    @Test
+    @DisplayName("hasSettledVnpayPayment() should return true when settled payment audit log matches vnpTxnRef")
+    void hasSettledVnpayPayment_MatchesVnpTxnRef_ReturnsTrue() {
+        AuditLog log = new AuditLog();
+        log.setAction("VNPAY_PAYMENT_SUCCESS");
+        log.setTargetTable("orders");
+        log.setTargetId(10L);
+        log.setDetailsJson("{\"vnpTxnRef\":\"ORD-TEST-100\",\"vnpTransactionNo\":\"14500001\"}");
+
+        when(auditLogRepository.findSettledVnpayAuditLogs(10L)).thenReturn(List.of(log));
+
+        boolean exists = auditLogService.hasSettledVnpayPayment(10L, "ORD-TEST-100", "99999999");
+        assertThat(exists).isTrue();
+    }
+
+    @Test
+    @DisplayName("hasSettledVnpayPayment() should return true when surplus payment audit log matches surplusVnpTxnRef or vnpTransactionNo")
+    void hasSettledVnpayPayment_MatchesSurplusRefOrTransactionNo_ReturnsTrue() {
+        AuditLog log = new AuditLog();
+        log.setAction("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION");
+        log.setTargetTable("orders");
+        log.setTargetId(10L);
+        log.setDetailsJson("{\"settledVnpTxnRef\":\"ORD-TEST\",\"surplusVnpTxnRef\":\"ORD-TEST-R100200\",\"vnpTransactionNo\":\"14500002\"}");
+
+        when(auditLogRepository.findSettledVnpayAuditLogs(10L)).thenReturn(List.of(log));
+
+        // Matching by surplus txn ref
+        assertThat(auditLogService.hasSettledVnpayPayment(10L, "ORD-TEST-R100200", "0000")).isTrue();
+        // Matching by transaction number
+        assertThat(auditLogService.hasSettledVnpayPayment(10L, "OTHER-REF", "14500002")).isTrue();
+        // No match
+        assertThat(auditLogService.hasSettledVnpayPayment(10L, "UNKNOWN", "9999")).isFalse();
+    }
+
+    @Test
+    @DisplayName("hasSettledVnpayPayment() should return false when orderId is null or no settled logs exist")
+    void hasSettledVnpayPayment_EmptyOrNull_ReturnsFalse() {
+        assertThat(auditLogService.hasSettledVnpayPayment(null, "REF", "TX")).isFalse();
+        assertThat(auditLogService.hasSettledVnpayPayment(10L, "", "")).isFalse();
+
+        when(auditLogRepository.findSettledVnpayAuditLogs(10L)).thenReturn(List.of());
+        assertThat(auditLogService.hasSettledVnpayPayment(10L, "REF", "TX")).isFalse();
+    }
 }

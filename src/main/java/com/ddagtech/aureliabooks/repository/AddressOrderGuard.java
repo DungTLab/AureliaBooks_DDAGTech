@@ -11,7 +11,7 @@ public class AddressOrderGuard {
         // NULL references are legacy orders: conservatively protect addresses until these orders finish.
         return Boolean.TRUE.equals(jdbc.queryForObject("""
             SELECT EXISTS(SELECT 1 FROM orders WHERE user_id = ?
-              AND order_status NOT IN ('DELIVERED', 'CANCELLED')
+              AND order_status NOT IN ('DELIVERED', 'CANCELLED', 'RETURNED')
               AND (shipping_address_id = ? OR shipping_address_id IS NULL))
             """, Boolean.class, ownerId, addressId));
     }

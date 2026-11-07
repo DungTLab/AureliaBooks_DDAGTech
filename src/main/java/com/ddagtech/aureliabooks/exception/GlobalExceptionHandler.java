@@ -28,6 +28,20 @@ import java.util.Map;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
+    public Object handleMultipart(org.springframework.web.multipart.MultipartException error,
+                                  HttpServletRequest request) {
+        if ((request.getContextPath() + "/manager/products/images").equals(request.getRequestURI())) {
+            boolean tooLarge = error instanceof org.springframework.web.multipart.MaxUploadSizeExceededException;
+            return ResponseEntity.status(tooLarge ? 413 : 400)
+                    .header("Cache-Control", "no-store")
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(Map.of("message", tooLarge ? "File ảnh vượt quá dung lượng cho phép."
+                            : "Dữ liệu tải ảnh không hợp lệ."));
+        }
+        return handleGenericException(error, request);
+    }
+
     /**
      * Handles custom business domain exceptions (AppException).
      *

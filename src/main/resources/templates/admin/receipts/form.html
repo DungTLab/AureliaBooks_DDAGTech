@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      th:replace="~{layout/base :: layout(${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}, ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout(${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'}, ~{::#main-content})}">
 <head>
     <title th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'} + ' - AureliaBooks'">Lập Phiếu Nhập Kho - AureliaBooks</title>
 </head>
@@ -51,7 +51,7 @@
     </div>
 
     <!-- Main Receipt Form -->
-    <form id="goodsReceiptForm"
+    <form data-form-validation data-min-items="1" data-item-selector=".row-product-id" id="goodsReceiptForm"
           th:action="${isEdit ? '/staff/receipts/' + receiptId + '/update' : '/staff/receipts'}"
           th:object="${receiptForm}"
           method="post"
@@ -131,7 +131,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                     <!-- Ô 1: Chọn sản phẩm (Combobox tìm kiếm) -->
                     <div class="md:col-span-4 space-y-1">
-                        <label class="block text-xs font-bold text-carbon_black">
+                        <label for="stagingProductSearch" class="block text-xs font-bold text-carbon_black">
                             Sản phẩm <span class="text-rose-500">*</span>
                         </label>
                         <div class="staging-combobox relative w-full">
@@ -159,7 +159,7 @@
 
                     <!-- Ô 2: Tồn kho (Label riêng - Read-only) -->
                     <div class="md:col-span-2 space-y-1">
-                        <label class="block text-xs font-bold text-carbon_black">
+                        <label class="block text-xs font-bold text-carbon_black" for="stagingStock">
                             Tồn kho
                         </label>
                         <input type="text"
@@ -172,7 +172,7 @@
 
                     <!-- Ô 3: Đơn giá nhập -->
                     <div class="md:col-span-2 space-y-1">
-                        <label class="block text-xs font-bold text-carbon_black">
+                        <label class="block text-xs font-bold text-carbon_black" for="stagingUnitCost">
                             Đơn giá nhập (đ) <span class="text-rose-500">*</span>
                         </label>
                         <input type="number"
@@ -186,7 +186,7 @@
 
                     <!-- Ô 4: Số lượng nhập -->
                     <div class="md:col-span-2 space-y-1">
-                        <label class="block text-xs font-bold text-carbon_black">
+                        <label class="block text-xs font-bold text-carbon_black" for="stagingQuantity">
                             Số lượng <span class="text-rose-500">*</span>
                         </label>
                         <input type="number"
@@ -281,7 +281,7 @@
                                 <th class="py-3 px-4 w-14 text-center font-bold tracking-widest text-carbon_black-400 select-none">···</th>
                             </tr>
                         </thead>
-                        <tbody id="itemsTableBody" class="divide-y divide-dust_grey/60 bg-white">
+                        <tbody id="itemsTableBody" data-form-items class="divide-y divide-dust_grey/60 bg-white">
                             <!-- Populated by Thymeleaf if editing an existing receipt or dynamically via JS -->
                             <tr th:each="item, itemStat : ${receiptForm.items}"
                                 th:id="'review-row-' + ${itemStat.index}"
@@ -345,6 +345,7 @@
                 <span th:text="${isEdit ? 'Cập nhật phiếu nháp' : 'Lưu phiếu nháp'}">Lưu phiếu nháp</span>
             </button>
         </div>
+        <p data-form-feedback role="status" class="text-sm text-carbon_black-600">Chọn nhà cung cấp và thêm ít nhất một sản phẩm để lưu.</p>
     </form>
 
     <!-- Hidden Source Product Options (Nguồn dữ liệu sản phẩm) -->

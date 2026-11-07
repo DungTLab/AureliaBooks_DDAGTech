@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.dto.analytics.*;
 import com.ddagtech.aureliabooks.service.AnalyticsService;
 import com.ddagtech.aureliabooks.service.ExcelExportService;
+import com.ddagtech.aureliabooks.service.StockReportService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class AdminAnalyticsController {
 
     private final AnalyticsService analyticsService;
     private final ExcelExportService excelExportService;
+    private final StockReportService stockReports;
 
     private static final String EXCEL_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private static final DateTimeFormatter FILE_DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -55,40 +57,42 @@ public class AdminAnalyticsController {
         excelExportService.exportRevenueExcel(report, response.getOutputStream());
     }
 
-    @GetMapping("/export/stock")
-    public void exportStockExcel(@ModelAttribute StockMovementFilterRequest filter, HttpServletResponse response) throws IOException {
-        if (filter == null) {
-            filter = new StockMovementFilterRequest();
-        }
-        filter.resolveDates();
+    @GetMapping("/stock")
+    public String viewStockReport(@ModelAttribute StockMovementFilterRequest filter,
+            @RequestParam(defaultValue = "") String keyword, @RequestParam(defaultValue = "") String category,
+            @RequestParam(defaultValue = "") String productType, Model model) {
+        model.addAttribute("stockReport", stockReports.view(filter, keyword, category, productType));
+        return "admin/analytics/stock-report";
+    }
 
+    @GetMapping("/export/stock")
+    public void exportStockExcel(@ModelAttribute StockMovementFilterRequest filter,
+            @RequestParam(defaultValue = "") String keyword, @RequestParam(defaultValue = "") String category,
+            @RequestParam(defaultValue = "") String productType, HttpServletResponse response) throws IOException {
         List<StockMovementReportItemDto> movementItems = analyticsService.getPeriodStockMovementReport(filter);
         List<StockValuationItemDto> valuationItems = analyticsService.getStockValuationReport();
 
         String todayStr = LocalDate.now().format(FILE_DATE_FMT);
         String filename = "Bao_Cao_Bien_Dong_Kho_" + todayStr + ".xlsx";
 
+        excelHeaders(response, filename);
+        excelExportService.exportPeriodStockReport(filter, movementItems, valuationItems, response.getOutputStream());
+    }
+
+    @GetMapping("/export/stock-valuation")
+    public void exportStockValuationOnlyExcel(@ModelAttribute StockMovementFilterRequest filter,
+            @RequestParam(defaultValue = "") String keyword, @RequestParam(defaultValue = "") String category,
+            @RequestParam(defaultValue = "") String productType, HttpServletResponse response) throws IOException {
+        List<StockValuationItemDto> valuationItems = analyticsService.getStockValuationReport();
+        excelHeaders(response, "Bao_Cao_Ton_Kho_Dinh_Gia_" + LocalDate.now().format(FILE_DATE_FMT) + ".xlsx");
+        excelExportService.exportStockValuationExcel(valuationItems, response.getOutputStream());
+    }
+private void excelHeaders(HttpServletResponse response, String filename) {
         response.setContentType(EXCEL_MIME_TYPE);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
         response.setHeader(HttpHeaders.PRAGMA, "no-cache");
         response.setDateHeader(HttpHeaders.EXPIRES, 0);
-
-        excelExportService.exportPeriodStockReport(filter, movementItems, valuationItems, response.getOutputStream());
-    }
-
-    @GetMapping("/export/stock-valuation")
-    public void exportStockValuationOnlyExcel(HttpServletResponse response) throws IOException {
-        List<StockValuationItemDto> stockItems = analyticsService.getStockValuationReport();
-
-        String todayStr = LocalDate.now().format(FILE_DATE_FMT);
-        String filename = "Bao_Cao_Ton_Kho_Dinh_Gia_" + todayStr + ".xlsx";
-
-        response.setContentType(EXCEL_MIME_TYPE);
-        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
-        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
-
-        excelExportService.exportStockValuationExcel(stockItems, response.getOutputStream());
     }
 
     @GetMapping("/api/revenue-data")

@@ -72,3 +72,11 @@ the existing account. Never commit a real `.env` or reuse the demo password in p
 whose name starts with `auth_bootstrap_qa_`, supplied through the DB environment
 variables. It mutates only that disposable QA database. Regular tests leave this
 integration check disabled.
+
+### Avatar and product image storage
+
+With `R2_ENABLED=true`, avatars use the configured R2 bucket under `avatars/`; product images use the existing product image storage. Both uploads require `R2_UPLOAD_ENABLED=true`. Configure `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in the application runtime, never in tracked files. The application proxies private avatar URLs and checks ownership; the bucket does not need public access.
+
+With R2 disabled, avatars still use `app.avatar.directory` (default `./uploads/avatars`), which must be writable and persistent in a container. Existing local avatars remain readable after enabling R2 only while that directory is available. This change does not migrate old files or recover files lost from a replaced container.
+
+Product forms now use **Chọn ảnh → Tải ảnh lên → Lưu sản phẩm**. The existing image stays unchanged if upload fails. A disabled image chooser indicates that R2 uploads are not enabled in the application runtime. Selecting an avatar only previews it; **Lưu ảnh đại diện** submits the upload.

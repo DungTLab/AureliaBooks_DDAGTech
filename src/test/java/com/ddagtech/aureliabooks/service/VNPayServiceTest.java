@@ -28,6 +28,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -338,10 +340,13 @@ class VNPayServiceTest {
         vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(12)));
         String retryUrl = vnPayService.createPaymentUrl(ownerCustomer.getId(), 10L, "127.0.0.1");
 
+        assertThat(firstUrl).contains("vnp_TxnRef=ORD-20261016-001");
         assertThat(firstUrl).contains("vnp_CreateDate=20261024100300");
         assertThat(firstUrl).contains("vnp_ExpireDate=20261024101500");
+        assertThat(retryUrl).contains("vnp_TxnRef=ORD-20261016-001-R101200");
         assertThat(retryUrl).contains("vnp_CreateDate=20261024101200");
         assertThat(retryUrl).contains("vnp_ExpireDate=20261024101500");
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-001-R101200");
     }
 
     @Test
@@ -619,7 +624,7 @@ class VNPayServiceTest {
     }
 
     @Test
-    @DisplayName("processIpnWebhook() on late payment success for already CANCELLED order (11.1.0.E6) should log reconciliation without reactivating or deducting stock")
+    @DisplayName("processIpnWebhook() on late payment success for already CANCELLED order (11.1.0.E6) should mark PAID for staff refund without reactivating or deducting stock")
     void processIpnWebhook_LateSuccessAfterCancelled_LogsReconciliationWithoutReactivatingOrder() {
         User customer = User.builder().id(9L).fullName("Le Van C").build();
         Order cancelledOrder = Order.builder()
@@ -642,8 +647,12 @@ class VNPayServiceTest {
 
         assertThat(response.rspCode()).isEqualTo("00");
         assertThat(cancelledOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.CANCELLED);
-        assertThat(cancelledOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
+        assertThat(cancelledOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
         assertThat(cancelledOrder.getVnpayPayDate()).isEqualTo("20261016103000");
+
+        // Duplicate late-success IPN must return 02 idempotently once paymentStatus is already PAID
+        VNPayIpnResponse duplicateLateResponse = vnPayService.processIpnWebhook(params, "203.0.113.10");
+        assertThat(duplicateLateResponse.rspCode()).isEqualTo("02");
 
         verify(stockMutationService, never()).deductOrder(anyLong());
         verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
@@ -778,7 +787,202 @@ class VNPayServiceTest {
     }
 
     @Test
-    @DisplayName("VNPayUtil.resolveClientIp() should normalize IPv6 loopback addresses to 127.0.0.1")
+    @DisplayName("F08: evaluateBrowserReturn() when returning with a retry vnp_TxnRef must resolve the canonical orderCode for UI links")
+    void evaluateBrowserReturn_RetryTxnRef_ResolvesCanonicalOrderCode() {
+        Order order = Order.builder()
+                .id(73L)
+                .orderCode("ORD-20261016-073")
+                .vnpayTxnRef("ORD-20261016-073-R101200")
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("120000.00"))
+                .build();
+        when(orderRepository.findByVnpayTxnRefOrOrderCode("ORD-20261016-073-R101200"))
+                .thenReturn(Optional.of(order));
+
+        Map<String, String> params = signedParams("ORD-20261016-073-R101200", "12000000", "00", "00");
+        VNPayPaymentResultView view = vnPayService.evaluateBrowserReturn(params);
+
+        assertThat(view.validSignature()).isTrue();
+        assertThat(view.paymentSuccess()).isTrue();
+        assertThat(view.orderCode()).isEqualTo("ORD-20261016-073");
+        assertThat(view.orderStatus()).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(view.paymentStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    @DisplayName("processIpnWebhook() with multiple retry attempts should ignore failure from superseded attempt and settle verified success from any attempt")
+    void processIpnWebhook_SupersededRetryAttempt_IgnoresOldFailureAndAcceptsSuccess() {
+        User customer = User.builder().id(11L).fullName("Multi Tab Customer").build();
+        Order order = Order.builder()
+                .id(74L)
+                .user(customer)
+                .orderCode("ORD-20261016-074")
+                .vnpayTxnRef("ORD-20261016-074-R100800")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("150000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-074-R100500")).thenReturn(Optional.empty());
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-074")).thenReturn(Optional.of(order));
+
+        // 1. User cancels older superseded tab (R100500) while newer tab (R100800) is active -> must NOT cancel order
+        Map<String, String> oldFailParams = signedParams("ORD-20261016-074-R100500", "15000000", "24", "02");
+        VNPayIpnResponse failRes = vnPayService.processIpnWebhook(oldFailParams, "203.0.113.10");
+        assertThat(failRes.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_PAYMENT);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
+        verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
+
+        // 2. If user actually paid on an earlier tab (R100500), verified success (00/00) must still settle the order
+        Map<String, String> oldSuccessParams = signedParams("ORD-20261016-074-R100500", "15000000", "00", "00");
+        VNPayIpnResponse successRes = vnPayService.processIpnWebhook(oldSuccessParams, "203.0.113.10");
+        assertThat(successRes.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-074-R100500");
+    }
+
+    @Test
+    @DisplayName("processIpnWebhook() when two distinct retry attempts both succeed must record surplus payment audit on the second attempt while keeping order processed once")
+    void processIpnWebhook_TwoDistinctAttemptsBothSucceed_RecordsSurplusAuditAndProcessesOrderOnce() {
+        User customer = User.builder().id(11L).fullName("Double Paid Customer").build();
+        Order order = Order.builder()
+                .id(75L)
+                .user(customer)
+                .orderCode("ORD-20261016-075")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("150000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        order.setCreatedAt(BASE_ORDER_CREATED_AT);
+
+        when(orderRepository.findByIdWithLock(75L)).thenReturn(Optional.of(order));
+        authenticateAsCustomer(customer);
+
+        // Customer initiates Attempt 1 (ORD-20261016-075) and Retry Attempt 2 (ORD-20261016-075-R100500)
+        vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(2)));
+        vnPayService.createPaymentUrl(customer.getId(), 75L, "127.0.0.1");
+        vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(5)));
+        vnPayService.createPaymentUrl(customer.getId(), 75L, "127.0.0.1");
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-075")).thenReturn(Optional.of(order));
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-20261016-075-R100500")).thenReturn(Optional.of(order));
+
+        // 1. First successful IPN (Attempt 1: ORD-20261016-075) settles the order once
+        Map<String, String> firstSuccess = signedParams("ORD-20261016-075", "15000000", "00", "00");
+        VNPayIpnResponse res1 = vnPayService.processIpnWebhook(firstSuccess, "203.0.113.10");
+        assertThat(res1.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-075");
+
+        // 2. Second successful IPN from a distinct retry attempt (ORD-20261016-075-R100500) must NOT be silently ignored as 02;
+        //    it must record a second audit log for surplus payment reconciliation/refund while keeping order processed once
+        Map<String, String> secondSuccess = signedParams("ORD-20261016-075-R100500", "15000000", "00", "00");
+        VNPayIpnResponse res2 = vnPayService.processIpnWebhook(secondSuccess, "203.0.113.10");
+        assertThat(res2.rspCode()).isEqualTo("00");
+        assertThat(order.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        assertThat(order.getVnpayTxnRef()).isEqualTo("ORD-20261016-075");
+
+        // 3. True duplicate re-delivery of the second attempt's IPN must return 02 without creating a third audit
+        VNPayIpnResponse duplicateOfSecond = vnPayService.processIpnWebhook(secondSuccess, "203.0.113.10");
+        assertThat(duplicateOfSecond.rspCode()).isEqualTo("02");
+
+        verify(stockMutationService, never()).deductOrder(anyLong());
+        verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
+        verify(auditLogService).record(
+                eq(11L),
+                eq("VNPAY_PAYMENT_SUCCESS"),
+                eq("orders"),
+                eq(75L),
+                any(),
+                eq("203.0.113.10")
+        );
+        verify(auditLogService).record(
+                eq(11L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(75L),
+                any(),
+                eq("203.0.113.10")
+        );
+    }
+
+    @Test
+    @DisplayName("createPaymentUrl() called 4+ times within the same second must generate strictly unique non-reused vnp_TxnRef values")
+    void createPaymentUrl_FourRetriesWithinSameSecond_NeverReusesTxnRef() throws Exception {
+        Order order = Order.builder()
+                .id(76L)
+                .user(ownerCustomer)
+                .orderCode("CODE")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("250000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        order.setCreatedAt(BASE_ORDER_CREATED_AT);
+
+        when(orderRepository.findByIdWithLock(76L)).thenReturn(Optional.of(order));
+
+        // Freeze clock at 10:02:00 for all 5 calls
+        vnPayService.setClock(fixedVietnamClock(BASE_ORDER_CREATED_AT.plusMinutes(2)));
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref1 = order.getVnpayTxnRef();
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref2 = order.getVnpayTxnRef();
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref3 = order.getVnpayTxnRef();
+
+        // Simulate reloading Order from persisted DB columns before the 4th call
+        java.lang.reflect.Field rawPayDateField = Order.class.getDeclaredField("vnpayPayDate");
+        rawPayDateField.setAccessible(true);
+        java.lang.reflect.Field rawBankCodeField = Order.class.getDeclaredField("vnpayBankCode");
+        rawBankCodeField.setAccessible(true);
+
+        Order reloadedOrder = Order.builder()
+                .id(76L)
+                .user(ownerCustomer)
+                .orderCode("CODE")
+                .vnpayTxnRef(order.getVnpayTxnRef())
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("250000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        reloadedOrder.setCreatedAt(BASE_ORDER_CREATED_AT);
+        rawPayDateField.set(reloadedOrder, rawPayDateField.get(order));
+        rawBankCodeField.set(reloadedOrder, rawBankCodeField.get(order));
+
+        when(orderRepository.findByIdWithLock(76L)).thenReturn(Optional.of(reloadedOrder));
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref4 = reloadedOrder.getVnpayTxnRef();
+
+        vnPayService.createPaymentUrl(ownerCustomer.getId(), 76L, "127.0.0.1");
+        String ref5 = reloadedOrder.getVnpayTxnRef();
+
+        assertThat(ref1).isEqualTo("CODE");
+        assertThat(ref2).isEqualTo("CODE-R100200");
+        assertThat(ref3).isEqualTo("CODE-R100200-2");
+        assertThat(ref4).isEqualTo("CODE-R100200-3");
+        assertThat(ref5).isEqualTo("CODE-R100200-4");
+        assertThat(List.of(ref1, ref2, ref3, ref4, ref5)).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("VNPayUtil.resolveClientIp() should normalize IPv6 loopback and public IPv6 headers to IPv4 / 127.0.0.1")
     void resolveClientIp_NormalizesIpv6Loopback() {
         HttpServletRequest reqIpv6Full = mock(HttpServletRequest.class);
         when(reqIpv6Full.getRemoteAddr()).thenReturn("0:0:0:0:0:0:0:1");
@@ -787,6 +991,308 @@ class VNPayServiceTest {
         HttpServletRequest reqIpv6Short = mock(HttpServletRequest.class);
         when(reqIpv6Short.getRemoteAddr()).thenReturn("::1");
         assertThat(VNPayUtil.resolveClientIp(reqIpv6Short)).isEqualTo("127.0.0.1");
+
+        HttpServletRequest reqPublicIpv6 = mock(HttpServletRequest.class);
+        when(reqPublicIpv6.getHeader("X-Forwarded-For")).thenReturn("2402:800:61c5:1234::1");
+        assertThat(VNPayUtil.resolveClientIp(reqPublicIpv6)).isEqualTo("127.0.0.1");
+
+        HttpServletRequest reqDualStackChain = mock(HttpServletRequest.class);
+        when(reqDualStackChain.getHeader("X-Forwarded-For")).thenReturn("2402:800:61c5:1234::1, 203.113.148.25");
+        assertThat(VNPayUtil.resolveClientIp(reqDualStackChain)).isEqualTo("203.113.148.25");
+    }
+
+    @Test
+    @DisplayName("P2 Regression: Duplicate surplus payment IPN across two separately loaded Order entities returns 02 and audits only once")
+    void processIpnWebhook_SurplusPaymentDuplicateAcrossSeparatelyLoadedEntities_Returns02AndAuditsOnce() {
+        User customer = User.builder().id(77L).fullName("Surplus Customer").build();
+
+        // Entity 1: initial PAID order
+        Order entity1 = Order.builder()
+                .id(77L)
+                .user(customer)
+                .orderCode("ORD-DUAL-ENTITY")
+                .vnpayTxnRef("ORD-DUAL-ENTITY")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("200000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+        entity1.recordSettledVnpayAttempt("ORD-DUAL-ENTITY", "14500001");
+
+        // Incoming surplus IPN for retry attempt ORD-DUAL-ENTITY-R100200
+        Map<String, String> surplusParams = signedParams("ORD-DUAL-ENTITY-R100200", "20000000", "00", "00");
+        surplusParams.put("vnp_TransactionNo", "14500002");
+        surplusParams.put("vnp_BankCode", "NCB");
+        String hashData = VNPayUtil.buildHashData(surplusParams);
+        surplusParams.put("vnp_SecureHash", VNPayUtil.hmacSHA512(TEST_SECRET, hashData));
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-DUAL-ENTITY-R100200"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-DUAL-ENTITY"))
+                .thenReturn(Optional.of(entity1));
+
+        // First delivery: should be detected as surplus payment, return 00, audit VNPAY_DUPLICATE_PAYMENT_RECONCILIATION
+        VNPayIpnResponse res1 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+        assertThat(res1.rspCode()).isEqualTo("00");
+
+        verify(auditLogService, org.mockito.Mockito.times(1)).record(
+                eq(77L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(77L),
+                any(),
+                eq("203.0.113.10")
+        );
+
+        // Second delivery: simulate fresh Order entity loaded separately from database with persisted columns
+        Order entity2 = Order.builder()
+                .id(77L)
+                .user(customer)
+                .orderCode("ORD-DUAL-ENTITY")
+                .vnpayTxnRef("ORD-DUAL-ENTITY")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("200000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .vnpayBankCode(entity1.getPersistedVnpayBankCodeColumn())
+                .build();
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-DUAL-ENTITY"))
+                .thenReturn(Optional.of(entity2));
+
+        // Second delivery of the EXACT same surplus payment callback
+        VNPayIpnResponse res2 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+
+        // Must return "02" (Order already confirmed / duplicate) and NOT audit surplus again!
+        assertThat(res2.rspCode()).isEqualTo("02");
+        assertThat(res2.message()).containsIgnoringCase("Order already confirmed");
+
+        // Verify total audit log count remains 1 (no duplicate audit created!)
+        verify(auditLogService, org.mockito.Mockito.times(1)).record(
+                eq(77L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(77L),
+                any(),
+                eq("203.0.113.10")
+        );
+    }
+
+    @Test
+    @DisplayName("P1: processIpnWebhook() does not update deduplication cache when transaction rolls back, enabling retry to audit")
+    void processIpnWebhook_TransactionRollbackDoesNotPolluteDeduplicationCache_SubsequentRetryAuditsSuccessfully() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            User customer = User.builder().id(88L).fullName("Pham Van Rollback").build();
+            Order entity1 = Order.builder()
+                    .id(88L)
+                    .user(customer)
+                    .orderCode("ORD-ROLLBACK-TEST")
+                    .vnpayTxnRef("ORD-ROLLBACK-TEST")
+                    .paymentMethod(Order.PaymentMethod.VNPAY)
+                    .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                    .paymentStatus(Order.PaymentStatus.PAID)
+                    .finalTotalAmount(new BigDecimal("300000.00"))
+                    .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                    .build();
+
+            when(orderRepository.findByVnpayTxnRefWithLock("ORD-ROLLBACK-TEST-R100200"))
+                    .thenReturn(Optional.of(entity1));
+
+            Map<String, String> surplusParams = signedParams("ORD-ROLLBACK-TEST-R100200", "30000000", "00", "00");
+
+            // First execution runs
+            VNPayIpnResponse res1 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+            assertThat(res1.rspCode()).isEqualTo("00");
+
+            // Simulate transaction failure / rollback: afterCommit is NOT called, only afterCompletion(ROLLED_BACK)
+            for (TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations()) {
+                sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
+            }
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        // Second delivery (retry of the exact same callback after the rollback)
+        // Entity reloaded from database has rolled-back state (no settled markers saved)
+        User customer = User.builder().id(88L).fullName("Pham Van Rollback").build();
+        Order entity2 = Order.builder()
+                .id(88L)
+                .user(customer)
+                .orderCode("ORD-ROLLBACK-TEST")
+                .vnpayTxnRef("ORD-ROLLBACK-TEST")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("300000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .build();
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-ROLLBACK-TEST-R100200"))
+                .thenReturn(Optional.of(entity2));
+
+        Map<String, String> surplusParams = signedParams("ORD-ROLLBACK-TEST-R100200", "30000000", "00", "00");
+        VNPayIpnResponse res2 = vnPayService.processIpnWebhook(surplusParams, "203.0.113.10");
+
+        // Must succeed and record audit, NOT return "02" (cache was not contaminated!)
+        assertThat(res2.rspCode()).isEqualTo("00");
+        verify(auditLogService, org.mockito.Mockito.times(2)).record(
+                eq(88L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(88L),
+                any(),
+                eq("203.0.113.10")
+        );
+    }
+
+    @Test
+    @DisplayName("P2: Order losslessly preserves deduplication for 5+ surplus payments with dummy data within 50 chars")
+    void order_SurplusPaymentsBeyondFourAttempts_PreservesDeduplicationWithoutExceedingColumnLength() {
+        Order order = Order.builder()
+                .id(99L)
+                .orderCode("ORD-SURPLUS-CHAIN")
+                .vnpayTxnRef("ORD-SURPLUS-CHAIN")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .vnpayBankCode("NCB")
+                .build();
+
+        // Record 7 consecutive distinct surplus payments using arbitrary dummy data
+        for (int i = 1; i <= 7; i++) {
+            String txnRef = "DUMMY-REF-" + i;
+            String txNo = "DUMMY-TX-" + i;
+            assertThat(order.isDistinctSuccessfulVnpayAttempt(txnRef, txNo)).isTrue();
+            order.recordSettledVnpayAttempt(txnRef, txNo);
+
+            // Column length must never exceed 50 characters at any point!
+            String col = order.getPersistedVnpayBankCodeColumn();
+            assertThat(col).isNotNull();
+            assertThat(col.length()).isLessThanOrEqualTo(50);
+        }
+
+        // Simulate persisting and reloading fresh entity from MySQL columns
+        String persistedCol = order.getPersistedVnpayBankCodeColumn();
+        Order reloaded = Order.builder()
+                .id(99L)
+                .orderCode("ORD-SURPLUS-CHAIN")
+                .vnpayTxnRef("ORD-SURPLUS-CHAIN")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .vnpayBankCode(persistedCol)
+                .build();
+
+        // All 7 previously settled attempts must be recognized as already settled (isDistinct == false)
+        for (int i = 1; i <= 7; i++) {
+            String txnRef = "DUMMY-REF-" + i;
+            String txNo = "DUMMY-TX-" + i;
+            assertThat(reloaded.isDistinctSuccessfulVnpayAttempt(txnRef, txNo))
+                    .as("Attempt %d must be recognized as already settled after entity reload", i)
+                    .isFalse();
+        }
+
+        // A brand new attempt must still be recognized as distinct (isDistinct == true)
+        assertThat(reloaded.isDistinctSuccessfulVnpayAttempt("DUMMY-REF-NEW", "DUMMY-TX-NEW")).isTrue();
+    }
+
+    @Test
+    @DisplayName("P1: Bloom filter collision must not cause a genuine new payment attempt to be rejected as duplicate")
+    void order_BloomFilterCollision_DoesNotFalselyRejectNewPayment() {
+        Order order = Order.builder()
+                .id(99L)
+                .orderCode("CODE")
+                .vnpayTxnRef("CODE")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .vnpayBankCode("NCB")
+                .build();
+
+        for (int i = 1; i <= 7; i++) {
+            order.recordSettledVnpayAttempt("CODE-R100" + i + "00", "1450000" + i);
+        }
+
+        boolean distinctOnClass = order.isDistinctSuccessfulVnpayAttempt("CODE-R100711", "14500008");
+        assertThat(distinctOnClass).isTrue();
+    }
+
+    @Test
+    @DisplayName("P1: processIpnWebhook() with Bloom filter candidate collision verifies against persistent audit ledger and audits surplus payment")
+    void processIpnWebhook_BloomFilterCandidateCollisionVerifiedAgainstPersistentLedger_AuditsSurplusPayment() {
+        User customer = User.builder().id(99L).fullName("Collision Customer").build();
+        Order order = Order.builder()
+                .id(99L)
+                .user(customer)
+                .orderCode("CODE")
+                .vnpayTxnRef("CODE")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("250000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .vnpayBankCode("NCB")
+                .build();
+
+        // Record 7 settled payments to fill bank code with Bloom filter
+        for (int i = 1; i <= 7; i++) {
+            order.recordSettledVnpayAttempt("CODE-R100" + i + "00", "1450000" + i);
+        }
+
+        // Simulate reloading fresh entity from MySQL columns (in-memory sets cleared, only persisted bank code present)
+        Order reloaded = Order.builder()
+                .id(99L)
+                .user(customer)
+                .orderCode("CODE")
+                .vnpayTxnRef("CODE")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("250000.00"))
+                .stockDeductedAt(BASE_ORDER_CREATED_AT)
+                .vnpayBankCode(order.getPersistedVnpayBankCodeColumn())
+                .build();
+
+        when(orderRepository.findByVnpayTxnRefWithLock("CODE-R100711")).thenReturn(Optional.of(reloaded));
+
+        Map<String, String> params = signedParams("CODE-R100711", "25000000", "00", "00");
+        params.put("vnp_TransactionNo", "14500008");
+        String hashData = VNPayUtil.buildHashData(params);
+        params.put("vnp_SecureHash", VNPayUtil.hmacSHA512(TEST_SECRET, hashData));
+
+        // Attempt not yet in persistent audit ledger
+        when(auditLogService.hasSettledVnpayPayment(99L, "CODE-R100711", "14500008")).thenReturn(false);
+
+        // First delivery: must return 00 and create financial reconciliation audit log (not discarded with 02!)
+        VNPayIpnResponse res1 = vnPayService.processIpnWebhook(params, "203.0.113.10");
+        assertThat(res1.rspCode()).isEqualTo("00");
+
+        verify(auditLogService).record(
+                eq(99L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(99L),
+                any(),
+                eq("203.0.113.10")
+        );
+
+        // Second delivery (network retry of the same IPN callback): now verified in persistent audit ledger
+        lenient().when(auditLogService.hasSettledVnpayPayment(99L, "CODE-R100711", "14500008")).thenReturn(true);
+        VNPayIpnResponse res2 = vnPayService.processIpnWebhook(params, "203.0.113.10");
+
+        // Must return 02 idempotently without repeating audit log
+        assertThat(res2.rspCode()).isEqualTo("02");
+        verify(auditLogService, org.mockito.Mockito.times(1)).record(
+                eq(99L),
+                eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
+                eq("orders"),
+                eq(99L),
+                any(),
+                eq("203.0.113.10")
+        );
     }
 
     private void authenticateAsCustomer(User user) {

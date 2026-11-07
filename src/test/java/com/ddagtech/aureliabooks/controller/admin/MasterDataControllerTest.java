@@ -292,4 +292,18 @@ class MasterDataControllerTest {
 
         verify(masterDataService).toggleBrandStatus(1L);
     }
+    @Test
+    @WithMockUser(roles = "MANAGER")
+    void duplicateAuthorPreservesInputAndReopensDialog() throws Exception {
+        when(masterDataService.listAuthors(any(), any())).thenReturn(new PageImpl<>(List.of()));
+        org.mockito.Mockito.doThrow(new com.ddagtech.aureliabooks.exception.AppException(
+                com.ddagtech.aureliabooks.constant.ErrorCode.RESOURCE_NOT_FOUND, "Duplicate author"))
+                .when(masterDataService).createAuthor(any());
+        mockMvc.perform(post("/manager/authors").with(csrf()).param("name", "Existing Author")
+                .param("biography", "Retain this biography"))
+                .andExpect(status().isOk()).andExpect(view().name("admin/catalog/authors"))
+                .andExpect(model().attributeHasFieldErrors("authorForm", "name"))
+                .andExpect(content().string(containsString("Retain this biography")))
+                .andExpect(content().string(containsString("data-open=\"true\"")));
+    }
 }

@@ -12,6 +12,7 @@ public record OrderTimelineStep(String label, LocalDateTime occurredAt, boolean 
             case CONFIRMED -> "Đã xác nhận";
             case SHIPPING -> "Đang giao hàng";
             case DELIVERED -> "Giao thành công";
+            case RETURNED -> "Đã trả hàng";
             case CANCELLED -> "Đã hủy";
         };
     }

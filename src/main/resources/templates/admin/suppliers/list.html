@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      th:replace="~{layout/base :: layout('Quản lý danh bạ Nhà cung cấp', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Quản lý danh bạ Nhà cung cấp', ~{::#main-content})}">
 <head>
     <title>Quản lý danh bạ Nhà cung cấp - AureliaBook</title>
 </head>
@@ -345,7 +345,7 @@
             </div>
 
             <!-- Form -->
-            <form method="post" th:action="@{/manager/suppliers/create}" th:object="${supplierForm}" class="space-y-4">
+            <form data-form-validation method="post" th:action="@{/manager/suppliers/create}" th:object="${supplierForm}" class="space-y-4">
                 <!-- CSRF Token -->
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
@@ -444,7 +444,7 @@
             </div>
 
             <!-- Edit Form -->
-            <form id="editSupplierForm" method="post" action="" class="space-y-4">
+            <form data-form-validation id="editSupplierForm" method="post" action="" class="space-y-4">
                 <!-- CSRF Token -->
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 

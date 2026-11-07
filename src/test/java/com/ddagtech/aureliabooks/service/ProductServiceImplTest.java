@@ -1,5 +1,7 @@
 package com.ddagtech.aureliabooks.service;
 
+import com.ddagtech.aureliabooks.mapper.MasterDataMapper;
+import com.ddagtech.aureliabooks.mapper.ProductMapper;
 import com.ddagtech.aureliabooks.dto.request.ProductFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.AuthorSummary;
 import com.ddagtech.aureliabooks.dto.response.BrandSummary;
@@ -81,8 +83,8 @@ class ProductServiceImplTest {
     void setUp() {
         productService = new ProductServiceImpl(
                 productRepository, categoryRepository, bookRepository, stationeryRepository,
-                authorRepository, publisherRepository, brandRepository
-        );
+                authorRepository, publisherRepository, brandRepository,
+                new ProductMapper(), new MasterDataMapper());
     }
 
     @Test
@@ -156,7 +158,9 @@ class ProductServiceImplTest {
         Pageable pageable = PageableUtils.create(1, 12, "newest");
         Category child = new Category();
         child.setId(10L);
-        when(categoryRepository.findByParentId(1L)).thenReturn(List.of(child));
+        Category parent = Category.builder().id(1L).name("Root").build();
+        child.setParent(parent);
+        when(categoryRepository.findByIsActiveTrue()).thenReturn(List.of(parent, child));
         when(productRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(Page.empty());
 
         ProductFilterRequest filter = new ProductFilterRequest(null, 1L, null, null, null, null, null, null, null, null);
@@ -165,7 +169,7 @@ class ProductServiceImplTest {
         productService.browse(filter, pageable);
 
         // Assert
-        verify(categoryRepository).findByParentId(1L);
+        verify(categoryRepository).findByIsActiveTrue();
         verify(productRepository).findAll(any(Specification.class), eq(pageable));
     }
 
@@ -510,5 +514,44 @@ class ProductServiceImplTest {
 
         assertThat(brands).hasSize(1);
         assertThat(brands.get(0).name()).isEqualTo("Thiên Long");
+    }
+
+    @Test
+    void categoryTypeUsesAssignedProductsAndIncludesAncestorsButNotOtherBranches() {
+        Category books = Category.builder().id(1L).name("Books").build();
+        Category fiction = Category.builder().id(2L).name("Fiction").parent(books).build();
+        Category novels = Category.builder().id(3L).name("Novels").parent(fiction).build();
+        Category stationery = Category.builder().id(4L).name("Stationery").build();
+        Category pens = Category.builder().id(5L).name("Pens").parent(stationery).build();
+        Category empty = Category.builder().id(6L).name("Unclassified").build();
+        when(categoryRepository.findByIsActiveTrue()).thenReturn(List.of(books, fiction, novels, stationery, pens, empty));
+        when(productRepository.findCategoryIdsByProductType(Product.ProductType.BOOK)).thenReturn(List.of(3L));
+        when(productRepository.findCategoryIdsByProductType(Product.ProductType.STATIONERY)).thenReturn(List.of(5L));
+
+        assertThat(productService.getCategoriesForType(Product.ProductType.BOOK)).extracting(CategorySummary::id)
+                .containsExactly(1L, 2L, 3L);
+        assertThat(productService.getCategoriesForType(Product.ProductType.STATIONERY)).extracting(CategorySummary::id)
+                .containsExactly(4L, 5L);
+        assertThat(productService.getCategoriesForType(null)).hasSize(6);
+    }
+
+    @Test
+    void menuGroupsOnlyTheirOwnDescendantsAndLimitsEachPreviewToTwelve() {
+        List<CategorySummary> categories = new java.util.ArrayList<>();
+        CategorySummary books = new CategorySummary(1L, "Books", null);
+        CategorySummary stationery = new CategorySummary(2L, "Stationery", null);
+        categories.add(books);
+        categories.add(stationery);
+        for (long id = 3; id <= 18; id++) {
+            categories.add(new CategorySummary(id, "Child " + id, 1L));
+        }
+        categories.add(new CategorySummary(19L, "Pens", 2L));
+        categories.add(new CategorySummary(20L, "Fountain pens", 19L));
+
+        var menu = productService.groupCategoriesForMenu(categories);
+        assertThat(menu.keySet()).containsExactly(books, stationery);
+        assertThat(menu.get(books)).hasSize(12).extracting(CategorySummary::id)
+                .containsExactly(3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L);
+        assertThat(menu.get(stationery)).extracting(CategorySummary::id).containsExactly(19L, 20L);
     }
 }

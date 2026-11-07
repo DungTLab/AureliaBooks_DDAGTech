@@ -77,6 +77,19 @@ class LoginAttemptServiceTest {
         }
     }
 
+        @Test
+    void resetAttemptsLiftsTemporaryLockAndClearsFailures() {
+        for (int i = 0; i < 4; i++) wrong(1L);
+        assertThrows(TemporaryLoginLockException.class, () -> attempts.authenticate(1L, this::badPassword));
+        assertTrue(attempts.isLocked(1L));
+        assertThrows(TemporaryLoginLockException.class, () -> attempts.authenticate(1L, () -> "ok"));
+
+        attempts.resetAttempts(1L);
+
+        assertFalse(attempts.isLocked(1L));
+        assertEquals("ok", attempts.authenticate(1L, () -> "ok"));
+    }
+
     private String badPassword() {
         throw new BadCredentialsException("wrong");
     }

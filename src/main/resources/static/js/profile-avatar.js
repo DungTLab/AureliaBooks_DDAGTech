@@ -45,7 +45,7 @@
         photo.classList.remove("hidden");
         photo.style.display = "";
         placeholder.style.display = "none";
-        feedback.textContent = file.name + " — ảnh chưa được lưu.";
+        feedback.textContent = file.name + " — đã chọn. Nhấn Lưu ảnh đại diện để cập nhật.";
         save.disabled = false;
     });
     window.addEventListener("pagehide", releasePreview);

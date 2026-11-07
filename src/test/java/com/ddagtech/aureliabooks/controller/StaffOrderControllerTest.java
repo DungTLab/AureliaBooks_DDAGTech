@@ -47,6 +47,31 @@ class StaffOrderControllerTest {
                 .andExpect(content().string(containsString("fromDate=2026-10-20")));
     }
 
+    @Test void returnedPaidOrderShowsRefundReminder() throws Exception {
+        var row = new StaffOrderQueueView(12L, "returned-code", "Người nhận", LocalDateTime.now(),
+                Order.OrderStatus.RETURNED, Order.PaymentMethod.COD, Order.PaymentStatus.PAID,
+                BigDecimal.TEN, "Khách hàng", "buyer@example.test");
+        when(orders.getOrderQueue(any(), any(), eq(7L))).thenReturn(new PageImpl<>(List.of(row)));
+        mvc.perform(get("/staff/orders").with(user("staff").roles("SALE_STAFF")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Đã trả hàng")))
+                .andExpect(content().string(containsString("Cần hoàn tiền")));
+        org.junit.jupiter.api.Assertions.assertFalse(new StaffOrderQueueView(12L, "returned-code", "Người nhận", LocalDateTime.now(),
+                Order.OrderStatus.RETURNED, Order.PaymentMethod.COD, Order.PaymentStatus.REFUNDED,
+                BigDecimal.TEN, "Khách hàng", "buyer@example.test").needsRefund());
+    }
+
+    @Test void pendingRefundFilterBindsAndSurvivesPagination() throws Exception {
+        when(orders.getOrderQueue(any(), any(), eq(7L))).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 21));
+        mvc.perform(get("/staff/orders").with(user("staff").roles("SALE_STAFF"))
+                        .param("paymentStatus", "REFUND_PENDING"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Chưa hoàn tiền")))
+                .andExpect(content().string(containsString("paymentStatus=REFUND_PENDING")));
+        verify(orders).getOrderQueue(argThat(filter -> filter.paymentStatus()
+                == com.ddagtech.aureliabooks.dto.request.OrderQueueFilter.PaymentFilter.REFUND_PENDING), any(), eq(7L));
+    }
+
     @Test void checklistShowsRecipientSnapshotsAndCsrfProtectedForms() throws Exception {
         var order = new OrderConfirmationView("code", LocalDateTime.now(), "Người nhận cũ", "0912345678", "Địa chỉ lúc đặt",
                 Order.OrderStatus.CONFIRMED, Order.PaymentMethod.COD, Order.PaymentStatus.UNPAID,
@@ -127,6 +152,11 @@ class StaffOrderControllerTest {
         mvc.perform(get("/staff/orders/12").with(user("staff").roles("SALE_STAFF")))
                 .andExpect(status().isOk()).andExpect(content().string(containsString("Cần hoàn tiền")))
                 .andExpect(content().string(containsString("name=\"completedDate\"")))
+                .andExpect(content().string(containsString("<select id=\"packaging-checklist-control-1\" name=\"method\"")))
+                .andExpect(content().string(containsString("<option value=\"Tiền mặt\" selected>Tiền mặt</option>")))
+                .andExpect(content().string(containsString("<option value=\"Chuyển khoản\">Chuyển khoản</option>")))
+                .andExpect(content().string(containsString("value=\"" + java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")) + "\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("name=\"reference\""))))
                 .andExpect(content().string(containsString("name=\"externallyCompleted\"")))
                 .andExpect(content().string(containsString("Staff A")))
                 .andExpect(content().string(containsString("Phí giao hàng")));
@@ -147,8 +177,8 @@ class StaffOrderControllerTest {
         mvc.perform(post("/staff/orders/12/refund").with(user("staff").roles("SALE_STAFF")))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/staff/orders/12/refund").with(user("staff").roles("SALE_STAFF")).with(csrf())
-                .param("amount", "100000").param("method", "Bank").param("completedDate", java.time.LocalDate.now().toString())
-                .param("reference", "BANK123").param("externallyCompleted", "true").param("staffId", "999"))
+                .param("amount", "100000").param("method", "Tiền mặt").param("completedDate", java.time.LocalDate.now().toString())
+                .param("supportingInfo", "Biên nhận hoàn tiền").param("externallyCompleted", "true").param("staffId", "999"))
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/staff/orders/12"));
         verify(orders).confirmExternalRefund(eq(12L), any(), eq(7L));
     }

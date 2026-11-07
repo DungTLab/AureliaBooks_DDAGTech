@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "verificationStatus": "EXAMPLE_ONLY_OPERATOR_VERIFICATION_REQUIRED",
+  "stageReceiverCandidateAvailable": true,
+  "receiverImplementedAndReviewed": false,
+  "productionEnvironmentProtectionVerified": false,
+  "allDeploymentEntrypointsUseHostLock": false,
+  "actualComposeAndAppImageOwnershipVerified": false,
+  "runtimeReadGid": null,
+  "existingAdditionalLocationsReviewed": false,
+  "profilesAndHigherPrecedenceSourcesReviewed": false,
+  "rollbackCredentialValidityVerified": false,
+  "offlineFixturesAreNotVpsEvidence": true,
+  "note": "Example metadata, not executable configuration or live evidence. Receiver ignores this file. Activation/recovery and audited deploy integration exist; provisioning and scoped sudoers need explicit authorization. Do not change booleans to bypass real checks."
+}

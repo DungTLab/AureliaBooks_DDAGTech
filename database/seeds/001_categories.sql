@@ -1,0 +1,48 @@
+-- ============================================================
+-- AureliaBooks | Catalog Seed
+-- File: 001_categories.sql
+-- Table: categories
+-- ============================================================
+--
+-- Purpose:
+--   Initial product category data.
+--
+-- Execution:
+--   Staging first, Production after approval.
+--
+-- Schema:
+--   id          BIGINT AUTO_INCREMENT PRIMARY KEY
+--   name        VARCHAR(100) NOT NULL
+--   parent_id   BIGINT NULL
+--   description VARCHAR(255) NULL
+--   is_active   BOOLEAN NOT NULL DEFAULT TRUE
+--   created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+--
+-- Rules:
+-- 1. Do not hardcode category IDs.
+-- 2. Insert parent categories before child categories.
+-- 3. Resolve parent_id from an existing category.
+-- 4. Do not use ON DUPLICATE KEY UPDATE on category names.
+--    There is currently no UNIQUE constraint on name.
+-- 5. Do not delete or overwrite existing catalog data.
+-- 6. Every new category requires Pull Request review.
+--
+-- ============================================================
+-- SECTION 1: ROOT CATEGORIES
+-- ============================================================
+--
+-- TODO: Add approved root category records.
+--
+-- ============================================================
+-- SECTION 2: CHILD CATEGORIES
+-- ============================================================
+--
+-- TODO: Add approved child category records.
+-- Resolve parent_id without assuming numeric IDs.
+--
+-- ============================================================
+-- NOTE
+-- ============================================================
+-- This file intentionally contains no executable INSERT yet.
+-- The category identity and duplicate-prevention strategy
+-- must be finalized before inserting catalog records.

@@ -127,6 +127,17 @@ public interface AuditLogRepository extends Repository<AuditLog, Long> {
     List<ActorOption> findDistinctActors();
 
     /**
+     * Retrieves all successful or reconciled payment audit logs for a specific order.
+     * Used for exact deduplication verification against durable persistent storage.
+     *
+     * @param orderId persistent order ID
+     * @return List of settled payment AuditLog records
+     */
+    @Query("SELECT a FROM AuditLog a WHERE a.targetTable = 'orders' AND a.targetId = :orderId " +
+           "AND a.action IN ('VNPAY_PAYMENT_SUCCESS', 'VNPAY_DUPLICATE_PAYMENT_RECONCILIATION', 'VNPAY_LATE_SUCCESS_RECONCILIATION')")
+    List<AuditLog> findSettledVnpayAuditLogs(@Param("orderId") Long orderId);
+
+    /**
      * Immutability guard enforcing invariant [BR-08-02]. Explicitly rejects entity deletion.
      *
      * @param entity audit log entity to delete

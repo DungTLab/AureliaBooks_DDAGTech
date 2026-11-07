@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.service.impl;
 
+import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.Role;
@@ -67,7 +68,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         var existing = users.findByGoogleIdentity(User.AuthProvider.GOOGLE, subject);
         if (existing.isPresent()) {
             User account = existing.get();
-            if (!Boolean.TRUE.equals(account.getIsActive())) throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+            CustomerIdentity.requireCustomer(account);
             if (normalizedEmail.equals(account.getEmail()) && !account.isEmailVerified()) {
                 account.setEmailVerified(true);
                 users.saveAndFlush(account);

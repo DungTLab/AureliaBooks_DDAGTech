@@ -52,6 +52,94 @@ class VoucherMySqlTest {
     }
 
     @Test
+    void dualRedemptionPersistsBothScopesAndCancellationReleasesEachOnce() {
+        long productVoucher = campaign(2);
+        String shippingCode = code + "S";
+        long shippingVoucher = shippingCampaign(shippingCode, 2);
+        long id = tx.execute(status -> {
+            long created = order(customer, UUID.randomUUID().toString().replace("-", ""));
+            vouchers.redeem(customer, created, code, "ip");
+            vouchers.redeem(customer, created, shippingCode, "ip");
+            stock.deductOrder(created);
+            return created;
+        });
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_vouchers WHERE order_id=?", Integer.class, id)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT final_total_amount FROM orders WHERE id=?", BigDecimal.class, id))
+            .isEqualByComparingTo("460000");
+        assertThat(remaining(productVoucher)).isEqualTo(1);
+        assertThat(remaining(shippingVoucher)).isEqualTo(1);
+        tx.executeWithoutResult(status -> {
+            stock.restoreCancelledOrder(id, customer);
+            vouchers.releaseCancelledOrder(id, customer, "ip");
+        });
+        tx.executeWithoutResult(status -> vouchers.releaseCancelledOrder(id, customer, "ip"));
+        assertThat(remaining(productVoucher)).isEqualTo(2);
+        assertThat(remaining(shippingVoucher)).isEqualTo(2);
+        assertThat(redemptions(productVoucher)).isZero();
+        assertThat(redemptions(shippingVoucher)).isZero();
+    }
+
+    @Test
+    void failedSecondVoucherRollsBackFirstRedemptionAndOrder() {
+        long productVoucher = campaign(2);
+        String shippingCode = code + "S";
+        long shippingVoucher = shippingCampaign(shippingCode, 1);
+        jdbc.update("UPDATE vouchers SET usage_limit=0 WHERE id=?", shippingVoucher);
+        String token = UUID.randomUUID().toString().replace("-", "");
+        assertThatThrownBy(() -> tx.executeWithoutResult(status -> {
+            long id = order(customer, token);
+            vouchers.redeem(customer, id, code, "ip");
+            vouchers.redeem(customer, id, shippingCode, "ip");
+        })).isInstanceOf(AppException.class);
+        assertThat(remaining(productVoucher)).isEqualTo(2);
+        assertThat(redemptions(productVoucher)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM orders WHERE order_code=?", Integer.class, token)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_logs WHERE action='VOUCHER_REDEEMED' AND target_id=?", Integer.class, productVoucher)).isZero();
+    }
+
+    @Test
+    void twoDualVoucherOrdersCompeteForTheLastShippingUse() throws Exception {
+        long productVoucher = campaign(2);
+        String shippingCode = code + "S";
+        long shippingVoucher = shippingCampaign(shippingCode, 1);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch go = new CountDownLatch(1);
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            List<Future<Boolean>> results = new ArrayList<>();
+            for (long owner : List.of(customer, other)) {
+                results.add(pool.submit(() -> {
+                    ready.countDown();
+                    if (!go.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Start timed out");
+                    try {
+                        tx.executeWithoutResult(status -> {
+                            long id = order(owner, UUID.randomUUID().toString().replace("-", ""));
+                            vouchers.redeem(owner, id, code, "ip");
+                            vouchers.redeem(owner, id, shippingCode, "ip");
+                        });
+                        return true;
+                    } catch (AppException error) { return false; }
+                }));
+            }
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            go.countDown();
+            int successes = 0;
+            for (Future<Boolean> result : results) if (result.get(20, TimeUnit.SECONDS)) successes++;
+            assertThat(successes).isEqualTo(1);
+        }
+        assertThat(remaining(productVoucher)).isEqualTo(1);
+        assertThat(remaining(shippingVoucher)).isZero();
+        assertThat(redemptions(productVoucher)).isEqualTo(1);
+        assertThat(redemptions(shippingVoucher)).isEqualTo(1);
+    }
+
+    private long shippingCampaign(String shippingCode, int uses) {
+        LocalDateTime now = LocalDateTime.now(promotionClock);
+        return vouchers.create(manager, new VoucherForm(shippingCode, "Giảm phí giao hàng", Voucher.Scope.SHIPPING,
+            Voucher.Type.FIXED_AMOUNT, null, new BigDecimal("20000"), null, BigDecimal.ZERO,
+            now.minusDays(1), now.plusDays(1), uses), "ip");
+    }
+
+    @Test
     void previewDoesNotReserveAndOrderUsesServerSnapshots() {
         long voucher = campaign(3);
         assertThat(vouchers.preview(customer, code, new BigDecimal("500000"), new BigDecimal("30000")).discountAmount())

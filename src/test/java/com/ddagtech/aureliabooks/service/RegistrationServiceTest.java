@@ -106,4 +106,14 @@ class RegistrationServiceTest {
         var r=new RegisterRequest("a@example.com","Abcd123!","Dũng","0912345678",null,"Abcd123!",null,false);
         assertFalse(validator.validate(r).isEmpty()); assertFalse(r.toString().contains("Abcd123!"));
     }
+    @ParameterizedTest
+    @ValueSource(strings = {"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SALE_STAFF"})
+    void googleCannotAuthenticatePreviouslyLinkedInternalAccount(String role) {
+        User internal = User.builder().id(77L).email("staff@example.com").isActive(true)
+                .role(Role.builder().roleName(role).build()).authProvider(User.AuthProvider.GOOGLE)
+                .providerId("existing-sub").build();
+        when(users.findByGoogleIdentity(User.AuthProvider.GOOGLE, "existing-sub")).thenReturn(Optional.of(internal));
+        assertThrows(AppException.class, () -> service.registerGoogle("existing-sub", "staff@example.com", true, "Staff", null));
+        verify(users, never()).saveAndFlush(any());
+    }
 }

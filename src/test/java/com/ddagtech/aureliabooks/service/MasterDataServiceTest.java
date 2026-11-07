@@ -70,6 +70,51 @@ class MasterDataServiceTest {
     // =========================================================================
     // UC17: AUTHORS MANAGEMENT TESTS
     // =========================================================================
+    @Test
+    void categoryDirectoryGroupsDescendantsAndReflectsParentChanges() {
+        Category root = Category.builder().id(1L).build();
+        Category otherRoot = Category.builder().id(2L).build();
+        Category child = Category.builder().id(3L).parent(root).build();
+        Category grandchild = Category.builder().id(4L).parent(child).build();
+        when(categoryRepository.findAllWithParent()).thenReturn(List.of(root, otherRoot, child, grandchild));
+
+        assertThat(masterDataService.getAllCategoriesWithParent()).extracting(Category::getId)
+                .containsExactly(1L, 3L, 4L, 2L);
+
+        child.setParent(otherRoot);
+        assertThat(masterDataService.getAllCategoriesWithParent()).extracting(Category::getId)
+                .containsExactly(1L, 2L, 3L, 4L);
+    }
+
+    @Test
+    void categoryDirectoryPreservesOrphanBranchesAndCyclesWithoutDuplicates() {
+        Category missingParent = Category.builder().id(99L).build();
+        Category orphan = Category.builder().id(3L).parent(missingParent).build();
+        Category child = Category.builder().id(1L).parent(orphan).build();
+        Category cycleA = Category.builder().id(4L).build();
+        Category cycleB = Category.builder().id(5L).parent(cycleA).build();
+        cycleA.setParent(cycleB);
+        when(categoryRepository.findAllWithParent()).thenReturn(List.of(child, orphan, cycleA, cycleB));
+
+        assertThat(masterDataService.getAllCategoriesWithParent()).extracting(Category::getId)
+                .containsExactly(3L, 1L, 4L, 5L);
+    }
+
+    @Test
+    void categoryDirectoryHandlesDeepTreesWithoutRecursiveCalls() {
+        List<Category> categories = new java.util.ArrayList<>();
+        Category parent = null;
+        for (long id = 1; id <= 10000; id++) {
+            Category category = Category.builder().id(id).parent(parent).build();
+            categories.add(category);
+            parent = category;
+        }
+        when(categoryRepository.findAllWithParent()).thenReturn(categories);
+
+        assertThat(masterDataService.getAllCategoriesWithParent()).extracting(Category::getId)
+                .containsExactlyElementsOf(categories.stream().map(Category::getId).toList());
+    }
+
     @Nested
     @DisplayName("UC17: Author Management Tests")
     class AuthorTests {

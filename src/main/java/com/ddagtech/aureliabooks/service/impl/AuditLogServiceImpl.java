@@ -78,7 +78,7 @@ public class AuditLogServiceImpl implements AuditLogService {
      * database transaction as the business operation. This ensures ACID atomicity (state change and audit log
      * commit/rollback together) and prevents lock wait timeouts (UC28-R11) caused by InnoDB foreign key shared lock
      * verification when the caller holds an exclusive pessimistic lock on the actor user.
-     * Sensitive credential fields (password, token, otp) are automatically masked with "[REDACTED]".
+     * Sensitive credential fields (password, token, otp, hash) are automatically masked with "[REDACTED]".
      *
      * @param authenticatedUserId user ID of the actor performing the operation (null for system actions)
      * @param action administrative action descriptor (e.g. USER_CREATE, USER_STATUS_TOGGLE, USER_ROLE_UPDATE)
@@ -213,7 +213,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         } catch (Exception ex) {
             log.warn("Payload is not parseable JSON, falling back to regex masking", ex);
             return detailsJson
-                    .replaceAll("(?i)(\"\\w*(?:password|token|otp|secret|cvv)\\w*\"\\s*:\\s*\")[^\"]*(\")", "$1[REDACTED]$2");
+                    .replaceAll("(?i)(\"\\w*(?:password|token|otp|secret|cvv|hash)\\w*\"\\s*:\\s*\")[^\"]*(\")", "$1[REDACTED]$2");
         }
     }
 
@@ -229,7 +229,7 @@ public class AuditLogServiceImpl implements AuditLogService {
                 String fieldName = field.getKey().toLowerCase();
                 if (fieldName.contains("password") || fieldName.contains("token")
                         || fieldName.contains("otp") || fieldName.contains("secret")
-                        || fieldName.contains("cvv")) {
+                        || fieldName.contains("cvv") || fieldName.contains("hash")) {
                     field.setValue(new TextNode("[REDACTED]"));
                 } else {
                     redactSensitiveNodes(field.getValue());
@@ -240,5 +240,52 @@ public class AuditLogServiceImpl implements AuditLogService {
                 redactSensitiveNodes(child);
             }
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean hasSettledVnpayPayment(Long orderId, String txnRef, String transactionNo) {
+        if (orderId == null) {
+            return false;
+        }
+        String cleanRef = txnRef != null ? txnRef.trim() : "";
+        String cleanTxNo = transactionNo != null ? transactionNo.trim() : "";
+        if (cleanRef.isEmpty() && cleanTxNo.isEmpty()) {
+            return false;
+        }
+        List<AuditLog> logs = auditLogRepository.findSettledVnpayAuditLogs(orderId);
+        if (logs == null || logs.isEmpty()) {
+            return false;
+        }
+
+        for (AuditLog audit : logs) {
+            String json = audit.getDetailsJson();
+            if (json == null || json.isBlank()) {
+                continue;
+            }
+            try {
+                JsonNode root = objectMapper.readTree(json);
+                String loggedRef = root.path("vnpTxnRef").asText("");
+                if (loggedRef.isBlank()) {
+                    loggedRef = root.path("surplusVnpTxnRef").asText("");
+                }
+                String loggedTxNo = root.path("vnpTransactionNo").asText("");
+
+                if (!cleanRef.isEmpty() && cleanRef.equals(loggedRef)) {
+                    return true;
+                }
+                if (!cleanTxNo.isEmpty() && !"0".equals(cleanTxNo) && cleanTxNo.equals(loggedTxNo)) {
+                    return true;
+                }
+            } catch (Exception ex) {
+                if (!cleanRef.isEmpty() && json.contains("\"" + cleanRef + "\"")) {
+                    return true;
+                }
+                if (!cleanTxNo.isEmpty() && !"0".equals(cleanTxNo) && json.contains("\"" + cleanTxNo + "\"")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
