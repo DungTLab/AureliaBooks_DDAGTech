@@ -16,7 +16,7 @@ public final class RuntimeActivation {
     interface Engine {
         String preflight() throws Exception;
         void recreate() throws Exception;
-        boolean ready(String image, String generation, boolean google) throws Exception;
+        boolean ready(String image, String generation, boolean google, R2Flags r2) throws Exception;
     }
     private final String environment;
     private final Path privateRoot, publicRoot;
@@ -73,43 +73,57 @@ public final class RuntimeActivation {
         } finally { Files.deleteIfExists(temp); }
     }
     public String render(String generation, String revision) {
+        return render(generation, revision, R2_OFF);
+    }
+    private String render(String generation, String revision, R2Flags r2) {
         generation(generation, revision);
         return "services:\n  app:\n    environment:\n"
                 + "      SPRING_CONFIG_ADDITIONAL_LOCATION: \"file:/run/aureliabooks-config/runtime-integrations.properties\"\n"
                 + "      SPRING_PROFILES_ACTIVE: \"google\"\n      SERVER_FORWARD_HEADERS_STRATEGY: \"framework\"\n"
-                + "      R2_ENABLED: \"false\"\n      R2_UPLOAD_ENABLED: \"false\"\n"
+                + "      R2_ENABLED: \"" + r2.enabled() + "\"\n      R2_UPLOAD_ENABLED: \"" + r2.upload() + "\"\n"
                 + "    labels:\n      com.ddagtech.aureliabooks.runtime-config-generation: \"" + generation + "\"\n"
                 + "      com.ddagtech.aureliabooks.runtime-config-revision: \"" + revision + "\"\n"
                 + "    group_add:\n      - \"" + gid + "\"\n    volumes:\n      - type: bind\n"
                 + "        source: \"" + privateRoot.resolve("releases").resolve(generation) + "\"\n"
                 + "        target: /run/aureliabooks-config\n        read_only: true\n        bind:\n          create_host_path: false\n";
     }
-    private record Active(String generation, String revision) {}
-    private Active parseOverlay(byte[] bytes) {
+    private record Active(String generation, String revision, R2Flags r2) {}
+    private Active parseOverlay(byte[] bytes) throws IOException {
         String text = new String(bytes, java.nio.charset.StandardCharsets.US_ASCII);
         var id = Pattern.compile("runtime-config-generation: \"([a-f0-9]{32})\"").matcher(text);
         var sha = Pattern.compile("runtime-config-revision: \"([a-f0-9]{40})\"").matcher(text);
-        check(id.find() && sha.find(), "UNKNOWN_ACTIVE_OVERLAY"); Active active = new Active(id.group(1), sha.group(1));
-        check(text.equals(render(active.generation, active.revision)), "ACTIVE_OVERLAY_CHANGED"); return active;
+        check(id.find() && sha.find(), "UNKNOWN_ACTIVE_OVERLAY");
+        Active active = new Active(id.group(1), sha.group(1), snapshot(id.group(1), sha.group(1)));
+        check(text.equals(render(active.generation, active.revision, active.r2)), "ACTIVE_OVERLAY_CHANGED"); return active;
     }
     private Active active() throws IOException {
         if (!Files.exists(overlayPath(), NOFOLLOW_LINKS)) return null;
-        Active active = parseOverlay(read(overlayPath(), 0644, 8192)); snapshot(active.generation, active.revision); return active;
+        return parseOverlay(read(overlayPath(), 0644, 8192));
     }
-    private void snapshot(String id, String revision) throws IOException {
+    private R2Flags snapshot(String id, String revision) throws IOException {
         check("STAGED_NOT_ACTIVE".equals(store.status(id, revision)), "SNAPSHOT_REQUIRED");
         Properties properties = new Properties();
         properties.load(new ByteArrayInputStream(read(privateRoot.resolve("releases").resolve(id).resolve("runtime-integrations.properties"), 0440, 65536)));
         Set<String> allowed = new HashSet<>(FLAGS.values());
-        FIELDS.values().stream().filter(field -> !field.group().equals("r2")).forEach(field -> allowed.add(field.target()));
+        FIELDS.values().forEach(field -> allowed.add(field.target()));
         allowed.add("spring.mail.properties.mail.smtp.starttls.required");
         check(allowed.containsAll(properties.stringPropertyNames()), "UNEXPECTED_RUNTIME_PROPERTY");
         for (String key : List.of("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "spring.mail.host", "spring.mail.username", "spring.mail.password", "vnpay.tmn-code", "vnpay.hash-secret"))
             check(!properties.getProperty(key, "").isBlank(), "INCOMPLETE_ACTIVATION_SNAPSHOT");
-        for (String key : FLAGS.values()) check("false".equals(properties.getProperty(key)), "R2_MUST_REMAIN_DISABLED");
+        R2Flags r2 = new R2Flags(properties.getProperty("app.r2.enabled", ""),
+                properties.getProperty("app.r2.upload-enabled", ""));
+        if (r2.active()) {
+            for (String key : R2_REQUIRED)
+                check(!properties.getProperty(FIELDS.get(key).target(), "").isBlank(), "INCOMPLETE_R2_GROUP");
+            r2Bucket(environment, properties.getProperty("app.r2.bucket"));
+        } else {
+            check(!properties.containsKey("app.r2.access-key-id") && !properties.containsKey("app.r2.secret-access-key"),
+                    "R2_CREDENTIAL_TRANSFER_BLOCKED");
+        }
         String domain = environment.equals("staging") ? "aurelia-staging.dzungtlab.id.vn" : "aureliabooks.dzungtlab.id.vn";
         check(("https://" + domain + "/payment/vnpay-return").equals(properties.getProperty("vnpay.return-url")), "VNPAY_RETURN_URL_ENVIRONMENT_MISMATCH");
         if (owner == 0) check(((Number)Files.getAttribute(privateRoot.resolve("releases").resolve(id), "unix:gid", NOFOLLOW_LINKS)).intValue() == gid, "READ_GID_CHANGED");
+        return r2;
     }
     public String verify() {
         directory(privateRoot, 0700); directory(publicRoot, 0755);
@@ -120,7 +134,7 @@ public final class RuntimeActivation {
     public String activateGoogle(String id, String revision) {
         verify(); generation(id, revision);
         try {
-            snapshot(id, revision); String image = engine.preflight();
+            R2Flags r2 = snapshot(id, revision); String image = engine.preflight();
             check(image.matches("ghcr.io/dungtlab/aureliabooks_ddagtech:sha-[a-f0-9]{40}"), "UNEXPECTED_IMAGE");
             byte[] previous = Files.exists(overlayPath(), NOFOLLOW_LINKS) ? read(overlayPath(), 0644, 8192) : new byte[0];
             Properties journal = new Properties(); journal.setProperty("image", image);
@@ -128,8 +142,8 @@ public final class RuntimeActivation {
             var output = new ByteArrayOutputStream(); journal.store(output, "Runtime activation recovery; no credentials");
             atomic(journalPath(), output.toByteArray(), 0600);
             try {
-                atomic(overlayPath(), render(id, revision).getBytes(java.nio.charset.StandardCharsets.US_ASCII), 0644);
-                engine.recreate(); check(engine.ready(image, id, true), "NEW_CONFIG_NOT_READY");
+                atomic(overlayPath(), render(id, revision, r2).getBytes(java.nio.charset.StandardCharsets.US_ASCII), 0644);
+                engine.recreate(); check(engine.ready(image, id, true, r2), "NEW_CONFIG_NOT_READY");
                 Files.delete(journalPath()); sync(privateRoot); return "ACTIVE " + id;
             } catch (Exception e) {
                 try { recover(); } catch (Exception recovery) { throw new Rejected("ACTIVATION_AND_RECOVERY_FAILED"); }
@@ -146,10 +160,9 @@ public final class RuntimeActivation {
             String image = journal.getProperty("image"); check(image != null && image.equals(engine.preflight()), "RECOVERY_IMAGE_CHANGED");
             byte[] previous = Base64.getDecoder().decode(journal.getProperty("previous"));
             Active old = previous.length == 0 ? null : parseOverlay(previous);
-            if (old != null) snapshot(old.generation, old.revision);
             if (previous.length == 0) { Files.deleteIfExists(overlayPath()); sync(publicRoot); }
             else atomic(overlayPath(), previous, 0644);
-            engine.recreate(); check(engine.ready(image, old == null ? null : old.generation, old != null), "RECOVERY_NOT_READY");
+            engine.recreate(); check(engine.ready(image, old == null ? null : old.generation, old != null, old == null ? R2_OFF : old.r2), "RECOVERY_NOT_READY");
             Files.delete(journalPath()); sync(privateRoot); return "PREVIOUS_RUNTIME_RESTORED";
         } catch (Exception e) { throw new Rejected("RUNTIME_RECOVERY_REQUIRED"); }
     }

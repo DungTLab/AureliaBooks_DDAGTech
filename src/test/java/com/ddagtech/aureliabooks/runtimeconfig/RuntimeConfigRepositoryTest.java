@@ -23,7 +23,7 @@ class RuntimeConfigRepositoryTest {
     }
     @Test void manualWorkflowRequiresExplicitStageOrActivationAndEnvironmentApproval() throws Exception {
         String body = Files.readString(Path.of(".github/workflows/runtime-config-sync.yml"));
-        for (String forbidden : List.of("upload-artifact", "python3", "secrets.R2_ACCESS_KEY_ID", "secrets.R2_SECRET_ACCESS_KEY")) assertFalse(body.contains(forbidden));
+        for (String forbidden : List.of("upload-artifact", "python3")) assertFalse(body.contains(forbidden));
         assertTrue(body.contains("refs/heads/main"));
         Map<?, ?> workflow = new Yaml().load(body);
         Map<?, ?> triggers = (Map<?, ?>)workflow.getOrDefault(Boolean.TRUE, null);
@@ -42,6 +42,14 @@ class RuntimeConfigRepositoryTest {
         assertFalse(jobs.get("offline-validation").toString().contains("secrets."));
         assertFalse(body.contains("compose up"));
         assertTrue(((Map<?, ?>)stage.get("concurrency")).get("group").toString().startsWith("aureliabooks-runtime-stage-"));
+        Map<?, ?> transfer = ((List<?>)stage.get("steps")).stream().map(step -> (Map<?, ?>)step)
+                .filter(step -> "Transfer snapshot and perform selected activation".equals(step.get("name")))
+                .findFirst().orElseThrow();
+        Map<?, ?> environment = (Map<?, ?>)transfer.get("env");
+        for (String key : List.of("R2_ENABLED", "R2_UPLOAD_ENABLED"))
+            assertEquals("${{ vars." + key + " || 'false' }}", environment.get(key));
+        for (String key : List.of("R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"))
+            assertEquals("${{ vars.R2_ENABLED == 'true' && secrets." + key + " || '' }}", environment.get(key));
         for (Object job : jobs.values()) {
             for (Object step : (List<?>)((Map<?, ?>)job).get("steps")) {
                 Object uses = ((Map<?, ?>)step).get("uses");

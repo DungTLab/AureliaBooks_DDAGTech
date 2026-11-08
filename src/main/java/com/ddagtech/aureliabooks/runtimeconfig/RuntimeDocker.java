@@ -55,7 +55,7 @@ final class RuntimeDocker implements RuntimeActivation.Engine {
         if (keys.contains("SPRING_PROFILES_ACTIVE")) check("EXPECTED".equals(decision("SPRING_PROFILES_ACTIVE", "google")), "PROFILE_CONFLICT");
         if (keys.contains("SPRING_CONFIG_ADDITIONAL_LOCATION")) check("EXPECTED".equals(decision("SPRING_CONFIG_ADDITIONAL_LOCATION", "file:/run/aureliabooks-config/runtime-integrations.properties")), "LOCATION_CONFLICT");
         if (keys.contains("SERVER_FORWARD_HEADERS_STRATEGY")) check("EXPECTED".equals(decision("SERVER_FORWARD_HEADERS_STRATEGY", "framework")), "FORWARD_HEADERS_CONFLICT");
-        for (String flag : FLAGS.keySet()) if (keys.contains(flag)) check("EXPECTED".equals(decision(flag, "false")), "R2_FLAG_CONFLICT");
+        for (String flag : FLAGS.keySet()) if (keys.contains(flag)) check("EXPECTED".equals(decision(flag, "false")) || "EXPECTED".equals(decision(flag, "true")), "R2_FLAG_CONFLICT");
         String image = image(); check(image.matches("ghcr.io/dungtlab/aureliabooks_ddagtech:sha-[a-f0-9]{40}"), "UNEXPECTED_IMAGE"); return image;
     }
     private void compose(String... args) throws Exception {
@@ -90,13 +90,15 @@ final class RuntimeDocker implements RuntimeActivation.Engine {
         for (String pair : destination.getRawQuery().split("&")) { String[] pieces = pair.split("=", 2); query.put(URLDecoder.decode(pieces[0], java.nio.charset.StandardCharsets.UTF_8), pieces.length == 2 ? URLDecoder.decode(pieces[1], java.nio.charset.StandardCharsets.UTF_8) : ""); }
         return ("https://" + domain + "/login/oauth2/code/google").equals(query.get("redirect_uri"));
     }
-    @Override public boolean ready(String expectedImage, String generation, boolean enableGoogle) throws Exception {
+    @Override public boolean ready(String expectedImage, String generation, boolean enableGoogle, R2Flags r2) throws Exception {
         long deadline = System.nanoTime() + Duration.ofSeconds(90).toNanos();
         while (System.nanoTime() < deadline) {
             try {
                 check(expectedImage.equals(image()), "IMAGE_CHANGED_DURING_ACTIVATION");
                 if ("true".equals(inspect("{{.State.Running}}")) && probe("/").status == 200) {
                     if (generation != null) {
+                        check("EXPECTED".equals(decision("R2_ENABLED", r2.enabled()))
+                                && "EXPECTED".equals(decision("R2_UPLOAD_ENABLED", r2.upload())), "R2_FLAGS_NOT_LOADED");
                         check(generation.equals(inspect("{{index .Config.Labels \"com.ddagtech.aureliabooks.runtime-config-generation\"}}")), "GENERATION_NOT_LOADED");
                         String mount = inspect("{{range .Mounts}}{{if eq .Destination \"/run/aureliabooks-config\"}}{{if not .RW}}{{.Source}}{{end}}{{end}}{{end}}");
                         check(mount.equals("/var/lib/aureliabooks-runtime/" + environment + "/releases/" + generation), "RUNTIME_MOUNT_CHANGED");
