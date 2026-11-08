@@ -17,7 +17,7 @@ public final class ConfigPolicy {
     static final Set<String> SUPPORTED_GROUPS = Set.of("google", "mail", "vnpay", "sms-demo", "r2");
     static final Set<String> R2_REQUIRED = Set.of("R2_ENDPOINT", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY");
     private static final Map<String, String> R2_BUCKETS = Map.of(
-            "staging", "aureliabooks-staging-assets", "production", "aureliabooks-production-backend");
+            "staging", "aureliabooks-staging-assets", "production", "aureliabooks-production-assets");
 
     static void r2Bucket(String environment, String bucket) {
         check(Objects.equals(R2_BUCKETS.get(environment), bucket) && bucket != null, "R2_BUCKET_ENVIRONMENT_MISMATCH");
