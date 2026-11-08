@@ -117,7 +117,8 @@ export async function runTests() {
         f.file.listeners.change();
         f.url.listeners.input();
         assert.deepEqual(f.revoked, ['blob:preview']);
-        assert.equal(f.preview.hidden, true);
+        assert.equal(f.preview.hidden, false);
+        assert.equal(f.preview.src, old);
     });
     return {passed: results.length, tests: results};
 }

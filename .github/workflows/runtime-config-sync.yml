@@ -107,6 +107,12 @@ jobs:
           VNPAY_COMMAND: ${{ vars.VNPAY_COMMAND }}
           VNPAY_ORDER_TYPE: ${{ vars.VNPAY_ORDER_TYPE }}
           VNPAY_EXPIRE_MINUTES: ${{ vars.VNPAY_EXPIRE_MINUTES }}
-          R2_ENABLED: 'false'
-          R2_UPLOAD_ENABLED: 'false'
+          R2_ENABLED: ${{ vars.R2_ENABLED || 'false' }}
+          R2_UPLOAD_ENABLED: ${{ vars.R2_UPLOAD_ENABLED || 'false' }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          R2_UPLOAD_REQUESTS_PER_MINUTE: ${{ vars.R2_UPLOAD_REQUESTS_PER_MINUTE }}
+          R2_UPLOAD_MAX_CONCURRENT: ${{ vars.R2_UPLOAD_MAX_CONCURRENT }}
+          R2_ACCESS_KEY_ID: ${{ vars.R2_ENABLED == 'true' && secrets.R2_ACCESS_KEY_ID || '' }}
+          R2_SECRET_ACCESS_KEY: ${{ vars.R2_ENABLED == 'true' && secrets.R2_SECRET_ACCESS_KEY || '' }}
         run: bash scripts/runtime-config/stage.sh "$TARGET_ENVIRONMENT" "$REVISION" "$CONFIG_OPERATION"

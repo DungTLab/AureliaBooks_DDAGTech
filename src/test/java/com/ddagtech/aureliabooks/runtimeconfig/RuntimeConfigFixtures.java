@@ -13,6 +13,10 @@ final class RuntimeConfigFixtures {
             case "google" -> Map.of("GOOGLE_CLIENT_ID", "synthetic-client", "GOOGLE_CLIENT_SECRET", SECRET);
             case "mail" -> Map.of("MAIL_HOST", "smtp.example.invalid", "MAIL_PORT", "587", "MAIL_USERNAME", "synthetic@example.invalid",
                     "MAIL_PASSWORD", SECRET, "MAIL_AUTH", "true", "MAIL_STARTTLS", "true", "MAIL_FROM", "synthetic@example.invalid");
+            case "r2" -> Map.of("R2_ENABLED", "true", "R2_UPLOAD_ENABLED", "true",
+                    "R2_ENDPOINT", "https://" + "0".repeat(32) + ".r2.cloudflarestorage.com",
+                    "R2_BUCKET", "aureliabooks-staging-assets", "R2_ACCESS_KEY_ID", "synthetic-access-id",
+                    "R2_SECRET_ACCESS_KEY", SECRET);
             default -> Map.of("VNPAY_TMN_CODE", "synthetic-merchant", "VNPAY_HASH_SECRET", SECRET,
                     "VNPAY_PAY_URL", "https://pay.example.invalid/pay", "VNPAY_RETURN_URL", "https://shop.example.invalid/return",
                     "VNPAY_API_URL", "https://api.example.invalid/query", "VNPAY_VERSION", "2.1.0", "VNPAY_COMMAND", "pay",

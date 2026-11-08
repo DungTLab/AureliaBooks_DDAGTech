@@ -28,6 +28,7 @@ public final class StagingConfigEnvelope {
         ConfigPolicy.generation(generation, revision);
         check(issued >= 0 && expires > issued && expires - issued <= 300, "INVALID_ENVELOPE_LIFETIME");
         ConfigPolicy.render(values, groups);
+        if (groups.contains("r2")) r2Bucket(environment, values.get("R2_BUCKET"));
         check(new HashSet<>(groups).size() == groups.size(), "DUPLICATE_PROVIDER_GROUP");
         this.environment = environment; this.generation = generation; this.revision = revision;
         this.issued = issued; this.expires = expires;
@@ -77,7 +78,7 @@ public final class StagingConfigEnvelope {
             check(string(input, 16).equals("stage"), "ENVELOPE_ACTION_DENIED");
             String generation = string(input, 32), revision = string(input, 40);
             long issued = input.readLong(), expires = input.readLong();
-            int count = input.readInt(); check(count >= 0 && count <= GROUPS.size(), "INVALID_ENVELOPE_GROUP_COUNT");
+            int count = input.readInt(); check(count >= 0 && count <= SUPPORTED_GROUPS.size(), "INVALID_ENVELOPE_GROUP_COUNT");
             List<String> groups = new ArrayList<>();
             for (int i = 0; i < count; i++) groups.add(string(input, 16));
             check(new ArrayList<>(new TreeSet<>(groups)).equals(groups), "NONCANONICAL_ENVELOPE_GROUPS");
