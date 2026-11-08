@@ -21,6 +21,11 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.slf4j.LoggerFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -281,6 +286,206 @@ class VnpayTimeoutCleanerDaemonTest {
         verify(orderRepository, never()).save(any());
         verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
         verify(orderVoucherReleasePort, never()).releaseOrderVoucherIfPresent(anyLong());
+    }
+
+    @Test
+    @DisplayName("Mục 3 Unit Test: shouldEmitErrorAlert() boundary conditions and throttling cadence")
+    void shouldEmitErrorAlert_BoundaryValues() {
+        // Less than 5 minutes past expiration: never alert ERROR
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(0)).isFalse();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(1)).isFalse();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(4)).isFalse();
+
+        // Exactly 5 minutes: first escalated ERROR alert
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(5)).isTrue();
+
+        // Intermediate minutes: throttled to WARN to prevent infinite repeated ERROR spam
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(6)).isFalse();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(7)).isFalse();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(10)).isFalse();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(14)).isFalse();
+
+        // Milestone intervals: periodic reminder ERROR alerts (every 15 minutes)
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(15)).isTrue();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(16)).isFalse();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(30)).isTrue();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(45)).isTrue();
+        assertThat(VnpayTimeoutCleanerDaemon.shouldEmitErrorAlert(60)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Mục 3 Regression Test: INDETERMINATE order >= 5 minutes post-deadline emits ERROR log and preserves PENDING_PAYMENT")
+    void cron01_IndeterminateReconciliation_Exceeding5Minutes_EmitsErrorAndPreservesPendingPayment() {
+        VNPayConfig config = new VNPayConfig();
+        config.setExpireMinutes(15);
+
+        VnpayTimeoutCleanerDaemon daemon = new VnpayTimeoutCleanerDaemon(
+                orderRepository,
+                config,
+                reconciliationClient,
+                stockMutationService,
+                orderVoucherReleasePort,
+                auditLogService,
+                objectMapper
+        );
+
+        // Created 20 minutes ago -> 15 min TTL + 5 min post-expiration
+        LocalDateTime now = LocalDateTime.now(VNPayServiceImpl.VIETNAM_ZONE);
+        Order expiredOrder = Order.builder()
+                .id(104L)
+                .user(User.builder().id(19L).build())
+                .orderCode("ORD-EXP-ERR-5M")
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .stockDeductedAt(now.minusMinutes(20))
+                .build();
+        expiredOrder.setCreatedAt(now.minusMinutes(20));
+
+        when(orderRepository.findExpiredPendingPaymentOrders(any())).thenReturn(List.of(expiredOrder));
+        when(orderRepository.findByIdWithLock(104L)).thenReturn(Optional.of(expiredOrder));
+        when(reconciliationClient.reconcileExpiredOrder(expiredOrder))
+                .thenReturn(ReconciliationResult.indeterminate("Gateway timeout during QueryDR"));
+
+        Logger daemonLogger = (Logger) LoggerFactory.getLogger(VnpayTimeoutCleanerDaemon.class);
+        ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+        listAppender.start();
+        daemonLogger.addAppender(listAppender);
+
+        try {
+            int cleaned = daemon.cleanExpiredPendingPaymentOrders();
+
+            assertThat(cleaned).isZero();
+            assertThat(expiredOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_PAYMENT);
+            assertThat(expiredOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
+            verify(orderRepository, never()).save(any());
+            verify(stockMutationService, never()).restoreCancelledOrder(anyLong(), any());
+            verify(orderVoucherReleasePort, never()).releaseOrderVoucherIfPresent(anyLong());
+
+            boolean hasErrorLog = listAppender.list.stream()
+                    .anyMatch(event -> event.getLevel() == Level.ERROR
+                            && event.getFormattedMessage().contains("ORD-EXP-ERR-5M")
+                            && event.getFormattedMessage().contains("5 minutes")
+                            && event.getFormattedMessage().contains("Manual investigation required"));
+            assertThat(hasErrorLog).as("Expected an ERROR log for indeterminate order >= 5m post-deadline").isTrue();
+        } finally {
+            daemonLogger.detachAppender(listAppender);
+        }
+    }
+
+    @Test
+    @DisplayName("Mục 3 Regression Test: INDETERMINATE order < 5 minutes post-deadline emits WARN without ERROR")
+    void cron01_IndeterminateReconciliation_Under5Minutes_EmitsWarnAndPreservesPendingPayment() {
+        VNPayConfig config = new VNPayConfig();
+        config.setExpireMinutes(15);
+
+        VnpayTimeoutCleanerDaemon daemon = new VnpayTimeoutCleanerDaemon(
+                orderRepository,
+                config,
+                reconciliationClient,
+                stockMutationService,
+                orderVoucherReleasePort,
+                auditLogService,
+                objectMapper
+        );
+
+        // Created 17 minutes ago -> 15 min TTL + 2 min post-expiration (< 5 min)
+        LocalDateTime now = LocalDateTime.now(VNPayServiceImpl.VIETNAM_ZONE);
+        Order expiredOrder = Order.builder()
+                .id(105L)
+                .user(User.builder().id(20L).build())
+                .orderCode("ORD-EXP-WARN-2M")
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .stockDeductedAt(now.minusMinutes(17))
+                .build();
+        expiredOrder.setCreatedAt(now.minusMinutes(17));
+
+        when(orderRepository.findExpiredPendingPaymentOrders(any())).thenReturn(List.of(expiredOrder));
+        when(orderRepository.findByIdWithLock(105L)).thenReturn(Optional.of(expiredOrder));
+        when(reconciliationClient.reconcileExpiredOrder(expiredOrder))
+                .thenReturn(ReconciliationResult.indeterminate("Gateway timeout during QueryDR"));
+
+        Logger daemonLogger = (Logger) LoggerFactory.getLogger(VnpayTimeoutCleanerDaemon.class);
+        ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+        listAppender.start();
+        daemonLogger.addAppender(listAppender);
+
+        try {
+            int cleaned = daemon.cleanExpiredPendingPaymentOrders();
+
+            assertThat(cleaned).isZero();
+            assertThat(expiredOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_PAYMENT);
+            assertThat(expiredOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
+
+            boolean hasErrorLog = listAppender.list.stream()
+                    .anyMatch(event -> event.getLevel() == Level.ERROR && event.getFormattedMessage().contains("ORD-EXP-WARN-2M"));
+            assertThat(hasErrorLog).as("Must NOT emit ERROR when under 5 minutes post-deadline").isFalse();
+
+            boolean hasWarnLog = listAppender.list.stream()
+                    .anyMatch(event -> event.getLevel() == Level.WARN && event.getFormattedMessage().contains("ORD-EXP-WARN-2M"));
+            assertThat(hasWarnLog).as("Expected a WARN log for indeterminate order").isTrue();
+        } finally {
+            daemonLogger.detachAppender(listAppender);
+        }
+    }
+
+    @Test
+    @DisplayName("Mục 3 Regression Test: INDETERMINATE order at 6 minutes throttles to WARN to prevent spamming ERROR every minute")
+    void cron01_IndeterminateReconciliation_At6Minutes_ThrottlesToWarnWithoutSpammingError() {
+        VNPayConfig config = new VNPayConfig();
+        config.setExpireMinutes(15);
+
+        VnpayTimeoutCleanerDaemon daemon = new VnpayTimeoutCleanerDaemon(
+                orderRepository,
+                config,
+                reconciliationClient,
+                stockMutationService,
+                orderVoucherReleasePort,
+                auditLogService,
+                objectMapper
+        );
+
+        // Created 21 minutes ago -> 15 min TTL + 6 min post-expiration (throttled cadence)
+        LocalDateTime now = LocalDateTime.now(VNPayServiceImpl.VIETNAM_ZONE);
+        Order expiredOrder = Order.builder()
+                .id(106L)
+                .user(User.builder().id(21L).build())
+                .orderCode("ORD-EXP-THROTTLE-6M")
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .stockDeductedAt(now.minusMinutes(21))
+                .build();
+        expiredOrder.setCreatedAt(now.minusMinutes(21));
+
+        when(orderRepository.findExpiredPendingPaymentOrders(any())).thenReturn(List.of(expiredOrder));
+        when(orderRepository.findByIdWithLock(106L)).thenReturn(Optional.of(expiredOrder));
+        when(reconciliationClient.reconcileExpiredOrder(expiredOrder))
+                .thenReturn(ReconciliationResult.indeterminate("Gateway timeout during QueryDR"));
+
+        Logger daemonLogger = (Logger) LoggerFactory.getLogger(VnpayTimeoutCleanerDaemon.class);
+        ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
+        listAppender.start();
+        daemonLogger.addAppender(listAppender);
+
+        try {
+            int cleaned = daemon.cleanExpiredPendingPaymentOrders();
+
+            assertThat(cleaned).isZero();
+            assertThat(expiredOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_PAYMENT);
+
+            boolean hasErrorLog = listAppender.list.stream()
+                    .anyMatch(event -> event.getLevel() == Level.ERROR && event.getFormattedMessage().contains("ORD-EXP-THROTTLE-6M"));
+            assertThat(hasErrorLog).as("Minute 6 must be throttled: NO ERROR log").isFalse();
+
+            boolean hasWarnLog = listAppender.list.stream()
+                    .anyMatch(event -> event.getLevel() == Level.WARN && event.getFormattedMessage().contains("ORD-EXP-THROTTLE-6M"));
+            assertThat(hasWarnLog).as("Expected a WARN log at minute 6").isTrue();
+        } finally {
+            daemonLogger.detachAppender(listAppender);
+        }
     }
 
     @Test
