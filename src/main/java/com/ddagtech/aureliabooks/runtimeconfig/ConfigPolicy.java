@@ -14,7 +14,23 @@ public final class ConfigPolicy {
     public static final Set<String> GROUPS = Set.of("google", "mail", "vnpay", "sms-demo");
     public static final Map<String, String> FLAGS = Map.of(
             "R2_ENABLED", "app.r2.enabled", "R2_UPLOAD_ENABLED", "app.r2.upload-enabled");
-    public static final Set<String> RESERVED = Set.of("R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY");
+    static final Set<String> SUPPORTED_GROUPS = Set.of("google", "mail", "vnpay", "sms-demo", "r2");
+    static final Set<String> R2_REQUIRED = Set.of("R2_ENDPOINT", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY");
+    private static final Map<String, String> R2_BUCKETS = Map.of(
+            "staging", "aureliabooks-staging-assets", "production", "aureliabooks-production-backend");
+
+    static void r2Bucket(String environment, String bucket) {
+        check(Objects.equals(R2_BUCKETS.get(environment), bucket) && bucket != null, "R2_BUCKET_ENVIRONMENT_MISMATCH");
+    }
+    record R2Flags(String enabled, String upload) {
+        R2Flags {
+            check(Set.of("true", "false").contains(enabled) && Set.of("true", "false").contains(upload),
+                    "INVALID_R2_FLAGS");
+            check(enabled.equals("true") || upload.equals("false"), "R2_UPLOAD_REQUIRES_STORAGE");
+        }
+        boolean active() { return enabled.equals("true"); }
+    }
+    static final R2Flags R2_OFF = new R2Flags("false", "false");
     public static final Map<String, Field> FIELDS;
     static {
         Map<String, Field> fields = new LinkedHashMap<>();
@@ -36,6 +52,8 @@ public final class ConfigPolicy {
         for (String name : List.of("ENDPOINT", "BUCKET", "UPLOAD_REQUESTS_PER_MINUTE", "UPLOAD_MAX_CONCURRENT")) {
             add(fields, "r2", "EV", "R2_" + name, "app.r2." + name.toLowerCase(Locale.ROOT).replace('_', '-'));
         }
+        add(fields, "r2", "ES", "R2_ACCESS_KEY_ID", "app.r2.access-key-id");
+        add(fields, "r2", "ES", "R2_SECRET_ACCESS_KEY", "app.r2.secret-access-key");
         FIELDS = Collections.unmodifiableMap(fields);
     }
     private static void add(Map<String, Field> fields, String group, String scope, String key, String target) {
@@ -87,22 +105,29 @@ public final class ConfigPolicy {
     }
     public static byte[] render(Map<String, String> values, Collection<String> groups) {
         check(values != null && groups != null, "INVALID_INPUT");
-        check(groups.stream().allMatch(g -> g != null && GROUPS.contains(g)), "INVALID_GROUP");
+        check(groups.stream().allMatch(g -> g != null && SUPPORTED_GROUPS.contains(g)), "INVALID_GROUP");
         check(!groups.contains("sms-demo") || groups.contains("mail"), "SMS_DEMO_REQUIRES_MAIL_GROUP");
         check(values.keySet().stream().allMatch(Objects::nonNull), "INVALID_KEY");
-        check(values.keySet().stream().noneMatch(RESERVED::contains), "R2_CREDENTIAL_TRANSFER_BLOCKED");
         check(values.keySet().stream().allMatch(k -> FIELDS.containsKey(k) || FLAGS.containsKey(k)), "UNKNOWN_KEY");
-        FLAGS.forEach((key, target) -> check("false".equals(values.getOrDefault(key, "false")),
-                "R2_MUST_REMAIN_DISABLED:" + key));
+        R2Flags r2 = new R2Flags(values.getOrDefault("R2_ENABLED", "false"), values.getOrDefault("R2_UPLOAD_ENABLED", "false"));
+        check(r2.active() == groups.contains("r2"), "R2_GROUP_FLAG_MISMATCH");
+        if (r2.active()) {
+            for (String key : R2_REQUIRED)
+                check(values.get(key) != null && !values.get(key).isBlank(), "INCOMPLETE_R2_GROUP:" + key);
+        }
         FIELDS.forEach((key, field) -> {
-            if (groups.contains(field.group())) check(values.containsKey(key), "INCOMPLETE_PROVIDER_GROUP");
+            if (!field.group().equals("r2") && groups.contains(field.group()))
+                check(values.containsKey(key), "INCOMPLETE_PROVIDER_GROUP");
         });
         TreeMap<String, String> result = new TreeMap<>();
-        FLAGS.values().forEach(key -> result.put(key, "false"));
+        result.put(FLAGS.get("R2_ENABLED"), r2.enabled());
+        result.put(FLAGS.get("R2_UPLOAD_ENABLED"), r2.upload());
         for (String key : new TreeSet<>(values.keySet())) {
             if (FLAGS.containsKey(key)) continue;
             Field field = FIELDS.get(key);
-            check(field.group().equals("r2") || groups.contains(field.group()), "UNDECLARED_PROVIDER_GROUP");
+            if (field.group().equals("r2")) {
+                check(r2.active() || !field.scope().equals("ES"), "R2_CREDENTIAL_TRANSFER_BLOCKED");
+            } else check(groups.contains(field.group()), "UNDECLARED_PROVIDER_GROUP");
             String value = values.get(key);
             text(value, key);
             if (key.endsWith("_URL") || key.equals("R2_ENDPOINT")) https(value, key);
@@ -117,7 +142,7 @@ public final class ConfigPolicy {
                 case "MAIL_FROM" -> check(value.matches("[A-Za-z0-9._+\\-]+@[A-Za-z0-9.-]+"), "INVALID_MAIL_FROM");
                 case "DEMO_SMS_INBOX" -> check(value.matches("[A-Za-z0-9._+\\-]+@[A-Za-z0-9.-]+"), "INVALID_DEMO_SMS_INBOX");
                 case "R2_ENDPOINT" -> check(value.matches("https://[0-9a-f]{32}\\.r2\\.cloudflarestorage\\.com"), "R2_ENDPOINT_POLICY");
-                case "R2_BUCKET" -> check(value.equals("aureliabooks-staging-assets"), "R2_BUCKET_POLICY");
+                case "R2_BUCKET" -> check(R2_BUCKETS.containsValue(value), "R2_BUCKET_POLICY");
                 default -> { }
             }
             result.put(field.target(), value);

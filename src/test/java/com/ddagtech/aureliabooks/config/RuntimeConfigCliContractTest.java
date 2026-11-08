@@ -45,6 +45,31 @@ class RuntimeConfigCliContractTest {
             assertTrue("RUNTIME_CONFIG_REJECTED\n".equals(result.error()), "UNSAFE_FAILURE_OUTPUT");
         }
     }
+    @Test void senderTransfersR2CredentialsOnlyWhenStorageIsEnabled() throws Exception {
+        var input = new HashMap<>(fixture());
+        String r2Secret = "synthetic-r2-" + UUID.randomUUID();
+        input.put("R2_ENDPOINT", "https://" + "0".repeat(32) + ".r2.cloudflarestorage.com");
+        input.put("R2_BUCKET", "aureliabooks-staging-assets");
+        input.put("R2_ACCESS_KEY_ID", "synthetic-r2-access");
+        input.put("R2_SECRET_ACCESS_KEY", r2Secret);
+        var disabled = RuntimeConfigurationContractTest.runChild(
+                child(input, "prepare", "staging", SHA, GENERATION), new byte[0], Duration.ofSeconds(5));
+        assertEquals(0, disabled.exit());
+        assertFalse(new String(disabled.body(), java.nio.charset.StandardCharsets.UTF_8).contains(r2Secret), "R2_SECRET_TRANSFERRED_WHILE_DISABLED");
+
+        input.put("R2_ENABLED", "true");
+        input.put("R2_UPLOAD_ENABLED", "true");
+        var enabled = RuntimeConfigurationContractTest.runChild(
+                child(input, "prepare", "staging", SHA, GENERATION), new byte[0], Duration.ofSeconds(5));
+        assertEquals(0, enabled.exit());
+        assertTrue(enabled.error().isEmpty(), "UNSAFE_SENDER_DIAGNOSTIC");
+        assertEquals(GENERATION, StagingConfigEnvelope.receive(enabled.body(), SHA, Clock.systemUTC(), "receiver",
+                (id, revision, values, groups, role) -> {
+                    assertTrue(groups.contains("r2"));
+                    assertEquals("true", values.get("R2_UPLOAD_ENABLED"));
+                    assertTrue(r2Secret.equals(values.get("R2_SECRET_ACCESS_KEY")), "R2_SECRET_ROUND_TRIP_FAILED");
+                }));
+    }
     @Test void productionAndStagingCannotBeMixed() throws Exception {
         var prepared = RuntimeConfigurationContractTest.runChild(child(fixture(), "prepare", "production", SHA, GENERATION), new byte[0], Duration.ofSeconds(5));
         assertEquals(0, prepared.exit());

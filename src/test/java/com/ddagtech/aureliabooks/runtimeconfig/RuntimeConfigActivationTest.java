@@ -21,13 +21,15 @@ class RuntimeConfigActivationTest {
     final FakeEngine engine = new FakeEngine();
     class FakeEngine implements RuntimeActivation.Engine {
         int starts, readiness;
+        R2Flags readyFlags;
         boolean failCreate, failHealth, failAllHealth;
         String image = "ghcr.io/dungtlab/aureliabooks_ddagtech:sha-" + "a".repeat(40);
         @Override public String preflight() { return image; }
         @Override public void recreate() {
             starts++; if (failCreate) { failCreate = false; throw new IllegalStateException("SYNTHETIC_CHILD_OUTPUT"); }
         }
-        @Override public boolean ready(String image, String generation, boolean google) {
+        @Override public boolean ready(String image, String generation, boolean google, R2Flags r2) {
+            readyFlags = r2;
             readiness++; if (failAllHealth) return false;
             if (failHealth) { failHealth = false; return false; } return true;
         }
@@ -54,6 +56,25 @@ class RuntimeConfigActivationTest {
         assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(activation.overlayPath()));
         Map<?, ?> document = new Yaml().load(overlay); Map<?, ?> app = (Map<?, ?>)((Map<?, ?>)document.get("services")).get("app");
         assertFalse(app.containsKey("image")); assertFalse(app.containsKey("ports")); assertEquals(1, engine.starts);
+    }
+    @Test void r2ActivationAndRollbackPreserveBothFlagsWithoutPublishingSecrets() throws Exception {
+        var input = new HashMap<>(values("r2"));
+        for (String group : List.of("google", "mail", "vnpay")) input.putAll(values(group));
+        input.put("VNPAY_RETURN_URL", "https://aurelia-staging.dzungtlab.id.vn/payment/vnpay-return");
+        String enabled = "3".repeat(32);
+        store.stage(enabled, REVISION, input, List.of("google", "mail", "vnpay", "r2"), "receiver");
+        RuntimeActivation activation = activation();
+        assertEquals("ACTIVE " + enabled, activation.activateGoogle(enabled, REVISION));
+        assertEquals(new R2Flags("true", "true"), engine.readyFlags);
+        String overlay = Files.readString(activation.overlayPath());
+        absent(SECRET, overlay);
+        assertTrue(overlay.contains("R2_UPLOAD_ENABLED: \"true\""));
+
+        engine.failHealth = true;
+        assertThrows(Rejected.class, () -> activation.activateGoogle(SECOND, REVISION));
+        assertEquals("ACTIVE " + enabled, activation.verify());
+        assertEquals(new R2Flags("true", "true"), engine.readyFlags);
+        assertEquals(overlay, Files.readString(activation.overlayPath()));
     }
     @ParameterizedTest @ValueSource(strings = {"create", "health"})
     void firstActivationFailureRestoresNoOverlay(String failure) {

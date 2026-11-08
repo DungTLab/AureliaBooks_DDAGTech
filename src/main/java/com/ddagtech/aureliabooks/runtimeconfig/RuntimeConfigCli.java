@@ -43,15 +43,20 @@ public final class RuntimeConfigCli {
             if (mode.equals("prepare")) {
                 check(args.length == 4, "INVALID_ARGUMENTS"); generation(args[3], revision);
                 Map<String, String> values = new HashMap<>();
-                // Explicit allowlist only. R2 credentials/metadata are NOT transferred while disabled.
-                FIELDS.forEach((key, field) -> { if (!field.group().equals("r2")) {
-                    String value = System.getenv(key); if (value != null) values.put(key, value);
-                }});
                 for (String key : FLAGS.keySet()) {
                     String value = System.getenv(key); values.put(key, value == null ? "false" : value);
                 }
+                boolean enableR2 = "true".equals(values.get("R2_ENABLED"));
+                Set<String> groups = new HashSet<>(GROUPS);
+                if (enableR2) groups.add("r2");
+                FIELDS.forEach((key, field) -> {
+                    if (!field.group().equals("r2") || enableR2) {
+                        String value = System.getenv(key);
+                        if (value != null && (!field.group().equals("r2") || !value.isEmpty())) values.put(key, value);
+                    }
+                });
                 long now = Clock.systemUTC().instant().getEpochSecond();
-                System.out.write(new StagingConfigEnvelope(environment, args[3], revision, now, now + 300, values, GROUPS).encode());
+                System.out.write(new StagingConfigEnvelope(environment, args[3], revision, now, now + 300, values, groups).encode());
                 System.out.flush(); check(!System.out.checkError(), "FRAME_OUTPUT_FAILED");
             } else {
                 check(args.length == (Set.of("status", "activate-google").contains(mode) ? 4 : 3), "INVALID_ARGUMENTS");

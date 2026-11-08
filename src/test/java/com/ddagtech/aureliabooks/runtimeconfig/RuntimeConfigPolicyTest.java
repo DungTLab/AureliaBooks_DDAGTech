@@ -12,14 +12,29 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RuntimeConfigPolicyTest {
     @Test void explicitMappingAndUniqueTargets() {
-        assertEquals(23, FIELDS.size());
+        assertEquals(25, FIELDS.size());
         assertEquals(FIELDS.size(), FIELDS.values().stream().map(Field::target).distinct().count());
-        for (String key : List.of("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "MAIL_PASSWORD", "VNPAY_TMN_CODE"))
+        for (String key : List.of("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "MAIL_PASSWORD", "VNPAY_TMN_CODE", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"))
             assertEquals("ES", FIELDS.get(key).scope());
     }
-    @Test void bothR2FlagsAlwaysFalse() {
+    @Test void bothR2FlagsDefaultToFalseAndRequireOptIn() {
         assertTrue(Arrays.equals("app.r2.enabled=false\napp.r2.upload-enabled=false\n".getBytes(StandardCharsets.US_ASCII), render(Map.of(), List.of())));
         FLAGS.keySet().forEach(key -> assertThrows(Rejected.class, () -> render(Map.of(key, "true"), List.of())));
+    }
+    @Test void r2OptInRequiresCompleteCredentialsAndEnvironmentBucket() {
+        Map<String, String> input = values("r2");
+        var frame = new StagingConfigEnvelope("staging", FIRST, REVISION, 1, 2, input, List.of("r2"));
+        absent(SECRET, frame.toString());
+        assertThrows(Rejected.class, () -> new StagingConfigEnvelope(
+                "production", FIRST, REVISION, 1, 2, input, List.of("r2")));
+        for (String key : R2_REQUIRED) {
+            var incomplete = new HashMap<>(input);
+            incomplete.remove(key);
+            assertThrows(Rejected.class, () -> render(incomplete, List.of("r2")));
+        }
+        var readOnly = replacing("r2", "R2_UPLOAD_ENABLED", "false");
+        assertTrue(render(readOnly, List.of("r2")).length > 0);
+        assertThrows(Rejected.class, () -> render(replacing("r2", "R2_ENABLED", "false"), List.of("r2")));
     }
     @ParameterizedTest @ValueSource(strings = {"R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "DB_PASS", "MYSQL_ROOT_PASSWORD", "APP_IMAGE",
             "BOOTSTRAP_ADMIN_PASSWORD", "SPRING_PROFILES_ACTIVE", "spring.config.import", "spring.datasource.url", "JAVA_TOOL_OPTIONS", "OTHER"})
