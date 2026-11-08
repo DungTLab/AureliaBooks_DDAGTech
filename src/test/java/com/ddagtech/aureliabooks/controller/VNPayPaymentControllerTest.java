@@ -69,6 +69,44 @@ class VNPayPaymentControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/payments/vnpay-ipn is anonymous and returns JSON RspCode")
+    void handleIpnGet_WithoutAuth_ReturnsJsonRspCode() throws Exception {
+        when(vnPayService.processIpnWebhook(anyMap(), any()))
+                .thenReturn(VNPayIpnResponse.of("02", "Order already confirmed"));
+
+        mockMvc.perform(get("/api/v1/payments/vnpay-ipn")
+                        .param("vnp_TxnRef", "ORD-20261016-001")
+                        .param("vnp_SecureHash", "signedhash"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.RspCode").value("02"));
+    }
+
+    @Test
+    @DisplayName("POST IPN: unexpected service failure still answers HTTP 200 with RspCode 99 JSON")
+    void handleIpnPost_ServiceThrows_Returns200WithRspCode99() throws Exception {
+        when(vnPayService.processIpnWebhook(anyMap(), any()))
+                .thenThrow(new IllegalStateException("database unavailable"));
+
+        mockMvc.perform(post("/api/v1/payments/vnpay-ipn")
+                        .param("vnp_TxnRef", "ORD-20261016-001"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.RspCode").value("99"))
+                .andExpect(jsonPath("$.Message").value("Unknown error"))
+                .andExpect(content().string(not(containsString("database unavailable"))));
+    }
+
+    @Test
+    @DisplayName("GET IPN: unexpected service failure still answers HTTP 200 with RspCode 99 JSON")
+    void handleIpnGet_ServiceThrows_Returns200WithRspCode99() throws Exception {
+        when(vnPayService.processIpnWebhook(anyMap(), any()))
+                .thenThrow(new RuntimeException("boom"));
+
+        mockMvc.perform(get("/api/v1/payments/vnpay-ipn").param("vnp_TxnRef", "ORD-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.RspCode").value("99"));
+    }
+    @Test
     @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
     @DisplayName("F04: GET /payment/vnpay/create/{orderId} should redirect authenticated customer to VNPay Sandbox URL")
     void redirectToVNPayGet_AuthenticatedCustomer_RedirectsToGateway() throws Exception {
