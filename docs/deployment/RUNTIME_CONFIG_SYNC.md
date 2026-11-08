@@ -54,7 +54,7 @@ before reverting to an older tool.
 
 1. Use private, separate buckets. This deployment policy accepts
    `aureliabooks-staging-assets` for staging and
-   `aureliabooks-production-backend` for production. Confirm the bucket names
+   `aureliabooks-production-assets` for production. Confirm the bucket names
    and the account's default-jurisdiction S3 endpoint before enabling.
 2. Use separate Cloudflare Object Read & Write credentials scoped to each
    bucket. Set `R2_ENDPOINT`, `R2_BUCKET`, `R2_ENABLED=true` and

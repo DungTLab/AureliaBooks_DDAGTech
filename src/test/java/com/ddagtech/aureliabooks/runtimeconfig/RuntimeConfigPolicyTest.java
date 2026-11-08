@@ -27,6 +27,11 @@ class RuntimeConfigPolicyTest {
         absent(SECRET, frame.toString());
         assertThrows(Rejected.class, () -> new StagingConfigEnvelope(
                 "production", FIRST, REVISION, 1, 2, input, List.of("r2")));
+        var production = replacing("r2", "R2_BUCKET", "aureliabooks-production-assets");
+        assertDoesNotThrow(() -> new StagingConfigEnvelope(
+                "production", FIRST, REVISION, 1, 2, production, List.of("r2")));
+        assertThrows(Rejected.class, () -> new StagingConfigEnvelope(
+                "staging", FIRST, REVISION, 1, 2, production, List.of("r2")));
         for (String key : R2_REQUIRED) {
             var incomplete = new HashMap<>(input);
             incomplete.remove(key);
