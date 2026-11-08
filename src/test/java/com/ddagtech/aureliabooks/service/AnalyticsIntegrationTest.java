@@ -179,16 +179,17 @@ class AnalyticsIntegrationTest {
             int totalRowIdx = 4 + orderCount;
             Row totalRow = orderSheet.getRow(totalRowIdx);
             assertThat(totalRow).isNotNull();
-            assertThat(totalRow.getCell(5).getStringCellValue()).isEqualTo("TỔNG CỘNG:");
-            // Total shipping in Col 6
-            assertThat(totalRow.getCell(6).getNumericCellValue()).isEqualTo(expectedShipping.doubleValue());
-            // Total amount in Col 7
-            assertThat(totalRow.getCell(7).getNumericCellValue()).isEqualTo(expectedGross.doubleValue());
+            assertThat(totalRow.getCell(6).getStringCellValue()).isEqualTo("TỔNG CỘNG:");
+            // Total shipping in Col 7
+            assertThat(totalRow.getCell(7).getNumericCellValue()).isEqualTo(expectedShipping.doubleValue());
+            // Total amount in Col 8
+            assertThat(totalRow.getCell(8).getNumericCellValue()).isEqualTo(expectedGross.doubleValue());
 
             // Ensure row 104 is the 101st order (STT = 101)
             Row lastDataRow = orderSheet.getRow(totalRowIdx - 1);
             assertThat(lastDataRow.getCell(0).getNumericCellValue()).isEqualTo(101.0);
-            assertThat(lastDataRow.getCell(1).getStringCellValue()).isEqualTo("Khách 101");
+            assertThat(lastDataRow.getCell(1).getStringCellValue()).isEqualTo("ORD-101-101");
+            assertThat(lastDataRow.getCell(2).getStringCellValue()).isEqualTo("Khách 101");
         }
     }
 

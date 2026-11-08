@@ -339,7 +339,7 @@ public class ExcelExportServiceImpl implements ExcelExportService {
         sheet.createRow(2).setHeightInPoints(8);
 
         String[] headers = {
-                "STT", "Người nhận", "Số điện thoại", "Phương thức thanh toán",
+                "STT", "Mã đơn hàng", "Người nhận", "Số điện thoại", "Phương thức thanh toán",
                 "Ngày đặt hàng", "Ngày giao hàng", "Cước vận chuyển (VND)",
                 "Tổng tiền thanh toán (VND)"
         };
@@ -349,9 +349,9 @@ public class ExcelExportServiceImpl implements ExcelExportService {
         for (int i = 0; i < headers.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(headers[i]);
-            if (i == 1) {
+            if (i == 2) {
                 cell.setCellStyle(headerLeft);
-            } else if (i >= 6) {
+            } else if (i >= 7) {
                 cell.setCellStyle(headerRight);
             } else {
                 cell.setCellStyle(headerCenter);
@@ -375,26 +375,30 @@ public class ExcelExportServiceImpl implements ExcelExportService {
                 cStt.setCellValue(stt++);
                 cStt.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                Cell cRecipient = row.createCell(1);
+                Cell cOrderCode = row.createCell(1);
+                cOrderCode.setCellValue(order.getOrderCode() != null ? order.getOrderCode() : "");
+                cOrderCode.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
+
+                Cell cRecipient = row.createCell(2);
                 cRecipient.setCellValue(order.getRecipientName() != null ? order.getRecipientName() : "");
                 cRecipient.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
 
-                Cell cPhone = row.createCell(2);
+                Cell cPhone = row.createCell(3);
                 cPhone.setCellValue(order.getPhone() != null ? order.getPhone() : "");
                 cPhone.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
                 String payLabel = (order.getPaymentMethod() == Order.PaymentMethod.COD) ? "Thanh toán trực tiếp" : "Thanh toán điện tử";
-                Cell cPay = row.createCell(3);
+                Cell cPay = row.createCell(4);
                 cPay.setCellValue(payLabel);
                 cPay.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                Cell cCreated = row.createCell(4);
+                Cell cCreated = row.createCell(5);
                 if (order.getCreatedAt() != null) {
                     cCreated.setCellValue(java.sql.Date.valueOf(order.getCreatedAt().toLocalDate()));
                 }
                 cCreated.setCellStyle(isZebra ? dateZebra : dateWhite);
 
-                Cell cDelivered = row.createCell(5);
+                Cell cDelivered = row.createCell(6);
                 if (order.getDeliveredAt() != null) {
                     cDelivered.setCellValue(java.sql.Date.valueOf(order.getDeliveredAt().toLocalDate()));
                 }
@@ -402,32 +406,32 @@ public class ExcelExportServiceImpl implements ExcelExportService {
 
                 BigDecimal ship = order.getShippingFee() != null ? order.getShippingFee() : BigDecimal.ZERO;
                 totalShippingSum = totalShippingSum.add(ship);
-                Cell cShip = row.createCell(6);
+                Cell cShip = row.createCell(7);
                 cShip.setCellValue(ship.doubleValue());
                 cShip.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
                 BigDecimal total = order.getFinalTotalAmount() != null ? order.getFinalTotalAmount() : BigDecimal.ZERO;
                 totalAmountSum = totalAmountSum.add(total);
-                Cell cTotal = row.createCell(7);
+                Cell cTotal = row.createCell(8);
                 cTotal.setCellValue(total.doubleValue());
                 cTotal.setCellStyle(isZebra ? currencyZebraBold : currencyWhiteBold);
             }
 
             Row totalRow = sheet.createRow(rowIdx);
             totalRow.setHeightInPoints(25);
-            for (int i = 0; i <= 5; i++) {
+            for (int i = 0; i <= 6; i++) {
                 Cell c = totalRow.createCell(i);
                 c.setCellStyle(totalLabelStyle);
-                if (i == 5) {
+                if (i == 6) {
                     c.setCellValue("TỔNG CỘNG:");
                 }
             }
 
-            Cell cTotShip = totalRow.createCell(6);
+            Cell cTotShip = totalRow.createCell(7);
             cTotShip.setCellValue(totalShippingSum.doubleValue());
             cTotShip.setCellStyle(totalCurrencyStyle);
 
-            Cell cTotAmount = totalRow.createCell(7);
+            Cell cTotAmount = totalRow.createCell(8);
             cTotAmount.setCellValue(totalAmountSum.doubleValue());
             cTotAmount.setCellStyle(totalCurrencyStyle);
         } else {
@@ -435,8 +439,8 @@ public class ExcelExportServiceImpl implements ExcelExportService {
             emptyRow.createCell(0).setCellValue("Không có đơn hàng hoàn tất nào trong khoảng thời gian này.");
         }
 
-        // Proportional column widths matching Template_Bao_Cao_Doanh_Thu_v2.xlsx
-        ExcelExportUtil.setColumnWidths(sheet, new int[]{6, 24, 16, 25, 16, 16, 22, 25});
+        // Proportional column widths matching executive template (9 columns)
+        ExcelExportUtil.setColumnWidths(sheet, new int[]{6, 18, 24, 16, 25, 16, 16, 22, 25});
     }
 
     // =========================================================================

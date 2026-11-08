@@ -217,4 +217,27 @@ class AdminAnalyticsControllerTest {
         mockMvc.perform(get("/manager/analytics/stock")).andExpect(status().isForbidden());
         mockMvc.perform(get("/manager/analytics/export/stock")).andExpect(status().isForbidden());
     }
+    @Test
+    @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("Export stock excel passes category, keyword, productType filters to stockReports view")
+    void exportPeriodStockExcel_withCategoryFilter_filtersItemsCorrectly() throws Exception {
+        StockMovementReportItemDto bookItem = StockMovementReportItemDto.builder()
+                .title("Đắc Nhân Tâm")
+                .categoryName("Sách")
+                .closingStock(10)
+                .build();
+        StockMovementReportItemDto penItem = StockMovementReportItemDto.builder()
+                .title("Bút Bi Thiên Long")
+                .categoryName("Văn phòng phẩm")
+                .closingStock(50)
+                .build();
+        when(analyticsService.getPeriodStockMovementReport(any())).thenReturn(List.of(bookItem, penItem));
+        when(analyticsService.getStockValuationReport()).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/manager/analytics/export/stock")
+                        .param("category", "Sách"))
+                .andExpect(status().isOk());
+
+        verify(excelExportService).exportPeriodStockReport(any(), argThat(list -> list.size() == 1 && list.get(0).getCategoryName().equals("Sách")), any(), any());
+    }
 }

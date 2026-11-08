@@ -82,13 +82,25 @@ class ExcelExportUtilTest {
                 .finalTotalAmount(BigDecimal.valueOf(500000))
                 .build();
 
+        // Second order for same customer, same date, same amount (tests orderCode differentiation)
+        RevenueOrderSummaryDto order2 = RevenueOrderSummaryDto.builder()
+                .orderCode("ORD-20261001-002")
+                .recipientName("Trần Văn B")
+                .phone("0987654321")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .createdAt(LocalDateTime.of(2026, 10, 1, 9, 15))
+                .deliveredAt(LocalDateTime.of(2026, 10, 1, 14, 30))
+                .shippingFee(BigDecimal.valueOf(15000))
+                .finalTotalAmount(BigDecimal.valueOf(500000))
+                .build();
+
         RevenueAnalyticsReportDto reportDto = RevenueAnalyticsReportDto.builder()
                 .filter(filter)
                 .kpi(kpi)
                 .dailyTrends(List.of(day1, day2))
                 .topBooks(List.of(book))
                 .topStationeries(List.of(stat))
-                .recentDeliveredOrders(List.of(order))
+                .recentDeliveredOrders(List.of(order, order2))
                 .paymentBreakdown(PaymentBreakdownDto.builder().electronicSharePercent(100.0).build())
                 .build();
 
@@ -133,10 +145,26 @@ class ExcelExportUtilTest {
 
             Row orderHeaderRow = sheet2.getRow(3);
             assertThat(orderHeaderRow.getCell(0).getStringCellValue()).isEqualTo("STT");
-            assertThat(orderHeaderRow.getCell(1).getStringCellValue()).isEqualTo("Người nhận");
-            assertThat(orderHeaderRow.getCell(3).getStringCellValue()).isEqualTo("Phương thức thanh toán");
-            assertThat(orderHeaderRow.getCell(7).getStringCellValue()).isEqualTo("Tổng tiền thanh toán (VND)");
-            assertThat(orderHeaderRow.getCell(8)).isNull();
+            assertThat(orderHeaderRow.getCell(1).getStringCellValue()).isEqualTo("Mã đơn hàng");
+            assertThat(orderHeaderRow.getCell(2).getStringCellValue()).isEqualTo("Người nhận");
+            assertThat(orderHeaderRow.getCell(3).getStringCellValue()).isEqualTo("Số điện thoại");
+            assertThat(orderHeaderRow.getCell(4).getStringCellValue()).isEqualTo("Phương thức thanh toán");
+            assertThat(orderHeaderRow.getCell(8).getStringCellValue()).isEqualTo("Tổng tiền thanh toán (VND)");
+            assertThat(orderHeaderRow.getCell(9)).isNull();
+
+            // Row 4: Order 1 with orderCode "ORD-20261001-001"
+            Row orderRow1 = sheet2.getRow(4);
+            assertThat(orderRow1.getCell(0).getNumericCellValue()).isEqualTo(1.0);
+            assertThat(orderRow1.getCell(1).getStringCellValue()).isEqualTo("ORD-20261001-001");
+            assertThat(orderRow1.getCell(2).getStringCellValue()).isEqualTo("Trần Văn B");
+            assertThat(orderRow1.getCell(8).getNumericCellValue()).isEqualTo(500000.0);
+
+            // Row 5: Order 2 with orderCode "ORD-20261001-002" (distinguishes two identical customer orders)
+            Row orderRow2 = sheet2.getRow(5);
+            assertThat(orderRow2.getCell(0).getNumericCellValue()).isEqualTo(2.0);
+            assertThat(orderRow2.getCell(1).getStringCellValue()).isEqualTo("ORD-20261001-002");
+            assertThat(orderRow2.getCell(2).getStringCellValue()).isEqualTo("Trần Văn B");
+            assertThat(orderRow2.getCell(8).getNumericCellValue()).isEqualTo(500000.0);
         }
     }
 

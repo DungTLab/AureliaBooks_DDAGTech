@@ -69,23 +69,22 @@ public class AdminAnalyticsController {
     public void exportStockExcel(@ModelAttribute StockMovementFilterRequest filter,
             @RequestParam(defaultValue = "") String keyword, @RequestParam(defaultValue = "") String category,
             @RequestParam(defaultValue = "") String productType, HttpServletResponse response) throws IOException {
-        List<StockMovementReportItemDto> movementItems = analyticsService.getPeriodStockMovementReport(filter);
-        List<StockValuationItemDto> valuationItems = analyticsService.getStockValuationReport();
+        StockReportView report = stockReports.view(filter, keyword, category, productType);
 
         String todayStr = LocalDate.now().format(FILE_DATE_FMT);
         String filename = "Bao_Cao_Bien_Dong_Kho_" + todayStr + ".xlsx";
 
         excelHeaders(response, filename);
-        excelExportService.exportPeriodStockReport(filter, movementItems, valuationItems, response.getOutputStream());
+        excelExportService.exportPeriodStockReport(report.filter(), report.movements(), report.valuations(), response.getOutputStream());
     }
 
     @GetMapping("/export/stock-valuation")
     public void exportStockValuationOnlyExcel(@ModelAttribute StockMovementFilterRequest filter,
             @RequestParam(defaultValue = "") String keyword, @RequestParam(defaultValue = "") String category,
             @RequestParam(defaultValue = "") String productType, HttpServletResponse response) throws IOException {
-        List<StockValuationItemDto> valuationItems = analyticsService.getStockValuationReport();
+        StockReportView report = stockReports.view(filter, keyword, category, productType);
         excelHeaders(response, "Bao_Cao_Ton_Kho_Dinh_Gia_" + LocalDate.now().format(FILE_DATE_FMT) + ".xlsx");
-        excelExportService.exportStockValuationExcel(valuationItems, response.getOutputStream());
+        excelExportService.exportStockValuationExcel(report.valuations(), response.getOutputStream());
     }
 private void excelHeaders(HttpServletResponse response, String filename) {
         response.setContentType(EXCEL_MIME_TYPE);
