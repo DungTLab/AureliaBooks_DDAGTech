@@ -41,7 +41,9 @@ class OrderReturnMigrationMySqlTest {
     }
 
     @AfterEach void dropOnlyThisQaDatabase() {
-        if (!created) return;
+        if (!created) {
+            return;
+        }
         verifyQaName();
         new JdbcTemplate(admin).execute("DROP DATABASE `" + database + "`");
     }
@@ -58,7 +60,9 @@ class OrderReturnMigrationMySqlTest {
         String sql = Files.readString(Path.of(path));
         // Do not execute the root schema's DROP/CREATE DATABASE/USE against any real database.
         sql = sql.substring(sql.indexOf("CREATE TABLE roles"));
-        if (legacy) sql = sql.replace("'DELIVERED','CANCELLED','RETURNED')", "'DELIVERED','CANCELLED')");
+        if (legacy) {
+            sql = sql.replace("'DELIVERED','CANCELLED','RETURNED')", "'DELIVERED','CANCELLED')");
+        }
         script(sql);
         jdbc.update("INSERT INTO roles(id,role_name) VALUES(1,'ROLE_CUSTOMER'),(2,'ROLE_SALE_STAFF')");
         jdbc.update("INSERT INTO users(id,role_id,full_name,password_hash) VALUES(1,1,'Buyer','hash'),(2,2,'Staff','hash')");
@@ -71,13 +75,22 @@ class OrderReturnMigrationMySqlTest {
 
     private long order(String status, String payment, String restorationReason) {
         long id = ++sequence;
+        String stockRestoredAt = null;
+        Long stockRestoredBy = null;
+        if (restorationReason != null) {
+            stockRestoredAt = "2026-10-25 12:00:00";
+            stockRestoredBy = 2L;
+        }
+        String deliveredAt = null;
+        if (status.equals("DELIVERED")) {
+            deliveredAt = "2026-10-24 12:00:00";
+        }
         jdbc.update("INSERT INTO orders(id,order_code,user_id,shipping_address_id,shipping_recipient_name,shipping_phone,"
                 + "shipping_full_address,shipping_fee,final_total_amount,payment_method,payment_status,order_status,"
                 + "stock_deducted_at,stock_restored_at,stock_restore_reason,stock_restored_by_user_id,delivered_at) "
                 + "VALUES(?,?,1,1,'Snapshot buyer','0912345678','Historical address',0,100000,'COD',?,?,"
                 + "'2026-10-20 12:00:00',?,?,?,?)", id, "qa-" + id, payment, status,
-                restorationReason == null ? null : "2026-10-25 12:00:00", restorationReason,
-                restorationReason == null ? null : 2L, status.equals("DELIVERED") ? "2026-10-24 12:00:00" : null);
+                stockRestoredAt, restorationReason, stockRestoredBy, deliveredAt);
         jdbc.update("INSERT INTO order_items(order_id,product_id,quantity,product_name_snapshot,unit_price_snapshot) "
                 + "VALUES(?,1,2,'Historical book',50000)", id);
         return id;

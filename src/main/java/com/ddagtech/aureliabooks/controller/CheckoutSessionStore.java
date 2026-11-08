@@ -47,16 +47,24 @@ public class CheckoutSessionStore {
 
     /** A token is valid only within the session holding it and for its recorded owner. */
     public CheckoutConfirmation find(HttpSession session, String token, Long owner) {
-        if (session == null || token == null) return null;
+        if (session == null || token == null) {
+            return null;
+        }
         synchronized (session) {
             CheckoutConfirmation review = reviews(session).get(token);
-            return review != null && owner.equals(review.userId()) ? review : null;
+            if (review != null && owner.equals(review.userId())) {
+                return review;
+            } else {
+                return null;
+            }
         }
     }
 
     /** Remove only the completed or invalid review, preserving reviews in other tabs. */
     public void remove(HttpSession session, String token) {
-        if (session == null) return;
+        if (session == null) {
+            return;
+        }
         synchronized (session) {
             Map<String, CheckoutConfirmation> reviews = reviews(session);
             reviews.remove(token);
@@ -68,7 +76,11 @@ public class CheckoutSessionStore {
     @SuppressWarnings("unchecked")
     private Map<String, CheckoutConfirmation> reviews(HttpSession session) {
         Object value = session.getAttribute(KEY);
-        return value instanceof Map<?, ?> map
-                ? new LinkedHashMap<>((Map<String, CheckoutConfirmation>) map) : new LinkedHashMap<>();
+        if (value instanceof Map<?, ?>) {
+            Map<String, CheckoutConfirmation> savedReviews = (Map<String, CheckoutConfirmation>) value;
+            return new LinkedHashMap<>(savedReviews);
+        } else {
+            return new LinkedHashMap<>();
+        }
     }
 }

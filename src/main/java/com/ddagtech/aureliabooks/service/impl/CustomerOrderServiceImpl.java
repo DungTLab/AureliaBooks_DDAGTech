@@ -30,8 +30,13 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         requireOwner(userId);
         var pageable = PageRequest.of(Math.max(0, page), 10,
                 Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return (status == null ? orders.findByUser_Id(userId, pageable)
-                : orders.findByUser_IdAndOrderStatus(userId, status, pageable)).map(mapper::toHistory);
+        Page<Order> orderPage;
+        if (status == null) {
+            orderPage = orders.findByUser_Id(userId, pageable);
+        } else {
+            orderPage = orders.findByUser_IdAndOrderStatus(userId, status, pageable);
+        }
+        return orderPage.map(mapper::toHistory);
     }
 
     @Override
@@ -40,9 +45,11 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
         Order order = orders.findByOrderCodeAndUser_Id(orderCode, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         String notice = null;
-        if (unverifiedPayment(order)) notice = ErrorCode.ORDER_PAYMENT_OUTCOME_UNVERIFIED.getMessage();
-        else if (order.getPaymentStatus() == Order.PaymentStatus.PAID)
+        if (unverifiedPayment(order)) {
+            notice = ErrorCode.ORDER_PAYMENT_OUTCOME_UNVERIFIED.getMessage();
+        } else if (order.getPaymentStatus() == Order.PaymentStatus.PAID) {
             notice = "Đơn đã thanh toán. Hủy đơn không tự động hoàn tiền; vui lòng liên hệ cửa hàng để xử lý hoàn tiền.";
+        }
         return new OrderDetailView(mapper.toConfirmation(order), order.getTrackingNumber(),
                 order.getCancelReason(), mapper.toTimeline(order), eligible(order) && !unverifiedPayment(order), notice);
     }
@@ -52,16 +59,25 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     public void cancelMyOrder(Long userId, String orderCode, CancelOrderRequest request) {
         requireOwner(userId);
         if (request == null || request.reason() == null || request.reason().isBlank()
-                || request.reason().length() > 255)
+                || request.reason().length() > 255) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Lý do hủy phải có từ 1 đến 255 ký tự.");
+        }
         Order order = orders.findOwnedWithLock(orderCode, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         // A locking query alone does not refresh an entity already present in the persistence context.
         entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
-        if (!order.getUser().getId().equals(userId)) throw new AppException(ErrorCode.ORDER_NOT_FOUND);
-        if (order.getOrderStatus() == Order.OrderStatus.CANCELLED) return;
-        if (!eligible(order)) throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_CANCEL);
-        if (unverifiedPayment(order)) throw new AppException(ErrorCode.ORDER_PAYMENT_OUTCOME_UNVERIFIED);
+        if (!order.getUser().getId().equals(userId)) {
+            throw new AppException(ErrorCode.ORDER_NOT_FOUND);
+        }
+        if (order.getOrderStatus() == Order.OrderStatus.CANCELLED) {
+            return;
+        }
+        if (!eligible(order)) {
+            throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_CANCEL);
+        }
+        if (unverifiedPayment(order)) {
+            throw new AppException(ErrorCode.ORDER_PAYMENT_OUTCOME_UNVERIFIED);
+        }
         order.setCancelReason(request.reason().strip());
         // The stock engine joins this transaction and owns cancellation timestamps and stock markers.
         stock.restoreCancelledOrder(order.getId(), userId);
@@ -85,6 +101,8 @@ public class CustomerOrderServiceImpl implements CustomerOrderService {
     }
 
     private void requireOwner(Long userId) {
-        if (userId == null) throw new AppException(ErrorCode.UNAUTHENTICATED);
+        if (userId == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
     }
 }

@@ -2,31 +2,48 @@ const initializeCart = () => {
     document.querySelectorAll('[data-quantity-control]').forEach(control => {
         const input = control.querySelector('input[name="quantity"]');
         const buttons = control.querySelectorAll('[data-quantity-step]');
-        const minimum = Number(input.min || 1);
-        const maximum = Number(input.max || 10);
+        let minimum = 1;
+        if (input.min) {
+            minimum = Number(input.min);
+        }
+        let maximum = 10;
+        if (input.max) {
+            maximum = Number(input.max);
+        }
         const refresh = () => {
             const quantity = Number(input.value);
             buttons.forEach(button => {
                 const step = Number(button.dataset.quantityStep);
-                button.disabled = input.disabled || !Number.isInteger(quantity)
-                    || input.value === '' || (step < 0 ? quantity <= minimum : quantity >= maximum);
+                if (input.disabled || !Number.isInteger(quantity) || input.value === '') {
+                    button.disabled = true;
+                } else if (step < 0) {
+                    button.disabled = quantity <= minimum;
+                } else {
+                    button.disabled = quantity >= maximum;
+                }
             });
         };
         buttons.forEach(button => {
             // Keep focus on the input so its blur save cannot disable the clicked button.
             button.addEventListener('pointerdown', event => {
-                if (event.button === 0) event.preventDefault();
+                if (event.button === 0) {
+                    event.preventDefault();
+                }
             });
             button.addEventListener('click', () => {
                 const quantity = Number(input.value);
-                if (!Number.isInteger(quantity) || input.value === '') return;
+                if (!Number.isInteger(quantity) || input.value === '') {
+                    return;
+                }
                 input.value = Math.min(maximum, Math.max(minimum, quantity + Number(button.dataset.quantityStep)));
                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                if (input.form?.hasAttribute('data-cart-quantity')) input.form.requestSubmit();
+                if (input.form && input.form.hasAttribute('data-cart-quantity')) {
+                    input.form.requestSubmit();
+                }
             });
         });
         input.addEventListener('input', refresh);
-        if (input.form?.hasAttribute('data-cart-quantity')) {
+        if (input.form && input.form.hasAttribute('data-cart-quantity')) {
             const saveQuantity = () => {
                 const quantity = Number(input.value);
                 if (Number.isInteger(quantity) && quantity > maximum) {
@@ -37,7 +54,9 @@ const initializeCart = () => {
             };
             input.addEventListener('change', saveQuantity);
             input.addEventListener('keydown', event => {
-                if (event.key !== 'Enter' || event.isComposing) return;
+                if (event.key !== 'Enter' || event.isComposing) {
+                    return;
+                }
                 event.preventDefault();
                 saveQuantity();
             });
@@ -71,7 +90,9 @@ const initializeCart = () => {
         dialog.addEventListener('close', () => { pendingRemoval = null; });
         document.getElementById('confirmCartRemoval').addEventListener('click', () => {
             const form = pendingRemoval;
-            if (!form) return;
+            if (!form) {
+                return;
+            }
             pendingRemoval = null;
             form.dataset.confirmed = 'true';
             dialog.close();
@@ -79,7 +100,9 @@ const initializeCart = () => {
         });
     }
     window.addEventListener('pageshow', event => {
-        if (event.persisted) window.location.reload();
+        if (event.persisted) {
+            window.location.reload();
+        }
     });
 };
 

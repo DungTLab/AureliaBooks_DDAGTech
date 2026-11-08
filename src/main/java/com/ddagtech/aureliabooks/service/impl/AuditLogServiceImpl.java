@@ -111,7 +111,9 @@ public class AuditLogServiceImpl implements AuditLogService {
     private void append(Long actorId, String action, String targetTable, Long targetId,
                         String detailsJson, String ipAddress) {
         AuditLog entry = new AuditLog();
-        if (actorId != null) entry.setUser(userRepository.findById(actorId).orElse(null));
+        if (actorId != null) {
+            entry.setUser(userRepository.findById(actorId).orElse(null));
+        }
         entry.setAction(action);
         entry.setTargetTable(targetTable);
         entry.setTargetId(targetId);

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -79,9 +80,15 @@ public class CartServiceImpl implements CartService {
 
         Cart cart = cartRepository.findByUser_Id((userId)).orElse(null);
 
-        CartItem item = cart == null ? null : cartItemRepository.findByCart_IdAndProduct_Id(cart.getId(), productId).orElse(null);
+        CartItem item = null;
+        if (cart != null) {
+            item = cartItemRepository.findByCart_IdAndProduct_Id(cart.getId(), productId).orElse(null);
+        }
 
-        long resultingQuantity = quantity + (item == null ? 0L : item.getQuantity().longValue());
+        long resultingQuantity = quantity;
+        if (item != null) {
+            resultingQuantity += item.getQuantity().longValue();
+        }
 
         validateProductAndQuantity(product, resultingQuantity);
 
@@ -175,8 +182,13 @@ public class CartServiceImpl implements CartService {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        User user = (lock ? userRepository.findForCartUpdate(userId) : userRepository.findById(userId))
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        Optional<User> account;
+        if (lock) {
+            account = userRepository.findForCartUpdate(userId);
+        } else {
+            account = userRepository.findById(userId);
+        }
+        User user = account.orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);

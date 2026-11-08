@@ -39,11 +39,16 @@ public class StaffOrderController {
     public String queue(Authentication auth, @ModelAttribute("filter") OrderQueueFilter filter,
                         BindingResult errors, @RequestParam(defaultValue = "0") int page, Model model) {
         Long actor = identity.resolve(auth);
-        if (errors.hasErrors()) throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Bộ lọc không hợp lệ. Vui lòng kiểm tra trạng thái và ngày đặt.");
+        if (errors.hasErrors()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Bộ lọc không hợp lệ. Vui lòng kiểm tra trạng thái và ngày đặt.");
+        }
         model.addAttribute("orders", orders.getOrderQueue(filter, PageRequest.of(Math.max(0, page), 20), actor));
         var statuses = new LinkedHashMap<Order.OrderStatus, String>();
-        for (var status : Order.OrderStatus.values())
-            if (status != Order.OrderStatus.PENDING_PAYMENT) statuses.put(status, OrderTimelineStep.label(status));
+        for (var status : Order.OrderStatus.values()) {
+            if (status != Order.OrderStatus.PENDING_PAYMENT) {
+                statuses.put(status, OrderTimelineStep.label(status));
+            }
+        }
         model.addAttribute("statusOptions", statuses);
         return "staff/staff-orders";
     }
@@ -60,13 +65,16 @@ public class StaffOrderController {
                              @Valid @ModelAttribute OrderTransitionRequest request, BindingResult errors,
                              RedirectAttributes flash) {
         Long actor = identity.resolve(auth);
-        if (errors.hasErrors()) throw new AppException(ErrorCode.INVALID_INPUT_DATA,
-                errors.getAllErrors().getFirst().getDefaultMessage());
+        if (errors.hasErrors()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA,
+                    errors.getAllErrors().getFirst().getDefaultMessage());
+        }
         try {
             orders.transitionStatus(id, request, actor);
         } catch (AppException exception) {
-            if (exception.getErrorCode().getStatusCode() == HttpStatus.CONFLICT)
+            if (exception.getErrorCode().getStatusCode() == HttpStatus.CONFLICT) {
                 return latest(id, actor, exception.getMessage(), HttpStatus.CONFLICT);
+            }
             throw exception;
         }
         flash.addFlashAttribute("successMessage", "Đã cập nhật trạng thái đơn hàng.");
@@ -101,12 +109,17 @@ public class StaffOrderController {
                          @Valid @ModelAttribute RefundConfirmationRequest request, BindingResult errors,
                          RedirectAttributes flash) {
         Long actor = identity.resolve(auth);
-        if (errors.hasErrors()) return latest(id, actor,
-                "Thông tin hoàn tiền không hợp lệ. Kiểm tra số tiền, ngày hoàn, chứng từ và xác nhận đã hoàn tiền.", HttpStatus.BAD_REQUEST);
+        if (errors.hasErrors()) {
+            return latest(id, actor,
+                    "Thông tin hoàn tiền không hợp lệ. Kiểm tra số tiền, ngày hoàn, chứng từ và xác nhận đã hoàn tiền.",
+                    HttpStatus.BAD_REQUEST);
+        }
         try {
             orders.confirmExternalRefund(id, request, actor);
         } catch (AppException exception) {
-            if (exception.getErrorCode() == ErrorCode.UNAUTHORIZED || exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) throw exception;
+            if (exception.getErrorCode() == ErrorCode.UNAUTHORIZED || exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
+                throw exception;
+            }
             return latest(id, actor, exception.getMessage(), exception.getErrorCode().getStatusCode());
         }
         flash.addFlashAttribute("successMessage", "Đã ghi nhận hoàn tiền bên ngoài hệ thống. Tồn kho không thay đổi.");

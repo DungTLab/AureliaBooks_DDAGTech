@@ -66,8 +66,11 @@ class OrderStateMachineServiceTest {
     @ParameterizedTest @MethodSource("graph")
     void strictGraphCoversEveryPair(OrderStatus from, OrderStatus to, boolean allowed) {
         var validator = new OrderStatusValidator();
-        if (allowed) assertThatCode(() -> validator.validateTransition(from, to)).doesNotThrowAnyException();
-        else assertThatThrownBy(() -> validator.validateTransition(from, to)).isInstanceOf(IllegalStateTransitionException.class);
+        if (allowed) {
+            assertThatCode(() -> validator.validateTransition(from, to)).doesNotThrowAnyException();
+        } else {
+            assertThatThrownBy(() -> validator.validateTransition(from, to)).isInstanceOf(IllegalStateTransitionException.class);
+        }
     }
 
     @Test void nullTargetIsAnIllegalTransition() {

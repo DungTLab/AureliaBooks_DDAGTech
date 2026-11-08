@@ -101,7 +101,9 @@ public class CheckoutController {
         RedirectAttributes flash
     ) {
         Long owner = identity.resolve(auth);
-        if (errors.hasErrors()) return invalidForm(errors, flash);
+        if (errors.hasErrors()) {
+            return invalidForm(errors, flash);
+        }
         if (selection.paymentMethod() == Order.PaymentMethod.VNPAY && !paymentAvailable()) {
             flash.addFlashAttribute("errorMessage", "Thanh toán trực tuyến tạm thời chưa khả dụng. Vui lòng chọn COD.");
             return "redirect:/checkout";
@@ -132,10 +134,12 @@ public class CheckoutController {
     public String review(Authentication auth, @PathVariable String token, HttpServletRequest request, Model model) {
         Long owner = identity.resolve(auth);
         CheckoutConfirmation review = reviews.find(request.getSession(false), token, owner);
-        if (review == null) throw new AppException(
-            ErrorCode.CHECKOUT_CHANGED,
-            "Phiên xác nhận đã hết hiệu lực. Vui lòng kiểm tra lại đơn hàng."
-        );
+        if (review == null) {
+            throw new AppException(
+                ErrorCode.CHECKOUT_CHANGED,
+                "Phiên xác nhận đã hết hiệu lực. Vui lòng kiểm tra lại đơn hàng."
+            );
+        }
         model.addAttribute("review", review);
         model.addAttribute("checkout", review.reviewedCheckout());
         model.addAttribute(
@@ -163,7 +167,9 @@ public class CheckoutController {
     ) {
         // Resolve the owner from the authenticated account rather than a browser-supplied userId.
         Long owner = identity.resolve(auth);
-        if (errors.hasErrors()) return invalidForm(errors, flash);
+        if (errors.hasErrors()) {
+            return invalidForm(errors, flash);
+        }
         CheckoutConfirmation review = reviews.find(request.getSession(false), form.getCheckoutToken(), owner);
         // Reject VNPay before creating an order when payment handoff is unavailable.
         if (form.getPaymentMethod() == Order.PaymentMethod.VNPAY && !paymentAvailable()) {
@@ -172,7 +178,9 @@ public class CheckoutController {
         }
         String code = orders.placeOrder(owner, form, review);
         reviews.remove(request.getSession(false), form.getCheckoutToken());
-        if (form.getPaymentMethod() == Order.PaymentMethod.VNPAY) return startPayment(owner, code, flash);
+        if (form.getPaymentMethod() == Order.PaymentMethod.VNPAY) {
+            return startPayment(owner, code, flash);
+        }
         flash.addFlashAttribute("successMessage", "Đặt hàng thành công. Đơn hàng đang chờ cửa hàng xác nhận.");
         return "redirect:/orders/" + code;
     }
@@ -268,14 +276,18 @@ public class CheckoutController {
     private String startPayment(Long owner, String code, RedirectAttributes flash) {
         try {
             CheckoutPaymentGateway gateway = payments.getIfAvailable();
-            if (gateway == null || !gateway.isAvailable()) throw new IllegalStateException("Payment unavailable");
+            if (gateway == null || !gateway.isAvailable()) {
+                throw new IllegalStateException("Payment unavailable");
+            }
             // The adapter must return a valid HTTPS destination before the controller redirects the customer.
             URI destination = URI.create(gateway.startPayment(owner, code));
             if (
                 !"https".equalsIgnoreCase(destination.getScheme()) ||
                 destination.getHost() == null ||
                 destination.getUserInfo() != null
-            ) throw new IllegalStateException("Invalid payment destination");
+            ) {
+                throw new IllegalStateException("Invalid payment destination");
+            }
             return "redirect:" + destination;
         } catch (RuntimeException error) {
             log.error("Unable to start payment for committed order {}", code, error);
@@ -290,12 +302,13 @@ public class CheckoutController {
     /** Return readable validation errors to checkout without invoking order placement. */
     private String invalidForm(BindingResult errors, RedirectAttributes flash) {
         var error = errors.getAllErrors().getFirst();
-        flash.addFlashAttribute(
-            "errorMessage",
-            error.getCode() != null && error.getCode().startsWith("typeMismatch")
-                ? "Thông tin đặt hàng không hợp lệ. Vui lòng kiểm tra lại."
-                : error.getDefaultMessage()
-        );
+        String message;
+        if (error.getCode() != null && error.getCode().startsWith("typeMismatch")) {
+            message = "Thông tin đặt hàng không hợp lệ. Vui lòng kiểm tra lại.";
+        } else {
+            message = error.getDefaultMessage();
+        }
+        flash.addFlashAttribute("errorMessage", message);
         return "redirect:/checkout";
     }
 
@@ -319,14 +332,18 @@ public class CheckoutController {
             new SecurityContextLogoutHandler().logout(request, response, auth);
             return "redirect:/auth/login";
         }
-        if (code == ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
+        if (code == ErrorCode.UNAUTHORIZED) {
+            return "redirect:/error/403";
+        }
         if (code == ErrorCode.CHECKOUT_CHANGED) {
             reviews.remove(request.getSession(false), request.getParameter("checkoutToken"));
         }
         if (
             code == ErrorCode.CART_EMPTY || code == ErrorCode.INSUFFICIENT_STOCK || code == ErrorCode.PRODUCT_NOT_FOUND
                 || code == ErrorCode.CART_LINE_LIMIT_EXCEEDED || code == ErrorCode.CART_ITEM_QUANTITY_EXCEEDED
-        ) return "redirect:/cart";
+        ) {
+            return "redirect:/cart";
+        }
         return "redirect:/checkout";
     }
 

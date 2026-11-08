@@ -66,7 +66,9 @@ public class CartController {
                       @Valid @ModelAttribute("quantityForm") CartQuantityRequest form,
                       BindingResult errors, RedirectAttributes flash, HttpServletRequest request) {
         Long owner = identity.resolve(authentication);
-        if (invalidQuantity(errors, flash)) return shoppingDestination(request);
+        if (invalidQuantity(errors, flash)) {
+            return shoppingDestination(request);
+        }
         carts.addItem(owner, productId, form);
         flash.addFlashAttribute("successMessage", "Đã thêm sản phẩm vào giỏ hàng. Bạn có thể tiếp tục mua sắm.");
         return shoppingDestination(request);
@@ -77,7 +79,9 @@ public class CartController {
                          @Valid @ModelAttribute("quantityForm") CartQuantityRequest form,
                          BindingResult errors, RedirectAttributes flash) {
         Long owner = identity.resolve(authentication);
-        if (invalidQuantity(errors, flash)) return "redirect:/cart";
+        if (invalidQuantity(errors, flash)) {
+            return "redirect:/cart";
+        }
         carts.updateQuantity(owner, itemId, form);
         flash.addFlashAttribute("successMessage", "Đã cập nhật số lượng sản phẩm.");
         return "redirect:/cart";
@@ -99,11 +103,15 @@ public class CartController {
         if (code == ErrorCode.UNAUTHENTICATED || code == ErrorCode.ACCOUNT_LOCKED
                 || code == ErrorCode.USER_NOT_EXISTED) {
             // Clear authentication stored in the session and in the current thread.
-            if (sessionContext != null) sessionContext.setAuthentication(null);
+            if (sessionContext != null) {
+                sessionContext.setAuthentication(null);
+            }
             SecurityContextHolder.clearContext();
             return "redirect:/auth/login";
         }
-        if (code == ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
+        if (code == ErrorCode.UNAUTHORIZED) {
+            return "redirect:/error/403";
+        }
         return mutationDestination(request);
     }
 
@@ -153,10 +161,17 @@ public class CartController {
     }
 
     private boolean invalidQuantity(BindingResult errors, RedirectAttributes flash) {
-        if (!errors.hasErrors()) return false;
+        if (!errors.hasErrors()) {
+            return false;
+        }
         var error = errors.getAllErrors().getFirst();
-        flash.addFlashAttribute("errorMessage", error.getCode() != null && error.getCode().startsWith("typeMismatch")
-                ? "Số lượng phải là số nguyên từ 1 đến 10." : error.getDefaultMessage());
+        String message;
+        if (error.getCode() != null && error.getCode().startsWith("typeMismatch")) {
+            message = "Số lượng phải là số nguyên từ 1 đến 10.";
+        } else {
+            message = error.getDefaultMessage();
+        }
+        flash.addFlashAttribute("errorMessage", message);
         return true;
     }
 }

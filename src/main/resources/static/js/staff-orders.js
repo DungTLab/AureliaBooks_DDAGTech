@@ -4,7 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.querySelectorAll('form[data-confirm-action]').forEach(form => {
         form.addEventListener('submit', event => {
-            if (!window.confirm(form.dataset.confirmAction)) event.preventDefault();
+            if (!window.confirm(form.dataset.confirmAction)) {
+                event.preventDefault();
+            }
         });
     });
 });

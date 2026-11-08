@@ -150,8 +150,13 @@ class OrderPlacementServiceTest {
         ArgumentCaptor<Order> saved = ArgumentCaptor.forClass(Order.class);
         verify(orders).saveAndFlush(saved.capture());
         Order order = saved.getValue();
-        assertThat(order.getOrderStatus()).isEqualTo(method == Order.PaymentMethod.COD
-                ? Order.OrderStatus.PENDING_CONFIRMATION : Order.OrderStatus.PENDING_PAYMENT);
+        Order.OrderStatus expectedStatus;
+        if (method == Order.PaymentMethod.COD) {
+            expectedStatus = Order.OrderStatus.PENDING_CONFIRMATION;
+        } else {
+            expectedStatus = Order.OrderStatus.PENDING_PAYMENT;
+        }
+        assertThat(order.getOrderStatus()).isEqualTo(expectedStatus);
         assertThat(order.getPaymentStatus()).isEqualTo(Order.PaymentStatus.UNPAID);
         assertThat(order.getStockDeductedAt()).isNotNull();
         assertThat(order.getShippingFee()).isEqualByComparingTo("50000");
