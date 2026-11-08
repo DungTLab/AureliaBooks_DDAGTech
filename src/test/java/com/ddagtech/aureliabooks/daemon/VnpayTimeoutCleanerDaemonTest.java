@@ -11,7 +11,7 @@ import com.ddagtech.aureliabooks.service.VNPayGatewayReconciliationClient;
 import com.ddagtech.aureliabooks.service.VNPayGatewayReconciliationClient.ReconciliationOutcome;
 import com.ddagtech.aureliabooks.service.VNPayGatewayReconciliationClient.ReconciliationResult;
 import com.ddagtech.aureliabooks.service.impl.DefaultVNPayGatewayReconciliationClient;
-import com.ddagtech.aureliabooks.service.impl.NoOpOrderVoucherReleaseAdapter;
+import com.ddagtech.aureliabooks.service.impl.JdbcOrderVoucherReleaseAdapter;
 import com.ddagtech.aureliabooks.service.impl.VNPayServiceImpl;
 import com.ddagtech.aureliabooks.util.VNPayUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -159,7 +159,7 @@ class VnpayTimeoutCleanerDaemonTest {
         config.setExpireMinutes(15);
 
         JdbcTemplate failingJdbcTemplate = mock(JdbcTemplate.class);
-        NoOpOrderVoucherReleaseAdapter realVoucherAdapter = new NoOpOrderVoucherReleaseAdapter(failingJdbcTemplate);
+        JdbcOrderVoucherReleaseAdapter realVoucherAdapter = new JdbcOrderVoucherReleaseAdapter(failingJdbcTemplate);
 
         VnpayTimeoutCleanerDaemon daemon = new VnpayTimeoutCleanerDaemon(
                 orderRepository,

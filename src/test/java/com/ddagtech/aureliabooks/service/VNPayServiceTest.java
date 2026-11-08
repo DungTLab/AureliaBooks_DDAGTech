@@ -9,7 +9,7 @@ import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.OrderRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
-import com.ddagtech.aureliabooks.service.impl.NoOpOrderVoucherReleaseAdapter;
+import com.ddagtech.aureliabooks.service.impl.JdbcOrderVoucherReleaseAdapter;
 import com.ddagtech.aureliabooks.service.impl.VNPayServiceImpl;
 import com.ddagtech.aureliabooks.util.VNPayUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -671,10 +671,10 @@ class VNPayServiceTest {
     // =========================================================================
 
     @Test
-    @DisplayName("F06: NoOpOrderVoucherReleaseAdapter should delete order_vouchers and restore vouchers.usage_limit by 1")
+    @DisplayName("F06: JdbcOrderVoucherReleaseAdapter should delete order_vouchers and restore vouchers.usage_limit by 1")
     void releaseOrderVoucherIfPresent_DeletesRedemptionAndIncrementsUsageLimit() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        NoOpOrderVoucherReleaseAdapter adapter = new NoOpOrderVoucherReleaseAdapter(jdbcTemplate);
+        JdbcOrderVoucherReleaseAdapter adapter = new JdbcOrderVoucherReleaseAdapter(jdbcTemplate);
 
         when(jdbcTemplate.queryForList(
                 eq("SELECT voucher_id FROM order_vouchers WHERE order_id = ?"),
@@ -693,10 +693,10 @@ class VNPayServiceTest {
     }
 
     @Test
-    @DisplayName("F06: NoOpOrderVoucherReleaseAdapter must propagate DataAccessException when voucher quota update fails so the transaction rolls back")
+    @DisplayName("F06: JdbcOrderVoucherReleaseAdapter must propagate DataAccessException when voucher quota update fails so the transaction rolls back")
     void releaseOrderVoucherIfPresent_WhenQuotaUpdateThrowsException_PropagatesForRollback() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        NoOpOrderVoucherReleaseAdapter adapter = new NoOpOrderVoucherReleaseAdapter(jdbcTemplate);
+        JdbcOrderVoucherReleaseAdapter adapter = new JdbcOrderVoucherReleaseAdapter(jdbcTemplate);
 
         when(jdbcTemplate.queryForList(
                 eq("SELECT voucher_id FROM order_vouchers WHERE order_id = ?"),

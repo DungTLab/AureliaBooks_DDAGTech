@@ -17,7 +17,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NoOpOrderVoucherReleaseAdapter implements OrderVoucherReleasePort {
+public class JdbcOrderVoucherReleaseAdapter implements OrderVoucherReleasePort {
 
     private final JdbcTemplate jdbcTemplate;
 
