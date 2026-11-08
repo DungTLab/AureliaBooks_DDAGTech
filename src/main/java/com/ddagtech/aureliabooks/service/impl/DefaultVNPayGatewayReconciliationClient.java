@@ -279,10 +279,17 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
             return ReconciliationResult.indeterminate(
                     "Gateway QueryDR transaction status is non-terminal or unknown: vnp_TransactionStatus=" + cleanTxStatus
             );
+        } catch (InterruptedException ex) {
+            // Preserve the interrupt so the scheduler thread can shut down; the order stays pending.
+            Thread.currentThread().interrupt();
+            log.warn("VNPay QueryDR reconciliation interrupted for orderCode={}, txnRef={}",
+                    order.getOrderCode(), expectedTxnRef);
+            return ReconciliationResult.indeterminate("Gateway QueryDR interrupted.");
         } catch (Exception ex) {
+            String reason = describe(ex);
             log.warn("VNPay QueryDR reconciliation failed for orderCode={}, txnRef={}: {}",
-                    order.getOrderCode(), expectedTxnRef, ex.getMessage());
-            return ReconciliationResult.indeterminate("Gateway QueryDR error: " + ex.getMessage());
+                    order.getOrderCode(), expectedTxnRef, reason);
+            return ReconciliationResult.indeterminate("Gateway QueryDR error: " + reason);
         }
     }
 
@@ -323,6 +330,11 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
         return VNPayUtil.constantTimeEquals(computedPipeHash, receivedHash);
     }
 
+    private static String describe(Exception ex) {
+        return ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : ex.getClass().getSimpleName();
+    }
     private static boolean isValidVnpayTimestamp(String timestamp) {
         if (timestamp == null || timestamp.length() != 14) {
             return false;

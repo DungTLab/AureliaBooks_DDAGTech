@@ -586,6 +586,93 @@ class VnpayTimeoutCleanerDaemonTest {
         assertThat(result.diagnosticMessage()).contains("vnp_ResponseCode=91");
     }
 
+    private Order unpaidExpiredOrder(String orderCode) {
+        Order order = Order.builder()
+                .id(4100L)
+                .orderCode(orderCode)
+                .vnpayTxnRef(orderCode)
+                .vnpayCreateDate("20261024100000")
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("180000.00"))
+                .build();
+        order.setCreatedAt(LocalDateTime.of(2026, 10, 24, 10, 0, 0));
+        return order;
+    }
+
+    @Test
+    @DisplayName("Phase 4: QueryDR request is signed with the pipe-delimited 9-field formula in the VNPay-specified order")
+    void defaultClient_QueryDrRequest_UsesSpecPipeDelimitedSignatureAndGmt7Timestamps() throws Exception {
+        AtomicReference<String> capturedRequest = new AtomicReference<>();
+        String apiUrl = startQueryDrStubServer(200, requestJson -> {
+            capturedRequest.set(requestJson);
+            return "{}";
+        });
+        DefaultVNPayGatewayReconciliationClient client =
+                new DefaultVNPayGatewayReconciliationClient(configuredForQueryDr(apiUrl), objectMapper);
+
+        client.reconcileExpiredOrder(unpaidExpiredOrder("ORD-QDR-4100"));
+
+        JsonNode request = objectMapper.readTree(capturedRequest.get());
+        String expectedHashData = String.join("|",
+                request.get("vnp_RequestId").asText(),
+                request.get("vnp_Version").asText(),
+                request.get("vnp_Command").asText(),
+                request.get("vnp_TmnCode").asText(),
+                request.get("vnp_TxnRef").asText(),
+                request.get("vnp_TransactionDate").asText(),
+                request.get("vnp_CreateDate").asText(),
+                request.get("vnp_IpAddr").asText(),
+                request.get("vnp_OrderInfo").asText());
+        assertThat(request.get("vnp_SecureHash").asText())
+                .isEqualTo(VNPayUtil.hmacSHA512(TEST_SECRET, expectedHashData));
+        assertThat(request.get("vnp_Command").asText()).isEqualTo("querydr");
+        assertThat(request.get("vnp_TransactionDate").asText()).isEqualTo("20261024100000");
+        assertThat(request.get("vnp_CreateDate").asText()).matches("\\d{14}");
+    }
+
+    @Test
+    @DisplayName("Phase 4: gateway-side error codes 97/99 are INDETERMINATE and never prove the order unpaid")
+    void defaultClient_GatewayErrorCodes97And99_AreIndeterminate() throws Exception {
+        for (String errorCode : List.of("97", "99")) {
+            String apiUrl = startQueryDrStubServer(200, requestJson ->
+                    buildIndependentSpecSignedQueryDrJson(
+                            "RSP-ERR-" + errorCode, "querydr", errorCode, "Gateway error",
+                            "AURELIA01", "ORD-QDR-4100", "", "", "", "", "", "",
+                            "QueryDR order ORD-QDR-4100", "", "", TEST_SECRET));
+            DefaultVNPayGatewayReconciliationClient client =
+                    new DefaultVNPayGatewayReconciliationClient(configuredForQueryDr(apiUrl), objectMapper);
+
+            ReconciliationResult result = client.reconcileExpiredOrder(unpaidExpiredOrder("ORD-QDR-4100"));
+
+            assertThat(result.outcome()).as("vnp_ResponseCode=" + errorCode)
+                    .isEqualTo(ReconciliationOutcome.INDETERMINATE);
+            stopStubServer();
+        }
+    }
+
+    @Test
+    @DisplayName("Phase 4: HTTP 5xx from the gateway is INDETERMINATE")
+    void defaultClient_Gateway500_IsIndeterminate() throws Exception {
+        String apiUrl = startQueryDrStubServer(500, requestJson -> "{}");
+        DefaultVNPayGatewayReconciliationClient client =
+                new DefaultVNPayGatewayReconciliationClient(configuredForQueryDr(apiUrl), objectMapper);
+
+        assertThat(client.reconcileExpiredOrder(unpaidExpiredOrder("ORD-QDR-4100")).outcome())
+                .isEqualTo(ReconciliationOutcome.INDETERMINATE);
+    }
+
+    @Test
+    @DisplayName("Phase 4: unreachable gateway (network failure) is INDETERMINATE")
+    void defaultClient_ConnectionRefused_IsIndeterminate() throws Exception {
+        String apiUrl = startQueryDrStubServer(200, requestJson -> "{}");
+        stopStubServer(); // port is now closed
+        DefaultVNPayGatewayReconciliationClient client =
+                new DefaultVNPayGatewayReconciliationClient(configuredForQueryDr(apiUrl), objectMapper);
+
+        assertThat(client.reconcileExpiredOrder(unpaidExpiredOrder("ORD-QDR-4100")).outcome())
+                .isEqualTo(ReconciliationOutcome.INDETERMINATE);
+    }
     @Test
     @DisplayName("F09: verifyQueryDrResponseSignature and reconcileExpiredOrder must reject 14-field signature missing vnp_OrderInfo, URL-query sorted fallback signature, tampered OrderInfo, or amount/reference mismatch")
     void defaultClient_InvalidSignatureFormulasOrTamperedFields_ReturnIndeterminate() throws Exception {
