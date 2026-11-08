@@ -33,7 +33,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -406,6 +408,44 @@ class VNPayServiceTest {
                 .isInstanceOf(AppException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ORDER_STOCK_NOT_DEDUCTED);
+    }
+
+    // =========================================================================
+    // F07 Addendum: UTC JVM Clock Consistency
+    // =========================================================================
+
+    @Test
+    @DisplayName("F07: when JVM runs in UTC, createPaymentUrl() converts UTC createdAt into GMT+7 VNPay timestamps without premature expiration")
+    void createPaymentUrl_UtcJvmClock_ConvertsUtcCreatedAtToVietnamGmt7Timestamps() {
+        // Real instant: 2026-10-24T17:30:00Z = 2026-10-25 00:30:00 Asia/Ho_Chi_Minh (crosses midnight in GMT+7)
+        LocalDateTime utcCreatedAt = LocalDateTime.of(2026, 10, 24, 17, 30, 0);
+        Order order = Order.builder()
+                .id(12L)
+                .user(ownerCustomer)
+                .orderCode("ORD-UTC-12")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("250000.00"))
+                .stockDeductedAt(utcCreatedAt)
+                .build();
+        order.setCreatedAt(utcCreatedAt);
+
+        when(orderRepository.findByIdWithLock(12L)).thenReturn(Optional.of(order));
+
+        // Two minutes later in UTC JVM (17:32:00Z = 00:32:00+07 on 2026-10-25)
+        vnPayService.setClock(Clock.fixed(Instant.parse("2026-10-24T17:32:00Z"), ZoneOffset.UTC));
+        String payUrl = vnPayService.createPaymentUrl(ownerCustomer.getId(), 12L, "127.0.0.1");
+
+        assertThat(payUrl).contains("vnp_CreateDate=20261025003200");
+        assertThat(payUrl).contains("vnp_ExpireDate=20261025004500");
+
+        // Exact 15-minute expiration in UTC (17:45:00Z = 00:45:00+07) must be rejected
+        vnPayService.setClock(Clock.fixed(Instant.parse("2026-10-24T17:45:00Z"), ZoneOffset.UTC));
+        assertThatThrownBy(() -> vnPayService.createPaymentUrl(ownerCustomer.getId(), 12L, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
     }
 
     // =========================================================================
