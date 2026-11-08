@@ -16,9 +16,6 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# VNPay timestamps (vnp_CreateDate/ExpireDate) are GMT+7; do not rely on the host UTC default.
-ENV TZ=Asia/Ho_Chi_Minh
-
 RUN groupadd --system appgroup \
     && useradd --system --gid appgroup appuser
 

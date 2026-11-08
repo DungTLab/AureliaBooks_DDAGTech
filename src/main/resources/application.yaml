@@ -1,7 +1,5 @@
 server:
   port: ${PORT:8080}
-  # Trust X-Forwarded-* from the reverse proxy (HTTPS scheme + real client IP for VNPay).
-  forward-headers-strategy: framework
   servlet:
     context-path: /
 
