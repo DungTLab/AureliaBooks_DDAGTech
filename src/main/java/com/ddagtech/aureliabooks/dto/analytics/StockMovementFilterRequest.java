@@ -56,17 +56,19 @@ public class StockMovementFilterRequest {
             }
         }
 
-        if (this.startDate == null) {
+        if (this.startDate == null && this.endDate == null) {
             this.startDate = today.with(TemporalAdjusters.firstDayOfMonth());
-        }
-        if (this.endDate == null) {
             this.endDate = today;
+            this.preset = "thismonth";
+            return;
         }
 
-        if (this.startDate.isAfter(this.endDate)) {
-            LocalDate temp = this.startDate;
-            this.startDate = this.endDate;
-            this.endDate = temp;
+        if (this.startDate != null && this.endDate != null) {
+            if (this.startDate.isAfter(this.endDate)) {
+                LocalDate temp = this.startDate;
+                this.startDate = this.endDate;
+                this.endDate = temp;
+            }
         }
 
         if (this.preset == null || this.preset.isBlank()) {
@@ -75,7 +77,10 @@ public class StockMovementFilterRequest {
     }
 
     public boolean isValidDateRange() {
-        return startDate != null && endDate != null && !startDate.isAfter(endDate);
+        if (startDate == null || endDate == null) {
+            return true;
+        }
+        return !startDate.isAfter(endDate);
     }
 
     public LocalDateTime getStartDateTime() {

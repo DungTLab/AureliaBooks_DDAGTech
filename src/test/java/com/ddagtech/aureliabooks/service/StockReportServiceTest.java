@@ -43,4 +43,43 @@ class StockReportServiceTest {
         assertThat(report.currentCost()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(report.filter().getEndExclusiveDateTime()).isEqualTo(LocalDate.of(2026, 10, 21).atStartOfDay());
     }
+
+    @Test
+    void openEndedStartDate_upToEndDate_preservesNullStartAndDoesNotFlipDates() {
+        LocalDate endLastMonth = LocalDate.of(2026, 10, 31);
+        StockMovementFilterRequest filter = new StockMovementFilterRequest();
+        filter.setEndDate(endLastMonth);
+
+        var report = service.view(filter, "", "", "");
+        assertThat(report.filter().getStartDate()).isNull();
+        assertThat(report.filter().getEndDate()).isEqualTo(endLastMonth);
+        assertThat(report.filter().getStartDateTime()).isNull();
+        assertThat(report.filter().getEndExclusiveDateTime()).isEqualTo(LocalDate.of(2026, 11, 1).atStartOfDay());
+        assertThat(report.filter().isValidDateRange()).isTrue();
+    }
+
+    @Test
+    void openEndedEndDate_fromStartDate_preservesNullEnd() {
+        LocalDate startMonth = LocalDate.of(2026, 10, 1);
+        StockMovementFilterRequest filter = new StockMovementFilterRequest();
+        filter.setStartDate(startMonth);
+
+        var report = service.view(filter, "", "", "");
+        assertThat(report.filter().getStartDate()).isEqualTo(startMonth);
+        assertThat(report.filter().getEndDate()).isNull();
+        assertThat(report.filter().getStartDateTime()).isEqualTo(startMonth.atStartOfDay());
+        assertThat(report.filter().getEndExclusiveDateTime()).isNull();
+        assertThat(report.filter().isValidDateRange()).isTrue();
+    }
+
+    @Test
+    void bothNullDates_defaultsToThisMonth() {
+        StockMovementFilterRequest filter = new StockMovementFilterRequest();
+        filter.resolveDates();
+        LocalDate today = LocalDate.now();
+        assertThat(filter.getStartDate()).isEqualTo(today.with(java.time.temporal.TemporalAdjusters.firstDayOfMonth()));
+        assertThat(filter.getEndDate()).isEqualTo(today);
+        assertThat(filter.getPreset()).isEqualTo("thismonth");
+        assertThat(filter.isValidDateRange()).isTrue();
+    }
 }

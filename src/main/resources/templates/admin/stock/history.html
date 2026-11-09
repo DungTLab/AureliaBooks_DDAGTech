@@ -27,7 +27,7 @@
         <div class="flex items-center gap-3">
             <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
                id="exportStockExcelBtn"
-               th:href="@{/manager/analytics/export/stock(startDate=${filter.startDate}, endDate=${filter.endDate})}"
+               th:href="@{/manager/analytics/export/stock(startDate=${filter.startDate}, endDate=${filter.endDate}, keyword=${filter.keyword})}"
                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dust_grey hover:border-emerald-600 hover:text-emerald-700 text-carbon_black font-semibold text-sm rounded-xl shadow-sm transition">
                 <i class="bi bi-file-earmark-spreadsheet-fill text-emerald-600 text-base"></i>
                 <span>Xuất Excel Biến Động Kho</span>
@@ -765,15 +765,25 @@
             exportStockBtn.addEventListener('click', function(e) {
                 const sInput = document.getElementById('startDateInput');
                 const eInput = document.getElementById('endDateInput');
+                const kwInput = document.getElementById('keywordInput');
                 const baseHref = (exportStockBtn.getAttribute('href') || '/manager/analytics/export/stock').split('?')[0];
                 const url = new URL(baseHref, window.location.origin);
                 const sVal = sInput && sInput.value ? sInput.value.trim() : '';
                 const eVal = eInput && eInput.value ? eInput.value.trim() : '';
+                const kwVal = kwInput && kwInput.value ? kwInput.value.trim() : '';
+                if (sVal && eVal && sVal > eVal) {
+                    e.preventDefault();
+                    alert('Từ ngày không được lớn hơn Đến ngày.');
+                    return;
+                }
                 if (sVal) {
                     url.searchParams.set('startDate', sVal);
                 }
                 if (eVal) {
                     url.searchParams.set('endDate', eVal);
+                }
+                if (kwVal) {
+                    url.searchParams.set('keyword', kwVal);
                 }
                 exportStockBtn.setAttribute('href', url.pathname + url.search);
             });

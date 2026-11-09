@@ -404,4 +404,34 @@ class ExcelExportUtilTest {
             assertThat(totalRow.getCell(13).getNumericCellValue()).isEqualTo(520000.0);
         }
     }
+
+    @Test
+    @DisplayName("exportPeriodStockReport - Open-ended date boundaries format as 'Đầu kỳ' and 'Hiện tại'")
+    void exportPeriodStockReport_openEndedDateBoundaries() throws IOException {
+        // Open-ended start date (e.g. from history export with empty startDate)
+        StockMovementFilterRequest openStartFilter = StockMovementFilterRequest.builder()
+                .startDate(null)
+                .endDate(LocalDate.of(2026, 10, 31))
+                .build();
+
+        ByteArrayOutputStream baosStart = new ByteArrayOutputStream();
+        excelExportService.exportPeriodStockReport(openStartFilter, Collections.emptyList(), Collections.emptyList(), baosStart);
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(baosStart.toByteArray()))) {
+            Sheet sheet = wb.getSheetAt(0);
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Kỳ báo cáo: Từ Đầu kỳ đến 31/10/2026");
+        }
+
+        // Open-ended end date
+        StockMovementFilterRequest openEndFilter = StockMovementFilterRequest.builder()
+                .startDate(LocalDate.of(2026, 10, 1))
+                .endDate(null)
+                .build();
+
+        ByteArrayOutputStream baosEnd = new ByteArrayOutputStream();
+        excelExportService.exportPeriodStockReport(openEndFilter, Collections.emptyList(), Collections.emptyList(), baosEnd);
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(baosEnd.toByteArray()))) {
+            Sheet sheet = wb.getSheetAt(0);
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Kỳ báo cáo: Từ 01/10/2026 đến Hiện tại");
+        }
+    }
 }
