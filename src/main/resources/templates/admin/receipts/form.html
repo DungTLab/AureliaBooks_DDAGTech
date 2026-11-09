@@ -139,15 +139,16 @@
                             <div class="relative flex items-center">
                                 <input type="text"
                                        id="stagingProductSearch"
-                                       class="w-full pl-3.5 pr-8 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame transition"
+                                       class="w-full pl-3.5 pr-9 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame transition"
                                        placeholder="Nhập tìm tên sách, mã vạch..."
                                        autocomplete="off" />
                                 <button type="button"
                                         id="stagingComboboxToggle"
-                                        class="absolute right-2 top-1/2 -translate-y-1/2 text-carbon_black-400 hover:text-carbon_black p-1 transition"
+                                        data-action="toggle"
+                                        class="absolute right-1.5 top-1/2 -translate-y-1/2 text-carbon_black-400 hover:text-carbon_black p-1 transition flex items-center justify-center w-6 h-6 rounded-md hover:bg-dust_grey/30 cursor-pointer"
                                         tabindex="-1"
                                         title="Mở danh sách sản phẩm">
-                                    <span class="text-[10px] text-carbon_black-500 select-none">▼</span>
+                                    <span id="stagingToggleIcon" class="text-[10px] text-carbon_black-500 select-none leading-none">▼</span>
                                 </button>
                             </div>
                             <!-- Dropdown Menu nổi lên trên -->
@@ -411,8 +412,45 @@
     }
 
     // ==========================================
-    // STAGING AREA: COMBOBOX SẢN PHẨM
+    // STAGING AREA: COMBOBOX SẢN PHẨM (PHƯƠNG ÁN 1: DYNAMIC CLEAR BUTTON & FULL LIST OPEN)
     // ==========================================
+
+    function updateStagingComboboxIcon() {
+        const toggleBtn = document.getElementById('stagingComboboxToggle');
+        const searchInput = document.getElementById('stagingProductSearch');
+        if (!toggleBtn || !searchInput) return;
+
+        const hasText = searchInput.value.trim().length > 0;
+        if (hasText) {
+            toggleBtn.setAttribute('data-action', 'clear');
+            toggleBtn.setAttribute('title', 'Xóa để chọn lại');
+            toggleBtn.innerHTML = '<span class="text-xs font-bold text-carbon_black-400 hover:text-rose-600 select-none leading-none">✕</span>';
+        } else {
+            toggleBtn.setAttribute('data-action', 'toggle');
+            toggleBtn.setAttribute('title', 'Mở danh sách sản phẩm');
+            toggleBtn.innerHTML = '<span id="stagingToggleIcon" class="text-[10px] text-carbon_black-500 select-none leading-none">▼</span>';
+        }
+    }
+
+    function clearStagingProduct() {
+        if (stagingMode === 'VIEW') return;
+        const searchInput = document.getElementById('stagingProductSearch');
+        const pidInput = document.getElementById('stagingProductId');
+        const stockInput = document.getElementById('stagingStock');
+
+        searchInput.value = '';
+        pidInput.value = '';
+        stockInput.value = '-';
+
+        updateStagingComboboxIcon();
+        hideErrorBox();
+        checkStagingLimit();
+        calculateStagingSubtotal();
+
+        // Tự động focus vào ô và mở full danh sách sản phẩm
+        searchInput.focus();
+        renderStagingDropdown('');
+    }
 
     function renderStagingDropdown(filterText) {
         const menu = document.getElementById('stagingDropdownMenu');
@@ -456,7 +494,7 @@
             const isSelected = selectedPid && String(selectedPid) === String(p.id);
 
             html += `
-                <div class="staging-option-item px-3.5 py-2.5 hover:bg-parchment-100 cursor-pointer flex items-center justify-between gap-2 transition ${isSelected ? 'bg-blazing_flame/5' : ''}"
+                <div class="staging-option-item px-3.5 py-2.5 hover:bg-parchment-100 cursor-pointer flex items-center justify-between gap-2 transition ${isSelected ? 'bg-blazing_flame/10' : ''}"
                      data-product-id="${p.id}">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
@@ -470,12 +508,20 @@
                             ${p.isTextbook ? '<span class="text-blue-600 font-bold">• SGK</span>' : ''}
                         </div>
                     </div>
-                    ${isSelected ? '<span class="text-xs text-blazing_flame font-bold shrink-0">Đã chọn</span>' : ''}
+                    ${isSelected ? '<span class="text-xs text-blazing_flame font-bold shrink-0">Đang chọn</span>' : ''}
                 </div>
             `;
         });
         menu.innerHTML = html;
         menu.classList.remove('hidden');
+
+        // Nếu có sản phẩm đang chọn trong danh sách, tự động cuộn đến vị trí của nó
+        if (selectedPid) {
+            const selectedEl = menu.querySelector(`[data-product-id="${selectedPid}"]`);
+            if (selectedEl) {
+                selectedEl.scrollIntoView({ block: 'nearest' });
+            }
+        }
     }
 
     function selectStagingProduct(productId) {
@@ -500,6 +546,9 @@
         document.getElementById('stagingProductId').value = p.id;
         document.getElementById('stagingProductSearch').value = p.title;
 
+        // Cập nhật icon thành dấu ✕ khi đã chọn sản phẩm
+        updateStagingComboboxIcon();
+
         // Cập nhật label riêng Tồn kho (read-only)
         document.getElementById('stagingStock').value = p.stock;
 
@@ -514,11 +563,24 @@
         calculateStagingSubtotal();
     }
 
-    function openStagingDropdown() {
+    function openStagingDropdown(forceFullList = false) {
         if (stagingMode === 'VIEW') return; // Không mở dropdown khi đang ở chế độ xem chi tiết
         const searchInput = document.getElementById('stagingProductSearch');
-        const q = searchInput.value && !searchInput.value.includes('(Tồn kho:') ? searchInput.value : '';
+        const pid = document.getElementById('stagingProductId').value;
+
+        // Nếu sản phẩm đã được chọn (có ID) hoặc được yêu cầu mở toàn bộ:
+        // mở toàn bộ danh sách sản phẩm để người dùng không bị kẹt 1 sản phẩm
+        const q = (forceFullList || pid) ? '' : (searchInput.value ? searchInput.value.trim() : '');
         renderStagingDropdown(q);
+
+        // Bôi đen chữ nếu đang có sản phẩm để người dùng có thể gõ đè ngay lập tức
+        if (pid && searchInput.value) {
+            setTimeout(() => {
+                if (document.activeElement === searchInput) {
+                    searchInput.select();
+                }
+            }, 10);
+        }
     }
 
     function closeStagingDropdown() {
@@ -643,6 +705,7 @@
         document.getElementById('stagingProductSearch').value = '';
         document.getElementById('stagingProductSearch').readOnly = false;
         document.getElementById('stagingComboboxToggle').classList.remove('pointer-events-none', 'opacity-40');
+        updateStagingComboboxIcon();
 
         document.getElementById('stagingStock').value = '-';
 
@@ -684,6 +747,7 @@
         document.getElementById('stagingProductSearch').value = item.title;
         document.getElementById('stagingProductSearch').readOnly = true;
         document.getElementById('stagingComboboxToggle').classList.add('pointer-events-none', 'opacity-40');
+        updateStagingComboboxIcon();
 
         document.getElementById('stagingStock').value = item.stock;
 
@@ -728,6 +792,7 @@
         // Cho phép sửa các ô
         document.getElementById('stagingProductSearch').readOnly = false;
         document.getElementById('stagingComboboxToggle').classList.remove('pointer-events-none', 'opacity-40');
+        updateStagingComboboxIcon();
 
         const costInput = document.getElementById('stagingUnitCost');
         costInput.readOnly = false;
@@ -1036,25 +1101,30 @@
             return;
         }
 
-        // 2. Click toggle button
+        // 2. Click toggle button (Xóa nhanh nếu có char / Mở đóng nếu ô rỗng)
         const toggleBtn = e.target.closest('#stagingComboboxToggle');
         if (toggleBtn) {
             if (stagingMode === 'VIEW') return;
-            const menu = document.getElementById('stagingDropdownMenu');
-            if (menu.classList.contains('hidden')) {
-                openStagingDropdown();
-                document.getElementById('stagingProductSearch').focus();
+            const action = toggleBtn.getAttribute('data-action');
+            if (action === 'clear') {
+                clearStagingProduct();
             } else {
-                closeStagingDropdown();
+                const menu = document.getElementById('stagingDropdownMenu');
+                if (menu.classList.contains('hidden')) {
+                    openStagingDropdown(true);
+                    document.getElementById('stagingProductSearch').focus();
+                } else {
+                    closeStagingDropdown();
+                }
             }
             return;
         }
 
-        // 3. Click vào ô tìm kiếm sản phẩm
+        // 3. Click vào ô tìm kiếm sản phẩm (mở toàn bộ danh sách sản phẩm)
         const searchInput = e.target.closest('#stagingProductSearch');
         if (searchInput) {
             if (stagingMode === 'VIEW') return;
-            openStagingDropdown();
+            openStagingDropdown(true);
             return;
         }
 
@@ -1068,11 +1138,20 @@
     document.addEventListener('input', (e) => {
         if (e.target.id === 'stagingProductSearch') {
             const pidInput = document.getElementById('stagingProductId');
-            if (e.target.value.trim() === '') {
+            const val = e.target.value;
+
+            // Nếu người dùng gõ sửa text khác với tên sản phẩm đã chọn, hủy ID đã chọn
+            const availableProducts = getAvailableProducts();
+            const currentSelected = availableProducts.find(p => String(p.id) === String(pidInput.value));
+            if (!currentSelected || currentSelected.title !== val) {
                 pidInput.value = '';
                 document.getElementById('stagingStock').value = '-';
+                checkStagingLimit();
+                calculateStagingSubtotal();
             }
-            renderStagingDropdown(e.target.value);
+
+            updateStagingComboboxIcon();
+            renderStagingDropdown(val);
         } else if (e.target.id === 'stagingUnitCost') {
             sanitizeUnitCost(e.target, false);
             calculateStagingSubtotal();
@@ -1163,6 +1242,7 @@
 
         renderReviewTable();
         recalculateTotal();
+        updateStagingComboboxIcon();
     });
 </script>
 </div>
