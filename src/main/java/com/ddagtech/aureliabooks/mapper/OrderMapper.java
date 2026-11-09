@@ -31,16 +31,21 @@ public class OrderMapper {
         var status = order.getOrderStatus();
         steps.add(new OrderTimelineStep("Đã đặt hàng", order.getCreatedAt(),
                 status == Order.OrderStatus.PENDING_PAYMENT || status == Order.OrderStatus.PENDING_CONFIRMATION));
-        if (status != Order.OrderStatus.CANCELLED || order.getConfirmedAt() != null)
+        if (status != Order.OrderStatus.CANCELLED || order.getConfirmedAt() != null) {
             steps.add(new OrderTimelineStep("Đã xác nhận", order.getConfirmedAt(), status == Order.OrderStatus.CONFIRMED));
-        if (status != Order.OrderStatus.CANCELLED || order.getShippedAt() != null)
+        }
+        if (status != Order.OrderStatus.CANCELLED || order.getShippedAt() != null) {
             steps.add(new OrderTimelineStep("Đang giao hàng", order.getShippedAt(), status == Order.OrderStatus.SHIPPING));
-        if (status != Order.OrderStatus.CANCELLED || order.getDeliveredAt() != null)
+        }
+        if (status != Order.OrderStatus.CANCELLED || order.getDeliveredAt() != null) {
             steps.add(new OrderTimelineStep("Giao thành công", order.getDeliveredAt(), status == Order.OrderStatus.DELIVERED));
-        if (status == Order.OrderStatus.CANCELLED)
+        }
+        if (status == Order.OrderStatus.CANCELLED) {
             steps.add(new OrderTimelineStep("Đã hủy", order.getCancelledAt(), true));
-        if (status == Order.OrderStatus.RETURNED)
+        }
+        if (status == Order.OrderStatus.RETURNED) {
             steps.add(new OrderTimelineStep("Đã trả hàng", order.getStockRestoredAt(), true));
+        }
         return List.copyOf(steps);
     }
 

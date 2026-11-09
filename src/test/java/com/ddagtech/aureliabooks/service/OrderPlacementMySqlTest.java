@@ -134,7 +134,12 @@ class OrderPlacementMySqlTest {
         password = environment.getRequiredProperty("spring.datasource.password");
         int pathStart = configured.indexOf('/', "jdbc:mysql://".length());
         int queryStart = configured.indexOf('?');
-        String options = queryStart < 0 ? "" : configured.substring(queryStart);
+        String options;
+        if (queryStart < 0) {
+            options = "";
+        } else {
+            options = configured.substring(queryStart);
+        }
         adminUrl = configured.substring(0, pathStart + 1) + options;
         verifyDatabaseName();
         try (Connection connection = DriverManager.getConnection(adminUrl, username, password);
@@ -157,7 +162,9 @@ class OrderPlacementMySqlTest {
 
     /** Drop only the database created by this test run after validating its name again. */
     @AfterAll static void dropOnlyCreatedQaDatabase() throws Exception {
-        if (!created) return;
+        if (!created) {
+            return;
+        }
         verifyDatabaseName();
         try (Connection connection = DriverManager.getConnection(adminUrl, username, password);
              Statement statement = connection.createStatement()) {
@@ -191,8 +198,14 @@ class OrderPlacementMySqlTest {
         long orderId = orderId(attempt);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_items WHERE order_id=?", Integer.class, orderId))
                 .isEqualTo(2);
+        String expectedStatus;
+        if (method == Order.PaymentMethod.COD) {
+            expectedStatus = "PENDING_CONFIRMATION";
+        } else {
+            expectedStatus = "PENDING_PAYMENT";
+        }
         assertThat(jdbc.queryForObject("SELECT order_status FROM orders WHERE id=?", String.class, orderId))
-                .isEqualTo(method == Order.PaymentMethod.COD ? "PENDING_CONFIRMATION" : "PENDING_PAYMENT");
+                .isEqualTo(expectedStatus);
         assertThat(jdbc.queryForObject("SELECT payment_status FROM orders WHERE id=?", String.class, orderId))
                 .isEqualTo("UNPAID");
         assertThat(jdbc.queryForObject("SELECT stock_deducted_at IS NOT NULL FROM orders WHERE id=?", Boolean.class, orderId))

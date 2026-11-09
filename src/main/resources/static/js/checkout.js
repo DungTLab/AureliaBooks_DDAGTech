@@ -7,7 +7,9 @@
             const destination = new URL(window.location.href);
             destination.search = "";
             destination.searchParams.set("shippingAddressId", input.value);
-            if (payment) destination.searchParams.set("paymentMethod", payment.value);
+            if (payment) {
+                destination.searchParams.set("paymentMethod", payment.value);
+            }
             ["voucherCode", "shippingVoucherCode"].forEach((name) => {
                 const voucher = document.querySelector(`#checkoutSelection input[name="${name}"]`);
                 if (voucher?.value) destination.searchParams.set(name, voucher.value);

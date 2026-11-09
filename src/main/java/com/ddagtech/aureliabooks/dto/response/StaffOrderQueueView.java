@@ -14,7 +14,9 @@ public record StaffOrderQueueView(Long id, String orderCode, String recipientNam
     }
     public String statusLabel() { return OrderTimelineStep.label(status); }
     public String paymentLabel() {
-        if (needsRefund()) return "Chưa hoàn tiền";
+        if (needsRefund()) {
+            return "Chưa hoàn tiền";
+        }
         return switch (paymentStatus) {
             case UNPAID -> "Chưa thanh toán";
             case PAID -> "Đã thanh toán";

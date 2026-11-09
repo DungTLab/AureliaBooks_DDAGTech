@@ -24,10 +24,14 @@ public class NavbarCartAdvice {
             return 0L;
         }
         // The cart page supplies the count from the same snapshot as its displayed contents.
-        if (request.getRequestURI().startsWith(request.getContextPath() + "/cart")) return null;
+        if (request.getRequestURI().startsWith(request.getContextPath() + "/cart")) {
+            return null;
+        }
         var cartService = carts.getIfAvailable();
         var identity = identities.getIfAvailable();
-        if (cartService == null || identity == null) return null;
+        if (cartService == null || identity == null) {
+            return null;
+        }
         try {
             return cartService.countItems(identity.resolve(authentication));
         } catch (RuntimeException error) {

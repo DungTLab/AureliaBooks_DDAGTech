@@ -13,16 +13,24 @@ public final class OrderQueueSpecification {
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();
             predicates.add(cb.notEqual(root.get("orderStatus"), Order.OrderStatus.PENDING_PAYMENT));
-            if (filter.status() != null) predicates.add(cb.equal(root.get("orderStatus"), filter.status()));
+            if (filter.status() != null) {
+                predicates.add(cb.equal(root.get("orderStatus"), filter.status()));
+            }
             if (filter.paymentStatus() == OrderQueueFilter.PaymentFilter.REFUND_PENDING) {
                 predicates.add(cb.equal(root.get("paymentStatus"), Order.PaymentStatus.PAID));
                 predicates.add(root.get("orderStatus").in(Order.OrderStatus.CANCELLED, Order.OrderStatus.RETURNED));
             } else if (filter.paymentStatus() != null) {
                 predicates.add(cb.equal(root.get("paymentStatus"), Order.PaymentStatus.valueOf(filter.paymentStatus().name())));
             }
-            if (filter.paymentMethod() != null) predicates.add(cb.equal(root.get("paymentMethod"), filter.paymentMethod()));
-            if (filter.fromDate() != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), filter.fromDate().atStartOfDay()));
-            if (filter.toDate() != null) predicates.add(cb.lessThan(root.get("createdAt"), filter.toDate().plusDays(1).atStartOfDay()));
+            if (filter.paymentMethod() != null) {
+                predicates.add(cb.equal(root.get("paymentMethod"), filter.paymentMethod()));
+            }
+            if (filter.fromDate() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), filter.fromDate().atStartOfDay()));
+            }
+            if (filter.toDate() != null) {
+                predicates.add(cb.lessThan(root.get("createdAt"), filter.toDate().plusDays(1).atStartOfDay()));
+            }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
     }

@@ -9,7 +9,9 @@ import java.util.List;
 @Component
 public class OrderStatusValidator {
     public List<OrderStatus> allowedTargets(OrderStatus current) {
-        if (current == null) return List.of();
+        if (current == null) {
+            return List.of();
+        }
         return switch (current) {
             case PENDING_PAYMENT -> List.of();
             case PENDING_CONFIRMATION -> List.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
@@ -20,6 +22,8 @@ public class OrderStatusValidator {
     }
 
     public void validateTransition(OrderStatus current, OrderStatus target) {
-        if (target == null || !allowedTargets(current).contains(target)) throw new IllegalStateTransitionException(current, target);
+        if (target == null || !allowedTargets(current).contains(target)) {
+            throw new IllegalStateTransitionException(current, target);
+        }
     }
 }

@@ -61,7 +61,9 @@ public class CustomerOrderController {
                 orders.cancelMyOrder(owner, orderCode, request);
                 flash.addFlashAttribute("successMessage", "Đơn hàng đã được hủy.");
             } catch (AppException exception) {
-                if (exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) throw exception;
+                if (exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
+                    throw exception;
+                }
                 flash.addFlashAttribute("errorMessage", exception.getMessage());
             }
         }
@@ -70,8 +72,13 @@ public class CustomerOrderController {
 
     @ExceptionHandler(AppException.class)
     public ModelAndView businessError(AppException exception) {
-        ModelAndView result = new ModelAndView(exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND
-                ? "error/404" : "orders/load-error");
+        String viewName;
+        if (exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
+            viewName = "error/404";
+        } else {
+            viewName = "orders/load-error";
+        }
+        ModelAndView result = new ModelAndView(viewName);
         result.setStatus(exception.getErrorCode().getStatusCode());
         result.addObject("errorMessage", exception.getMessage());
         return result;

@@ -90,7 +90,9 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
     /** Centralize identity, account existence, and CUSTOMER authorization checks for UC11 reads. */
     private User checkoutCustomer(Long userId) {
-        if (userId == null) throw new AppException(ErrorCode.UNAUTHENTICATED);
+        if (userId == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
         User owner = userRepository.findById(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         CustomerIdentity.requireCustomer(owner);
         return owner;
@@ -112,7 +114,16 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         checkoutCustomer(userId);
         List<AddressView> addressViews = addressService.list(userId);
-        AddressView selectedAddress = selectAddress(addressViews, shippingAddressId);
+        AddressView selectedAddress;
+        if (shippingAddressId != null) {
+            selectedAddress = addressViews
+                .stream()
+                .filter(address -> address.id().equals(shippingAddressId))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND));
+        } else {
+            selectedAddress = addressViews.stream().filter(AddressView::isDefault).findFirst().orElse(null);
+        }
         return checkoutView(cartView, addressViews, selectedAddress);
     }
 
@@ -171,17 +182,19 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         BigDecimal shippingFee = null;
         BigDecimal finalTotalAmount = null;
 
+        Long selectedAddressId = null;
         if (selectedAddress != null) {
             baseShippingFee = calculateBaseShippingFee(selectedAddress, subTotal);
 
             shippingFee = baseShippingFee.subtract(shippingDiscount);
 
             finalTotalAmount = subTotal.subtract(productDiscount).add(shippingFee);
+            selectedAddressId = selectedAddress.id();
         }
         return new CheckoutView(
             cartView.items(),
             addressViews,
-            selectedAddress == null ? null : selectedAddress.id(),
+            selectedAddressId,
             subTotal,
             productDiscount,
             baseShippingFee,
@@ -272,10 +285,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
 
         // Both payment methods deduct stock at creation; only the initial order status differs.
-        Order.OrderStatus status =
-            request.getPaymentMethod() == Order.PaymentMethod.COD
-                ? Order.OrderStatus.PENDING_CONFIRMATION
-                : Order.OrderStatus.PENDING_PAYMENT;
+        Order.OrderStatus status;
+        if (request.getPaymentMethod() == Order.PaymentMethod.COD) {
+            status = Order.OrderStatus.PENDING_CONFIRMATION;
+        } else {
+            status = Order.OrderStatus.PENDING_PAYMENT;
+        }
         Order order = orderMapper.toNewOrder(owner, address, items, request, current, status);
         // Redeem against the fee after the free-shipping policy but before the shipping voucher discount.
         order.setShippingFee(current.baseShippingFee());
@@ -382,9 +397,29 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             .map(ReviewedLine::from)
             .sorted(Comparator.comparing(ReviewedLine::productId))
             .toList();
+        if (!oldLines.equals(newLines)) {
+            return false;
+        }
+
+        // Changing the default flag or another saved address does not change this order's delivery details.
+        AddressView reviewedAddress = selectedAddressOf(reviewed);
+        AddressView currentAddress = selectedAddressOf(current);
+        if (
+            reviewedAddress == null ||
+            currentAddress == null ||
+            !Objects.equals(reviewedAddress.id(), currentAddress.id()) ||
+            !Objects.equals(reviewedAddress.recipientName(), currentAddress.recipientName()) ||
+            !Objects.equals(reviewedAddress.phone(), currentAddress.phone()) ||
+            reviewedAddress.economicRegion() != currentAddress.economicRegion() ||
+            !Objects.equals(reviewedAddress.province(), currentAddress.province()) ||
+            !Objects.equals(reviewedAddress.district(), currentAddress.district()) ||
+            !Objects.equals(reviewedAddress.ward(), currentAddress.ward()) ||
+            !Objects.equals(reviewedAddress.detailedAddress(), currentAddress.detailedAddress())
+        ) {
+            return false;
+        }
+
         return (
-            oldLines.equals(newLines) &&
-            sameDelivery(selectedAddressOf(reviewed), selectedAddressOf(current)) &&
             sameMoney(reviewed.merchandiseSubtotal(), current.merchandiseSubtotal()) &&
             sameMoney(reviewed.productDiscount(), current.productDiscount()) &&
             sameMoney(reviewed.baseShippingFee(), current.baseShippingFee()) &&
@@ -404,23 +439,6 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             .orElse(null);
     }
 
-    /** Compare delivery details while ignoring the default-address flag, which does not change the destination. */
-    private boolean sameDelivery(AddressView first, AddressView second) {
-        // Changing the default flag or another saved address does not change this order's delivery details.
-        return (
-            first != null &&
-            second != null &&
-            Objects.equals(first.id(), second.id()) &&
-            Objects.equals(first.recipientName(), second.recipientName()) &&
-            Objects.equals(first.phone(), second.phone()) &&
-            first.economicRegion() == second.economicRegion() &&
-            Objects.equals(first.province(), second.province()) &&
-            Objects.equals(first.district(), second.district()) &&
-            Objects.equals(first.ward(), second.ward()) &&
-            Objects.equals(first.detailedAddress(), second.detailedAddress())
-        );
-    }
-
     /** Compare monetary values numerically so 100000 and 100000.00 are treated as equal. */
     private boolean sameMoney(BigDecimal first, BigDecimal second) {
         return first != null && second != null && first.compareTo(second) == 0;
@@ -429,26 +447,17 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     /** Normalize line prices before equality checks to avoid reporting changes caused only by BigDecimal scale. */
     private record ReviewedLine(Long productId, String title, Integer quantity, BigDecimal price) {
         static ReviewedLine from(CartItemView item) {
+            BigDecimal price = item.unitPrice();
+            if (price != null) {
+                price = price.stripTrailingZeros();
+            }
             return new ReviewedLine(
                 item.productId(),
                 item.title(),
                 item.quantity(),
-                item.unitPrice() == null ? null : item.unitPrice().stripTrailingZeros()
+                price
             );
         }
-    }
-
-    /** An explicit address ID must belong to the customer's list; otherwise use the default address when available. */
-    private AddressView selectAddress(List<AddressView> addressViews, Long shippingAddressId) {
-        if (shippingAddressId != null) {
-            return addressViews
-                .stream()
-                .filter(address -> address.id().equals(shippingAddressId))
-                .findFirst()
-                .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_FOUND));
-        }
-
-        return addressViews.stream().filter(AddressView::isDefault).findFirst().orElse(null);
     }
 
     /** Apply BR-03-08 to merchandise after product discounts, then charge the regional tariff if below threshold. */
@@ -457,8 +466,12 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Địa chỉ chưa có vùng tính phí giao hàng hợp lệ.");
         }
 
-        BigDecimal threshold = address.economicRegion() == ShippingAddress.EconomicRegion.SOUTHERN_MEKONG
-            ? new BigDecimal("250000") : new BigDecimal("350000");
+        BigDecimal threshold;
+        if (address.economicRegion() == ShippingAddress.EconomicRegion.SOUTHERN_MEKONG) {
+            threshold = new BigDecimal("250000");
+        } else {
+            threshold = new BigDecimal("350000");
+        }
         if (discountedMerchandise.compareTo(threshold) >= 0) {
             return BigDecimal.ZERO;
         }
@@ -525,6 +538,10 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
     /** Normalize whitespace and null voucher values for consistent request and review comparisons. */
     private String normalizeVoucher(String value) {
-        return value == null ? "" : value.strip().toUpperCase(Locale.ROOT);
+        if (value == null) {
+            return "";
+        } else {
+            return value.strip().toUpperCase(Locale.ROOT);
+        }
     }
 }
