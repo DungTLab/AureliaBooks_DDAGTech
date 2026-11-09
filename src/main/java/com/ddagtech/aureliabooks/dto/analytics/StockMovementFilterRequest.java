@@ -52,6 +52,11 @@ public class StockMovementFilterRequest {
                     this.endDate = lastDayLastMonth;
                     return;
                 }
+                case "all" -> {
+                    this.startDate = null;
+                    this.endDate = null;
+                    return;
+                }
                 default -> {}
             }
         }

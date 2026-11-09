@@ -660,7 +660,7 @@ public class ExcelExportServiceImpl implements ExcelExportService {
             Cell c = totalRow.createCell(i);
             c.setCellStyle(totalLabelStyle);
             if (i == 5) {
-                c.setCellValue("TỔNG CỘNG TOÀN KHO:");
+                c.setCellValue("TỔNG CỘNG:");
             }
         }
 

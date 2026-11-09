@@ -27,7 +27,7 @@
         <div class="flex items-center gap-3">
             <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
                id="exportStockExcelBtn"
-               th:href="@{/manager/analytics/export/stock(startDate=${filter.startDate}, endDate=${filter.endDate}, keyword=${filter.keyword})}"
+               th:href="@{/manager/analytics/export/stock(startDate=${filter.startDate}, endDate=${filter.endDate}, keyword=${filter.keyword}, preset=${filter.startDate == null and filter.endDate == null ? 'all' : null})}"
                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dust_grey hover:border-emerald-600 hover:text-emerald-700 text-carbon_black font-semibold text-sm rounded-xl shadow-sm transition">
                 <i class="bi bi-file-earmark-spreadsheet-fill text-emerald-600 text-base"></i>
                 <span>Xuất Excel Biến Động Kho</span>
@@ -784,6 +784,9 @@
                 }
                 if (kwVal) {
                     url.searchParams.set('keyword', kwVal);
+                }
+                if (!sVal && !eVal) {
+                    url.searchParams.set('preset', 'all');
                 }
                 exportStockBtn.setAttribute('href', url.pathname + url.search);
             });

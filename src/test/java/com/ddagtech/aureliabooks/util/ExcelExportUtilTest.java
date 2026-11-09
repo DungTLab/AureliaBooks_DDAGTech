@@ -396,7 +396,7 @@ class ExcelExportUtilTest {
 
             // Total row at Row 6
             Row totalRow = sheet1.getRow(6);
-            assertThat(totalRow.getCell(5).getStringCellValue()).isEqualTo("TỔNG CỘNG TOÀN KHO:");
+            assertThat(totalRow.getCell(5).getStringCellValue()).isEqualTo("TỔNG CỘNG:");
             assertThat(totalRow.getCell(6).getNumericCellValue()).isEqualTo(15.0);
             assertThat(totalRow.getCell(10).getNumericCellValue()).isEqualTo(13.0);
             assertThat(totalRow.getCell(11).getNumericCellValue()).isEqualTo(500000.0);
@@ -432,6 +432,19 @@ class ExcelExportUtilTest {
         try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(baosEnd.toByteArray()))) {
             Sheet sheet = wb.getSheetAt(0);
             assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Kỳ báo cáo: Từ 01/10/2026 đến Hiện tại");
+        }
+
+        // Open-ended both boundaries (preset = "all" from history export)
+        StockMovementFilterRequest allFilter = StockMovementFilterRequest.builder()
+                .preset("all")
+                .build();
+        allFilter.resolveDates();
+
+        ByteArrayOutputStream baosAll = new ByteArrayOutputStream();
+        excelExportService.exportPeriodStockReport(allFilter, Collections.emptyList(), Collections.emptyList(), baosAll);
+        try (XSSFWorkbook wb = new XSSFWorkbook(new ByteArrayInputStream(baosAll.toByteArray()))) {
+            Sheet sheet = wb.getSheetAt(0);
+            assertThat(sheet.getRow(1).getCell(0).getStringCellValue()).isEqualTo("Kỳ báo cáo: Từ Đầu kỳ đến Hiện tại");
         }
     }
 }

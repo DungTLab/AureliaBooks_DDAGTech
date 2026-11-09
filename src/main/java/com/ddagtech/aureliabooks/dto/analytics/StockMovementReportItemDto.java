@@ -20,6 +20,8 @@ public class StockMovementReportItemDto {
 
     private Long productId;
     private String barcode;
+    private String isbn;
+    private String referenceCodes;
     private String title;
     private String categoryName;
     private Product.ProductType productType;
