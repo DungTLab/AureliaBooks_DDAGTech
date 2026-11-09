@@ -1,10 +1,14 @@
 package com.ddagtech.aureliabooks.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -12,6 +16,7 @@ import java.util.Locale;
  * Secrets and merchant identifiers must be supplied via external configuration;
  * no hardcoded fallback credentials are permitted in source code.
  */
+@Slf4j
 @Getter
 @Setter
 @Configuration
@@ -54,5 +59,34 @@ public class VNPayConfig {
                 && hashSecret != null && !hashSecret.isBlank()
                 && payUrl != null && !payUrl.isBlank()
                 && payUrl.trim().toLowerCase(Locale.ROOT).startsWith("https://");
+    }
+
+    /**
+     * Inspects the configuration for values that are almost certainly wrong on a public deployment
+     * (loopback return URL, or the sandbox gateway behind a public return URL). Secrets are never included.
+     *
+     * @return human-readable warnings; empty when VNPay is unconfigured or the configuration looks sane
+     */
+    public List<String> findConfigurationWarnings() {
+        List<String> warnings = new ArrayList<>();
+        if (tmnCode == null || tmnCode.isBlank() || hashSecret == null || hashSecret.isBlank()) {
+            return warnings;
+        }
+        String normalizedReturnUrl = returnUrl == null ? "" : returnUrl.trim().toLowerCase(Locale.ROOT);
+        boolean loopbackReturn = normalizedReturnUrl.contains("localhost") || normalizedReturnUrl.contains("127.0.0.1");
+        if (loopbackReturn) {
+            warnings.add("vnpay.return-url points to localhost; VNPay cannot redirect customers back to a local address.");
+        }
+        boolean sandboxGateway = payUrl != null && payUrl.toLowerCase(Locale.ROOT).contains("sandbox.vnpayment.vn");
+        if (sandboxGateway && !loopbackReturn) {
+            warnings.add("vnpay.pay-url targets the sandbox gateway while return-url is public; confirm this is not production.");
+        }
+        return warnings;
+    }
+
+    /** Logs configuration warnings once at startup so misconfigured deployments are visible. */
+    @PostConstruct
+    void logConfigurationWarnings() {
+        findConfigurationWarnings().forEach(warning -> log.warn("VNPay configuration: {}", warning));
     }
 }

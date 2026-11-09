@@ -89,7 +89,7 @@ public class VNPayServiceImpl implements VNPayService {
 
     private EntityManager entityManager;
     private CustomerIdentity customerIdentity;
-    private Clock clock = Clock.system(VIETNAM_ZONE);
+    private Clock clock = Clock.systemDefaultZone();
     private final Map<String, String> savedSettledBankCodeByOrder = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Autowired
@@ -186,12 +186,13 @@ public class VNPayServiceImpl implements VNPayService {
 
         // Enforce fixed 15-minute payment window anchored to order creation time without extending on retry (F07)
         int expireMinutes = vnPayConfig.getExpireMinutes() > 0 ? vnPayConfig.getExpireMinutes() : 15;
-        ZonedDateTime nowVn = ZonedDateTime.now(clock.withZone(VIETNAM_ZONE));
+        ZoneId systemOrInjectedZone = clock.getZone();
+        ZonedDateTime nowVn = ZonedDateTime.now(clock).withZoneSameInstant(VIETNAM_ZONE);
         LocalDateTime anchorTime = order.getCreatedAt() != null
                 ? order.getCreatedAt()
                 : order.getStockDeductedAt();
         ZonedDateTime deadlineVn = anchorTime != null
-                ? anchorTime.atZone(VIETNAM_ZONE).plusMinutes(expireMinutes)
+                ? anchorTime.atZone(systemOrInjectedZone).withZoneSameInstant(VIETNAM_ZONE).plusMinutes(expireMinutes)
                 : nowVn.plusMinutes(expireMinutes);
 
         if (!nowVn.isBefore(deadlineVn)) {

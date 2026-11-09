@@ -21,10 +21,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * CRON-01: VNPay Timeout Cleaner & Reconciliation Daemon (V2.4 §5.2 / BR-04-04 / C07).
@@ -48,7 +53,11 @@ public class VnpayTimeoutCleanerDaemon {
     private final ObjectMapper objectMapper;
 
     private EntityManager entityManager;
-    private Clock clock = Clock.system(VNPayServiceImpl.VIETNAM_ZONE);
+    private static final Duration INDETERMINATE_ERROR_THRESHOLD = Duration.ofMinutes(5);
+    private static final Duration INDETERMINATE_ALERT_COOLDOWN = Duration.ofMinutes(15);
+
+    private Clock clock = Clock.systemDefaultZone();
+    private final Map<Long, Instant> lastIndeterminateAlertAt = new ConcurrentHashMap<>();
 
     @Autowired
     public VnpayTimeoutCleanerDaemon(
@@ -91,14 +100,17 @@ public class VnpayTimeoutCleanerDaemon {
         int expireMinutes = (vnPayConfig != null && vnPayConfig.getExpireMinutes() > 0)
                 ? vnPayConfig.getExpireMinutes()
                 : 15;
-        LocalDateTime cutoffTime = LocalDateTime.now(clock.withZone(VNPayServiceImpl.VIETNAM_ZONE))
-                .minusMinutes(expireMinutes);
+        Instant nowInstant = clock.instant();
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime cutoffTime = now.minusMinutes(expireMinutes);
 
         List<Order> expiredCandidates = orderRepository.findExpiredPendingPaymentOrders(cutoffTime);
         if (expiredCandidates == null || expiredCandidates.isEmpty()) {
+            lastIndeterminateAlertAt.clear();
             return 0;
         }
 
+        Set<Long> activeIndeterminateOrderIds = new HashSet<>();
         int cancelledCount = 0;
         for (Order candidate : expiredCandidates) {
             if (candidate == null || candidate.getId() == null) {
@@ -129,8 +141,24 @@ public class VnpayTimeoutCleanerDaemon {
             ReconciliationOutcome outcome = reconciliation.outcome();
 
             if (outcome == ReconciliationOutcome.INDETERMINATE) {
-                log.warn("CRON-01: Skipping expired orderCode={} due to indeterminate gateway reconciliation: {}",
-                        lockedOrder.getOrderCode(), reconciliation.diagnosticMessage());
+                LocalDateTime anchorTime = lockedOrder.getCreatedAt() != null
+                        ? lockedOrder.getCreatedAt()
+                        : lockedOrder.getStockDeductedAt();
+                if (anchorTime == null) {
+                    anchorTime = cutoffTime;
+                }
+                LocalDateTime expirationTime = anchorTime.plusMinutes(expireMinutes);
+                Duration postExpiration = Duration.between(expirationTime, now);
+                long postExpiredMinutes = Math.max(0, postExpiration.toMinutes());
+
+                activeIndeterminateOrderIds.add(lockedOrder.getId());
+                if (shouldEmitErrorAlert(lockedOrder.getId(), postExpiration, nowInstant)) {
+                    log.error("CRON-01: Order orderCode={} has remained INDETERMINATE for {} minutes past payment window deadline (diagnostic: {}). Manual investigation required.",
+                            lockedOrder.getOrderCode(), postExpiredMinutes, reconciliation.diagnosticMessage());
+                } else {
+                    log.warn("CRON-01: Skipping expired orderCode={} due to indeterminate gateway reconciliation: {}",
+                            lockedOrder.getOrderCode(), reconciliation.diagnosticMessage());
+                }
                 continue;
             }
 
@@ -199,6 +227,7 @@ public class VnpayTimeoutCleanerDaemon {
                     lockedOrder.getOrderCode());
         }
 
+        lastIndeterminateAlertAt.keySet().retainAll(activeIndeterminateOrderIds);
         return cancelledCount;
     }
 
@@ -212,5 +241,42 @@ public class VnpayTimeoutCleanerDaemon {
             log.warn("Failed to serialize CRON-01 audit log details: {}", ex.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Determines whether an indeterminate order that has exceeded its payment window
+     * should emit an escalated ERROR log for DevOps/staff monitoring instead of a standard WARN log.
+     *
+     * Escalates to ERROR at 5 minutes past deadline, then throttles to periodic reminders
+     * (every 15 minutes thereafter: 15m, 30m, 45m...) to avoid infinite log flooding on every daemon cycle.
+     *
+     * @param postExpiredMinutes minutes elapsed past the order's expiration deadline
+     * @return true if an escalated ERROR alert should be emitted on this cycle
+     */
+    boolean shouldEmitErrorAlert(Long orderId, Duration postExpiration, Instant nowInstant) {
+        if (orderId == null || postExpiration == null || nowInstant == null) {
+            return false;
+        }
+        if (postExpiration.compareTo(INDETERMINATE_ERROR_THRESHOLD) < 0) {
+            return false;
+        }
+        Instant lastAlert = lastIndeterminateAlertAt.get(orderId);
+        if (lastAlert == null || Duration.between(lastAlert, nowInstant).compareTo(INDETERMINATE_ALERT_COOLDOWN) >= 0) {
+            lastIndeterminateAlertAt.put(orderId, nowInstant);
+            return true;
+        }
+        return false;
+    }
+
+    int trackedIndeterminateAlertCount() {
+        return lastIndeterminateAlertAt.size();
+    }
+
+    @Deprecated
+    static boolean legacyShouldEmitErrorAlert(long postExpiredMinutes) {
+        if (postExpiredMinutes < 5) {
+            return false;
+        }
+        return postExpiredMinutes == 5 || (postExpiredMinutes > 5 && postExpiredMinutes % 15 == 0);
     }
 }
