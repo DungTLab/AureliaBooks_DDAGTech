@@ -25,9 +25,9 @@ public class StockReportServiceImpl implements StockReportService {
         filter.resolveDates();
         String search = clean(keyword), selectedCategory = clean(category), selectedType = clean(productType);
         List<StockMovementReportItemDto> all = analytics.getPeriodStockMovementReport(filter);
-        var movements = all.stream().filter(item -> matches(item.getTitle(), item.getBarcode(), item.getCategoryName(),
-                item.getProductType() == null ? "" : item.getProductType().name(), search, selectedCategory, selectedType)).toList();
-        var valuations = analytics.getStockValuationReport().stream().filter(item -> matches(item.getTitle(), item.getBarcode(),
+        var movements = all.stream().filter(item -> matches(item.getTitle(), item.getBarcode(), item.getIsbn(), item.getReferenceCodes(),
+                item.getCategoryName(), item.getProductType() == null ? "" : item.getProductType().name(), search, selectedCategory, selectedType)).toList();
+        var valuations = analytics.getStockValuationReport().stream().filter(item -> matches(item.getTitle(), item.getBarcode(), item.getIsbn(), "",
                 item.getCategoryName(), item.getProductType() == null ? "" : item.getProductType().name(),
                 search, selectedCategory, selectedType)).toList();
         return new StockReportView(filter, search, selectedCategory, selectedType,
@@ -38,8 +38,26 @@ public class StockReportServiceImpl implements StockReportService {
                 valuations.stream().map(StockValuationItemDto::getTotalCostValue).reduce(BigDecimal.ZERO, BigDecimal::add));
     }
 
-    private boolean matches(String title, String barcode, String category, String type, String keyword, String selectedCategory, String selectedType) {
-        return (keyword.isEmpty() || normalize(clean(title) + " " + clean(barcode)).contains(normalize(keyword)))
+    private boolean matches(String title, String barcode, String isbn, String referenceCodes,
+                            String category, String type, String keyword,
+                            String selectedCategory, String selectedType) {
+        String cleanKw = clean(keyword);
+        if (cleanKw.isEmpty()) {
+            return (selectedCategory.isEmpty() || selectedCategory.equals(category))
+                    && (selectedType.isEmpty() || selectedType.equals(type));
+        }
+
+        String normKw = normalize(cleanKw);
+        String compactKw = normKw.replace("-", "").replace(" ", "");
+
+        String rawTarget = clean(title) + " " + clean(barcode) + " " + clean(isbn) + " " + clean(referenceCodes);
+        String normTarget = normalize(rawTarget);
+        String compactTarget = normTarget.replace("-", "").replace(" ", "");
+
+        boolean keywordMatches = normTarget.contains(normKw)
+                || (!compactKw.isEmpty() && compactTarget.contains(compactKw));
+
+        return keywordMatches
                 && (selectedCategory.isEmpty() || selectedCategory.equals(category))
                 && (selectedType.isEmpty() || selectedType.equals(type));
     }

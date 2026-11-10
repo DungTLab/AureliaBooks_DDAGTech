@@ -56,7 +56,9 @@ class AdminStockHistoryControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(view().name("admin/stock/history"))
                     .andExpect(model().attributeExists("movementsPage", "movementTypes", "filter"))
-                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Lịch sử Biến động Kho")));
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Lịch sử Biến động Kho")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Xuất Excel Biến Động Kho")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/manager/analytics/export/stock")));
         }
 
         @Test

@@ -17,8 +17,8 @@
                     <input id="stockEnd" name="endDate" type="date" required th:value="${stockReport.filter.endDate}" class="w-full border rounded-xl p-2">
                 </div>
                 <div>
-                    <label for="stockKeyword" class="block text-sm font-semibold mb-2">Tên / mã vạch</label>
-                    <input id="stockKeyword" name="keyword" th:value="${stockReport.keyword}" maxlength="255" class="w-full border rounded-xl p-2">
+                    <label for="stockKeyword" class="block text-sm font-semibold mb-2">Tên / mã vạch / ISBN / chứng từ</label>
+                    <input id="stockKeyword" name="keyword" th:value="${stockReport.keyword}" placeholder="Tên sản phẩm, barcode, ISBN, mã chứng từ..." maxlength="255" class="w-full border rounded-xl p-2">
                 </div>
                 <div>
                     <label for="stockCategory" class="block text-sm font-semibold mb-2">Danh mục</label>

@@ -126,15 +126,14 @@ class AnalyticsIntegrationTest {
         assertThat(baos.size()).isGreaterThan(0);
 
         try (XSSFWorkbook parsed = new XSSFWorkbook(new ByteArrayInputStream(baos.toByteArray()))) {
-            assertThat(parsed.getNumberOfSheets()).isEqualTo(3);
+            assertThat(parsed.getNumberOfSheets()).isEqualTo(2);
             assertThat(parsed.getSheetAt(0).getSheetName()).contains("Tổng quan");
-            assertThat(parsed.getSheetAt(1).getSheetName()).contains("Top");
-            assertThat(parsed.getSheetAt(2).getSheetName()).contains("Đơn hàng");
+            assertThat(parsed.getSheetAt(1).getSheetName()).contains("Đơn hàng");
         }
     }
 
     @Test
-    @DisplayName("F03 Verification: Exporting 101 orders does NOT truncate to 100 and Sheet 3 totals match Overview")
+    @DisplayName("F03 Verification: Exporting 101 orders does NOT truncate to 100 and Sheet 2 totals match Overview")
     void f03_exportMoreThan100Orders_noTruncation_totalsMatch() throws IOException {
         int orderCount = 101;
         BigDecimal unitPrice = BigDecimal.valueOf(100000);
@@ -173,12 +172,12 @@ class AnalyticsIntegrationTest {
         excelExportService.exportRevenueExcel(reportDto, baos);
 
         try (XSSFWorkbook parsed = new XSSFWorkbook(new ByteArrayInputStream(baos.toByteArray()))) {
-            Sheet sheet3 = parsed.getSheetAt(2); // "Danh sách Đơn hàng Hoàn tất"
+            Sheet orderSheet = parsed.getSheetAt(1); // "Danh sách Đơn hàng Hoàn tất"
             // Row 0 is Title, Row 1 is Subtitle, Row 2 is Empty, Row 3 is Header
             // Data rows: Row 4 to Row 4 + 101 - 1 = Row 104 (101 data rows)
             // Total row is at Row 105
             int totalRowIdx = 4 + orderCount;
-            Row totalRow = sheet3.getRow(totalRowIdx);
+            Row totalRow = orderSheet.getRow(totalRowIdx);
             assertThat(totalRow).isNotNull();
             assertThat(totalRow.getCell(6).getStringCellValue()).isEqualTo("TỔNG CỘNG:");
             // Total shipping in Col 7
@@ -187,9 +186,10 @@ class AnalyticsIntegrationTest {
             assertThat(totalRow.getCell(8).getNumericCellValue()).isEqualTo(expectedGross.doubleValue());
 
             // Ensure row 104 is the 101st order (STT = 101)
-            Row lastDataRow = sheet3.getRow(totalRowIdx - 1);
+            Row lastDataRow = orderSheet.getRow(totalRowIdx - 1);
             assertThat(lastDataRow.getCell(0).getNumericCellValue()).isEqualTo(101.0);
             assertThat(lastDataRow.getCell(1).getStringCellValue()).isEqualTo("ORD-101-101");
+            assertThat(lastDataRow.getCell(2).getStringCellValue()).isEqualTo("Khách 101");
         }
     }
 

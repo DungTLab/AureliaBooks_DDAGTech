@@ -54,7 +54,7 @@ public class RevenueOrderSummaryDto {
         if (paymentMethod == null) {
             return "N/A";
         }
-        return paymentMethod == Order.PaymentMethod.COD ? "COD (Tiền mặt)" : "VNPAY (Điện tử)";
+        return paymentMethod == Order.PaymentMethod.COD ? "Thanh toán trực tiếp" : "Thanh toán điện tử";
     }
 
     private static String formatCurrency(BigDecimal amount) {

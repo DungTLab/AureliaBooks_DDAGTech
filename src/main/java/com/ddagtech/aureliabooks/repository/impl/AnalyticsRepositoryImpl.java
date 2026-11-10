@@ -326,6 +326,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 SELECT 
                     p.id AS product_id,
                     p.barcode,
+                    b.isbn,
                     p.title,
                     c.name AS category_name,
                     p.product_type,
@@ -337,6 +338,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     (p.stock_quantity * p.price) AS total_retail_value,
                     p.created_at
                 FROM products p
+                LEFT JOIN books b ON p.id = b.product_id
                 LEFT JOIN categories c ON p.category_id = c.id
                 WHERE (p.is_active = TRUE OR p.stock_quantity > 0)
                 ORDER BY total_cost_value DESC
@@ -378,6 +380,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
             return StockValuationItemDto.builder()
                     .productId(rs.getLong("product_id"))
                     .barcode(rs.getString("barcode"))
+                    .isbn(rs.getString("isbn"))
                     .title(rs.getString("title"))
                     .categoryName(rs.getString("category_name"))
                     .productType(productType)
@@ -399,6 +402,7 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                 SELECT 
                     p.id AS product_id,
                     p.barcode,
+                    b.isbn,
                     p.title,
                     c.name AS category_name,
                     p.product_type,
@@ -410,12 +414,15 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
                     COALESCE(m.order_deduct_qty, 0) AS order_deduct_qty,
                     COALESCE(m.cancel_restore_qty, 0) AS cancel_restore_qty,
                     COALESCE(m.return_restore_qty, 0) AS return_restore_qty,
-                    (COALESCE(m.opening_stock, 0) + COALESCE(m.import_qty, 0) + COALESCE(m.cancel_restore_qty, 0) + COALESCE(m.return_restore_qty, 0) - COALESCE(m.order_deduct_qty, 0)) AS closing_stock
+                    (COALESCE(m.opening_stock, 0) + COALESCE(m.import_qty, 0) + COALESCE(m.cancel_restore_qty, 0) + COALESCE(m.return_restore_qty, 0) - COALESCE(m.order_deduct_qty, 0)) AS closing_stock,
+                    m.reference_codes
                 FROM products p
+                LEFT JOIN books b ON p.id = b.product_id
                 LEFT JOIN categories c ON p.category_id = c.id
                 LEFT JOIN (
                     SELECT 
                         product_id,
+                        GROUP_CONCAT(DISTINCT reference_code SEPARATOR ' ') AS reference_codes,
                         SUM(CASE WHEN (:fromInclusive IS NOT NULL AND occurred_at < :fromInclusive) THEN quantity_change ELSE 0 END) AS opening_stock,
                         SUM(CASE WHEN (:fromInclusive IS NULL OR occurred_at >= :fromInclusive) AND (:toExclusive IS NULL OR occurred_at < :toExclusive) AND movement_type = 'IMPORT' THEN quantity_change ELSE 0 END) AS import_qty,
                         SUM(CASE WHEN (:fromInclusive IS NULL OR occurred_at >= :fromInclusive) AND (:toExclusive IS NULL OR occurred_at < :toExclusive) AND movement_type = 'ORDER_DEDUCT' THEN -quantity_change ELSE 0 END) AS order_deduct_qty,
@@ -457,9 +464,14 @@ public class AnalyticsRepositoryImpl implements AnalyticsRepository {
             BigDecimal closingCostVal = cost.multiply(BigDecimal.valueOf(closing));
             BigDecimal closingRetailVal = price.multiply(BigDecimal.valueOf(closing));
 
+            String isbn = rs.getString("isbn");
+            String refCodes = rs.getString("reference_codes");
+
             return StockMovementReportItemDto.builder()
                     .productId(productId)
                     .barcode(barcode)
+                    .isbn(isbn)
+                    .referenceCodes(refCodes)
                     .title(title)
                     .categoryName(catName)
                     .productType(productType)
