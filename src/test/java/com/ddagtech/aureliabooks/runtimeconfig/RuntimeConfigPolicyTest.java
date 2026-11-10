@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RuntimeConfigPolicyTest {
     @Test void explicitMappingAndUniqueTargets() {
-        assertEquals(25, FIELDS.size());
+        assertEquals(26, FIELDS.size());
         assertEquals(FIELDS.size(), FIELDS.values().stream().map(Field::target).distinct().count());
         for (String key : List.of("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "MAIL_PASSWORD", "VNPAY_TMN_CODE", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"))
             assertEquals("ES", FIELDS.get(key).scope());
@@ -65,6 +65,12 @@ class RuntimeConfigPolicyTest {
         assertTrue(body.contains("demo.sms.inbox=team@example.test\n"));
         assertFalse(body.contains("spring.profiles"));
         assertEquals("EV", FIELDS.get("DEMO_SMS_INBOX").scope());
+        assertFalse(body.contains("demo.sms.registration-enabled"));
+        input.put("DEMO_SMS_REGISTRATION_ENABLED", "true");
+        assertTrue(new String(render(input, List.of("mail", "sms-demo")), StandardCharsets.US_ASCII)
+                .contains("demo.sms.registration-enabled=true\n"));
+        input.put("DEMO_SMS_REGISTRATION_ENABLED", "TRUE");
+        assertThrows(Rejected.class, () -> render(input, List.of("mail", "sms-demo")));
     }
     @ParameterizedTest @ValueSource(strings = {"a@example.test,b@example.test", "Name <a@example.test>", "a@example.test\nBcc:x@example.test", "not-an-email", " a@example.test"})
     void demoInboxIsOneAddressWithoutHeaderInjection(String inbox) {

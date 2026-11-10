@@ -31,7 +31,8 @@ feature branch to bypass main/Environment restrictions.
 | MAIL_USERNAME, MAIL_PASSWORD | ES | Spring mail |
 | VNPAY_TMN_CODE, VNPAY_HASH_SECRET | ES | canonical vnpay properties |
 | MAIL_HOST, MAIL_PORT, MAIL_AUTH, MAIL_STARTTLS, MAIL_FROM | EV | Spring mail/contact mail-from |
-| DEMO_SMS_INBOX | EV | demo.sms.inbox, without enabling sms-demo |
+| DEMO_SMS_INBOX | EV | Private mailbox for demo registration OTP |
+| DEMO_SMS_REGISTRATION_ENABLED | EV, default false | Explicit opt-in for demo registration OTP |
 | VNPAY_PAY_URL, VNPAY_API_URL, VNPAY_RETURN_URL, VNPAY_VERSION, VNPAY_COMMAND, VNPAY_ORDER_TYPE, VNPAY_EXPIRE_MINUTES | EV | canonical vnpay properties |
 | R2_ENABLED, R2_UPLOAD_ENABLED | EV, default false | environment and properties |
 | R2_ENDPOINT, R2_BUCKET, R2_UPLOAD_REQUESTS_PER_MINUTE, R2_UPLOAD_MAX_CONCURRENT | EV | app.r2 properties when enabled |
@@ -42,7 +43,14 @@ options, bootstrap settings or arbitrary profile names are accepted in payloads.
 Activation rejects conflicting provider environment variables, profile overrides,
 JVM arguments and config imports. VNPay return URL must match the selected
 environment's HTTPS /payment/vnpay-return URL. SMTP requires auth and STARTTLS.
-The explicitly approved google profile does not implicitly enable sms-demo.
+To enable phone registration demo delivery, first deploy the updated application
+and install the updated runtime-config JAR on the VPS. Set
+`DEMO_SMS_REGISTRATION_ENABLED=true` and the private `DEMO_SMS_INBOX` in the
+target GitHub Environment, then run `activate-google` for that environment.
+Keep the `sms-demo` Spring profile off on hosted environments. The opt-in
+routes registration codes to the team inbox only. Recovery and account linking
+do not use that inbox. An email received by the team does not prove ownership
+of the entered phone number.
 
 ## Product image upload rollout
 

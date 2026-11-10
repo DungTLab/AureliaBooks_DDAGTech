@@ -100,6 +100,7 @@ jobs:
           MAIL_STARTTLS: ${{ vars.MAIL_STARTTLS }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
           DEMO_SMS_INBOX: ${{ vars.DEMO_SMS_INBOX }}
+          DEMO_SMS_REGISTRATION_ENABLED: ${{ vars.DEMO_SMS_REGISTRATION_ENABLED }}
           VNPAY_PAY_URL: ${{ vars.VNPAY_PAY_URL }}
           VNPAY_API_URL: ${{ vars.VNPAY_API_URL }}
           VNPAY_RETURN_URL: ${{ vars.VNPAY_RETURN_URL }}

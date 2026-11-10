@@ -65,6 +65,7 @@ class AccountFlowMySqlTest {
         })
             .when(delivery)
             .send(anyString(), anyString(), anyString());
+        doCallRealMethod().when(delivery).sendRegistrationSms(anyString(), anyString());
     }
 
     @AfterEach
