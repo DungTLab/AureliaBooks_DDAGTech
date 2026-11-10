@@ -366,7 +366,11 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         f.expires = f.sent.plusSeconds(300);
         f.failures = 0;
         try {
-            delivery.send(f.channel, f.target, code);
+            if ("REGISTER".equals(f.kind)) {
+                delivery.sendRegistrationSms(f.target, code);
+            } else {
+                delivery.send(f.channel, f.target, code);
+            }
             f.mac = protect(f, code);
             flows
                 .entrySet()

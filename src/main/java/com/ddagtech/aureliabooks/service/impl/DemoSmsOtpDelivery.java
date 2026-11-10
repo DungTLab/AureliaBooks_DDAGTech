@@ -33,19 +33,23 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
         if (environment.acceptsProfiles(Profiles.of("prod", "production"))) {
             throw new IllegalStateException("sms-demo must not run with prod or production");
         }
+        this.mail = mail;
+        this.from = from;
+        this.inbox = validateInbox(inbox);
+        this.emailDelivery = new ContactOtpDeliveryImpl(mail, from);
+    }
+
+    static String validateInbox(String inbox) {
         try {
             InternetAddress address = new InternetAddress(inbox, true);
             address.validate();
             if (!address.getAddress().equals(inbox) || !inbox.contains("@")) {
                 throw new AddressException("Invalid demo inbox");
             }
+            return inbox;
         } catch (AddressException e) {
             throw new IllegalStateException("Set DEMO_SMS_INBOX to one private team email address");
         }
-        this.mail = mail;
-        this.from = from;
-        this.inbox = inbox;
-        this.emailDelivery = new ContactOtpDeliveryImpl(mail, from);
     }
 
     public String inbox() {
@@ -58,7 +62,12 @@ public class DemoSmsOtpDelivery implements ContactOtpDelivery {
             emailDelivery.send(channel, recipient, code);
             return;
         }
-        if (!"SMS".equals(channel) || recipient == null || !recipient.matches("0[0-9]{9}")) {
+        if (!"SMS".equals(channel)) throw new IllegalStateException("Unsupported OTP channel");
+        sendDemoSms(mail, from, inbox, recipient, code);
+    }
+
+    static void sendDemoSms(ObjectProvider<JavaMailSender> mail, String from, String inbox, String recipient, String code) {
+        if (recipient == null || !recipient.matches("0[0-9]{9}")) {
             throw new IllegalStateException("SMS demo requires a valid 10-digit phone number");
         }
         JavaMailSender sender = mail.getIfAvailable();

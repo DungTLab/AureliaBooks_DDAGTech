@@ -98,7 +98,7 @@ public class AuthController {
             errors.reject("duplicate", "Email hoặc số điện thoại này đã được đăng ký.");
             return "auth/register";
         }
-        redirect.addFlashAttribute("verificationMessage", "Đã gửi mã tới số điện thoại. Nhập mã để hoàn tất đăng ký.");
+        redirect.addFlashAttribute("verificationMessage", "Đã gửi mã xác thực. Nhập mã để hoàn tất đăng ký.");
         return "redirect:/auth/verification";
     }
 }

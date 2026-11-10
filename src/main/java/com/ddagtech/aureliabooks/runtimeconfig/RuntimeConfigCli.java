@@ -52,7 +52,8 @@ public final class RuntimeConfigCli {
                 FIELDS.forEach((key, field) -> {
                     if (!field.group().equals("r2") || enableR2) {
                         String value = System.getenv(key);
-                        if (value != null && (!field.group().equals("r2") || !value.isEmpty())) values.put(key, value);
+                        boolean optional = field.group().equals("r2") || key.equals("DEMO_SMS_REGISTRATION_ENABLED");
+                        if (value != null && (!optional || !value.isEmpty())) values.put(key, value);
                     }
                 });
                 long now = Clock.systemUTC().instant().getEpochSecond();

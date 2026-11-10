@@ -44,6 +44,7 @@ public final class ConfigPolicy {
         add(fields, "mail", "EV", "MAIL_STARTTLS", "spring.mail.properties.mail.smtp.starttls.enable");
         add(fields, "mail", "EV", "MAIL_FROM", "app.contact-verification.mail-from");
         add(fields, "sms-demo", "EV", "DEMO_SMS_INBOX", "demo.sms.inbox");
+        add(fields, "sms-demo", "EV", "DEMO_SMS_REGISTRATION_ENABLED", "demo.sms.registration-enabled");
         for (String name : List.of("TMN_CODE", "HASH_SECRET", "PAY_URL", "RETURN_URL", "API_URL",
                 "VERSION", "COMMAND", "ORDER_TYPE", "EXPIRE_MINUTES")) {
             add(fields, "vnpay", Set.of("TMN_CODE", "HASH_SECRET").contains(name) ? "ES" : "EV",
@@ -116,7 +117,7 @@ public final class ConfigPolicy {
                 check(values.get(key) != null && !values.get(key).isBlank(), "INCOMPLETE_R2_GROUP:" + key);
         }
         FIELDS.forEach((key, field) -> {
-            if (!field.group().equals("r2") && groups.contains(field.group()))
+            if (!field.group().equals("r2") && !key.equals("DEMO_SMS_REGISTRATION_ENABLED") && groups.contains(field.group()))
                 check(values.containsKey(key), "INCOMPLETE_PROVIDER_GROUP");
         });
         TreeMap<String, String> result = new TreeMap<>();
@@ -131,7 +132,7 @@ public final class ConfigPolicy {
             String value = values.get(key);
             text(value, key);
             if (key.endsWith("_URL") || key.equals("R2_ENDPOINT")) https(value, key);
-            if (Set.of("MAIL_AUTH", "MAIL_STARTTLS").contains(key))
+            if (Set.of("MAIL_AUTH", "MAIL_STARTTLS", "DEMO_SMS_REGISTRATION_ENABLED").contains(key))
                 check(Set.of("true", "false").contains(value), "INVALID_BOOLEAN:" + key);
             if (Set.of("MAIL_PORT", "VNPAY_EXPIRE_MINUTES", "R2_UPLOAD_REQUESTS_PER_MINUTE", "R2_UPLOAD_MAX_CONCURRENT").contains(key)) {
                 check(value.matches("[1-9][0-9]{0,4}"), "INVALID_NUMBER:" + key);
