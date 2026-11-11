@@ -137,12 +137,18 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
     @Override
     @Transactional(readOnly = true)
-    public CheckoutView getCheckoutView(Long userId, Long shippingAddressId, String voucherCode, String shippingVoucherCode) {
+    public CheckoutView getCheckoutView(
+            Long userId,
+            Long shippingAddressId,
+            String voucherCode,
+            String shippingVoucherCode) {
         return applyVouchers(userId, getCheckoutView(userId, shippingAddressId), voucherCode, shippingVoucherCode);
     }
 
     private CheckoutView applyVouchers(Long owner, CheckoutView base, String productCode, String shippingCode) {
-        if (normalizeVoucher(productCode).isEmpty() && normalizeVoucher(shippingCode).isEmpty()) return base;
+        if (normalizeVoucher(productCode).isEmpty() && normalizeVoucher(shippingCode).isEmpty()) {
+            return base;
+        }
         if (base.selectedAddressId() == null) {
             throw new AppException(ErrorCode.ADDRESS_NOT_FOUND, "Vui lòng chọn địa chỉ trước khi áp mã.");
         }
@@ -160,8 +166,15 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
             base.merchandiseSubtotal().subtract(productDiscount).add(shippingFee));
     }
 
-    private BigDecimal discount(Long owner, String code, Voucher.Scope scope, BigDecimal subtotal, BigDecimal shipping) {
-        if (normalizeVoucher(code).isEmpty()) return BigDecimal.ZERO;
+    private BigDecimal discount(
+            Long owner,
+            String code,
+            Voucher.Scope scope,
+            BigDecimal subtotal,
+            BigDecimal shipping) {
+        if (normalizeVoucher(code).isEmpty()) {
+            return BigDecimal.ZERO;
+        }
         var quote = vouchers.preview(owner, code, subtotal, shipping);
         if (quote.scope() != scope) {
             throw new AppException(ErrorCode.VOUCHER_INVALID_OR_EXPIRED,
@@ -232,22 +245,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
 
         // Detect replays before reading the cart so completed orders remain accessible after review removal or new cart additions.
         if (existingOrder != null) {
-            if (!Objects.equals(existingOrder.getUser().getId(), userId)) {
-                throw new AppException(ErrorCode.ORDER_NOT_FOUND);
-            }
-            if (
-                existingOrder.getShippingAddress() == null ||
-                !Objects.equals(existingOrder.getShippingAddress().getId(), request.getShippingAddressId()) ||
-                existingOrder.getPaymentMethod() != request.getPaymentMethod()
-            ) {
-                throw new AppException(ErrorCode.CHECKOUT_CHANGED);
-            }
-
-            var applied = orderVouchers.findAllByOrderId(existingOrder.getId());
-            if (!matchesVoucher(applied, Voucher.Scope.PRODUCT, request.getVoucherCode())
-                    || !matchesVoucher(applied, Voucher.Scope.SHIPPING, request.getShippingVoucherCode())) {
-                throw new AppException(ErrorCode.CHECKOUT_CHANGED);
-            }
+            validateExistingOrder(userId, request, existingOrder);
             return existingOrder.getOrderCode();
         }
 
@@ -261,13 +259,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         }
         validateCartSize(items.size());
 
-        // Lock products in ascending ID order before order-item foreign keys acquire shared locks, reducing deadlock risk.
-        // Refresh current prices and stock to replace product values previously loaded by OSIV while displaying the cart.
-        items.sort(Comparator.comparing(item -> item.getProduct().getId()));
-        for (CartItem item : items) {
-            entityManager.refresh(item.getProduct(), LockModeType.PESSIMISTIC_WRITE);
-            validateOrderItem(item);
-        }
+        lockAndValidateProducts(items);
 
         ShippingAddress address = shippingAddressRepository
             .findByIdAndUserIdAndIsActiveTrue(request.getShippingAddressId(), userId)
@@ -296,17 +288,13 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         Order order = orderMapper.toNewOrder(owner, address, items, request, current, status);
         // Redeem against the fee after the free-shipping policy but before the shipping voucher discount.
         order.setShippingFee(current.baseShippingFee());
-        order.setProductVoucherCode(normalizeVoucher(request.getVoucherCode()).isEmpty() ? null : normalizeVoucher(request.getVoucherCode()));
-        order.setShippingVoucherCode(normalizeVoucher(request.getShippingVoucherCode()).isEmpty() ? null : normalizeVoucher(request.getShippingVoucherCode()));
+        String productVoucherCode = normalizeVoucher(request.getVoucherCode());
+        String shippingVoucherCode = normalizeVoucher(request.getShippingVoucherCode());
+        order.setProductVoucherCode(productVoucherCode.isEmpty() ? null : productVoucherCode);
+        order.setShippingVoucherCode(shippingVoucherCode.isEmpty() ? null : shippingVoucherCode);
         order.setShippingDiscountAmount(current.shippingDiscount());
         orderRepository.saveAndFlush(order);
-        // All orders lock PRODUCT before SHIPPING; a failure rolls back both redemptions and quota changes.
-        if (!normalizeVoucher(request.getVoucherCode()).isEmpty()) {
-            vouchers.redeem(userId, order.getId(), request.getVoucherCode(), null);
-        }
-        if (!normalizeVoucher(request.getShippingVoucherCode()).isEmpty()) {
-            vouchers.redeem(userId, order.getId(), request.getShippingVoucherCode(), null);
-        }
+        redeemVouchers(userId, order.getId(), request);
         if (!sameMoney(order.getFinalTotalAmount(), current.finalTotalAmount())) {
             throw new AppException(ErrorCode.CHECKOUT_CHANGED);
         }
@@ -324,6 +312,43 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
         recordPlacement(order);
 
         return order.getOrderCode();
+    }
+
+    /** A matching retry returns the existing order without reading or clearing the current cart. */
+    private void validateExistingOrder(Long userId, CheckoutRequest request, Order order) {
+        if (!Objects.equals(order.getUser().getId(), userId)) {
+            throw new AppException(ErrorCode.ORDER_NOT_FOUND);
+        }
+        if (order.getShippingAddress() == null
+                || !Objects.equals(order.getShippingAddress().getId(), request.getShippingAddressId())
+                || order.getPaymentMethod() != request.getPaymentMethod()) {
+            throw new AppException(ErrorCode.CHECKOUT_CHANGED);
+        }
+        List<OrderVoucher> applied = orderVouchers.findAllByOrderId(order.getId());
+        if (!matchesVoucher(applied, Voucher.Scope.PRODUCT, request.getVoucherCode())
+                || !matchesVoucher(applied, Voucher.Scope.SHIPPING, request.getShippingVoucherCode())) {
+            throw new AppException(ErrorCode.CHECKOUT_CHANGED);
+        }
+    }
+
+    /** Lock in ascending product ID order before order-item foreign keys acquire shared locks. */
+    private void lockAndValidateProducts(List<CartItem> items) {
+        items.sort(Comparator.comparing(item -> item.getProduct().getId()));
+        for (CartItem item : items) {
+            // Refresh replaces cached prices and stock with the values protected by this lock.
+            entityManager.refresh(item.getProduct(), LockModeType.PESSIMISTIC_WRITE);
+            validateOrderItem(item);
+        }
+    }
+
+    /** Lock PRODUCT before SHIPPING; placement rolls back both redemptions on failure. */
+    private void redeemVouchers(Long userId, Long orderId, CheckoutRequest request) {
+        if (!normalizeVoucher(request.getVoucherCode()).isEmpty()) {
+            vouchers.redeem(userId, orderId, request.getVoucherCode(), null);
+        }
+        if (!normalizeVoucher(request.getShippingVoucherCode()).isEmpty()) {
+            vouchers.redeem(userId, orderId, request.getShippingVoucherCode(), null);
+        }
     }
 
     /** Reject legacy oversized carts as well as new additions that exceed the current purchase limit. */
@@ -542,8 +567,7 @@ public class OrderPlacementServiceImpl implements OrderPlacementService {
     private String normalizeVoucher(String value) {
         if (value == null) {
             return "";
-        } else {
-            return value.strip().toUpperCase(Locale.ROOT);
         }
+        return value.strip().toUpperCase(Locale.ROOT);
     }
 }

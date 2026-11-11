@@ -45,7 +45,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/staff/orders")
 @PreAuthorize("hasAnyRole('SALE_STAFF', 'MANAGER')")
 public class StaffOrderController {
-    private final OrderStateMachineService orders;
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    private final OrderStateMachineService orderService;
     private final StaffIdentity identity;
 
     @GetMapping
@@ -55,7 +57,7 @@ public class StaffOrderController {
         if (errors.hasErrors()) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Bộ lọc không hợp lệ. Vui lòng kiểm tra trạng thái và ngày đặt.");
         }
-        model.addAttribute("orders", orders.getOrderQueue(filter, PageRequest.of(Math.max(0, page), 20), actor));
+        model.addAttribute("orders", orderService.getOrderQueue(filter, PageRequest.of(Math.max(0, page), 20), actor));
         var statuses = new LinkedHashMap<Order.OrderStatus, String>();
         for (var status : Order.OrderStatus.values()) {
             if (status != Order.OrderStatus.PENDING_PAYMENT) {
@@ -68,8 +70,8 @@ public class StaffOrderController {
 
     @GetMapping("/{id}")
     public String checklist(Authentication auth, @PathVariable Long id, Model model) {
-        model.addAttribute("refundToday", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
-        model.addAttribute("checklist", orders.getPackagingChecklist(id, identity.resolve(auth)));
+        model.addAttribute("refundToday", LocalDate.now(BUSINESS_ZONE));
+        model.addAttribute("checklist", orderService.getPackagingChecklist(id, identity.resolve(auth)));
         return "staff/packaging-checklist";
     }
 
@@ -83,7 +85,7 @@ public class StaffOrderController {
                     errors.getAllErrors().getFirst().getDefaultMessage());
         }
         try {
-            orders.transitionStatus(id, request, actor);
+            orderService.transitionStatus(id, request, actor);
         } catch (AppException exception) {
             if (exception.getErrorCode().getStatusCode() == HttpStatus.CONFLICT) {
                 return latest(id, actor, exception.getMessage(), HttpStatus.CONFLICT);
@@ -105,7 +107,7 @@ public class StaffOrderController {
                     errors.getAllErrors().getFirst().getDefaultMessage(), HttpStatus.BAD_REQUEST);
         }
         try {
-            orders.confirmReturnRestock(id, request, actor);
+            orderService.confirmReturnRestock(id, request, actor);
         } catch (AppException exception) {
             if (exception.getErrorCode() == ErrorCode.UNAUTHORIZED || exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
                 throw exception;
@@ -128,7 +130,7 @@ public class StaffOrderController {
                     HttpStatus.BAD_REQUEST);
         }
         try {
-            orders.confirmExternalRefund(id, request, actor);
+            orderService.confirmExternalRefund(id, request, actor);
         } catch (AppException exception) {
             if (exception.getErrorCode() == ErrorCode.UNAUTHORIZED || exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {
                 throw exception;
@@ -141,8 +143,8 @@ public class StaffOrderController {
 
     private ModelAndView latest(Long id, Long actor, String message, HttpStatus status) {
         var result = new ModelAndView("staff/packaging-checklist");
-        result.addObject("refundToday", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
-        result.addObject("checklist", orders.getPackagingChecklist(id, actor));
+        result.addObject("refundToday", LocalDate.now(BUSINESS_ZONE));
+        result.addObject("checklist", orderService.getPackagingChecklist(id, actor));
         result.addObject("errorMessage", message);
         result.setStatus(status);
         return result;

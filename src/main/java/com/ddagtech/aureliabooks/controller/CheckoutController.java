@@ -46,11 +46,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 public class CheckoutController {
 
-    private final OrderPlacementService orders;
-    private final AddressService addresses;
+    private final OrderPlacementService orderPlacementService;
+    private final AddressService addressService;
     private final CustomerIdentity identity;
-    private final CheckoutSessionStore reviews;
-    private final ObjectProvider<CheckoutPaymentGateway> payments;
+    private final CheckoutSessionStore checkoutReviews;
+    private final ObjectProvider<CheckoutPaymentGateway> paymentGateways;
 
     /** Load the cart and addresses for display; opening this page does not create an order or reserve stock. */
     @GetMapping("/checkout")
@@ -65,7 +65,7 @@ public class CheckoutController {
         Long owner = identity.resolve(auth);
         String code = normalizeVoucher(voucherCode);
         String shippingCode = normalizeVoucher(shippingVoucherCode);
-        CheckoutView checkout = orders.getCheckoutView(owner, shippingAddressId);
+        CheckoutView checkout = orderPlacementService.getCheckoutView(owner, shippingAddressId);
         String appliedCode = "";
         String appliedShippingCode = "";
         if (!code.isEmpty()) {
@@ -73,7 +73,9 @@ public class CheckoutController {
                 checkout = loadCheckout(owner, shippingAddressId, code, "");
                 appliedCode = code;
             } catch (AppException error) {
-                if (!error.getErrorCode().name().startsWith("VOUCHER_")) throw error;
+                if (!error.getErrorCode().name().startsWith("VOUCHER_")) {
+                    throw error;
+                }
                 model.addAttribute("productVoucherError", error.getMessage());
             }
         }
@@ -83,7 +85,9 @@ public class CheckoutController {
                 appliedShippingCode = shippingCode;
             } catch (AppException error) {
                 if (!error.getErrorCode().name().startsWith("VOUCHER_")
-                        && error.getErrorCode() != ErrorCode.INVALID_INPUT_DATA) throw error;
+                        && error.getErrorCode() != ErrorCode.INVALID_INPUT_DATA) {
+                    throw error;
+                }
                 model.addAttribute("shippingVoucherError", error.getMessage());
             }
         }
@@ -125,13 +129,15 @@ public class CheckoutController {
             flash.addFlashAttribute("errorMessage", "Một số sản phẩm cần được cập nhật. Vui lòng kiểm tra giỏ hàng.");
             return "redirect:/cart";
         }
-        CheckoutConfirmation review = reviews.save(
+        String productVoucherCode = normalizeVoucher(selection.voucherCode());
+        String shippingVoucherCode = normalizeVoucher(selection.shippingVoucherCode());
+        CheckoutConfirmation review = checkoutReviews.save(
             request.getSession(),
             owner,
             view,
             selection.paymentMethod(),
-            normalizeVoucher(selection.voucherCode()).isEmpty() ? null : normalizeVoucher(selection.voucherCode()),
-            normalizeVoucher(selection.shippingVoucherCode()).isEmpty() ? null : normalizeVoucher(selection.shippingVoucherCode())
+            productVoucherCode.isEmpty() ? null : productVoucherCode,
+            shippingVoucherCode.isEmpty() ? null : shippingVoucherCode
         );
         return "redirect:/checkout/review/" + review.checkoutToken();
     }
@@ -140,7 +146,7 @@ public class CheckoutController {
     @GetMapping("/checkout/review/{token}")
     public String review(Authentication auth, @PathVariable String token, HttpServletRequest request, Model model) {
         Long owner = identity.resolve(auth);
-        CheckoutConfirmation review = reviews.find(request.getSession(false), token, owner);
+        CheckoutConfirmation review = checkoutReviews.find(request.getSession(false), token, owner);
         if (review == null) {
             throw new AppException(
                 ErrorCode.CHECKOUT_CHANGED,
@@ -177,14 +183,14 @@ public class CheckoutController {
         if (errors.hasErrors()) {
             return invalidForm(errors, flash);
         }
-        CheckoutConfirmation review = reviews.find(request.getSession(false), form.getCheckoutToken(), owner);
+        CheckoutConfirmation review = checkoutReviews.find(request.getSession(false), form.getCheckoutToken(), owner);
         // Reject VNPay before creating an order when payment handoff is unavailable.
         if (form.getPaymentMethod() == Order.PaymentMethod.VNPAY && !paymentAvailable()) {
             flash.addFlashAttribute("errorMessage", "Thanh toán trực tuyến tạm thời chưa khả dụng. Vui lòng chọn COD.");
             return "redirect:/checkout";
         }
-        String code = orders.placeOrder(owner, form, review);
-        reviews.remove(request.getSession(false), form.getCheckoutToken());
+        String code = orderPlacementService.placeOrder(owner, form, review);
+        checkoutReviews.remove(request.getSession(false), form.getCheckoutToken());
         if (form.getPaymentMethod() == Order.PaymentMethod.VNPAY) {
             return startPayment(owner, code, flash);
         }
@@ -195,7 +201,7 @@ public class CheckoutController {
     /** Display only the current customer's order using persisted snapshots and statuses. */
     @GetMapping("/orders/{orderCode}")
     public String confirmation(Authentication auth, @PathVariable String orderCode, Model model) {
-        OrderConfirmationView order = orders.getOrderConfirmation(identity.resolve(auth), orderCode);
+        OrderConfirmationView order = orderPlacementService.getOrderConfirmation(identity.resolve(auth), orderCode);
         model.addAttribute("order", order);
         model.addAttribute("onlinePaymentAvailable", paymentAvailable());
         return "checkout/order-confirm";
@@ -205,7 +211,7 @@ public class CheckoutController {
     @PostMapping("/orders/{orderCode}/pay")
     public String pay(Authentication auth, @PathVariable String orderCode, RedirectAttributes flash) {
         Long owner = identity.resolve(auth);
-        OrderConfirmationView order = orders.getOrderConfirmation(owner, orderCode);
+        OrderConfirmationView order = orderPlacementService.getOrderConfirmation(owner, orderCode);
         if (!order.awaitingOnlinePayment()) {
             flash.addFlashAttribute("errorMessage", "Đơn hàng hiện không có khoản thanh toán trực tuyến đang chờ.");
             return "redirect:/orders/" + orderCode;
@@ -233,20 +239,23 @@ public class CheckoutController {
             );
         }
         if (errors.hasErrors()) {
-            addCheckout(model, orders.getCheckoutView(owner, null), Order.PaymentMethod.COD);
+            addCheckout(model, orderPlacementService.getCheckoutView(owner, null), Order.PaymentMethod.COD);
             model.addAttribute("addressFormOpen", true);
             return "checkout/view";
         }
-        Long addressId = addresses.create(owner, form);
+        Long addressId = addressService.create(owner, form);
         flash.addFlashAttribute("successMessage", "Đã lưu địa chỉ giao hàng.");
         return "redirect:/checkout?shippingAddressId=" + addressId;
     }
 
     private CheckoutView loadCheckout(Long owner, Long addressId, String code, String shippingCode) {
-        if (!shippingCode.isEmpty()) return orders.getCheckoutView(owner, addressId, code, shippingCode);
-        return code.isEmpty()
-            ? orders.getCheckoutView(owner, addressId)
-            : orders.getCheckoutView(owner, addressId, code);
+        if (!shippingCode.isEmpty()) {
+            return orderPlacementService.getCheckoutView(owner, addressId, code, shippingCode);
+        }
+        if (!code.isEmpty()) {
+            return orderPlacementService.getCheckoutView(owner, addressId, code);
+        }
+        return orderPlacementService.getCheckoutView(owner, addressId);
     }
 
     private String normalizeVoucher(String code) {
@@ -275,14 +284,14 @@ public class CheckoutController {
 
     /** Disable VNPay in both the UI and POST handlers when the UC11.1 adapter is missing or unconfigured. */
     private boolean paymentAvailable() {
-        CheckoutPaymentGateway gateway = payments.getIfAvailable();
+        CheckoutPaymentGateway gateway = paymentGateways.getIfAvailable();
         return gateway != null && gateway.isAvailable();
     }
 
     /** Start payment after the order transaction commits; keep the order available for retry if handoff fails. */
     private String startPayment(Long owner, String code, RedirectAttributes flash) {
         try {
-            CheckoutPaymentGateway gateway = payments.getIfAvailable();
+            CheckoutPaymentGateway gateway = paymentGateways.getIfAvailable();
             if (gateway == null || !gateway.isAvailable()) {
                 throw new IllegalStateException("Payment unavailable");
             }
@@ -322,12 +331,11 @@ public class CheckoutController {
     /** Route business errors while protecting order ownership, handling expired sessions, and requiring a new review after changes. */
     @ExceptionHandler(AppException.class)
     public Object businessError(
-        AppException error,
-        HttpServletRequest request,
-        HttpServletResponse response,
-        Authentication auth,
-        RedirectAttributes flash
-    ) {
+            AppException error,
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Authentication auth,
+            RedirectAttributes flash) {
         ErrorCode code = error.getErrorCode();
         if (code == ErrorCode.ORDER_NOT_FOUND) {
             return new ModelAndView("error/404", HttpStatus.NOT_FOUND);
@@ -343,7 +351,7 @@ public class CheckoutController {
             return "redirect:/error/403";
         }
         if (code == ErrorCode.CHECKOUT_CHANGED) {
-            reviews.remove(request.getSession(false), request.getParameter("checkoutToken"));
+            checkoutReviews.remove(request.getSession(false), request.getParameter("checkoutToken"));
         }
         if (
             code == ErrorCode.CART_EMPTY || code == ErrorCode.INSUFFICIENT_STOCK || code == ErrorCode.PRODUCT_NOT_FOUND

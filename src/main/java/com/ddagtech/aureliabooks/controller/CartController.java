@@ -39,14 +39,14 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/cart")
 @RequiredArgsConstructor
 public class CartController {
-    private final CartService carts;
+    private final CartService cartService;
     private final CustomerIdentity identity;
 
     @GetMapping
     public ModelAndView view(Authentication authentication) {
         try {
             Long userId = identity.resolve(authentication);
-            CartView cart = carts.viewCart(userId);
+            CartView cart = cartService.viewCart(userId);
 
             return new ModelAndView("cart/view")
                     .addObject("cart", cart)
@@ -64,9 +64,9 @@ public class CartController {
     }
 
     @PostMapping("/recommendations")
-    public String addRecommendations(Authentication authentication, @RequestParam java.util.List<Long> productIds,
+    public String addRecommendations(Authentication authentication, @RequestParam List<Long> productIds,
             RedirectAttributes flash, HttpServletRequest request) {
-        carts.addRecommendations(identity.resolve(authentication), productIds);
+        cartService.addRecommendations(identity.resolve(authentication), productIds);
         flash.addFlashAttribute("successMessage", "Đã thêm các sản phẩm đã chọn vào giỏ hàng. Bạn có thể tiếp tục mua sắm.");
         return shoppingDestination(request);
     }
@@ -79,7 +79,7 @@ public class CartController {
         if (invalidQuantity(errors, flash)) {
             return shoppingDestination(request);
         }
-        carts.addItem(owner, productId, form);
+        cartService.addItem(owner, productId, form);
         flash.addFlashAttribute("successMessage", "Đã thêm sản phẩm vào giỏ hàng. Bạn có thể tiếp tục mua sắm.");
         return shoppingDestination(request);
     }
@@ -92,14 +92,14 @@ public class CartController {
         if (invalidQuantity(errors, flash)) {
             return "redirect:/cart";
         }
-        carts.updateQuantity(owner, itemId, form);
+        cartService.updateQuantity(owner, itemId, form);
         flash.addFlashAttribute("successMessage", "Đã cập nhật số lượng sản phẩm.");
         return "redirect:/cart";
     }
 
     @PostMapping("/items/{itemId}/remove")
     public String remove(Authentication authentication, @PathVariable Long itemId, RedirectAttributes flash) {
-        carts.removeItem(identity.resolve(authentication), itemId);
+        cartService.removeItem(identity.resolve(authentication), itemId);
         flash.addFlashAttribute("successMessage", "Đã xóa sản phẩm khỏi giỏ hàng.");
         return "redirect:/cart";
     }
@@ -139,8 +139,11 @@ public class CartController {
     }
 
     private String mutationDestination(HttpServletRequest request) {
-        return request.getRequestURI().substring(request.getContextPath().length()).equals("/cart/items") || request.getRequestURI().substring(request.getContextPath().length()).equals("/cart/recommendations")
-                ? shoppingDestination(request) : "redirect:/cart";
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (path.equals("/cart/items") || path.equals("/cart/recommendations")) {
+            return shoppingDestination(request);
+        }
+        return "redirect:/cart";
     }
 
     /** Only catalogue destinations are accepted; never redirect to an arbitrary Referer or external URL. */
@@ -162,7 +165,9 @@ public class CartController {
         if (request.getRequestURI().substring(request.getContextPath().length()).equals("/cart/items")) {
             try {
                 long id = Long.parseLong(request.getParameter("productId"));
-                if (id > 0) return "redirect:/products/" + id;
+                if (id > 0) {
+                    return "redirect:/products/" + id;
+                }
             } catch (NumberFormatException ignored) {
                 // Malformed product identifiers cannot supply a redirect destination.
             }

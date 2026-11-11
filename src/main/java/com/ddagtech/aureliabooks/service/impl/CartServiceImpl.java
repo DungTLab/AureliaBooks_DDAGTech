@@ -33,7 +33,6 @@ public class CartServiceImpl implements CartService {
     private final UserRepository userRepository;
     private final CartMapper cartMapper;
 
-
     /** Adds the chosen products atomically using the existing cart quantity/availability checks. */
     @Override
     @Transactional
@@ -79,7 +78,7 @@ public class CartServiceImpl implements CartService {
         Product product = productRepository.findById(productId).orElseThrow(
                 () -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Sản phẩm không tồn tại"));
 
-        Cart cart = cartRepository.findByUser_Id((userId)).orElse(null);
+        Cart cart = cartRepository.findByUser_Id(userId).orElse(null);
 
         CartItem item = null;
         if (cart != null) {
@@ -130,20 +129,20 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public void updateQuantity(Long userId, Long itemId, CartQuantityRequest request) {
-        int quantity = validatedQuantity((request));
+        int quantity = validatedQuantity(request);
         requireCustomer(userId, true);
 
         CartItem item = findOwnedItem(itemId, userId);
-        if (item.getProduct().getStockQuantity() > 0) {
-            quantity = Math.min(quantity, item.getProduct().getStockQuantity());
+        Product product = item.getProduct();
+        if (product.getStockQuantity() > 0) {
+            quantity = Math.min(quantity, product.getStockQuantity());
         }
-        validateProductAndQuantity(item.getProduct(), quantity);
+        validateProductAndQuantity(product, quantity);
 
         item.setQuantity(quantity);
         cartItemRepository.save(item);
         touchCart(item.getCart());
     }
-
 
     private int validatedQuantity(CartQuantityRequest request) {
         if (request == null
@@ -175,7 +174,9 @@ public class CartServiceImpl implements CartService {
     }
 
     private CartItem findOwnedItem(Long itemId, Long userId) {
-        return cartItemRepository.findByIdAndCart_User_Id(itemId, userId).orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sản phẩm trong giỏ của bạn"));
+        return cartItemRepository.findByIdAndCart_User_Id(itemId, userId)
+                .orElseThrow(() -> new AppException(
+                        ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sản phẩm trong giỏ của bạn"));
     }
 
     private User requireCustomer(Long userId, boolean lock) {

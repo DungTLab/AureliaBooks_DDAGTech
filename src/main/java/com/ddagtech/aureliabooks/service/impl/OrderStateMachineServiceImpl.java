@@ -47,16 +47,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class OrderStateMachineServiceImpl implements OrderStateMachineService {
-    private final OrderRepository orders;
-    private final UserRepository users;
-    private final OrderMapper mapper;
-    private final OrderStatusValidator statuses;
-    private final StockMutationService stock;
-    private final AuditLogService audit;
-    private final ObjectMapper json;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final OrderMapper orderMapper;
+    private final OrderStatusValidator statusValidator;
+    private final StockMutationService stockService;
+    private final AuditLogService auditLogService;
+    private final ObjectMapper objectMapper;
     private final Validator validator;
     private final EntityManager entityManager;
-    private final OrderAuditRepository auditEntries;
+    private final OrderAuditRepository orderAuditRepository;
 
     @Override
     public Page<StaffOrderQueueView> getOrderQueue(OrderQueueFilter filter, Pageable pageable, Long staffId) {
@@ -80,10 +80,22 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
             pageSize = 20;
         }
         var paging = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "createdAt", "id"));
-        return orders.findAll(OrderQueueSpecification.matching(filter), paging).map(o -> new StaffOrderQueueView(
-                o.getId(), o.getOrderCode(), o.getShippingRecipientName(), o.getCreatedAt(), o.getOrderStatus(),
-                o.getPaymentMethod(), o.getPaymentStatus(), o.getFinalTotalAmount(),
-                o.getUser().getFullName(), o.getUser().getEmail()));
+        return orderRepository.findAll(OrderQueueSpecification.matching(filter), paging)
+                .map(this::toQueueView);
+    }
+
+    private StaffOrderQueueView toQueueView(Order order) {
+        return new StaffOrderQueueView(
+                order.getId(),
+                order.getOrderCode(),
+                order.getShippingRecipientName(),
+                order.getCreatedAt(),
+                order.getOrderStatus(),
+                order.getPaymentMethod(),
+                order.getPaymentStatus(),
+                order.getFinalTotalAmount(),
+                order.getUser().getFullName(),
+                order.getUser().getEmail());
     }
 
     @Override
@@ -92,12 +104,12 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         if (orderId == null) {
             throw new AppException(ErrorCode.ORDER_NOT_FOUND);
         }
-        Order order = orders.findById(orderId).orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
         ensureOperational(order);
-        List<Order.OrderStatus> targets = statuses.allowedTargets(order.getOrderStatus()).stream()
-                .filter(target -> target != Order.OrderStatus.CANCELLED || !unverifiedPayment(order))
+        List<Order.OrderStatus> targets = statusValidator.allowedTargets(order.getOrderStatus()).stream()
+                .filter(target -> target != Order.OrderStatus.CANCELLED || !hasUnpaidOnlinePayment(order))
                 .filter(target -> !isManager(actor) || target == Order.OrderStatus.CANCELLED)
-                .filter(target -> target == Order.OrderStatus.CANCELLED || processingPaymentValid(order))
+                .filter(target -> target == Order.OrderStatus.CANCELLED || hasValidPaymentForFulfillment(order))
                 .filter(target -> order.getStockDeductedAt() != null && order.getStockRestoredAt() == null)
                 .filter(target -> target != Order.OrderStatus.CANCELLED
                         || (order.getShippedAt() == null && order.getDeliveredAt() == null
@@ -105,12 +117,22 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         boolean canConfirmReturn = !isManager(actor)
                 && order.getOrderStatus() == Order.OrderStatus.DELIVERED
                 && order.getStockDeductedAt() != null && order.getStockRestoredAt() == null;
-        boolean refundBasis = refundBasis(order);
-        return new PackagingChecklistDTO(order.getId(), mapper.toConfirmation(order),
-                order.getTrackingNumber(), order.getCancelReason(), mapper.toTimeline(order), targets,
-                order.getUser().getFullName(), order.getUser().getEmail(), history(order),
-                !isManager(actor) && refundBasis && !hasRefund(orderId), refundBasis,
-                canConfirmReturn, order.getStockRestoredAt(), order.getStockRestoreReason());
+        boolean refundBasis = hasRefundablePayment(order);
+        return new PackagingChecklistDTO(
+                order.getId(),
+                orderMapper.toConfirmation(order),
+                order.getTrackingNumber(),
+                order.getCancelReason(),
+                orderMapper.toTimeline(order),
+                targets,
+                order.getUser().getFullName(),
+                order.getUser().getEmail(),
+                loadActivityHistory(order),
+                !isManager(actor) && refundBasis && !hasRefund(orderId),
+                refundBasis,
+                canConfirmReturn,
+                order.getStockRestoredAt(),
+                order.getStockRestoreReason());
     }
 
     @Override
@@ -123,105 +145,56 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         if (orderId == null) {
             throw new AppException(ErrorCode.ORDER_NOT_FOUND);
         }
-        Order order = orders.findByIdWithLock(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        // A locking query may return an already cached entity. Refresh under the same lock before validation.
-        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        Order order = loadLockedOrder(orderId);
         ensureOperational(order);
         var previous = order.getOrderStatus();
         var target = request.targetStatus();
         if (isManager(actor) && target != Order.OrderStatus.CANCELLED) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
-        statuses.validateTransition(previous, target);
-        if (order.getStockRestoredAt() != null)
+        statusValidator.validateTransition(previous, target);
+        if (order.getStockRestoredAt() != null) {
             throw new AppException(ErrorCode.INVALID_ORDER_STATE_TRANSITION, "Đơn hàng đã được hoàn tồn kho, không thể chuyển trạng thái tiếp tục xử lý.");
+        }
         if (order.getStockDeductedAt() == null) {
             throw new AppException(ErrorCode.ORDER_STOCK_NOT_DEDUCTED);
         }
         var previousPayment = order.getPaymentStatus();
         if (target == Order.OrderStatus.CANCELLED) {
-            if (request.reason() == null || request.reason().isBlank()) {
-                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Nhân viên phải nhập lý do hủy đơn.");
-            }
-            if (unverifiedPayment(order)) {
-                throw new AppException(ErrorCode.ORDER_PAYMENT_OUTCOME_UNVERIFIED);
-            }
-            if (order.getShippedAt() != null || order.getDeliveredAt() != null || order.getStockRestoredAt() != null) {
-                throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_CANCEL);
-            }
-            if (order.getPaymentStatus() == Order.PaymentStatus.REFUNDED) {
-                throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_CANCEL);
-            }
-            order.setCancelReason(request.reason().strip());
-            // The order lock is held until commit; the stock engine joins this transaction.
-            stock.restoreCancelledOrder(orderId, staffId);
+            cancelOrder(order, request, staffId);
         } else {
-            if (!processingPaymentValid(order)) {
-                throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_PAYMENT, "Trạng thái thanh toán không phù hợp: COD phải chưa thanh toán, VNPay phải đã thanh toán.");
-            }
-            if (target == Order.OrderStatus.DELIVERED && order.getPaymentMethod() == Order.PaymentMethod.COD
-                    && !Boolean.TRUE.equals(request.codCollected())) {
-                throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Chưa xác nhận đã thu tiền COD. Đơn hàng chưa được cập nhật.");
-            }
-            LocalDateTime now = LocalDateTime.now();
-            order.setOrderStatus(target);
-            switch (target) {
-                case CONFIRMED -> order.setConfirmedAt(now);
-                case SHIPPING -> {
-                    order.setShippedAt(now);
-                    if (request.trackingNumber() != null && !request.trackingNumber().isBlank()) {
-                        order.setTrackingNumber(request.trackingNumber().strip());
-                    }
-                }
-                case DELIVERED -> {
-                    order.setDeliveredAt(now);
-                    if (order.getPaymentMethod() == Order.PaymentMethod.COD) {
-                        order.setPaymentStatus(Order.PaymentStatus.PAID);
-                    }
-                }
-                default -> throw new IllegalStateException("Unreachable staff transition");
-            }
+            advanceFulfillment(order, request);
         }
-        orders.flush();
-        var details = new LinkedHashMap<String, Object>();
-        details.put("orderCode", order.getOrderCode());
-        details.put("from", previous.name());
-        details.put("to", target.name());
-        if (target == Order.OrderStatus.CANCELLED) {
-            details.put("reason", order.getCancelReason());
-        } else {
-            details.put("reason", null);
-        }
-        details.put("trackingNumber", order.getTrackingNumber());
-        details.put("paymentFrom", previousPayment.name());
-        details.put("paymentTo", order.getPaymentStatus().name());
-        details.put("codCollected", Boolean.TRUE.equals(request.codCollected()) && target == Order.OrderStatus.DELIVERED);
-        record(staffId, "ORDER_STATUS_CHANGED", orderId, details);
+        orderRepository.flush();
+        recordStatusChange(order, request, staffId, previous, previousPayment);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void confirmReturnRestock(Long orderId, ReturnConfirmationRequest request, Long staffId) {
         User actor = requireStaff(staffId);
-        if (isManager(actor)) throw new AppException(ErrorCode.UNAUTHORIZED);
-        if (request == null || !validator.validate(request).isEmpty() || !Boolean.TRUE.equals(request.fullReturnVerified()))
+        if (isManager(actor)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        if (request == null || !validator.validate(request).isEmpty() || !Boolean.TRUE.equals(request.fullReturnVerified())) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Bắt buộc kiểm đếm nhận lại đầy đủ 100% số lượng mọi dòng sản phẩm và nhập lý do hoàn.");
-        if (orderId == null) throw new AppException(ErrorCode.ORDER_NOT_FOUND);
-        Order order = orders.findByIdWithLock(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        }
+        if (orderId == null) {
+            throw new AppException(ErrorCode.ORDER_NOT_FOUND);
+        }
+        Order order = loadLockedOrder(orderId);
         ensureOperational(order);
 
         if (order.getOrderStatus() != Order.OrderStatus.DELIVERED) {
             throw new AppException(ErrorCode.INVALID_ORDER_STATE_TRANSITION, "Chỉ có thể xác nhận nhận hàng hoàn khi đơn đã giao thành công (DELIVERED).");
         }
 
-        if (order.getStockRestoredAt() != null)
+        if (order.getStockRestoredAt() != null) {
             throw new AppException(ErrorCode.ORDER_STOCK_ALREADY_RESTORED);
+        }
 
-        // Call stock engine to restore quantities exactly once, stamp stock_restored_at, stock_restore_reason = RETURNED, and record ORDER_RETURN_CONFIRMED
-        stock.restoreReturnedOrder(orderId, staffId);
+        // Restore once before marking RETURNED; a later failure rolls back both changes.
+        stockService.restoreReturnedOrder(orderId, staffId);
         order.setOrderStatus(Order.OrderStatus.RETURNED);
 
         var details = new LinkedHashMap<String, Object>();
@@ -231,7 +204,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         details.put("returnReason", request.returnReason().strip());
         details.put("from", Order.OrderStatus.DELIVERED.name());
         details.put("to", Order.OrderStatus.RETURNED.name());
-        details.put("inspectionNote", blank(request.inspectionNote()) ? null : request.inspectionNote().strip());
+        details.put("inspectionNote", isBlank(request.inspectionNote()) ? null : request.inspectionNote().strip());
         record(staffId, "ORDER_RETURN_INSPECTION_CONFIRMED", orderId, details);
     }
 
@@ -248,10 +221,9 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         if (orderId == null) {
             throw new AppException(ErrorCode.ORDER_NOT_FOUND);
         }
-        Order order = orders.findByIdWithLock(orderId).orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
-        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        Order order = loadLockedOrder(orderId);
         ensureOperational(order);
-        if (!refundBasis(order) || hasRefund(orderId)) {
+        if (!hasRefundablePayment(order) || hasRefund(orderId)) {
             throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_REFUND);
         }
         if (request.amount().compareTo(order.getFinalTotalAmount()) != 0) {
@@ -263,7 +235,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         details.put("amount", request.amount());
         details.put("method", request.method().strip());
         details.put("completedDate", request.completedDate().toString());
-        if (blank(request.supportingInfo())) {
+        if (isBlank(request.supportingInfo())) {
             details.put("supportingInfo", null);
         } else {
             details.put("supportingInfo", request.supportingInfo().strip());
@@ -275,19 +247,89 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         } else {
             details.put("basis", "RECEIVED_RETURN");
         }
-        orders.flush();
+        orderRepository.flush();
         record(staffId, "ORDER_REFUND_CONFIRMED", orderId, details);
+    }
+
+    /** Caller holds the order lock; the stock engine joins the current transaction. */
+    private void cancelOrder(Order order, OrderTransitionRequest request, Long staffId) {
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Nhân viên phải nhập lý do hủy đơn.");
+        }
+        if (hasUnpaidOnlinePayment(order)) {
+            throw new AppException(ErrorCode.ORDER_PAYMENT_OUTCOME_UNVERIFIED);
+        }
+        if (order.getShippedAt() != null || order.getDeliveredAt() != null || order.getStockRestoredAt() != null) {
+            throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_CANCEL);
+        }
+        if (order.getPaymentStatus() == Order.PaymentStatus.REFUNDED) {
+            throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_CANCEL);
+        }
+        order.setCancelReason(request.reason().strip());
+        stockService.restoreCancelledOrder(order.getId(), staffId);
+    }
+
+    private void advanceFulfillment(Order order, OrderTransitionRequest request) {
+        Order.OrderStatus target = request.targetStatus();
+        if (!hasValidPaymentForFulfillment(order)) {
+            throw new AppException(ErrorCode.ORDER_NOT_ELIGIBLE_FOR_PAYMENT, "Trạng thái thanh toán không phù hợp: COD phải chưa thanh toán, VNPay phải đã thanh toán.");
+        }
+        if (target == Order.OrderStatus.DELIVERED && order.getPaymentMethod() == Order.PaymentMethod.COD
+                && !Boolean.TRUE.equals(request.codCollected())) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Chưa xác nhận đã thu tiền COD. Đơn hàng chưa được cập nhật.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        order.setOrderStatus(target);
+        switch (target) {
+            case CONFIRMED -> order.setConfirmedAt(now);
+            case SHIPPING -> {
+                order.setShippedAt(now);
+                if (request.trackingNumber() != null && !request.trackingNumber().isBlank()) {
+                    order.setTrackingNumber(request.trackingNumber().strip());
+                }
+            }
+            case DELIVERED -> {
+                order.setDeliveredAt(now);
+                if (order.getPaymentMethod() == Order.PaymentMethod.COD) {
+                    order.setPaymentStatus(Order.PaymentStatus.PAID);
+                }
+            }
+            default -> throw new IllegalStateException("Unreachable staff transition");
+        }
+    }
+
+    private void recordStatusChange(
+            Order order,
+            OrderTransitionRequest request,
+            Long staffId,
+            Order.OrderStatus previous,
+            Order.PaymentStatus previousPayment) {
+        Order.OrderStatus target = request.targetStatus();
+        var details = new LinkedHashMap<String, Object>();
+        details.put("orderCode", order.getOrderCode());
+        details.put("from", previous.name());
+        details.put("to", target.name());
+        if (target == Order.OrderStatus.CANCELLED) {
+            details.put("reason", order.getCancelReason());
+        } else {
+            details.put("reason", null);
+        }
+        details.put("trackingNumber", order.getTrackingNumber());
+        details.put("paymentFrom", previousPayment.name());
+        details.put("paymentTo", order.getPaymentStatus().name());
+        details.put("codCollected", Boolean.TRUE.equals(request.codCollected()) && target == Order.OrderStatus.DELIVERED);
+        record(staffId, "ORDER_STATUS_CHANGED", order.getId(), details);
     }
 
     private void record(Long staffId, String action, Long orderId, Map<String, Object> details) {
         try {
-            audit.recordRequired(staffId, action, "orders", orderId, json.writeValueAsString(details), null);
+            auditLogService.recordRequired(staffId, action, "orders", orderId, objectMapper.writeValueAsString(details), null);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("Cannot serialize order audit", exception);
         }
     }
 
-    private boolean refundBasis(Order order) {
+    private boolean hasRefundablePayment(Order order) {
         return order.getPaymentStatus() == Order.PaymentStatus.PAID
                 && order.getFinalTotalAmount() != null && order.getFinalTotalAmount().signum() > 0
                 && (order.getOrderStatus() == Order.OrderStatus.CANCELLED
@@ -297,20 +339,20 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
     }
 
     private boolean hasRefund(Long id) {
-        return !auditEntries.findByTargetTableAndTargetIdAndActionInOrderByCreatedAtAscIdAsc(
+        return !orderAuditRepository.findByTargetTableAndTargetIdAndActionInOrderByCreatedAtAscIdAsc(
                 "orders", id, List.of("ORDER_REFUND_CONFIRMED")).isEmpty();
     }
 
-    private List<OrderActivityView> history(Order order) {
+    private List<OrderActivityView> loadActivityHistory(Order order) {
         var result = new ArrayList<OrderActivityView>();
-        for (AuditLog entry : auditEntries.findByTargetTableAndTargetIdOrderByCreatedAtAscIdAsc("orders", order.getId())) {
+        for (AuditLog entry : orderAuditRepository.findByTargetTableAndTargetIdOrderByCreatedAtAscIdAsc("orders", order.getId())) {
             String description = entry.getAction();
             try {
                 String detailsJson = entry.getDetailsJson();
                 if (detailsJson == null) {
                     detailsJson = "{}";
                 }
-                var data = json.readTree(detailsJson);
+                var data = objectMapper.readTree(detailsJson);
                 if (entry.getAction().equals("ORDER_REFUND_CONFIRMED")) {
                     description = "Hoàn tiền: " + data.path("amount").asText() + " đ; " + data.path("method").asText()
                             + "; ngày " + data.path("completedDate").asText()
@@ -351,7 +393,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         return List.copyOf(result);
     }
 
-    private boolean processingPaymentValid(Order order) {
+    private boolean hasValidPaymentForFulfillment(Order order) {
         if (order.getPaymentMethod() == Order.PaymentMethod.COD) {
             return order.getPaymentStatus() == Order.PaymentStatus.UNPAID;
         }
@@ -364,10 +406,23 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         }
     }
 
-    private boolean blank(String value) { return value == null || value.isBlank(); }
-    private boolean isManager(User actor) { return "ROLE_MANAGER".equals(actor.getRole().getRoleName()); }
+    /** Refresh cached state under the write lock before checking mutation preconditions. */
+    private Order loadLockedOrder(Long orderId) {
+        Order order = orderRepository.findByIdWithLock(orderId)
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
+        entityManager.refresh(order, LockModeType.PESSIMISTIC_WRITE);
+        return order;
+    }
 
-    private boolean unverifiedPayment(Order order) {
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private boolean isManager(User actor) {
+        return "ROLE_MANAGER".equals(actor.getRole().getRoleName());
+    }
+
+    private boolean hasUnpaidOnlinePayment(Order order) {
         return order.getPaymentMethod() == Order.PaymentMethod.VNPAY && order.getPaymentStatus() == Order.PaymentStatus.UNPAID;
     }
 
@@ -375,7 +430,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         if (id == null) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-        User staff = users.findById(id).orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        User staff = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
         if (!Boolean.TRUE.equals(staff.getIsActive())) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
