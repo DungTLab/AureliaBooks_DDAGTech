@@ -3,13 +3,14 @@ package com.ddagtech.aureliabooks.controller;
 import com.ddagtech.aureliabooks.dto.CheckoutConfirmation;
 import com.ddagtech.aureliabooks.dto.response.CheckoutView;
 import com.ddagtech.aureliabooks.entity.Order;
-import jakarta.servlet.http.HttpSession;
-import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+
+import jakarta.servlet.http.HttpSession;
+import org.springframework.stereotype.Component;
 
 /** Keep up to eight reviews per session; separate tokens prevent browser tabs from overwriting each other. */
 @Component
