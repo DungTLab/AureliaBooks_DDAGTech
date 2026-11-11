@@ -36,14 +36,15 @@
 
     <!-- Filter & Statistics Toolbar -->
     <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
-        <form method="get" th:action="@{/admin/users}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <form method="get" th:action="@{/admin/users}"
+              class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div class="flex flex-wrap items-center gap-3">
                 <!-- Search Keyword -->
                 <div class="relative min-w-[220px]">
                     <input type="text" name="keyword" th:value="${keyword}"
                            aria-label="Tìm kiếm theo tên, email hoặc số điện thoại"
                            placeholder="Tìm tên, email, SĐT..."
-                           class="w-full pl-9 pr-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                           class="w-full pl-9 pr-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
                     <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs"></i>
                 </div>
 
@@ -53,10 +54,16 @@
                         onchange="this.form.submit()"
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
                     <option value="" th:selected="${selectedRole == null or selectedRole == ''}">Tất cả vai trò</option>
-                    <option value="ROLE_ADMIN" th:selected="${selectedRole == 'ROLE_ADMIN'}">Quản trị viên (ADMIN)</option>
-                    <option value="ROLE_MANAGER" th:selected="${selectedRole == 'ROLE_MANAGER'}">Quản lý (MANAGER)</option>
-                    <option value="ROLE_SALE_STAFF" th:selected="${selectedRole == 'ROLE_SALE_STAFF'}">Nhân viên (SALE_STAFF)</option>
-                    <option value="ROLE_CUSTOMER" th:selected="${selectedRole == 'ROLE_CUSTOMER'}">Khách hàng (CUSTOMER)</option>
+                    <option value="ROLE_ADMIN" th:selected="${selectedRole == 'ROLE_ADMIN'}">Quản trị viên (ADMIN)
+                    </option>
+                    <option value="ROLE_MANAGER" th:selected="${selectedRole == 'ROLE_MANAGER'}">Quản lý (MANAGER)
+                    </option>
+                    <option value="ROLE_SALE_STAFF" th:selected="${selectedRole == 'ROLE_SALE_STAFF'}">Nhân viên
+                        (SALE_STAFF)
+                    </option>
+                    <option value="ROLE_CUSTOMER" th:selected="${selectedRole == 'ROLE_CUSTOMER'}">Khách hàng
+                        (CUSTOMER)
+                    </option>
                 </select>
 
                 <!-- Status Filter -->
@@ -69,7 +76,8 @@
                     <option value="false" th:selected="${selectedActive == false}">Đã khóa</option>
                 </select>
 
-                <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black text-white text-sm font-semibold rounded-xl hover:bg-carbon_black-800 transition shadow-sm">
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black text-white text-sm font-semibold rounded-xl hover:bg-carbon_black-800 transition shadow-sm">
                     <i class="bi bi-funnel-fill text-xs"></i>
                     <span>Lọc</span>
                 </button>
@@ -95,196 +103,201 @@
         <div class="w-full overflow-x-auto">
             <table class="w-full divide-y divide-dust_grey text-left text-sm">
                 <thead class="bg-alabaster_grey/60 text-carbon_black-600 font-semibold uppercase text-xs tracking-wider border-b border-dust_grey">
-                    <tr>
-                        <th class="px-2.5 py-3.5 text-center w-12 font-bold">ID</th>
-                        <th class="px-3 py-3.5 text-left font-bold">Nhân sự</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28">Số điện thoại</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-32">Vai trò hiện tại</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-32">Đổi vai trò</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28">Trạng thái</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28 hidden lg:table-cell">Ngày tạo</th>
-                        <th class="px-3 py-3.5 text-center whitespace-nowrap font-bold w-44">Hành động</th>
-                    </tr>
+                <tr>
+                    <th class="px-2.5 py-3.5 text-center w-12 font-bold">ID</th>
+                    <th class="px-3 py-3.5 text-left font-bold">Nhân sự</th>
+                    <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28">Số điện thoại</th>
+                    <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-32">Vai trò hiện tại</th>
+                    <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-32">Đổi vai trò</th>
+                    <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28">Trạng thái</th>
+                    <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28 hidden lg:table-cell">Ngày
+                        tạo
+                    </th>
+                    <th class="px-3 py-3.5 text-center whitespace-nowrap font-bold w-44">Hành động</th>
+                </tr>
                 </thead>
                 <tbody class="divide-y divide-dust_grey/70 bg-white">
-                    <tr th:each="user : ${usersPage?.content}"
-                        class="hover:bg-alabaster_grey/30 transition-colors"
-                        th:classappend="${#authentication.principal.id == user.id} ? 'bg-amber-50/40' : ''">
+                <tr th:each="user : ${usersPage?.content}"
+                    class="hover:bg-alabaster_grey/30 transition-colors"
+                    th:classappend="${#authentication.principal.id == user.id} ? 'bg-amber-50/40' : ''">
 
-                        <!-- ID -->
-                        <td class="px-2.5 py-3 text-center font-mono text-xs font-semibold whitespace-nowrap">
-                            <span class="text-carbon_black-500" th:text="'#' + ${user.id}">#1</span>
-                        </td>
+                    <!-- ID -->
+                    <td class="px-2.5 py-3 text-center font-mono text-xs font-semibold whitespace-nowrap">
+                        <span class="text-carbon_black-500" th:text="'#' + ${user.id}">#1</span>
+                    </td>
 
-                        <!-- Name & Email -->
-                        <td class="px-3 py-3">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs bg-blazing_flame/10 text-blazing_flame">
-                                    <span th:text="${user.fullName != null and !#strings.isEmpty(user.fullName) ? #strings.substring(user.fullName, 0, 1) : 'U'}">A</span>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <div class="font-semibold text-carbon_black text-sm flex items-center gap-1.5 truncate">
-                                        <span class="truncate" th:text="${user.fullName}" th:title="${user.fullName}">Nguyễn Văn A</span>
-                                        <!-- Current Authenticated Admin Badge -->
-                                        <span th:if="${#authentication.principal.id == user.id}"
-                                              class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                    <!-- Name & Email -->
+                    <td class="px-3 py-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs bg-blazing_flame/10 text-blazing_flame">
+                                <span th:text="${user.fullName != null and !#strings.isEmpty(user.fullName) ? #strings.substring(user.fullName, 0, 1) : 'U'}">A</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-semibold text-carbon_black text-sm flex items-center gap-1.5 truncate">
+                                    <span class="truncate" th:text="${user.fullName}" th:title="${user.fullName}">Nguyễn Văn A</span>
+                                    <!-- Current Authenticated Admin Badge -->
+                                    <span th:if="${#authentication.principal.id == user.id}"
+                                          class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
                                             (Bạn)
                                         </span>
-                                    </div>
-                                    <div class="text-xs text-carbon_black-500 truncate" th:text="${user.email}" th:title="${user.email}">admin@aureliabook.vn</div>
+                                </div>
+                                <div class="text-xs text-carbon_black-500 truncate" th:text="${user.email}"
+                                     th:title="${user.email}">admin@aureliabook.vn
                                 </div>
                             </div>
-                        </td>
+                        </div>
+                    </td>
 
-                        <!-- Phone -->
-                        <td class="px-2.5 py-3 text-center font-mono text-xs text-carbon_black-700 whitespace-nowrap"
-                            th:text="${user.phone}">0912345678</td>
+                    <!-- Phone -->
+                    <td class="px-2.5 py-3 text-center font-mono text-xs text-carbon_black-700 whitespace-nowrap"
+                        th:text="${user.phone}">0912345678
+                    </td>
 
-                        <!-- Role Badge -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap">
+                    <!-- Role Badge -->
+                    <td class="px-2.5 py-3 text-center whitespace-nowrap">
                             <span th:if="${user.roleName == 'ROLE_ADMIN'}"
                                   class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
                                 <i class="bi bi-shield-shaded text-[11px]"></i>
                                 Quản trị viên
                             </span>
-                            <span th:if="${user.roleName == 'ROLE_MANAGER'}"
-                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                        <span th:if="${user.roleName == 'ROLE_MANAGER'}"
+                              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
                                 <i class="bi bi-briefcase-fill text-[11px]"></i>
                                 Quản lý
                             </span>
-                            <span th:if="${user.roleName == 'ROLE_SALE_STAFF'}"
-                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span th:if="${user.roleName == 'ROLE_SALE_STAFF'}"
+                              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                 <i class="bi bi-person-badge-fill text-[11px]"></i>
                                 Nhân viên
                             </span>
-                            <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
-                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                        <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
+                              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
                                 <i class="bi bi-person-fill text-[11px]"></i>
                                 Khách hàng
                             </span>
-                        </td>
+                    </td>
 
-                        <!-- Quick Role Change (Centered, No reset-password button here) -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap">
-                            <!-- Customer -> Non-changeable inline -->
-                            <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
-                                  class="text-xs text-carbon_black-400 italic">
+                    <!-- Quick Role Change (Centered, No reset-password button here) -->
+                    <td class="px-2.5 py-3 text-center whitespace-nowrap">
+                        <!-- Customer -> Non-changeable inline -->
+                        <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
+                              class="text-xs text-carbon_black-400 italic">
                                 Khách hàng
                             </span>
 
-                            <!-- Authenticated Admin cannot demote self -->
-                            <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
-                                  class="text-xs text-carbon_black-400 italic"
-                                  title="Không thể tự thu hồi quyền Admin của chính mình">
+                        <!-- Authenticated Admin cannot demote self -->
+                        <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
+                              class="text-xs text-carbon_black-400 italic"
+                              title="Không thể tự thu hồi quyền Admin của chính mình">
                                 Không thể đổi
                             </span>
 
-                            <!-- Other Internal Staff -> Can change role if not current authenticated admin -->
-                            <form th:if="${user.roleName != 'ROLE_CUSTOMER' and (#authentication.principal.id != user.id or user.roleName != 'ROLE_ADMIN')}"
-                                  method="post"
-                                  th:action="@{/admin/users/{id}/change-role(id=${user.id})}"
-                                  class="inline-flex justify-center">
-                                <select name="roleId"
-                                        aria-label="Thay đổi vai trò nhân sự"
-                                        onchange="if(confirm('Bạn có chắc chắn muốn thay đổi vai trò tài khoản này? Người dùng sẽ phải đăng nhập lại.')) this.form.submit(); else this.value=this.getAttribute('data-original');"
-                                        th:data-original="${user.roleId}"
-                                        class="text-xs font-medium border border-dust_grey rounded-lg px-2 py-1 bg-white text-carbon_black focus:ring-1 focus:ring-blazing_flame focus:outline-none transition cursor-pointer">
-                                    <option th:each="r : ${roles}"
-                                            th:value="${r.id}"
-                                            th:text="${r.roleName == 'ROLE_ADMIN' ? 'ADMIN' : (r.roleName == 'ROLE_MANAGER' ? 'MANAGER' : 'SALE_STAFF')}"
-                                            th:selected="${r.roleName == user.roleName}">
-                                    </option>
-                                </select>
-                            </form>
-                        </td>
+                        <!-- Other Internal Staff -> Can change role if not current authenticated admin -->
+                        <form th:if="${user.roleName != 'ROLE_CUSTOMER' and (#authentication.principal.id != user.id or user.roleName != 'ROLE_ADMIN')}"
+                              method="post"
+                              th:action="@{/admin/users/{id}/change-role(id=${user.id})}"
+                              class="inline-flex justify-center">
+                            <select name="roleId"
+                                    aria-label="Thay đổi vai trò nhân sự"
+                                    onchange="if(confirm('Bạn có chắc chắn muốn thay đổi vai trò tài khoản này? Người dùng sẽ phải đăng nhập lại.')) this.form.submit(); else this.value=this.getAttribute('data-original');"
+                                    th:data-original="${user.roleId}"
+                                    class="text-xs font-medium border border-dust_grey rounded-lg px-2 py-1 bg-white text-carbon_black focus:ring-1 focus:ring-blazing_flame focus:outline-none transition cursor-pointer">
+                                <option th:each="r : ${roles}"
+                                        th:value="${r.id}"
+                                        th:text="${r.roleName == 'ROLE_ADMIN' ? 'ADMIN' : (r.roleName == 'ROLE_MANAGER' ? 'MANAGER' : 'SALE_STAFF')}"
+                                        th:selected="${r.roleName == user.roleName}">
+                                </option>
+                            </select>
+                        </form>
+                    </td>
 
-                        <!-- Active Status Badge -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap">
+                    <!-- Active Status Badge -->
+                    <td class="px-2.5 py-3 text-center whitespace-nowrap">
                             <span th:if="${user.active}"
                                   class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
                                 <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                                 Hoạt động
                             </span>
-                            <span th:unless="${user.active}"
-                                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                        <span th:unless="${user.active}"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                 Đã khóa
                             </span>
-                        </td>
+                    </td>
 
-                        <!-- Created At (Hidden on smaller viewports to prevent overflow) -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap text-xs text-carbon_black-500 hidden lg:table-cell"
-                            th:text="${user.createdAt != null ? #temporals.format(user.createdAt, 'dd/MM/yyyy') : '—'}">
-                            01/01/2026
-                        </td>
+                    <!-- Created At (Hidden on smaller viewports to prevent overflow) -->
+                    <td class="px-2.5 py-3 text-center whitespace-nowrap text-xs text-carbon_black-500 hidden lg:table-cell"
+                        th:text="${user.createdAt != null ? #temporals.format(user.createdAt, 'dd/MM/yyyy') : '—'}">
+                        01/01/2026
+                    </td>
 
-                        <!-- Actions (Self-Lock Protected per BR-08-01, Centered Buttons) -->
-                        <td class="px-3 py-3 whitespace-nowrap text-center">
-                            <div class="inline-flex items-center justify-center gap-1.5">
-                                <!-- Case 1: Self Account -> Disallow Self-Lock -->
-                                <div th:if="${#authentication.principal.id == user.id}">
-                                    <button type="button"
-                                            disabled
-                                            title="Bạn không thể tự khóa tài khoản của chính mình (BR-08-01)"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-carbon_black-400 bg-dust_grey/30 border border-dust_grey cursor-not-allowed opacity-60">
-                                        <i class="bi bi-lock-fill"></i>
-                                        <span>Tự khóa</span>
-                                    </button>
-                                </div>
-
-                                <!-- Case 2: Other Staff / Customer -> Allow Lock / Unlock Toggle -->
-                                <form th:if="${#authentication.principal.id != user.id}"
-                                      method="post"
-                                      th:action="@{/admin/users/{id}/toggle-status(id=${user.id})}"
-                                      class="inline-block">
-                                    <input type="hidden" name="active" th:value="${!user.active}" />
-                                    
-                                    <button th:if="${user.active}"
-                                            type="submit"
-                                            onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này? Mọi phiên đăng nhập hiện tại của người dùng sẽ bị thu hồi ngay lập tức.');"
-                                            title="Khóa tài khoản này và thu hồi các phiên đăng nhập"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition">
-                                        <i class="bi bi-lock-fill"></i>
-                                        <span>Khóa</span>
-                                    </button>
-
-                                    <button th:unless="${user.active}"
-                                            type="submit"
-                                            onclick="return confirm('Bạn có chắc chắn muốn mở khóa cho tài khoản này?');"
-                                            title="Mở khóa tài khoản"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
-                                        <i class="bi bi-unlock-fill"></i>
-                                        <span>Mở khóa</span>
-                                    </button>
-                                </form>
-
-                                <!-- Case 3: Emergency Password Reset for Internal Staff only (never CUSTOMER and never self) -->
-                                <form th:if="${user.passwordResetAllowed and #authentication.principal.id != user.id}"
-                                      method="post"
-                                      th:action="@{/admin/users/{id}/reset-password(id=${user.id})}"
-                                      class="inline-block">
-                                    <button type="submit"
-                                            onclick="return confirm('Bạn có chắc chắn muốn cấp lại mật khẩu cho tài khoản nhân sự này? Hệ thống sẽ tạo mật khẩu ngẫu nhiên và gửi thẳng về email của nhân viên, đồng thời thu hồi mọi phiên đăng nhập cũ.');"
-                                            title="Cấp lại mật khẩu tạm thời ngẫu nhiên qua email"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition">
-                                        <i class="bi bi-key-fill"></i>
-                                        <span>Cấp lại MK</span>
-                                    </button>
-                                </form>
+                    <!-- Actions (Self-Lock Protected per BR-08-01, Centered Buttons) -->
+                    <td class="px-3 py-3 whitespace-nowrap text-center">
+                        <div class="inline-flex items-center justify-center gap-1.5">
+                            <!-- Case 1: Self Account -> Disallow Self-Lock -->
+                            <div th:if="${#authentication.principal.id == user.id}">
+                                <button type="button"
+                                        disabled
+                                        title="Bạn không thể tự khóa tài khoản của chính mình (BR-08-01)"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-carbon_black-400 bg-dust_grey/30 border border-dust_grey cursor-not-allowed opacity-60">
+                                    <i class="bi bi-lock-fill"></i>
+                                    <span>Tự khóa</span>
+                                </button>
                             </div>
-                        </td>
-                    </tr>
 
-                    <!-- Empty State -->
-                    <tr th:if="${usersPage == null or usersPage.content.isEmpty()}">
-                        <td colspan="8" class="px-4 py-12 text-center text-carbon_black-500">
-                            <div class="flex flex-col items-center justify-center gap-2">
-                                <i class="bi bi-people text-4xl text-dust_grey"></i>
-                                <span class="font-semibold text-base">Không tìm thấy tài khoản người dùng nào phù hợp.</span>
-                                <span class="text-xs text-carbon_black-400">Hãy thử thay đổi tiêu chí lọc hoặc thêm nhân viên mới.</span>
-                            </div>
-                        </td>
-                    </tr>
+                            <!-- Case 2: Other Staff / Customer -> Allow Lock / Unlock Toggle -->
+                            <form th:if="${#authentication.principal.id != user.id}"
+                                  method="post"
+                                  th:action="@{/admin/users/{id}/toggle-status(id=${user.id})}"
+                                  class="inline-block">
+                                <input type="hidden" name="active" th:value="${!user.active}"/>
+
+                                <button th:if="${user.active}"
+                                        type="submit"
+                                        onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này? Mọi phiên đăng nhập hiện tại của người dùng sẽ bị thu hồi ngay lập tức.');"
+                                        title="Khóa tài khoản này và thu hồi các phiên đăng nhập"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition">
+                                    <i class="bi bi-lock-fill"></i>
+                                    <span>Khóa</span>
+                                </button>
+
+                                <button th:unless="${user.active}"
+                                        type="submit"
+                                        onclick="return confirm('Bạn có chắc chắn muốn mở khóa cho tài khoản này?');"
+                                        title="Mở khóa tài khoản"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
+                                    <i class="bi bi-unlock-fill"></i>
+                                    <span>Mở khóa</span>
+                                </button>
+                            </form>
+
+                            <!-- Case 3: Emergency Password Reset for Internal Staff only (never CUSTOMER and never self) -->
+                            <form th:if="${user.passwordResetAllowed and #authentication.principal.id != user.id}"
+                                  method="post"
+                                  th:action="@{/admin/users/{id}/reset-password(id=${user.id})}"
+                                  class="inline-block">
+                                <button type="submit"
+                                        onclick="return confirm('Bạn có chắc chắn muốn cấp lại mật khẩu cho tài khoản nhân sự này? Hệ thống sẽ tạo mật khẩu ngẫu nhiên và gửi thẳng về email của nhân viên, đồng thời thu hồi mọi phiên đăng nhập cũ.');"
+                                        title="Cấp lại mật khẩu tạm thời ngẫu nhiên qua email"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition">
+                                    <i class="bi bi-key-fill"></i>
+                                    <span>Cấp lại MK</span>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Empty State -->
+                <tr th:if="${usersPage == null or usersPage.content.isEmpty()}">
+                    <td colspan="8" class="px-4 py-12 text-center text-carbon_black-500">
+                        <div class="flex flex-col items-center justify-center gap-2">
+                            <i class="bi bi-people text-4xl text-dust_grey"></i>
+                            <span class="font-semibold text-base">Không tìm thấy tài khoản người dùng nào phù hợp.</span>
+                            <span class="text-xs text-carbon_black-400">Hãy thử thay đổi tiêu chí lọc hoặc thêm nhân viên mới.</span>
+                        </div>
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>
@@ -333,7 +346,8 @@
                     <div class="w-8 h-8 rounded-lg bg-blazing_flame/10 text-blazing_flame flex items-center justify-center font-bold">
                         <i class="bi bi-person-plus-fill"></i>
                     </div>
-                    <h3 id="createStaffModalTitle" class="font-bold text-lg text-carbon_black">Thêm nhân viên nội bộ mới</h3>
+                    <h3 id="createStaffModalTitle" class="font-bold text-lg text-carbon_black">Thêm nhân viên nội bộ
+                        mới</h3>
                 </div>
                 <button type="button"
                         onclick="closeModal('createStaffModal')"
@@ -347,24 +361,26 @@
             <form method="post" th:action="@{/admin/users/create}" th:object="${newUserForm}" class="p-6 space-y-4">
                 <!-- Full Name -->
                 <div>
-                    <label for="fullName" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                    <label for="fullName"
+                           class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
                         Họ và tên <span class="text-blazing_flame">*</span>
                     </label>
                     <input type="text" id="fullName" th:field="*{fullName}"
                            required
                            placeholder="Nguyễn Văn A"
-                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
                 </div>
 
                 <!-- Email -->
                 <div>
-                    <label for="email" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                    <label for="email"
+                           class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
                         Email đăng nhập <span class="text-blazing_flame">*</span>
                     </label>
                     <input type="email" id="email" th:field="*{email}"
                            required
                            placeholder="staff@aureliabook.vn"
-                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
                 </div>
 
                 <!-- Initial Password Notice -->
@@ -372,20 +388,22 @@
                     <i class="bi bi-shield-lock-fill text-blazing_flame mt-0.5 text-base"></i>
                     <div class="text-xs text-carbon_black-700 leading-relaxed">
                         <span class="font-bold block text-carbon_black">Cấp mật khẩu tự động &amp; Bảo mật</span>
-                        Mật khẩu khởi tạo sẽ được hệ thống tự động sinh ngẫu nhiên và gửi trực tiếp tới Email của nhân sự. Quản trị viên không thể can thiệp hay nhìn thấy mật khẩu này.
+                        Mật khẩu khởi tạo sẽ được hệ thống tự động sinh ngẫu nhiên và gửi trực tiếp tới Email của nhân
+                        sự. Quản trị viên không thể can thiệp hay nhìn thấy mật khẩu này.
                     </div>
                 </div>
 
                 <!-- Mobile Phone -->
                 <div>
-                    <label for="phone" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                    <label for="phone"
+                           class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
                         Số điện thoại <span class="text-blazing_flame">*</span>
                     </label>
                     <input type="tel" id="phone" th:field="*{phone}"
                            required
                            pattern="^(0|\+84)[35789][0-9]{8}$"
                            placeholder="0912345678"
-                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
                     <span class="text-[11px] text-carbon_black-500 mt-0.5 block">Định dạng số điện thoại Việt Nam (10 chữ số).</span>
                 </div>
 
@@ -399,7 +417,7 @@
                                class="flex items-center gap-3 p-3 border border-dust_grey rounded-xl hover:bg-alabaster_grey/40 cursor-pointer transition">
                             <input type="radio" th:field="*{roleId}" th:value="${role.id}"
                                    required
-                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4" />
+                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4"/>
                             <span class="block">
                                 <span class="block font-bold text-xs text-carbon_black"
                                       th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị viên (ADMIN)' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý kho & danh mục (MANAGER)' : 'Nhân viên bán hàng (SALE_STAFF)')}">
