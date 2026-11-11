@@ -9,6 +9,9 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+/**
+ * Spring Data JPA repository for {@link Supplier} entities (UC30).
+ */
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
 
     @Query("SELECT s FROM Supplier s WHERE " +

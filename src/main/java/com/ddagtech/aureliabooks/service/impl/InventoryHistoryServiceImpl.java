@@ -4,16 +4,12 @@ import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.InventoryHistoryFilterRequest;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementResponse;
 import com.ddagtech.aureliabooks.dto.response.InventoryMovementSummary;
-import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.dto.response.OrderDetailModalDto;
 import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.entity.OrderItem;
+import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.InventoryMovementRepository;
 import com.ddagtech.aureliabooks.repository.OrderRepository;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import com.ddagtech.aureliabooks.service.InventoryHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,7 +18,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Read-only UC25 service implementation backed by the {@code inventory_movements} SQL view.

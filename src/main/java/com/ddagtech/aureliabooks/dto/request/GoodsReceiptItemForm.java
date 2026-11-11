@@ -6,7 +6,13 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
-/** UC22/23: received_quantity and unit_cost. Owner: Nguyễn Trần Đức Anh. */
+/**
+ * Request form DTO for an individual line item in a goods receipt (UC21, UC22, UC23).
+ *
+ * @param productId persistent identifier of the inbound product
+ * @param receivedQuantity inbound quantity received
+ * @param unitCost purchase unit cost in VND
+ */
 public record GoodsReceiptItemForm(
         @NotNull(message = "Vui lòng chọn sản phẩm.")
         Long productId,

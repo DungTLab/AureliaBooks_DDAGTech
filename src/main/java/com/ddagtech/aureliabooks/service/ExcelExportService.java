@@ -8,6 +8,9 @@ import com.ddagtech.aureliabooks.dto.analytics.StockValuationItemDto;
 import java.io.OutputStream;
 import java.util.List;
 
+/**
+ * Service for streaming executive Excel workbooks (Revenue, Stock Valuation, Period Stock Reports).
+ */
 public interface ExcelExportService {
     void exportRevenueExcel(RevenueAnalyticsReportDto reportDto, OutputStream outputStream);
     void exportStockValuationExcel(List<StockValuationItemDto> stockItems, OutputStream outputStream);
