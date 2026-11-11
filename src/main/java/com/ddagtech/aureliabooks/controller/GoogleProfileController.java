@@ -1,13 +1,15 @@
 package com.ddagtech.aureliabooks.controller;
 
-import com.ddagtech.aureliabooks.security.*;
+import com.ddagtech.aureliabooks.security.CustomerIdentity;
+import com.ddagtech.aureliabooks.security.GoogleAccountAction;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
