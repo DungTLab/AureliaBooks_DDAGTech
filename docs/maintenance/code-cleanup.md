@@ -5,7 +5,7 @@ Nhánh tích hợp `DungLT-Repository-Cleanup`. Đây là đề xuất phân cô
 | Phụ trách | Phạm vi Java và view | Kiểm thử khi bàn giao | Reviewer đề xuất |
 |---|---|---|---|
 | Lê Tiến Dũng | Authentication, Profile, địa chỉ và voucher. Các view `auth/`, `profile/`, `manager/vouchers/`. Cấu hình bảo mật, layout và fragment dùng chung. | Đăng ký, đăng nhập theo cổng, OTP, phân quyền, địa chỉ, áp hai loại voucher. | Giác |
-| Huỳnh Nhật Duy | Catalog, tìm kiếm, chi tiết sản phẩm và master data. Các view `product/`, `admin/products/`, `admin/catalog/`, `admin/categories/`, `admin/master_data/`. | Lọc, tìm kiếm, chi tiết, CRUD danh mục, thêm/sửa và tải ảnh sản phẩm. | Đức Anh |
+| Huỳnh Nhật Duy | Catalog, tìm kiếm, chi tiết sản phẩm và master data. Các view `product/`, `admin/products/`, `admin/catalog/`. | Lọc, tìm kiếm, chi tiết, CRUD danh mục, thêm/sửa và tải ảnh sản phẩm. | Đức Anh |
 | Nguyễn Phú Trọng | Giỏ, checkout, đặt đơn, xử lý đơn và trả hàng. Các view `cart/`, `checkout/`, `orders/` và view xử lý đơn của nhân viên. | Sửa giỏ, COD, checkout, thay đổi giá/tồn, hủy và trả hàng. | Dũng |
 | Giác (`GiacCoBu`) | VNPay, IPN, job đối soát, tài khoản nội bộ và audit. Các view `payment/`, `admin/users/`, audit và phần bảo mật nội bộ chuyên biệt. | Callback, phân quyền Admin, đối soát, xử lý lặp và hoàn tồn. | Trọng |
 | Nguyễn Trần Đức Anh | Báo cáo doanh thu, Excel, tồn kho, chứng từ nhập và nhà cung cấp. Các view `internal/analytics/`, `admin/stock/`, `admin/receipts/`, `admin/suppliers/` và Java tương ứng. | Render báo cáo theo vai trò, mở file Excel, nhập hàng, ghi nhận tồn, cảnh báo và CRUD nhà cung cấp. | Duy |
