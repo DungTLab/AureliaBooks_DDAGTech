@@ -235,6 +235,7 @@ public class SecurityConfig {
                     )
                     .permitAll()
 
+                    // BR-03-01: Only customers can access the cart and checkout.
                     .requestMatchers(
                         "/cart",
                         "/cart/**",
