@@ -88,7 +88,7 @@
                 <a th:href="@{'/products/' + ${product.id}}" class="relative block overflow-hidden bg-parchment-100 aspect-[3/4]">
                     <!-- Product Type & Book Series Badge Tags (Top-Left) -->
                     <div class="absolute top-2 left-2 flex flex-col gap-1 z-10">
-                        <!-- Type Badge: Sách vs. VPP -->
+                        <!-- Product type badge -->
                         <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider text-white shadow-sm inline-block"
                               th:classappend="${product.productType != null and product.productType.name() == 'STATIONERY'} ? 'bg-amber-600' : 'bg-carbon_black'"
                               th:text="${product.productType != null and product.productType.name() == 'STATIONERY'} ? 'VPP' : 'Sách'">
@@ -206,7 +206,8 @@
              class="bg-white rounded-3xl border border-dust_grey p-8 sm:p-14 text-center shadow-soft max-w-2xl mx-auto my-6">
             
             <!-- Magnifying Glass Icon Container -->
-            <div class="w-20 h-20 rounded-2xl bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-4xl mb-6 shadow-inner">
+            <div
+                class="w-20 h-20 rounded-2xl bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-4xl mb-6 shadow-inner">
                 <i class="bi bi-search text-blazing_flame"></i>
             </div>
             

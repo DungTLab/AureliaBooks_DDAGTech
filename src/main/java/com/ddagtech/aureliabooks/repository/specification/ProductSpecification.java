@@ -4,7 +4,11 @@ import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.entity.Stationery;
-import jakarta.persistence.criteria.*;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -14,13 +18,11 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * FND-02. Owner: Huỳnh Nhật Duy. Sprint 1 scaffold; business implementation pending.
+ * Reusable product search, filtering, and sorting specifications.
  */
 public abstract class ProductSpecification implements Specification<Product> {
-    // TODO FND-02: Duy implements typed filter factories, predicates and joins.
-    // Abstract by design: no always-true predicate pretending filtering is complete.
 
-    private static String escapseLike(String input) {
+    private static String escapeLike(String input) {
         if (input == null) {
             return "";
         }
@@ -40,11 +42,11 @@ public abstract class ProductSpecification implements Specification<Product> {
             if (keyword == null || keyword.isBlank()) {
                 return cb.conjunction();
             }
-            String escaped = escapseLike(keyword.trim().toLowerCase());
+            String escaped = escapeLike(keyword.trim().toLowerCase());
             String pattern = "%" + escaped + "%";
             char escapeChar = '\\';
 
-            var tittlePredicate = cb.like(cb.lower(root.get("title")), pattern, escapeChar);
+            var titlePredicate = cb.like(cb.lower(root.get("title")), pattern, escapeChar);
             var barcodePredicate = cb.like(cb.lower(root.get("barcode")), pattern, escapeChar);
 
             Subquery<Long> bookSubquery = query.subquery(Long.class);
@@ -65,7 +67,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             var materialPredicate = cb.like(cb.lower(stationeryRoot.get("material")), pattern, escapeChar);
             stationerySubquery.where(cb.or(brandPredicate, materialPredicate));
             return cb.or(
-                    tittlePredicate,
+                    titlePredicate,
                     barcodePredicate,
                     root.get("id").in(bookSubquery),
                     root.get("id").in(stationerySubquery)
@@ -76,7 +78,6 @@ public abstract class ProductSpecification implements Specification<Product> {
     public static Specification<Product> hasKeyWord(String keyword) {
         return hasKeyword(keyword);
     }
-
 
     /**
      * Filters products belonging to the specified category IDs (including child and descendant categories).

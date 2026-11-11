@@ -6,8 +6,8 @@ import com.ddagtech.aureliabooks.dto.response.BrandSummary;
 import com.ddagtech.aureliabooks.dto.response.CategorySummary;
 import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
-import com.ddagtech.aureliabooks.dto.response.PublisherSummary;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
+import com.ddagtech.aureliabooks.dto.response.PublisherSummary;
 import com.ddagtech.aureliabooks.entity.Book;
 import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Product;
@@ -31,16 +31,16 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.HashSet;
 import java.util.Set;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.LinkedHashMap;
 
 /**
  * Service implementation for product catalog operations (UC01, UC02, UC03).
@@ -78,8 +78,6 @@ public class ProductServiceImpl implements ProductService {
         this.productMapper = productMapper;
         this.masterDataMapper = masterDataMapper;
     }
-
-
 
     @Transactional(readOnly = true)
     @Override
