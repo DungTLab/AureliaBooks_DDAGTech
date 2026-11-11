@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.service.RegistrationService;
-import java.nio.file.*;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,16 +44,12 @@ class RegistrationControllerTest {
 
     @Test
     void formRendersWithCsrfAndNoRoleInput() throws Exception {
-        var result = mvc
+        mvc
             .perform(get("/auth/register"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("name=\"_csrf\"")))
             .andExpect(content().string(not(containsString("name=\"role"))))
-            .andExpect(content().string(containsString("Đăng ký")))
-            .andReturn();
-        Path dir = Path.of("docs/registration");
-        Files.createDirectories(dir);
-        Files.writeString(dir.resolve("rendered-register.html"), result.getResponse().getContentAsString());
+            .andExpect(content().string(containsString("Đăng ký")));
     }
 
     @Test

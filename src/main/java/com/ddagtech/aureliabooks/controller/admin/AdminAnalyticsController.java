@@ -1,6 +1,9 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
-import com.ddagtech.aureliabooks.dto.analytics.*;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueAnalyticsReportDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueFilterRequest;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementFilterRequest;
+import com.ddagtech.aureliabooks.dto.analytics.StockReportView;
 import com.ddagtech.aureliabooks.service.AnalyticsService;
 import com.ddagtech.aureliabooks.service.ExcelExportService;
 import com.ddagtech.aureliabooks.service.StockReportService;
@@ -12,7 +15,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -38,7 +45,7 @@ public class AdminAnalyticsController {
         RevenueAnalyticsReportDto report = analyticsService.getRevenueReport(filter);
         model.addAttribute("report", report);
         model.addAttribute("filter", report.getFilter());
-        return "admin/analytics/revenue-report";
+        return "internal/analytics/revenue-report";
     }
 
     @GetMapping("/export/revenue")
@@ -62,7 +69,7 @@ public class AdminAnalyticsController {
             @RequestParam(defaultValue = "") String keyword, @RequestParam(defaultValue = "") String category,
             @RequestParam(defaultValue = "") String productType, Model model) {
         model.addAttribute("stockReport", stockReports.view(filter, keyword, category, productType));
-        return "admin/analytics/stock-report";
+        return "internal/analytics/stock-report";
     }
 
     @GetMapping("/export/stock")
@@ -86,7 +93,8 @@ public class AdminAnalyticsController {
         excelHeaders(response, "Bao_Cao_Ton_Kho_Dinh_Gia_" + LocalDate.now().format(FILE_DATE_FMT) + ".xlsx");
         excelExportService.exportStockValuationExcel(report.valuations(), response.getOutputStream());
     }
-private void excelHeaders(HttpServletResponse response, String filename) {
+
+    private void excelHeaders(HttpServletResponse response, String filename) {
         response.setContentType(EXCEL_MIME_TYPE);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
