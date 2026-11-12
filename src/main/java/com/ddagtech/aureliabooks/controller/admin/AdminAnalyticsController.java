@@ -26,6 +26,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+/**
+ * Controller managing executive analytics dashboards and Excel exports (UC26, UC27).
+ * Protected under Spring Security for ADMIN and MANAGER roles.
+ */
 @Slf4j
 @Controller
 @RequestMapping({"/admin/analytics", "/manager/analytics"})

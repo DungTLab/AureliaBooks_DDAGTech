@@ -7,7 +7,14 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/** UC22/23: status, creator and total are resolved by the service. Owner: Nguyễn Trần Đức Anh. */
+/**
+ * Request form DTO for creating and editing goods receipts (UC21, UC22, UC23).
+ * Header metadata including receipt code, creator, and total amount are computed by the service layer.
+ *
+ * @param supplierId persistent identifier of the selected supplier
+ * @param note optional descriptive notes for this inbound shipment
+ * @param items list of receipt line items
+ */
 public record GoodsReceiptForm(
         @NotNull(message = "Vui lòng chọn nhà cung cấp.")
         Long supplierId,
