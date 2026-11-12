@@ -126,6 +126,25 @@ class AccountArchitectureTest {
         });
     }
 
+    @Test
+    void customerCanResetPasswordWithVerifiedPhoneInTransaction() {
+        context.run(ctx -> {
+            User user = customer();
+            user.setPhoneVerified(true);
+            user.setPasswordHash("current-hash");
+            UserRepository users = ctx.getBean(UserRepository.class);
+            when(users.findOwnerForUpdate(7L)).thenReturn(Optional.of(user));
+            when(users.saveAndFlush(user)).thenReturn(user);
+
+            User updated = ctx.getBean(AccountSecurityService.class)
+                    .reset(7L, "current-hash", "SMS", user.getPhone(), "new-hash", "ip");
+
+            assertThat(updated.getPasswordHash()).isEqualTo("new-hash");
+            assertThat(ctx.getBean(RecordingTransactions.class).events).containsExactly("begin", "commit");
+            verify(ctx.getBean(AuditLogService.class)).record(7L, "PASSWORD_RESET", "users", 7L, "{}", "ip");
+        });
+    }
+
     private User customer() {
         return User.builder().id(7L).phone("0912345678")
                 .role(Role.builder().roleName("ROLE_CUSTOMER").build()).build();
