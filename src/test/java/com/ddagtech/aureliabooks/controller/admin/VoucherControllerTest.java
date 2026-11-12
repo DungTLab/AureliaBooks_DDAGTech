@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -67,9 +69,10 @@ class VoucherControllerTest {
         capture("voucher-create.html", result.getResponse().getContentAsString());
     }
 
-    @Test
+    @ParameterizedTest
+    @CsvSource({"0.00, '0,00'", "100000.50, '100.000,50'"})
     @WithMockUser(roles = "MANAGER")
-    void listRendersRedemptionCountsAndStatusForms() throws Exception {
+    void listRendersMinimumOrderValueAndRedemptionCounts(BigDecimal minimum, String formattedMinimum) throws Exception {
         when(identity.resolve(any())).thenReturn(7L);
         var v = new VoucherSummary(
             1L,
@@ -80,7 +83,7 @@ class VoucherControllerTest {
             BigDecimal.TEN,
             null,
             new BigDecimal("50000"),
-            BigDecimal.ZERO,
+            minimum,
             LocalDateTime.now(),
             LocalDateTime.now().plusDays(1),
             9,
@@ -92,9 +95,12 @@ class VoucherControllerTest {
             .perform(get("/manager/vouchers"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("SALE10")))
+            .andExpect(content().string(containsString("Đơn từ " + formattedMinimum + " đ")))
             .andExpect(content().string(containsString("lượt đang ghi nhận")))
             .andReturn();
-        capture("voucher-list.html", result.getResponse().getContentAsString());
+        if (minimum.signum() == 0) {
+            capture("voucher-list.html", result.getResponse().getContentAsString());
+        }
     }
 
     @Test
