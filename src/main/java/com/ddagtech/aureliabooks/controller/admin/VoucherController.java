@@ -1,25 +1,33 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
-import com.ddagtech.aureliabooks.dto.request.VoucherForm;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
-import com.ddagtech.aureliabooks.exception.AppException;
+import com.ddagtech.aureliabooks.dto.request.VoucherForm;
 import com.ddagtech.aureliabooks.entity.Voucher;
+import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.security.StaffIdentity;
 import com.ddagtech.aureliabooks.service.VoucherService;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
 import java.math.BigDecimal;
-import java.time.*;
+import java.time.Clock;
+import java.time.LocalDateTime;
 
 @Controller
 @RequestMapping("/manager/vouchers")
@@ -31,10 +39,15 @@ public class VoucherController {
     private final Clock promotionClock;
 
     @GetMapping
-    public String list(Authentication authentication, @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Boolean active, @RequestParam(defaultValue = "0") int page, Model model) {
-        model.addAttribute("vouchers", vouchers.list(identity.resolve(authentication), keyword, active,
-                PageRequest.of(Math.max(page, 0), 20, Sort.by("id").descending())));
+    public String list(
+        Authentication authentication,
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) Boolean active,
+        @RequestParam(defaultValue = "0") int page,
+        Model model
+    ) {
+        PageRequest pageRequest = PageRequest.of(Math.max(page, 0), 20, Sort.by("id").descending());
+        model.addAttribute("vouchers", vouchers.list(identity.resolve(authentication), keyword, active, pageRequest));
         model.addAttribute("keyword", keyword);
         model.addAttribute("active", active);
         return "manager/vouchers/list";
@@ -52,8 +65,13 @@ public class VoucherController {
     }
 
     @PostMapping
-    public String create(Authentication authentication, @Valid @ModelAttribute("voucherForm") VoucherForm form,
-            BindingResult errors, HttpServletRequest request, RedirectAttributes flash) {
+    public String create(
+        Authentication authentication,
+        @Valid @ModelAttribute("voucherForm") VoucherForm form,
+        BindingResult errors,
+        HttpServletRequest request,
+        RedirectAttributes flash
+    ) {
         if (errors.hasErrors()) {
             return "manager/vouchers/form";
         }
@@ -71,8 +89,13 @@ public class VoucherController {
     }
 
     @PostMapping("/{id}/status")
-    public String status(Authentication authentication, @PathVariable Long id, @RequestParam boolean active,
-            HttpServletRequest request, RedirectAttributes flash) {
+    public String status(
+        Authentication authentication,
+        @PathVariable Long id,
+        @RequestParam boolean active,
+        HttpServletRequest request,
+        RedirectAttributes flash
+    ) {
         vouchers.setActive(identity.resolve(authentication), id, active, HttpRequestUtil.getClientIp(request));
         flash.addFlashAttribute("successMessage", active ? "Đã kích hoạt mã giảm giá." : "Đã tắt mã giảm giá.");
         return "redirect:/manager/vouchers";

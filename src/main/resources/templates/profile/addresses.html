@@ -31,7 +31,9 @@
             </div>
             <p th:if="${addresses.isEmpty()}" class="bg-white border rounded-2xl p-6">Bạn chưa có địa chỉ giao hàng.</p>
             <div class="grid md:grid-cols-2 gap-5">
-                <article th:each="a : ${addresses}" class="bg-white border border-dust_grey rounded-2xl p-6">
+                <article
+                    th:each="a : ${addresses}"
+                    class="bg-white border border-dust_grey rounded-2xl p-6">
                     <h2 class="font-bold text-lg" th:text="${a.recipientName}"></h2>
                     <p th:text="${a.phone}"></p>
                     <p
@@ -69,7 +71,9 @@
                 id="addressDialog"
                 class="rounded-2xl border border-dust_grey p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto backdrop:bg-black/40"
             >
-                <h2 class="text-xl font-bold mb-4" th:text="${editId == null ? 'Thêm địa chỉ' : 'Sửa địa chỉ'}"></h2>
+                <h2
+                    class="text-xl font-bold mb-4"
+                    th:text="${editId == null ? 'Thêm địa chỉ' : 'Sửa địa chỉ'}"></h2>
                 <form
                     data-valid-form
                     th:action="@{/profile/addresses}"
@@ -77,7 +81,11 @@
                     method="post"
                     class="space-y-4"
                 >
-                    <input th:if="${editId != null}" type="hidden" name="addressId" th:value="${editId}" />
+                    <input
+                        th:if="${editId != null}"
+                        type="hidden"
+                        name="addressId"
+                        th:value="${editId}" />
                     <div class="grid sm:grid-cols-2 gap-4">
                         <div>
                             <label for="address-recipientName" class="block font-semibold mb-2">Người nhận</label>

@@ -4,17 +4,31 @@ import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
-import com.ddagtech.aureliabooks.service.*;
+import com.ddagtech.aureliabooks.service.ContactChangeService;
+import com.ddagtech.aureliabooks.service.ContactChangeWriter;
+import com.ddagtech.aureliabooks.service.ContactOtpDelivery;
 import jakarta.validation.Validator;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+
 import java.nio.charset.StandardCharsets;
-import java.security.*;
-import java.time.*;
-import java.util.*;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
 
 /** Scoped single-instance contact verification. Pending challenges/quotas expire in memory; no OTP is logged. */
 @Service
@@ -119,7 +133,9 @@ public class ContactChangeServiceImpl implements ContactChangeService {
                 return fail("Vui lòng chờ đủ 60 giây.");
             }
             pending.entrySet().removeIf(entry -> entry.getValue().expires.isBefore(clock.instant()));
-            if (pending.size() >= 5000 && !pending.containsKey(owner)) return fail("Hệ thống đang bận.");
+            if (pending.size() >= 5000 && !pending.containsKey(owner)) {
+                return fail("Hệ thống đang bận.");
+            }
             var flow = new Pending();
             flow.session = session;
             flow.type = type;
@@ -143,20 +159,26 @@ public class ContactChangeServiceImpl implements ContactChangeService {
         synchronized (lock(owner)) {
             var u = users.findById(owner).orElseThrow();
             CustomerIdentity.requireCustomer(u);
-            if (!Set.of("EMAIL", "PHONE").contains(type)) return fail("Yêu cầu không hợp lệ.");
+            if (!Set.of("EMAIL", "PHONE").contains(type)) {
+                return fail("Yêu cầu không hợp lệ.");
+            }
             value = value == null ? "" : value.strip().toLowerCase(Locale.ROOT);
             if ("EMAIL".equals(type)) {
                 if (
                     value.isBlank() || !validator.validateValue(RegisterRequest.class, "email", value).isEmpty()
                 ) return fail("Email mới không hợp lệ.");
-                if (value.equals(u.getEmail()) && u.isEmailVerified()) return fail("Email này đã được xác minh.");
+                if (value.equals(u.getEmail()) && u.isEmailVerified()) {
+                    return fail("Email này đã được xác minh.");
+                }
                 if (!value.equals(u.getEmail()) && users.existsByEmail(value)) return fail(
                     "Email đã được tài khoản khác sử dụng."
                 );
             } else {
                 value = value.replace(" ", "").replace("-", "");
                 if (value.startsWith("+84")) value = "0" + value.substring(3);
-                if (!value.matches("0[0-9]{9}")) return fail("Số điện thoại mới phải gồm 10 chữ số, bắt đầu bằng 0.");
+                if (!value.matches("0[0-9]{9}")) {
+                    return fail("Số điện thoại mới phải gồm 10 chữ số, bắt đầu bằng 0.");
+                }
                 if (value.equals(u.getPhone()) && u.isPhoneVerified()) return fail(
                     "Số điện thoại này đã được xác minh."
                 );
@@ -169,7 +191,9 @@ public class ContactChangeServiceImpl implements ContactChangeService {
                 "Vui lòng chờ đủ 60 giây."
             );
             pending.entrySet().removeIf(e -> e.getValue().expires.isBefore(clock.instant()));
-            if (pending.size() >= 5000 && !pending.containsKey(owner)) return fail("Hệ thống đang bận.");
+            if (pending.size() >= 5000 && !pending.containsKey(owner)) {
+                return fail("Hệ thống đang bận.");
+            }
             var p = new Pending();
             p.session = session;
             p.type = type;
@@ -191,7 +215,9 @@ public class ContactChangeServiceImpl implements ContactChangeService {
     public View view(Long owner, String session) {
         synchronized (lock(owner)) {
             Pending p = pending.get(owner);
-            if (p == null || !p.session.equals(session)) return null;
+            if (p == null || !p.session.equals(session)) {
+                return null;
+            }
             return new View(
                 p.type,
                 p.phase,
@@ -206,7 +232,9 @@ public class ContactChangeServiceImpl implements ContactChangeService {
     public Result resend(Long owner, String session, String ip) {
         synchronized (lock(owner)) {
             var p = bound(owner, session);
-            if (p == null) return fail("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
+            if (p == null) {
+                return fail("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
+            }
             if (p.authorizedUntil != null && !clock.instant().isBefore(p.authorizedUntil)) {
                 pending.remove(owner);
                 return fail("Quyền xác thực đã hết hạn. Vui lòng bắt đầu lại.");
@@ -221,7 +249,9 @@ public class ContactChangeServiceImpl implements ContactChangeService {
     public Result verify(Long owner, String session, String code, String ip) {
         synchronized (lock(owner)) {
             Pending p = bound(owner, session);
-            if (p == null) return fail("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
+            if (p == null) {
+                return fail("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
+            }
             if (!clock.instant().isBefore(p.expires) || p.attempts >= 5 || p.mac == null) return fail(
                 "Mã đã hết hạn hoặc hết lượt thử. Vui lòng gửi lại mã."
             );
@@ -306,7 +336,9 @@ public class ContactChangeServiceImpl implements ContactChangeService {
     private synchronized boolean quota(List<String> keys, int max) {
         Instant now = clock.instant();
         counters.entrySet().removeIf(e -> !now.isBefore(e.getValue().reset));
-        if (counters.size() + keys.size() > 10000) return false;
+        if (counters.size() + keys.size() > 10000) {
+            return false;
+        }
         for (String k : keys) if (counters.containsKey(k) && counters.get(k).count >= max) return false;
         for (String k : keys) counters.computeIfAbsent(k, ignored -> new Counter(now.plus(WINDOW))).count++;
         return true;

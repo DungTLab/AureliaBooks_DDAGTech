@@ -5,17 +5,24 @@ import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.ContactChangeService;
 import com.ddagtech.aureliabooks.service.UserService;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
-import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.time.Instant;
 
 @Controller
 @RequiredArgsConstructor
@@ -29,7 +36,9 @@ public class PasswordSetupController {
     @GetMapping
     public String view(Authentication auth, HttpServletRequest request, Model model) {
         Long owner = identity.resolve(auth);
-        if (users.viewProfile(owner).canChangePassword()) return "redirect:/profile";
+        if (users.viewProfile(owner).canChangePassword()) {
+            return "redirect:/profile";
+        }
         model.addAttribute(
             "methods",
             changes
@@ -50,7 +59,9 @@ public class PasswordSetupController {
         RedirectAttributes flash
     ) {
         Long owner = identity.resolve(auth);
-        if (users.viewProfile(owner).canChangePassword()) return "redirect:/profile";
+        if (users.viewProfile(owner).canChangePassword()) {
+            return "redirect:/profile";
+        }
         clear(request.getSession());
         var result = changes.startReauthentication(
             owner,
