@@ -22,7 +22,7 @@
                 <button type="button" data-password-toggle="internal-password" aria-controls="internal-password" aria-label="Hiện mật khẩu" aria-pressed="false" class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 rounded-lg"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
         <button type="submit" class="w-full bg-blazing_flame text-white rounded-xl px-4 py-3 font-semibold">Đăng nhập quản lý</button>
     </form>
-    <p class="mt-6 text-sm text-carbon_black-600">Quên mật khẩu? Vui lòng liên hệ Quản trị viên để được hỗ trợ.</p>
+    <a th:href="@{/internal/forgot-password}" class="inline-block mt-6 text-sm underline">Quên mật khẩu?</a>
 </section>
 </body>
 </html>

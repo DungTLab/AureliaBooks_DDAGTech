@@ -76,6 +76,49 @@ class AccountOtpServiceTest {
         return service.recovery("a@example.test", "EMAIL", "session", "ip");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"ROLE_MANAGER", "ROLE_SALE_STAFF"})
+    void internalOtpIsBoundToPortalAndCanResetOnce(String role) {
+        User staff = account();
+        staff.setRole(Role.builder().roleName(role).build());
+        when(users.findByIdentifierWithRoles(staff.getEmail())).thenReturn(Optional.of(staff));
+        when(users.findById(7L)).thenReturn(Optional.of(staff));
+        when(writer.resetStaff(eq(7L), eq("old-hash"), eq(staff.getEmail()), anyString(), eq("ip")))
+            .thenReturn(staff);
+
+        String id = service.internalRecovery(staff.getEmail(), "session", "ip");
+        verify(delivery).send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+        assertThat(service.view(id, "session")).isNull();
+        assertThatThrownBy(() -> service.resend(id, "session", "ip")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.verify(id, "session", code, "ip")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.verify(id, "other", code, "ip", true)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.reset(id, "session", "Abcd123!", "Abcd123!", "ip", true))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        service.verify(id, "session", code, "ip", true);
+        assertThat(service.view(id, "session", true).authorized()).isTrue();
+        assertThatThrownBy(() -> service.reset(id, "session", "Abcd123!", "Abcd123!", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThat(service.reset(id, "session", "Abcd123!", "Abcd123!", "ip", true)).isSameAs(staff);
+        assertThatThrownBy(() -> service.reset(id, "session", "Abcd123!", "Abcd123!", "ip", true))
+            .isInstanceOf(IllegalArgumentException.class);
+        verify(writer).resetStaff(eq(7L), eq("old-hash"), eq(staff.getEmail()), anyString(), eq("ip"));
+        verifyNoMoreInteractions(writer);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ROLE_CUSTOMER", "ROLE_ADMIN", "ROLE_MANAGER"})
+    void internalRecoveryRequiresAnEligibleRoleAndVerifiedEmail(String role) {
+        User account = account();
+        account.setRole(Role.builder().roleName(role).build());
+        if ("ROLE_MANAGER".equals(role)) account.setEmailVerified(false);
+        when(users.findByIdentifierWithRoles(account.getEmail())).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.internalRecovery(account.getEmail(), "session", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(delivery, writer);
+    }
+
     @Test
     void phoneRegistrationHasNoEmailAndWritesOnlyAfterProof() {
         String id = service.registration(request(), "session", "ip");

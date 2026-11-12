@@ -34,13 +34,31 @@ public interface AccountOtpService {
 
     String recovery(String identifier, String channel, String session, String ip);
 
+    String internalRecovery(String email, String session, String ip);
+
     String recoveryMessage();
 
-    View view(String id, String session);
+    default View view(String id, String session) {
+        return view(id, session, false);
+    }
 
-    void resend(String id, String session, String ip);
+    View view(String id, String session, boolean internal);
 
-    Result verify(String id, String session, String code, String ip);
+    default void resend(String id, String session, String ip) {
+        resend(id, session, ip, false);
+    }
 
-    User reset(String id, String session, String password, String confirmation, String ip);
+    void resend(String id, String session, String ip, boolean internal);
+
+    default Result verify(String id, String session, String code, String ip) {
+        return verify(id, session, code, ip, false);
+    }
+
+    Result verify(String id, String session, String code, String ip, boolean internal);
+
+    default User reset(String id, String session, String password, String confirmation, String ip) {
+        return reset(id, session, password, confirmation, ip, false);
+    }
+
+    User reset(String id, String session, String password, String confirmation, String ip, boolean internal);
 }

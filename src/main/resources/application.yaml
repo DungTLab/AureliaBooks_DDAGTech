@@ -63,6 +63,8 @@ logging:
     org.springframework.security: INFO
 
 app:
+  internal-recovery:
+    enabled: ${INTERNAL_PASSWORD_RECOVERY_ENABLED:false}
   bootstrap-admin:
     enabled: ${BOOTSTRAP_ADMIN_ENABLED:false}
     email: ${BOOTSTRAP_ADMIN_EMAIL:}

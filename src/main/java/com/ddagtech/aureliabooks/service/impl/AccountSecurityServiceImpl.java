@@ -81,15 +81,28 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
     @Override
     @Transactional
     public User reset(Long id, String oldHash, String channel, String recipient, String newHash, String ip) {
+        return resetPassword(id, oldHash, channel, recipient, newHash, ip, false);
+    }
+
+    @Override
+    @Transactional
+    public User resetStaff(Long id, String oldHash, String email, String newHash, String ip) {
+        return resetPassword(id, oldHash, "EMAIL", email, newHash, ip, true);
+    }
+
+    private User resetPassword(
+        Long id, String oldHash, String channel, String recipient, String newHash, String ip, boolean internal
+    ) {
         var u = users.findOwnerForUpdate(id)
             .orElseThrow(() -> new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại."));
+        String role = u.getRole() == null ? null : u.getRole().getRoleName();
+        boolean roleAllowed = internal ? PortalSecurity.staffRecoveryRole(role) : "ROLE_CUSTOMER".equals(role);
         boolean contactMatches =
             ("EMAIL".equals(channel) && u.isEmailVerified() && Objects.equals(recipient, u.getEmail())) ||
             ("SMS".equals(channel) && u.isPhoneVerified() && Objects.equals(recipient, u.getPhone()));
         if (
             !Boolean.TRUE.equals(u.getIsActive()) ||
-            u.getRole() == null ||
-            !"ROLE_CUSTOMER".equals(u.getRole().getRoleName()) ||
+            !roleAllowed ||
             u.getPasswordHash() == null ||
             !Objects.equals(oldHash, u.getPasswordHash()) ||
             recipient == null ||
@@ -103,7 +116,7 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         if (attempts != null) {
             attempts.resetAttempts(id);
         }
-        audit.record(id, "PASSWORD_RESET", "users", id, "{}", ip);
+        audit.record(id, internal ? "STAFF_PASSWORD_RESET" : "PASSWORD_RESET", "users", id, "{}", ip);
         expireAfterCommit(saved);
         return saved;
     }
@@ -157,10 +170,11 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         if (request == null) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Dữ liệu đổi mật khẩu không hợp lệ");
         }
-        User staff = users.findById(staffId)
+        User staff = users.findOwnerForUpdate(staffId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        if (staff.getRole() == null || "ROLE_CUSTOMER".equals(staff.getRole().getRoleName())) {
+        if (!Boolean.TRUE.equals(staff.getIsActive()) || staff.getRole() == null ||
+                "ROLE_CUSTOMER".equals(staff.getRole().getRoleName())) {
             throw new AppException(ErrorCode.UNAUTHORIZED, "Chỉ tài khoản nhân sự mới có thể đổi mật khẩu tại đây");
         }
 

@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.controller.AuthController;
 import com.ddagtech.aureliabooks.controller.InternalPortalController;
+import com.ddagtech.aureliabooks.controller.InternalPasswordRecoveryController;
 import com.ddagtech.aureliabooks.controller.admin.DashboardController;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
@@ -27,7 +28,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 
-@WebMvcTest(controllers = {AuthController.class, InternalPortalController.class, DashboardController.class, com.ddagtech.aureliabooks.controller.CustomErrorController.class})
+@WebMvcTest(
+    controllers = {AuthController.class, InternalPortalController.class, InternalPasswordRecoveryController.class,
+        DashboardController.class, com.ddagtech.aureliabooks.controller.CustomErrorController.class},
+    properties = "app.internal-recovery.enabled=true"
+)
 @Import({SecurityConfig.class, CustomAuthenticationEntryPoint.class, CustomAccessDeniedHandler.class,
         CustomAuthenticationFailureHandler.class, RoleBasedAuthenticationSuccessHandler.class})
 class PortalSeparationIntegrationTest {
@@ -61,8 +66,51 @@ class PortalSeparationIntegrationTest {
         String html = mvc.perform(get("/internal/login")).andExpect(status().isOk())
                 .andExpect(view().name("internal/login")).andReturn().getResponse().getContentAsString();
         assertThat(html).contains("data-portal=\"internal\"", "name=\"_csrf\"", "/internal/login", "/css/workspace.css")
-                .contains("liên hệ Quản trị viên")
+                .contains("href=\"/internal/forgot-password\"")
                 .doesNotContain("/js/cart.js", "/auth/google/login", "/auth/register", "/auth/forgot-password", "name=\"keyword\"");
+    }
+
+    @Test
+    void internalRecoveryRendersInItsOwnPortalAndReturnsToInternalLogin() throws Exception {
+        mvc.perform(get("/internal/forgot-password"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/internal/forgot-password/send\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")));
+        mvc.perform(post("/internal/forgot-password/send").param("email", "staff@example.test"))
+            .andExpect(status().isForbidden());
+
+        when(otp.internalRecovery(eq("staff@example.test"), anyString(), anyString())).thenReturn("staff-flow");
+        var sent = mvc.perform(post("/internal/forgot-password/send").with(csrf()).param("email", "staff@example.test"))
+            .andExpect(redirectedUrl("/internal/forgot-password?step=verify")).andReturn();
+        var session = (org.springframework.mock.web.MockHttpSession) sent.getRequest().getSession(false);
+        mvc.perform(post("/internal/forgot-password/verify").session(session).with(csrf()).param("code", "123456"))
+            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
+        verify(otp).verify(eq("staff-flow"), eq(session.getId()), eq("123456"), anyString(), eq(true));
+        when(otp.view("staff-flow", session.getId(), true))
+            .thenReturn(new AccountOtpService.View("INTERNAL_RESET", "", true, 0));
+        mvc.perform(get("/internal/forgot-password?step=verify").session(session))
+            .andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/internal/forgot-password/reset\"")));
+        mvc.perform(post("/internal/forgot-password/reset").session(session).with(csrf())
+                .param("password", "NewPassword123!").param("confirmation", "NewPassword123!"))
+            .andExpect(redirectedUrl("/internal/login"));
+        assertThat(session.isInvalid()).isTrue();
+    }
+
+    @Test
+    void ineligibleRecoveryShowsSameOtpStepWithoutExposingEmail() throws Exception {
+        when(otp.internalRecovery(eq("unknown@example.test"), anyString(), anyString()))
+            .thenThrow(new IllegalArgumentException("internal reason"));
+        var sent = mvc.perform(post("/internal/forgot-password/send").with(csrf())
+                .param("email", "unknown@example.test"))
+            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
+            .andExpect(flash().attribute("recoveryMessage",
+                "Nếu email đủ điều kiện khôi phục, bạn sẽ nhận được mã xác thực.")).andReturn();
+        var session = (org.springframework.mock.web.MockHttpSession) sent.getRequest().getSession(false);
+        mvc.perform(get("/internal/forgot-password?step=verify").session(session))
+            .andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/internal/forgot-password/verify\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("unknown@example.test"))));
     }
 
     @Test

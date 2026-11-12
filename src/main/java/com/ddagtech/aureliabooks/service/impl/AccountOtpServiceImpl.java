@@ -5,6 +5,7 @@ import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
+import com.ddagtech.aureliabooks.security.PortalSecurity;
 import com.ddagtech.aureliabooks.service.*;
 import jakarta.validation.Validator;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +40,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         random.nextBytes(key);
     }
 
+    private static final String INTERNAL_RESET = "INTERNAL_RESET";
     private static final String OTP_SENT = "Mã xác thực đã được gửi. Vui lòng kiểm tra email hoặc SMS của bạn.";
 
     static class Flow {
@@ -117,7 +119,8 @@ public class AccountOtpServiceImpl implements AccountOtpService {
 
     private void requireCurrentRecoveryAccount(Flow flow) {
         User user = users.findById(flow.owner)
-            .filter(AccountOtpServiceImpl::hasCustomerRole)
+            .filter(account -> INTERNAL_RESET.equals(flow.kind)
+                ? hasStaffRecoveryRole(account) : hasCustomerRole(account))
             .filter(account -> Boolean.TRUE.equals(account.getIsActive()))
             .filter(account -> Objects.equals(flow.oldHash, account.getPasswordHash()))
             .orElseThrow(() -> new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại."));
@@ -146,8 +149,32 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         if (!channels.contains(selected)) throw new IllegalArgumentException(
             "Kênh khôi phục không hợp lệ. Vui lòng chọn email hoặc số điện thoại đã xác minh."
         );
+        return startReset(u, selected, session, ip, "RESET");
+    }
+
+    @Override
+    public synchronized String internalRecovery(String email, String session, String ip) {
+        String value = normalize(email);
+        if (!value.contains("@") || value.length() > 100
+                || !validator.validateValue(RegisterRequest.class, "email", value).isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng nhập email hợp lệ.");
+        }
+        User user = users.findByIdentifierWithRoles(value)
+            .filter(AccountOtpServiceImpl::hasStaffRecoveryRole)
+            .filter(account -> Boolean.TRUE.equals(account.getIsActive()))
+            .filter(account -> account.getPasswordHash() != null && !account.getPasswordHash().isBlank())
+            .filter(account -> account.isEmailVerified() && value.equals(normalize(account.getEmail())))
+            .orElseThrow(() -> new IllegalArgumentException("Không thể gửi mã khôi phục."));
+        return startReset(user, "EMAIL", session, ip, INTERNAL_RESET);
+    }
+
+    private static boolean hasStaffRecoveryRole(User user) {
+        return user.getRole() != null && PortalSecurity.staffRecoveryRole(user.getRole().getRoleName());
+    }
+
+    private String startReset(User u, String selected, String session, String ip, String kind) {
         var f = new Flow();
-        f.kind = "RESET";
+        f.kind = kind;
         f.channel = selected;
         f.owner = u.getId();
         f.oldHash = u.getPasswordHash();
@@ -166,22 +193,22 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         return OTP_SENT;
     }
 
-    public synchronized View view(String id, String session) {
+    public synchronized View view(String id, String session, boolean internal) {
         var f = bound(id, session);
-        return f == null
+        return f == null || !matchesPortal(f, internal)
             ? null
             : new View(
                   f.kind,
                   mask(f.target),
-                  f.authorized != null,
+                  f.authorized != null && (!internal || Instant.now().isBefore(f.authorized)),
                   Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()),
                   Math.max(0, Duration.between(Instant.now(), f.expires).getSeconds())
               );
     }
 
-    public synchronized void resend(String id, String session, String ip) {
-        var f = required(id, session);
-        if ("RESET".equals(f.kind)) {
+    public synchronized void resend(String id, String session, String ip, boolean internal) {
+        var f = verificationFlow(id, session, internal);
+        if (!"REGISTER".equals(f.kind)) {
             requireCurrentRecoveryAccount(f);
         }
         if (f.authorized != null) throw new IllegalArgumentException("Mã đã được xác minh.");
@@ -191,12 +218,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         issue(f, ip);
     }
 
-    public synchronized Result verify(String id, String session, String code, String ip) {
-        var f = required(id, session);
-        if (!"REGISTER".equals(f.kind) && !"RESET".equals(f.kind)) {
-            throw new IllegalArgumentException("Yêu cầu xác minh không hợp lệ.");
-        }
-        if ("RESET".equals(f.kind)) {
+    public synchronized Result verify(String id, String session, String code, String ip, boolean internal) {
+        var f = verificationFlow(id, session, internal);
+        if (!"REGISTER".equals(f.kind)) {
             requireCurrentRecoveryAccount(f);
         }
         verifyCode(f, code);
@@ -338,19 +362,36 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         return List.copyOf(channels);
     }
 
-        @Override
-    public synchronized User reset(String id, String session, String password, String confirmation, String ip) {
-        var f = required(id, session);
+    @Override
+    public synchronized User reset(
+        String id, String session, String password, String confirmation, String ip, boolean internal
+    ) {
+        var f = verificationFlow(id, session, internal);
         if (
-            !"RESET".equals(f.kind) || f.authorized == null || !Instant.now().isBefore(f.authorized)
+            "REGISTER".equals(f.kind) || f.authorized == null || !Instant.now().isBefore(f.authorized)
         ) throw new IllegalArgumentException("Vui lòng xác minh mã trước khi đặt mật khẩu.");
         var r = new PasswordChangeRequest("verified", password, confirmation);
         if (!validator.validate(r).isEmpty()) throw new IllegalArgumentException(
             "Mật khẩu từ 8 ký tự, có chữ hoa, số, ký tự đặc biệt; xác nhận phải khớp và tối đa 72 byte UTF-8."
         );
-        User user = writer.reset(f.owner, f.oldHash, f.channel, f.target, passwords.encode(password), ip);
+        String newHash = passwords.encode(password);
+        User user = internal
+            ? writer.resetStaff(f.owner, f.oldHash, f.target, newHash, ip)
+            : writer.reset(f.owner, f.oldHash, f.channel, f.target, newHash, ip);
         flows.remove(id);
         return user;
+    }
+
+    private Flow verificationFlow(String id, String session, boolean internal) {
+        Flow flow = required(id, session);
+        if (!matchesPortal(flow, internal)) {
+            throw new IllegalArgumentException("Yêu cầu xác minh không hợp lệ.");
+        }
+        return flow;
+    }
+
+    private static boolean matchesPortal(Flow flow, boolean internal) {
+        return internal ? INTERNAL_RESET.equals(flow.kind) : "RESET".equals(flow.kind) || "REGISTER".equals(flow.kind);
     }
 
     private void install(Flow f, String session) {
