@@ -61,7 +61,8 @@ class PortalSeparationIntegrationTest {
         String html = mvc.perform(get("/internal/login")).andExpect(status().isOk())
                 .andExpect(view().name("internal/login")).andReturn().getResponse().getContentAsString();
         assertThat(html).contains("data-portal=\"internal\"", "name=\"_csrf\"", "/internal/login", "/css/workspace.css")
-                .doesNotContain("/js/cart.js", "/auth/google/login", "/auth/register", "name=\"keyword\"");
+                .contains("liên hệ Quản trị viên")
+                .doesNotContain("/js/cart.js", "/auth/google/login", "/auth/register", "/auth/forgot-password", "name=\"keyword\"");
     }
 
     @Test

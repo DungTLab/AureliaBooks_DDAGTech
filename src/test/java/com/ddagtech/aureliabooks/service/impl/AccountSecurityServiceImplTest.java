@@ -58,6 +58,30 @@ class AccountSecurityServiceImplTest {
     }
 
     @Test
+    void resetRechecksLockedAccountBeforeChangingPassword() {
+        User account = User.builder().id(7L).role(staffRole)
+                .email("customer@example.test").emailVerified(true).passwordHash("current-hash").build();
+        when(users.findOwnerForUpdate(7L)).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> service.reset(7L, "current-hash", "EMAIL", account.getEmail(), "new-hash", "ip"))
+                .isInstanceOf(IllegalArgumentException.class);
+        account.setRole(customerRole);
+        account.setIsActive(false);
+        assertThatThrownBy(() -> service.reset(7L, "current-hash", "EMAIL", account.getEmail(), "new-hash", "ip"))
+                .isInstanceOf(IllegalArgumentException.class);
+        account.setIsActive(true);
+        assertThatThrownBy(() -> service.reset(7L, "stale-hash", "EMAIL", account.getEmail(), "new-hash", "ip"))
+                .isInstanceOf(IllegalArgumentException.class);
+        account.setEmailVerified(false);
+        assertThatThrownBy(() -> service.reset(7L, "current-hash", "EMAIL", account.getEmail(), "new-hash", "ip"))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(account.getPasswordHash()).isEqualTo("current-hash");
+        verify(users, never()).saveAndFlush(any(User.class));
+        verifyNoInteractions(audit, sessions, attempts);
+    }
+
+    @Test
     @DisplayName("changeStaffPassword should update password and record audit log for staff")
     void changeStaffPassword_Success() {
         Long staffId = 15L;

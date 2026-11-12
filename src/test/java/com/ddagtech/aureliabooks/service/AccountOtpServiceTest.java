@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
+import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.impl.AccountOtpServiceImpl;
@@ -12,6 +13,8 @@ import jakarta.validation.Validation;
 import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class AccountOtpServiceTest {
 
@@ -63,11 +66,13 @@ class AccountOtpServiceTest {
             .phone("0912345678")
             .phoneVerified(true)
             .passwordHash("old-hash")
+            .role(Role.builder().roleName("ROLE_CUSTOMER").build())
             .build();
     }
 
     String reset(User user) {
         when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(user));
+        when(users.findById(user.getId())).thenReturn(Optional.of(user));
         return service.recovery("a@example.test", "EMAIL", "session", "ip");
     }
 
@@ -261,25 +266,55 @@ class AccountOtpServiceTest {
         assertThat(service.verify(next, "s", code, "ip").complete()).isTrue();
     }
 
-    @Test
-    void internalStaffWithVerifiedContactsCanInitiateOtpRecovery() {
-        com.ddagtech.aureliabooks.entity.Role staffRole = com.ddagtech.aureliabooks.entity.Role.builder().id(3L).roleName("ROLE_SALE_STAFF").build();
-        User staff = User.builder()
-            .id(42L)
-            .email("staff@aureliabook.vn")
-            .emailVerified(true)
-            .phone("0988776655")
-            .phoneVerified(true)
-            .role(staffRole)
-            .passwordHash("$2a$12$someHashedPassword")
-            .isActive(true)
-            .build();
-        when(users.findByIdentifierWithRoles("staff@aureliabook.vn")).thenReturn(Optional.of(staff));
-        List<String> channels = service.recoveryChannels("staff@aureliabook.vn");
-        assertThat(channels).containsExactlyInAnyOrder("EMAIL", "SMS");
+    @ParameterizedTest
+    @ValueSource(strings = {"ROLE_ADMIN", "ROLE_MANAGER", "ROLE_SALE_STAFF"})
+    void internalAccountsWithVerifiedContactsCannotStartRecovery(String roleName) {
+        User staff = account();
+        staff.setRole(Role.builder().roleName(roleName).build());
+        when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(staff));
+        when(users.findByIdentifierWithRoles("0912345678")).thenReturn(Optional.of(staff));
 
-        String flowId = service.recovery("staff@aureliabook.vn", "EMAIL", "session", "10.0.0.1");
-        assertThat(flowId).isNotBlank();
-        verify(delivery).send(eq("EMAIL"), eq("staff@aureliabook.vn"), anyString());
+        assertThatThrownBy(() -> service.recoveryChannels("a@example.test")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.recovery("a@example.test", "EMAIL", "session", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.recovery("0912345678", "SMS", "session", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(delivery, writer);
+    }
+
+    @Test
+    void existingRecoveryCannotResendOrVerifyAfterRoleChange() throws Exception {
+        User user = account();
+        String id = reset(user);
+        var flowsField = AccountOtpServiceImpl.class.getDeclaredField("flows");
+        flowsField.setAccessible(true);
+        Object flow = ((Map<?, ?>) flowsField.get(service)).get(id);
+        var sentField = flow.getClass().getDeclaredField("sent");
+        sentField.setAccessible(true);
+        sentField.set(flow, Instant.now().minusSeconds(61));
+        user.setRole(Role.builder().roleName("ROLE_MANAGER").build());
+
+        assertThatThrownBy(() -> service.verify(id, "session", code, "ip"))
+            .hasMessageContaining("không còn hiệu lực");
+        assertThatThrownBy(() -> service.resend(id, "session", "ip"))
+            .hasMessageContaining("không còn hiệu lực");
+        verify(delivery, times(1)).send(eq("EMAIL"), eq("a@example.test"), anyString());
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    void expiredRecoveryGrantCannotWritePassword() throws Exception {
+        String id = reset(account());
+        service.verify(id, "session", code, "ip");
+        var flowsField = AccountOtpServiceImpl.class.getDeclaredField("flows");
+        flowsField.setAccessible(true);
+        Object flow = ((Map<?, ?>) flowsField.get(service)).get(id);
+        var authorizedField = flow.getClass().getDeclaredField("authorized");
+        authorizedField.setAccessible(true);
+        authorizedField.set(flow, Instant.now().minusSeconds(1));
+
+        assertThatThrownBy(() -> service.reset(id, "session", "NewPass1!", "NewPass1!", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(writer);
     }
 }

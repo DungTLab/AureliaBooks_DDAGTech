@@ -98,6 +98,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         );
         var u = users
             .findByIdentifierWithRoles(value)
+            .filter(AccountOtpServiceImpl::hasCustomerRole)
             .orElseThrow(() ->
                 new IllegalArgumentException("Không tìm thấy tài khoản với email hoặc số điện thoại này.")
             );
@@ -108,6 +109,24 @@ public class AccountOtpServiceImpl implements AccountOtpService {
             "Tài khoản chỉ đăng nhập bằng Google. Vui lòng khôi phục quyền truy cập tại Google."
         );
         return u;
+    }
+
+    private static boolean hasCustomerRole(User user) {
+        return user.getRole() != null && "ROLE_CUSTOMER".equals(user.getRole().getRoleName());
+    }
+
+    private void requireCurrentRecoveryAccount(Flow flow) {
+        User user = users.findById(flow.owner)
+            .filter(AccountOtpServiceImpl::hasCustomerRole)
+            .filter(account -> Boolean.TRUE.equals(account.getIsActive()))
+            .filter(account -> Objects.equals(flow.oldHash, account.getPasswordHash()))
+            .orElseThrow(() -> new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại."));
+        boolean contactMatches = "EMAIL".equals(flow.channel)
+            ? user.isEmailVerified() && Objects.equals(flow.target, user.getEmail())
+            : user.isPhoneVerified() && Objects.equals(flow.target, user.getPhone());
+        if (!contactMatches) {
+            throw new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
+        }
     }
 
     private List<String> verifiedRecoveryChannels(User u) {
@@ -162,6 +181,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
 
     public synchronized void resend(String id, String session, String ip) {
         var f = required(id, session);
+        if ("RESET".equals(f.kind)) {
+            requireCurrentRecoveryAccount(f);
+        }
         if (f.authorized != null) throw new IllegalArgumentException("Mã đã được xác minh.");
         if (Duration.between(f.sent, Instant.now()).getSeconds() < 60) throw new IllegalArgumentException(
             "Vui lòng chờ đủ 60 giây."
@@ -173,6 +195,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         var f = required(id, session);
         if (!"REGISTER".equals(f.kind) && !"RESET".equals(f.kind)) {
             throw new IllegalArgumentException("Yêu cầu xác minh không hợp lệ.");
+        }
+        if ("RESET".equals(f.kind)) {
+            requireCurrentRecoveryAccount(f);
         }
         verifyCode(f, code);
         if ("REGISTER".equals(f.kind)) {
