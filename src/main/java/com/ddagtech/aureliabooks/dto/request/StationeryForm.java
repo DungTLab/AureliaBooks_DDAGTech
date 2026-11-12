@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.dto.request;
 
+import com.ddagtech.aureliabooks.util.ProductImageUrls;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -59,7 +60,7 @@ public record StationeryForm(
         Integer warrantyMonths) {
 
     public StationeryForm {
-        mainImageUrl = com.ddagtech.aureliabooks.util.ProductImageUrls.normalize(mainImageUrl);
+        mainImageUrl = ProductImageUrls.normalize(mainImageUrl);
         if (barcode != null) barcode = barcode.strip();
         if (title != null) title = title.strip();
     }

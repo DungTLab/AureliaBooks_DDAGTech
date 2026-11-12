@@ -79,7 +79,7 @@ public class MasterDataMapper {
     /**
      * Converts PublisherForm request DTO to new Publisher JPA entity.
      */
-    public Publisher toPublisherEntity(com.ddagtech.aureliabooks.dto.request.PublisherForm form) {
+    public Publisher toPublisherEntity(PublisherForm form) {
         if (form == null) {
             return null;
         }
