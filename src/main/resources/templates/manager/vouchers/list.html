@@ -116,7 +116,7 @@
                         <!-- Condition -->
                         <td class="py-3.5 px-4 min-w-[180px] text-xs">
                             <p class="font-medium text-carbon_black"
-                               th:text="'Đơn từ ' + ${#numbers.formatDecimal(v.minOrderValue, 0, 'POINT', 2, 'COMMA')} + ' đ'">Đơn từ 100.000 đ</p>
+                               th:text="'Đơn từ ' + ${#numbers.formatDecimal(v.minOrderValue, 1, 'POINT', 2, 'COMMA')} + ' đ'">Đơn từ 100.000 đ</p>
                             <p th:if="${v.maxDiscountAmount != null}"
                                class="text-carbon_black-500 mt-0.5"
                                th:text="'Giảm tối đa ' + ${#numbers.formatDecimal(v.maxDiscountAmount, 0, 'POINT', 2, 'COMMA')} + ' đ'">Giảm tối đa 30.000 đ</p>
