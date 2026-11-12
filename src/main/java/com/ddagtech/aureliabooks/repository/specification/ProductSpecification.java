@@ -26,6 +26,7 @@ public abstract class ProductSpecification implements Specification<Product> {
         if (input == null) {
             return "";
         }
+        // Escape the escape character first, then treat LIKE wildcards as literal text.
         return input.replace("\\", "\\\\")
                 .replace("%", "\\%")
                 .replace("_", "\\_");
@@ -42,6 +43,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             if (keyword == null || keyword.isBlank()) {
                 return cb.conjunction();
             }
+            // Match the normalized keyword anywhere in searchable text.
             String escaped = escapeLike(keyword.trim().toLowerCase());
             String pattern = "%" + escaped + "%";
             char escapeChar = '\\';
@@ -49,6 +51,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             var titlePredicate = cb.like(cb.lower(root.get("title")), pattern, escapeChar);
             var barcodePredicate = cb.like(cb.lower(root.get("barcode")), pattern, escapeChar);
 
+            // Search book metadata in a subquery to avoid duplicating outer product rows.
             Subquery<Long> bookSubquery = query.subquery(Long.class);
             Root<Book> bookRoot = bookSubquery.from(Book.class);
             bookSubquery.select(bookRoot.get("productId"));
@@ -59,6 +62,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             var publisherPredicate = cb.like(cb.lower(publisherJoin.get("name")), pattern, escapeChar);
             bookSubquery.where(cb.or(isbnPredicate, authorPredicate, publisherPredicate));
 
+            // Include brand and material matches for stationery products.
             Subquery<Long> stationerySubquery = query.subquery(Long.class);
             Root<Stationery> stationeryRoot = stationerySubquery.from(Stationery.class);
             stationerySubquery.select(stationeryRoot.get("productId"));
@@ -66,6 +70,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             var brandPredicate = cb.like(cb.lower(brandJoin.get("name")), pattern, escapeChar);
             var materialPredicate = cb.like(cb.lower(stationeryRoot.get("material")), pattern, escapeChar);
             stationerySubquery.where(cb.or(brandPredicate, materialPredicate));
+            // A match in any supported field is enough to include the product.
             return cb.or(
                     titlePredicate,
                     barcodePredicate,
@@ -76,6 +81,7 @@ public abstract class ProductSpecification implements Specification<Product> {
     }
 
     public static Specification<Product> hasKeyWord(String keyword) {
+        // Keep the older method spelling compatible with existing callers.
         return hasKeyword(keyword);
     }
 
@@ -90,6 +96,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             if (categoryIds == null || categoryIds.isEmpty()) {
                 return cb.conjunction();
             } else {
+                // Descendant IDs must already be supplied by the caller.
                 return root.get("category").get("id").in(categoryIds);
             }
         };
@@ -106,6 +113,7 @@ public abstract class ProductSpecification implements Specification<Product> {
     public static Specification<Product> priceBetween(BigDecimal minPrice, BigDecimal maxPrice) {
         return (root, query, cb) -> {
             if (minPrice != null && maxPrice != null) {
+                // Accept reversed bounds by normalizing the inclusive price range.
                 BigDecimal lower = minPrice.min(maxPrice);
                 BigDecimal upper = minPrice.max(maxPrice);
                 return cb.between(root.get("price"), lower, upper);
@@ -133,6 +141,7 @@ public abstract class ProductSpecification implements Specification<Product> {
                 Subquery<Long> subquery = query.subquery(Long.class);
                 Root<Book> bookRoot = subquery.from(Book.class);
                 subquery.select(bookRoot.get("productId"));
+                // Only products with matching book details qualify.
                 subquery.where(cb.equal(bookRoot.get("coverType"), coverType));
                 return root.get("id").in(subquery);
             }
@@ -153,6 +162,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             Subquery<Long> subquery = query.subquery(Long.class);
             Root<Book> bookRoot = subquery.from(Book.class);
             subquery.select(bookRoot.get("productId"));
+            // Resolve the publisher through book details rather than the base product.
             subquery.where(cb.equal(bookRoot.get("publisher").get("id"), publisherId));
             return root.get("id").in(subquery);
         };
@@ -173,6 +183,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             Subquery<Long> subquery = query.subquery(Long.class);
             Root<Book> bookRoot = subquery.from(Book.class);
             subquery.select(bookRoot.get("productId"));
+            // Keep the many-to-many author join inside the subquery for stable product paging.
             Join<Book, Author> authorJoin = bookRoot.join("authors");
             subquery.where(cb.equal(authorJoin.get("id"), authorId));
             return root.get("id").in(subquery);
@@ -193,6 +204,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             Subquery<Long> subquery = query.subquery(Long.class);
             Root<Stationery> stationeryRoot = subquery.from(Stationery.class);
             subquery.select(stationeryRoot.get("productId"));
+            // Brand filtering applies only to products with stationery details.
             subquery.where(cb.equal(stationeryRoot.get("brand").get("id"), brandId));
             return root.get("id").in(subquery);
         };
@@ -209,6 +221,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             if (isActive == null) {
                 return cb.conjunction();
             }
+            // An explicit false value selects inactive products; null skips this filter.
             return cb.equal(root.get("isActive"), isActive);
         };
     }
@@ -220,6 +233,7 @@ public abstract class ProductSpecification implements Specification<Product> {
      * @return Specification matching the product type, or conjunction if null
      */
     public static Specification<Product> hasProductType(Product.ProductType productType) {
+        // Leave the type unrestricted when the caller provides no selection.
         return (root, query, cb) -> productType == null ? cb.conjunction() : cb.equal(root.get("productType"), productType);
     }
 
@@ -237,6 +251,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             Subquery<Long> subquery = query.subquery(Long.class);
             Root<Book> bookRoot = subquery.from(Book.class);
             subquery.select(bookRoot.get("productId"));
+            // A false flag selects non-textbook books, not stationery products.
             subquery.where(
                     cb.equal(bookRoot.get("productId"), root.get("id")),
                     cb.equal(bookRoot.get("isTextbook"), isTextbook)
@@ -251,6 +266,7 @@ public abstract class ProductSpecification implements Specification<Product> {
      * @return Specification prioritizing exact barcode/ISBN matches
      */
     public static Specification<Product> prioritizeExactIdentifier(String keyword) {
+        // Apply identifier priority without adding a secondary sort.
         return prioritizeExactIdentifier(keyword, Sort.unsorted());
     }
 
@@ -272,11 +288,13 @@ public abstract class ProductSpecification implements Specification<Product> {
             Subquery<Long> exactIsbnSubquery = query.subquery(Long.class);
             Root<Book> bookRoot = exactIsbnSubquery.from(Book.class);
             exactIsbnSubquery.select(bookRoot.get("productId"));
+            // Compare the full ISBN rather than using the partial keyword pattern.
             exactIsbnSubquery.where(cb.equal(cb.lower(bookRoot.get("isbn")), exact));
 
             var isExactBarcode = cb.equal(cb.lower(root.get("barcode")), exact);
             var isExactIsbn = root.get("id").in(exactIsbnSubquery);
 
+            // Rank exact barcode or ISBN matches before other search results.
             var exactMatchCase = cb.selectCase()
                     .when(cb.or(isExactBarcode, isExactIsbn), 0)
                     .otherwise(1);
@@ -284,6 +302,7 @@ public abstract class ProductSpecification implements Specification<Product> {
             List<Order> orders = new ArrayList<>();
             orders.add(cb.asc(exactMatchCase));
 
+            // Use the requested sort only after the exact-match priority.
             if (sort != null && sort.isSorted()) {
                 for (Sort.Order sortOrder : sort) {
                     String property = sortOrder.getProperty();
@@ -294,6 +313,7 @@ public abstract class ProductSpecification implements Specification<Product> {
                     }
                 }
             }
+            // This specification changes ordering without adding a filtering condition.
             query.orderBy(orders);
             return cb.conjunction();
         };
