@@ -79,6 +79,11 @@ public class ProductServiceImpl implements ProductService {
         this.masterDataMapper = masterDataMapper;
     }
 
+    /**
+     * Returns only active, in-stock products and combines supplied filters with AND.
+     * Category filtering includes descendants reachable through the active category list.
+     * Keyword queries apply exact-identifier priority before the requested secondary sort.
+     */
     @Transactional(readOnly = true)
     @Override
     public Page<ProductSummary> browse(ProductFilterRequest filter, Pageable pageable) {
@@ -91,6 +96,7 @@ public class ProductServiceImpl implements ProductService {
                 spec = spec.and(ProductSpecification.hasKeyword(filter.keyword()));
                 spec = spec.and(ProductSpecification.prioritizeExactIdentifier(filter.keyword(), pageable.getSort()));
 
+                // Keep Spring paging from overriding the identifier-first order in the specification.
                 effectivePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.unsorted());
             }
             if (filter.categoryId() != null) {
@@ -147,6 +153,10 @@ public class ProductServiceImpl implements ProductService {
                 product, bookMap.get(product.getId())));
     }
 
+    /**
+     * Rejects missing or inactive products but allows details for out-of-stock products.
+     * Falls back to generic product details when the corresponding subtype record is unavailable.
+     */
     @Transactional(readOnly = true)
     @Override
     public ProductDetailResponse viewDetail(Long productId) {
@@ -166,6 +176,7 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
+        // Keep legacy products readable even when their subtype details are missing.
         return productMapper.toGenericDetail(product);
     }
 
@@ -176,6 +187,10 @@ public class ProductServiceImpl implements ProductService {
                 .toList();
     }
 
+    /**
+     * Treats categories whose parent is absent from the supplied list as menu roots.
+     * Each root receives at most twelve descendants for its menu preview.
+     */
     @Override
     public Map<CategorySummary, List<CategorySummary>> groupCategoriesForMenu(List<CategorySummary> categories) {
         Map<CategorySummary, List<CategorySummary>> groups = new LinkedHashMap<>();
@@ -184,6 +199,7 @@ public class ProductServiceImpl implements ProductService {
             ids.add(category.id());
         }
         for (CategorySummary category : categories) {
+            // Show children as menu roots when their parent is absent from this list.
             if (category.parentId() == null || !ids.contains(category.parentId())) {
                 List<CategorySummary> preview = collectCategoryBranch(categories, category.id()).stream()
                         .filter(child -> !child.id().equals(category.id()))
@@ -195,6 +211,10 @@ public class ProductServiceImpl implements ProductService {
         return groups;
     }
 
+    /**
+     * Collects the supplied root and reachable descendants in depth-first input order.
+     * Tracks visited IDs so malformed category cycles cannot loop indefinitely.
+     */
     private List<CategorySummary> collectCategoryBranch(List<CategorySummary> categories, Long rootId) {
         Map<Long, List<CategorySummary>> children = new HashMap<>();
         Map<Long, CategorySummary> byId = new LinkedHashMap<>();
@@ -207,6 +227,7 @@ public class ProductServiceImpl implements ProductService {
         List<CategorySummary> result = new ArrayList<>();
         Deque<Long> pending = new ArrayDeque<>();
         Set<Long> visited = new HashSet<>();
+        // Use a stack and visited IDs to handle deep or cyclic category data safely.
         pending.push(rootId);
         while (!pending.isEmpty()) {
             Long id = pending.pop();
@@ -220,6 +241,10 @@ public class ProductServiceImpl implements ProductService {
         return result;
     }
 
+    /**
+     * Keeps active categories associated with the requested product type and their active ancestors.
+     * Returns all active categories when no type is specified.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<CategorySummary> getCategoriesForType(Product.ProductType type) {
@@ -228,6 +253,7 @@ public class ProductServiceImpl implements ProductService {
         Map<Long, CategorySummary> byId = new HashMap<>();
         categories.forEach(category -> byId.put(category.id(), category));
         Set<Long> matching = new HashSet<>();
+        // Include ancestors so matching categories retain their navigation path.
         for (Long categoryId : productRepository.findCategoryIdsByProductType(type)) {
             CategorySummary current = byId.get(categoryId);
             Set<Long> visited = new HashSet<>();
@@ -263,6 +289,10 @@ public class ProductServiceImpl implements ProductService {
                 .toList();
     }
 
+    /**
+     * Returns at most five active, in-stock matches, prioritizing exact identifiers.
+     * Returns no suggestions until the trimmed keyword contains at least two characters.
+     */
     @Override
     public List<ProductAutoCompleteResponse> autoComplete(String keyword) {
         if (keyword == null || keyword.trim().length() < 2) {

@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -291,17 +292,17 @@ public class AdminProductController {
     private void populateBookFormForRetry(Model model) {
         try { populateBookFormData(model); }
         catch (DataAccessException | TransactionException unavailable) {
-            model.addAttribute("categories", java.util.List.of());
-        model.addAttribute("publishers", java.util.List.of());
-            model.addAttribute("authors", java.util.List.of());
+            model.addAttribute("categories", List.of());
+        model.addAttribute("publishers", List.of());
+            model.addAttribute("authors", List.of());
         }
     }
 
     private void populateStationeryFormForRetry(Model model) {
         try { populateStationeryFormData(model); }
         catch (DataAccessException | TransactionException unavailable) {
-            model.addAttribute("categories", java.util.List.of());
-            model.addAttribute("brands", java.util.List.of());
+            model.addAttribute("categories", List.of());
+            model.addAttribute("brands", List.of());
         }
     }
 
