@@ -10,6 +10,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditLogMapper {
 
+    /**
+     * Converts an immutable {@link AuditLog} entity into its read-only {@link AuditLogResponse} DTO.
+     *
+     * @param entity persisted audit log entry (nullable)
+     * @return mapped DTO, or null when entity is null
+     */
     public AuditLogResponse toResponse(AuditLog entity) {
         if (entity == null) {
             return null;

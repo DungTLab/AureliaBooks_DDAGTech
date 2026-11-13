@@ -11,6 +11,7 @@ import com.ddagtech.aureliabooks.mapper.AdminUserMapper;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
+import com.ddagtech.aureliabooks.security.LoginAttemptService;
 import com.ddagtech.aureliabooks.service.AdminUserService;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,15 +31,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
-
-import com.ddagtech.aureliabooks.security.LoginAttemptService;
 
 /**
  * Production implementation of {@link AdminUserService} managing internal accounts and RBAC (UC28).
