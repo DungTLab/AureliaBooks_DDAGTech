@@ -197,4 +197,44 @@ class InternalAccountEmailControllerTest {
                 .andExpect(redirectedUrl("/internal/account/email"))
                 .andExpect(flash().attribute("errorMessage", ErrorCode.OTP_INVALID_OR_EXPIRED.getMessage()));
     }
+
+    @Test
+    @DisplayName("Verified recovery-email page hides /internal/forgot-password eligibility notice for ROLE_ADMIN while keeping it for MANAGER/SALE_STAFF")
+    void recoveryEmailViewDistinguishesAdminFromStaffRecoveryEligibility() throws Exception {
+        User verifiedManager = User.builder()
+                .id(15L)
+                .email("manager@aureliabook.vn")
+                .role(Role.builder().id(2L).roleName("ROLE_MANAGER").build())
+                .isActive(true)
+                .emailVerified(true)
+                .build();
+        when(staffContactService.loadInternalStaff(15L)).thenReturn(verifiedManager);
+
+        mockMvc.perform(get("/internal/account/email").with(user("mgr").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Tài khoản đã đủ điều kiện dùng chức năng")));
+
+        User verifiedAdmin = User.builder()
+                .id(15L)
+                .email("admin@aureliabook.vn")
+                .role(Role.builder().id(1L).roleName("ROLE_ADMIN").build())
+                .isActive(true)
+                .emailVerified(true)
+                .build();
+        when(staffContactService.loadInternalStaff(15L)).thenReturn(verifiedAdmin);
+
+        mockMvc.perform(get("/internal/account/email").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Tài khoản đã đủ điều kiện dùng chức năng"))))
+                .andExpect(content().string(containsString("không áp dụng tự đặt lại mật khẩu")));
+
+        when(staffContactService.verifySelfEmail(eq(15L), anyString(), eq("654321"), any())).thenReturn(verifiedAdmin);
+        mockMvc.perform(post("/internal/account/email/verify")
+                        .with(user("admin").roles("ADMIN"))
+                        .with(csrf())
+                        .param("code", "654321"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/internal/account/email"))
+                .andExpect(flash().attribute("successMessage", "Xác minh email công việc thành công."));
+    }
 }

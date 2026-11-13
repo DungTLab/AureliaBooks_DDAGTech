@@ -15,14 +15,4 @@ public interface StaffContactWriter {
             String activeSessionId,
             String ipAddress
     );
-
-    User applyAdminSupportedEmail(
-            Long adminId,
-            Long targetUserId,
-            String expectedOldEmail,
-            String expectedOldHash,
-            String newEmail,
-            String reason,
-            String ipAddress
-    );
 }

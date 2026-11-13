@@ -972,4 +972,42 @@ class AdminUserServiceTest {
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
     }
+
+    @Test
+    @DisplayName("updateStaffContact() with phone-only change never emits email_verified:true proof in audit details")
+    void testUpdateStaffContact_PhoneOnlyUpdate_DoesNotAuditEmailVerifiedTrue() {
+        Long adminId = 1L;
+        Long targetId = 20L;
+        User staff = User.builder()
+                .id(targetId)
+                .email("legacy.staff@aureliabook.vn")
+                .phone("0901111111")
+                .passwordHash("$2a$12$untouchedSecret")
+                .role(staffRole)
+                .isActive(true)
+                .emailVerified(true)
+                .phoneVerified(false)
+                .build();
+
+        when(userRepository.findOwnerForUpdate(targetId)).thenReturn(Optional.of(staff));
+        when(userRepository.existsByPhone("0988776655")).thenReturn(false);
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var phoneOnlyRequest = new com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest(
+                null,
+                "0988776655",
+                true,
+                "Staff updated mobile number"
+        );
+
+        adminUserService.updateStaffContact(adminId, targetId, phoneOnlyRequest, "10.0.0.9");
+
+        assertThat(staff.getPhone()).isEqualTo("0988776655");
+        assertThat(staff.isPhoneVerified()).isFalse();
+        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogService).record(eq(adminId), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(targetId), jsonCaptor.capture(), eq("10.0.0.9"));
+        assertThat(jsonCaptor.getValue())
+                .contains("\"email_changed\":false", "\"email_verification_reset\":false", "\"phone_changed\":true", "\"phone_verified\":false")
+                .doesNotContain("\"email_verified\":true");
+    }
 }

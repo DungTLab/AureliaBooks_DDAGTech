@@ -61,6 +61,7 @@ public class StaffContactWriterImpl implements StaffContactWriter {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "INTERNAL_EMAIL_VERIFIED");
         details.put("staff_id", staffId);
+        details.put("verified_email", cleanEmail);
         details.put("email_changed", emailChanged);
         details.put("verification_channel", "EMAIL");
         details.put("email_verified", true);
@@ -74,63 +75,6 @@ public class StaffContactWriterImpl implements StaffContactWriter {
         );
 
         runAfterCommit(() -> expireUserSessions(staffId, activeSessionId));
-        return saved;
-    }
-
-    @Override
-    @Transactional
-    public User applyAdminSupportedEmail(
-            Long adminId,
-            Long targetUserId,
-            String expectedOldEmail,
-            String expectedOldHash,
-            String newEmail,
-            String reason,
-            String ipAddress
-    ) {
-        if (adminId == null || targetUserId == null || adminId.equals(targetUserId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-
-        User target = lockAndVerifyInternalStaff(targetUserId, expectedOldEmail, expectedOldHash);
-        String cleanEmail = ContactOtpEngine.normalizeEmail(newEmail);
-        if (!ContactOtpEngine.isValidEmail(cleanEmail)) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
-        }
-
-        boolean emailChanged = !Objects.equals(cleanEmail, target.getEmail());
-        if (emailChanged && users.existsByEmail(cleanEmail)) {
-            throw new AppException(ErrorCode.USER_EXISTED);
-        }
-
-        target.setEmail(cleanEmail);
-        target.setEmailVerified(true);
-        User saved = users.saveAndFlush(target);
-
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("action", "ADMIN_STAFF_CONTACT_UPDATED");
-        details.put("actor_id", adminId);
-        details.put("target_user_id", targetUserId);
-        details.put("field", "EMAIL");
-        details.put("email_changed", emailChanged);
-        details.put("verification_channel", "EMAIL_VERIFICATION");
-        details.put("identity_confirmed", true);
-        details.put("email_verified", true);
-        if (reason != null && !reason.isBlank()) {
-            String trimmedReason = reason.trim();
-            details.put("reason", trimmedReason.length() > 200 ? trimmedReason.substring(0, 200) : trimmedReason);
-        }
-
-        audit.record(
-                adminId,
-                "ADMIN_STAFF_CONTACT_UPDATED",
-                "users",
-                targetUserId,
-                toJson(details),
-                normalizeIp(ipAddress)
-        );
-
-        runAfterCommit(() -> expireUserSessions(targetUserId, null));
         return saved;
     }
 

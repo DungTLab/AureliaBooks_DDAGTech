@@ -97,7 +97,12 @@ class StaffContactWriterTest {
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
         verify(audit).record(eq(20L), eq("INTERNAL_EMAIL_VERIFIED"), eq("users"), eq(20L), jsonCaptor.capture(), eq("10.0.0.5"));
         String json = jsonCaptor.getValue();
-        assertThat(json).contains("\"email_verified\":true", "\"email_changed\":true", "\"verification_channel\":\"EMAIL\"");
+        assertThat(json).contains(
+                "\"email_verified\":true",
+                "\"verified_email\":\"new.work@aureliabook.vn\"",
+                "\"email_changed\":true",
+                "\"verification_channel\":\"EMAIL\""
+        );
         assertThat(json.toLowerCase()).doesNotContain("password", "otp", "token", "hash");
     }
 
@@ -142,62 +147,22 @@ class StaffContactWriterTest {
     }
 
     @Test
-    @DisplayName("applyAdminSupportedEmail updates verified email, leaves password untouched, expires all target sessions, and logs cleanly")
-    void applyAdminSupportedEmail_Success() {
+    @DisplayName("applySelfVerifiedEmail rejects invalid email format cleanly")
+    void applySelfVerifiedEmail_RejectsInvalidEmailFormat() {
         User staff = User.builder()
-                .id(30L)
-                .email("lost@oldmail.vn")
-                .passwordHash("$2a$12$untouchedHash")
+                .id(20L)
+                .email("old@aureliabook.vn")
+                .passwordHash("$2a$12$fixedHash")
                 .role(managerRole)
                 .isActive(true)
-                .emailVerified(false)
                 .build();
+        when(users.findOwnerForUpdate(20L)).thenReturn(Optional.of(staff));
 
-        CustomUserDetails principal = new CustomUserDetails(staff);
-        SessionInformation s1 = mock(SessionInformation.class);
-
-        when(users.findOwnerForUpdate(30L)).thenReturn(Optional.of(staff));
-        when(users.existsByEmail("recovered@aureliabook.vn")).thenReturn(false);
-        when(users.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(sessions.getAllPrincipals()).thenReturn(List.of(principal));
-        when(sessions.getAllSessions(principal, false)).thenReturn(List.of(s1));
-
-        User updated = writer.applyAdminSupportedEmail(
-                1L,
-                30L,
-                "lost@oldmail.vn",
-                "$2a$12$untouchedHash",
-                "recovered@aureliabook.vn",
-                "Staff lost company inbox",
-                "192.168.1.2"
-        );
-
-        assertThat(updated.getEmail()).isEqualTo("recovered@aureliabook.vn");
-        assertThat(updated.isEmailVerified()).isTrue();
-        assertThat(updated.getPasswordHash()).isEqualTo("$2a$12$untouchedHash");
-        verify(s1).expireNow();
-
-        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(audit).record(eq(1L), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(30L), jsonCaptor.capture(), eq("192.168.1.2"));
-        String json = jsonCaptor.getValue();
-        assertThat(json).contains("\"identity_confirmed\":true", "\"email_verified\":true", "\"verification_channel\":\"EMAIL_VERIFICATION\"");
-        assertThat(json.toLowerCase()).doesNotContain("password", "otp", "token", "hash");
-    }
-
-    @Test
-    @DisplayName("applyAdminSupportedEmail rejects self-targeting and customer targets")
-    void applyAdminSupportedEmail_RejectsSelfAndCustomer() {
-        assertThatThrownBy(() -> writer.applyAdminSupportedEmail(
-                1L, 1L, "a@b.vn", "hash", "c@d.vn", "reason", "127.0.0.1"))
+        assertThatThrownBy(() -> writer.applySelfVerifiedEmail(
+                20L, "old@aureliabook.vn", "$2a$12$fixedHash", "not-an-email", "s1", "127.0.0.1"))
                 .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
 
-        User customer = User.builder().id(50L).role(customerRole).isActive(true).email("c@example.com").passwordHash("hash").build();
-        when(users.findOwnerForUpdate(50L)).thenReturn(Optional.of(customer));
-
-        assertThatThrownBy(() -> writer.applyAdminSupportedEmail(
-                1L, 50L, "c@example.com", "hash", "c2@example.com", "reason", "127.0.0.1"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+        verify(users, never()).saveAndFlush(any());
     }
 }

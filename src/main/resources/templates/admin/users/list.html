@@ -298,8 +298,7 @@
                                         th:data-user-phone="${user.phone}"
                                         th:data-email-verified="${user.emailVerified}"
                                         th:data-contact-url="@{/admin/users/{id}/contact(id=${user.id})}"
-                                        th:data-send-otp-url="@{/admin/users/{id}/contact/email/send-otp(id=${user.id})}"
-                                        title="Hỗ trợ cập nhật liên hệ hoặc xác minh email khôi phục khi nhân sự mất kênh"
+                                        title="Cập nhật thông tin liên hệ nhân sự (đặt lại trạng thái chưa xác minh)"
                                         class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-blazing_flame bg-blazing_flame/10 hover:bg-blazing_flame/20 border border-blazing_flame/30 transition whitespace-nowrap">
                                     <i class="bi bi-envelope-at-fill" aria-hidden="true"></i>
                                     <span>Cập nhật liên hệ</span>
@@ -476,7 +475,7 @@
         </div>
     </div>
 
-    <!-- Contact Support Modal Dialog (Lost Channel Recovery / Live Email OTP Confirmation, No Password Access) -->
+    <!-- Contact Support Modal Dialog (Direct Unverified Contact Update, No Password Access) -->
     <div id="contactSupportModal"
          class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
          role="dialog"
@@ -490,7 +489,7 @@
                         <i class="bi bi-envelope-at-fill"></i>
                     </div>
                     <div class="min-w-0">
-                        <h3 id="contactSupportModalTitle" class="font-bold text-lg text-carbon_black">Hỗ trợ liên hệ nhân sự</h3>
+                        <h3 id="contactSupportModalTitle" class="font-bold text-lg text-carbon_black">Hỗ trợ cập nhật liên hệ nhân sự</h3>
                         <p id="contactSupportTargetSummary" class="text-xs text-carbon_black-600 truncate">Đang chọn nhân sự...</p>
                     </div>
                 </div>
@@ -507,79 +506,19 @@
                     <i class="bi bi-info-circle-fill text-blazing_flame mt-0.5 text-sm flex-shrink-0" aria-hidden="true"></i>
                     <div>
                         <span class="font-bold text-carbon_black block">Quy tắc kiểm soát truy cập &amp; Email khôi phục</span>
-                        Quản trị viên chỉ hỗ trợ cập nhật liên hệ cho nhân sự nội bộ đang hoạt động (không hỗ trợ Khách hàng hoặc tự sửa chính mình) và <strong>không làm thay đổi hay cấp lại mật khẩu</strong>.
+                        Quản trị viên chỉ cập nhật liên hệ về trạng thái <strong>chưa xác minh</strong> cho nhân sự nội bộ đang hoạt động (không hỗ trợ Khách hàng, không tự sửa chính mình, <strong>không làm thay đổi hay cấp lại mật khẩu</strong>). Nhân sự tự đăng nhập tại mục Email khôi phục để xác minh OTP độc lập.
                     </div>
                 </div>
 
-                <!-- Active OTP Verification Challenge (Rendered when Admin sent OTP to Staff's new work email) -->
-                <div th:if="${activeEmailChallenge != null}"
-                     class="p-4 rounded-xl border border-blazing_flame/30 bg-blazing_flame/5 space-y-4"
-                     data-otp-timer
-                     th:attr="data-expires-seconds=${activeEmailChallenge.expiresSeconds}, data-resend-seconds=${activeEmailChallenge.resendSeconds}">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div>
-                            <h4 class="font-bold text-sm text-carbon_black">Bước 2: Nhập mã OTP từ nhân sự</h4>
-                            <p class="text-xs text-carbon_black-600 mt-0.5">
-                                Mã OTP 6 chữ số đã gửi tới <span class="font-semibold text-carbon_black" th:text="${activeEmailChallenge.maskedEmail}">s***@aureliabook.vn</span>.
-                            </p>
-                        </div>
-                        <span class="text-xs font-semibold text-blazing_flame whitespace-nowrap">
-                            Hết hạn sau: <span data-otp-expiry>05:00</span>
-                        </span>
-                    </div>
-
-                    <div th:if="${errorMessage != null}" role="alert"
-                         class="rounded-lg bg-red-50 text-red-800 border border-red-200 px-3 py-2 text-xs font-medium"
-                         th:text="${errorMessage}"></div>
-
-                    <form method="post"
-                          th:action="@{/admin/users/{id}/contact/email/confirm(id=${activeEmailChallenge.targetUserId})}"
-                          data-otp-code-form
-                          class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
-                        <div class="flex-1">
-                            <label for="adminStaffOtpCode" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                                Mã OTP 6 chữ số <span class="text-blazing_flame">*</span>
-                            </label>
-                            <input type="text"
-                                   id="adminStaffOtpCode"
-                                   name="code"
-                                   required
-                                   inputmode="numeric"
-                                   autocomplete="one-time-code"
-                                   pattern="^[0-9]{6}$"
-                                   maxlength="6"
-                                   placeholder="123456"
-                                   class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm font-mono tracking-widest text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
-                        </div>
-                        <button type="submit"
-                                class="px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl shadow-sm transition whitespace-nowrap">
-                            Xác nhận OTP &amp; Lưu
-                        </button>
-                    </form>
-
-                    <form method="post"
-                          th:action="@{/admin/users/{id}/contact/email/resend(id=${activeEmailChallenge.targetUserId})}"
-                          class="flex items-center justify-between gap-3 pt-1">
-                        <p data-otp-cooldown class="text-xs text-carbon_black-500">
-                            Có thể gửi lại mã sau <span data-otp-resend-seconds>60</span>s
-                        </p>
-                        <button type="submit"
-                                data-otp-resend
-                                class="px-3 py-1.5 border border-dust_grey bg-white hover:bg-alabaster_grey rounded-lg text-xs font-semibold text-carbon_black disabled:opacity-40 disabled:cursor-not-allowed transition">
-                            Gửi lại OTP
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Mode 1: Direct Contact Update (Unverified) -->
+                <!-- Direct Contact Update (Always Resets Changed Channel to Unverified) -->
                 <form id="contactSupportDirectForm"
                       method="post"
                       th:action="@{/admin/users/0/contact}"
                       class="p-4 border border-dust_grey rounded-xl space-y-3 bg-white">
                     <div>
-                        <h4 class="font-bold text-sm text-carbon_black">Cách 1: Cập nhật liên hệ trực tiếp (trạng thái chưa xác minh)</h4>
+                        <h4 class="font-bold text-sm text-carbon_black">Cập nhật liên hệ nhân sự (trạng thái chưa xác minh)</h4>
                         <p class="text-xs text-carbon_black-500 mt-0.5">
-                            Dùng khi nhân sự mất quyền truy cập email cũ. Nếu đổi email, hệ thống đánh dấu email ở trạng thái <strong>chưa xác minh</strong> để nhân sự tự xác minh sau khi đăng nhập.
+                            Dùng khi cần điều chỉnh thông tin liên hệ của nhân sự. Kênh vừa cập nhật luôn được đặt về trạng thái <strong>chưa xác minh</strong>; nhân sự phải tự xác minh OTP sau khi đăng nhập.
                         </p>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -616,7 +555,7 @@
                                name="reason"
                                required
                                maxlength="255"
-                               placeholder="Ví dụ: Đã kiểm tra thẻ nhân sự trực tiếp, cập nhật lại email mất quyền truy cập"
+                               placeholder="Ví dụ: Đã kiểm tra thẻ nhân sự trực tiếp, cập nhật lại liên hệ công việc"
                                class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
                     </div>
                     <label class="flex items-start gap-2 text-xs text-carbon_black-700 cursor-pointer">
@@ -628,58 +567,6 @@
                                class="mt-0.5 rounded border-dust_grey text-blazing_flame focus:ring-blazing_flame" />
                         <span>Tôi xác nhận đã đối chiếu và xác minh danh tính nhân sự trước khi cập nhật thông tin liên hệ.</span>
                     </label>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-4 py-2 bg-carbon_black hover:bg-carbon_black-800 text-white text-xs font-semibold rounded-xl shadow-sm transition">
-                            Lưu liên hệ (chưa xác minh)
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Mode 2: Live OTP Email Verification with Staff Present -->
-                <form id="contactSupportOtpForm"
-                      method="post"
-                      th:action="@{/admin/users/0/contact/email/send-otp}"
-                      class="p-4 border border-dust_grey rounded-xl space-y-3 bg-alabaster_grey/25">
-                    <div>
-                        <h4 class="font-bold text-sm text-carbon_black">Cách 2: Đổi &amp; xác minh ngay Email khôi phục qua OTP</h4>
-                        <p class="text-xs text-carbon_black-500 mt-0.5">
-                            Hệ thống gửi mã OTP 6 số tới email công việc mới; sau khi nhân sự đọc lại mã và Quản trị viên xác nhận, email sẽ chuyển ngay sang <strong>Đã xác minh</strong>.
-                        </p>
-                    </div>
-                    <div>
-                        <label for="supportOtpEmail" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                            Email khôi phục mới cần xác minh <span class="text-blazing_flame">*</span>
-                        </label>
-                        <input type="email"
-                               id="supportOtpEmail"
-                               name="email"
-                               required
-                               maxlength="100"
-                               placeholder="staff.recovery@aureliabook.vn"
-                               class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
-                    </div>
-                    <div>
-                        <label for="supportOtpReason" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                            Lý do hỗ trợ <span class="text-blazing_flame">*</span>
-                        </label>
-                        <input type="text"
-                               id="supportOtpReason"
-                               name="reason"
-                               required
-                               maxlength="255"
-                               placeholder="Ví dụ: Nhân sự mất quyền email cũ và đang có mặt trực tiếp để nhận mã OTP"
-                               class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
-                    </div>
-                    <label class="flex items-start gap-2 text-xs text-carbon_black-700 cursor-pointer">
-                        <input type="checkbox"
-                               id="supportOtpIdentityVerified"
-                               name="identityVerified"
-                               value="true"
-                               required
-                               class="mt-0.5 rounded border-dust_grey text-blazing_flame focus:ring-blazing_flame" />
-                        <span>Tôi xác nhận đã xác minh danh tính nhân sự trực tiếp và gửi OTP đến đúng hộp thư mới của nhân sự.</span>
-                    </label>
                     <div class="flex justify-end gap-2">
                         <button type="button"
                                 onclick="closeModal('contactSupportModal')"
@@ -687,16 +574,14 @@
                             Đóng
                         </button>
                         <button type="submit"
-                                class="px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-xs font-semibold rounded-xl shadow-sm transition">
-                            Gửi mã OTP tới email mới
+                                class="px-4 py-2 bg-carbon_black hover:bg-carbon_black-800 text-white text-xs font-semibold rounded-xl shadow-sm transition">
+                            Lưu liên hệ (chưa xác minh)
                         </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-
-    <script th:src="@{/js/otp-countdown.js}" defer></script>
 
     <!-- Vanilla Modal Controller Script with A11y & Auto-Reopen -->
     <script>
@@ -725,14 +610,10 @@
             }
         }
 
-        function configureContactSupportForUser(userId, userName, userEmail, userPhone, emailVerified, contactUrl, sendOtpUrl) {
+        function configureContactSupportForUser(userId, userName, userEmail, userPhone, emailVerified, contactUrl) {
             const directForm = document.getElementById('contactSupportDirectForm');
-            const otpForm = document.getElementById('contactSupportOtpForm');
             if (directForm) {
                 directForm.setAttribute('action', contactUrl || ('/admin/users/' + userId + '/contact'));
-            }
-            if (otpForm) {
-                otpForm.setAttribute('action', sendOtpUrl || ('/admin/users/' + userId + '/contact/email/send-otp'));
             }
             const summary = document.getElementById('contactSupportTargetSummary');
             if (summary) {
@@ -760,8 +641,7 @@
                 trigger.getAttribute('data-user-email'),
                 trigger.getAttribute('data-user-phone'),
                 trigger.getAttribute('data-email-verified'),
-                trigger.getAttribute('data-contact-url'),
-                trigger.getAttribute('data-send-otp-url')
+                trigger.getAttribute('data-contact-url')
             );
             openModal('contactSupportModal');
         }
@@ -810,24 +690,6 @@
     <script th:if="${openCreateModal == true or (errorMessage != null and newUserForm != null and newUserForm.email != null and newUserForm.email != '')}">
         document.addEventListener('DOMContentLoaded', function () {
             openModal('createStaffModal');
-        });
-    </script>
-    <script th:if="${openContactOtpUserId != null}" th:inline="javascript">
-        document.addEventListener('DOMContentLoaded', function () {
-            const targetUserId = /*[[${openContactOtpUserId}]]*/ null;
-            if (targetUserId !== null) {
-                const trigger = document.querySelector('button[data-user-id="' + targetUserId + '"]');
-                if (trigger) {
-                    openContactSupportModal(trigger);
-                } else {
-                    configureContactSupportForUser(targetUserId, '', '', '', false, '', '');
-                    openModal('contactSupportModal');
-                }
-                const otpInput = document.getElementById('adminStaffOtpCode');
-                if (otpInput) {
-                    otpInput.focus();
-                }
-            }
         });
     </script>
 </div>

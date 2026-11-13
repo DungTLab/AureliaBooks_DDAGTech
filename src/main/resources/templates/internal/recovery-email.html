@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
       th:replace="~{layout/internal :: layout('Email khôi phục nội bộ - AureliaBook', ~{::#main-content})}">
 <head>
     <title>Email khôi phục nội bộ - AureliaBook</title>
@@ -19,8 +19,11 @@
                 <i class="bi bi-envelope-check text-blazing_flame"></i>
                 Xác minh Email công việc khôi phục
             </h1>
-            <p class="text-sm text-carbon_black-600 mt-1">
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-sm text-carbon_black-600 mt-1">
                 Xác minh email công việc bằng mã OTP 6 số để tự đặt lại mật khẩu tại cổng nội bộ khi cần.
+            </p>
+            <p sec:authorize="hasRole('ADMIN')" class="text-sm text-carbon_black-600 mt-1">
+                Xác minh địa chỉ email công việc cho tài khoản Quản trị viên (không áp dụng tự đặt lại mật khẩu qua <code>/internal/forgot-password</code>).
             </p>
         </div>
 
@@ -61,11 +64,17 @@
                 <p class="text-base font-bold font-mono text-carbon_black mt-0.5"
                    th:text="${staff.email != null ? staff.email : 'Chưa thiết lập'}">staff@aureliabook.vn</p>
             </div>
-            <p class="text-xs text-carbon_black-600" th:if="${staff.emailVerified}">
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-carbon_black-600" th:if="${staff.emailVerified}">
                 Tài khoản đã đủ điều kiện dùng chức năng <strong>Quên mật khẩu</strong> tại <code>/internal/forgot-password</code>.
             </p>
-            <p class="text-xs text-amber-800 font-medium" th:unless="${staff.emailVerified}">
+            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-carbon_black-600" th:if="${staff.emailVerified}">
+                Email công việc đã được xác minh. Khôi phục quyền truy cập Quản trị viên áp dụng quy trình vận hành riêng, không qua <code>/internal/forgot-password</code>.
+            </p>
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-amber-800 font-medium" th:unless="${staff.emailVerified}">
                 Cần xác minh OTP để kích hoạt tự khôi phục mật khẩu nội bộ.
+            </p>
+            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-amber-800 font-medium" th:unless="${staff.emailVerified}">
+                Email công việc của Quản trị viên chưa xác minh OTP.
             </p>
         </div>
     </div>

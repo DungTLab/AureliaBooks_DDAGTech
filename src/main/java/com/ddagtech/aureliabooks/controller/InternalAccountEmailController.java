@@ -160,10 +160,11 @@ public class InternalAccountEmailController {
             );
             clearReauthGrant(session);
             sessionUpdater.refreshStaff(updated, request, response);
-            redirectAttributes.addFlashAttribute(
-                    "successMessage",
-                    "Xác minh email khôi phục thành công. Bạn đã sẵn sàng sử dụng chức năng Quên mật khẩu nội bộ."
-            );
+            String targetRoleName = updated.getRole() != null ? updated.getRole().getRoleName() : null;
+            String successMessage = "ROLE_ADMIN".equals(targetRoleName)
+                    ? "Xác minh email công việc thành công."
+                    : "Xác minh email khôi phục thành công. Bạn đã sẵn sàng sử dụng chức năng Quên mật khẩu nội bộ.";
+            redirectAttributes.addFlashAttribute("successMessage", successMessage);
         } catch (AppException ex) {
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }

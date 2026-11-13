@@ -1,7 +1,6 @@
 package com.ddagtech.aureliabooks.service;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
-import com.ddagtech.aureliabooks.dto.request.AdminStaffEmailOtpRequest;
 import com.ddagtech.aureliabooks.dto.response.AdminStaffEmailChallengeView;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
@@ -11,7 +10,15 @@ import com.ddagtech.aureliabooks.service.impl.StaffContactServiceImpl;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -196,45 +204,107 @@ class StaffContactServiceTest {
     }
 
     @Test
-    @DisplayName("Admin lost-channel email OTP rejects self/customer/unconfirmed identity and applies verified email without mutating password")
-    void adminLostChannelOtp_EnforcesGuardsAndAppliesViaWriter() {
-        AdminStaffEmailOtpRequest validReq = new AdminStaffEmailOtpRequest("recovered@aureliabook.vn", true, "Staff lost inbox");
+    @DisplayName("Two distinct staff accounts can issue and verify OTP concurrently alongside expired challenge cleanup")
+    void twoAccountsSendAndVerifyOtpConcurrentlyWithExpirationCleanup() throws Exception {
+        User staff11 = User.builder()
+                .id(11L)
+                .email("staff11@aureliabook.vn")
+                .passwordHash("$2a$12$hash11")
+                .role(staffRole)
+                .isActive(true)
+                .emailVerified(false)
+                .build();
+        User expiredStaff12 = User.builder()
+                .id(12L)
+                .email("staff12@aureliabook.vn")
+                .passwordHash("$2a$12$hash12")
+                .role(staffRole)
+                .isActive(true)
+                .emailVerified(false)
+                .build();
+        when(users.findById(11L)).thenReturn(Optional.of(staff11));
+        when(users.findById(12L)).thenReturn(Optional.of(expiredStaff12));
+        when(users.existsByEmail(anyString())).thenReturn(false);
 
-        // Self blocked
-        assertThatThrownBy(() -> service.startAdminEmailOtp(10L, "admin-s", 10L, validReq, "127.0.0.1"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+        // Seed an expired flow on a third staff user so concurrent starts invoke purgeExpiredPending()
+        service.startSelfEmailVerification(12L, "sess-12", "s12@aureliabook.vn", "10.0.0.12");
+        clockInstant.set(clockInstant.get().plusSeconds(305));
 
-        // Unconfirmed identity blocked
-        assertThatThrownBy(() -> service.startAdminEmailOtp(1L, "admin-s", 10L,
-                new AdminStaffEmailOtpRequest("recovered@aureliabook.vn", false, null), "127.0.0.1"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
+        Map<String, String> sentCodes = new ConcurrentHashMap<>();
+        CountDownLatch bothDelivering = new CountDownLatch(2);
+        CountDownLatch startVerifyLatch = new CountDownLatch(1);
+        doAnswer(inv -> {
+            String recipient = inv.getArgument(1);
+            String code = inv.getArgument(2);
+            sentCodes.put(recipient, code);
+            if ("s10@aureliabook.vn".equals(recipient) || "s11@aureliabook.vn".equals(recipient)) {
+                bothDelivering.countDown();
+                bothDelivering.await(5, TimeUnit.SECONDS);
+            }
+            return null;
+        }).when(delivery).send(eq("EMAIL"), anyString(), anyString());
 
-        // Customer blocked
-        User customer = User.builder().id(50L).email("c@example.com").role(customerRole).isActive(true).build();
-        when(users.findById(50L)).thenReturn(Optional.of(customer));
-        assertThatThrownBy(() -> service.startAdminEmailOtp(1L, "admin-s", 50L, validReq, "127.0.0.1"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+        when(writer.applySelfVerifiedEmail(eq(10L), any(), any(), eq("s10@aureliabook.vn"), eq("sess-10"), eq("10.0.0.10")))
+                .thenReturn(User.builder().id(10L).email("s10@aureliabook.vn").emailVerified(true).role(staffRole).isActive(true).build());
+        when(writer.applySelfVerifiedEmail(eq(11L), any(), any(), eq("s11@aureliabook.vn"), eq("sess-11"), eq("10.0.0.11")))
+                .thenReturn(User.builder().id(11L).email("s11@aureliabook.vn").emailVerified(true).role(staffRole).isActive(true).build());
 
-        // Valid admin OTP start -> confirm
-        when(users.existsByEmail("recovered@aureliabook.vn")).thenReturn(false);
-        AdminStaffEmailChallengeView challenge = service.startAdminEmailOtp(1L, "admin-s", 10L, validReq, "127.0.0.1");
-        assertThat(challenge.targetUserId()).isEqualTo(10L);
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<AdminStaffEmailChallengeView> f10 = pool.submit(
+                    (Callable<AdminStaffEmailChallengeView>) () ->
+                            service.startSelfEmailVerification(10L, "sess-10", "s10@aureliabook.vn", "10.0.0.10"));
+            Future<AdminStaffEmailChallengeView> f11 = pool.submit(
+                    (Callable<AdminStaffEmailChallengeView>) () ->
+                            service.startSelfEmailVerification(11L, "sess-11", "s11@aureliabook.vn", "10.0.0.11"));
 
-        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
-        verify(delivery).send(eq("EMAIL"), eq("recovered@aureliabook.vn"), codeCaptor.capture());
+            AdminStaffEmailChallengeView c10 = f10.get(5, TimeUnit.SECONDS);
+            AdminStaffEmailChallengeView c11 = f11.get(5, TimeUnit.SECONDS);
+            assertThat(c10.targetUserId()).isEqualTo(10L);
+            assertThat(c11.targetUserId()).isEqualTo(11L);
+            assertThat(service.findSelfEmailChallenge(12L, "sess-12")).isEmpty();
 
-        User updated = User.builder().id(10L).email("recovered@aureliabook.vn").emailVerified(true).role(staffRole).isActive(true).build();
-        when(writer.applyAdminSupportedEmail(
-                1L, 10L, "staff@aureliabook.vn", "$2a$12$hash", "recovered@aureliabook.vn", "Staff lost inbox", "127.0.0.1"))
-                .thenReturn(updated);
+            Future<User> v10 = pool.submit(() -> {
+                startVerifyLatch.await(5, TimeUnit.SECONDS);
+                return service.verifySelfEmail(10L, "sess-10", sentCodes.get("s10@aureliabook.vn"), "10.0.0.10");
+            });
+            Future<User> v11 = pool.submit(() -> {
+                startVerifyLatch.await(5, TimeUnit.SECONDS);
+                return service.verifySelfEmail(11L, "sess-11", sentCodes.get("s11@aureliabook.vn"), "10.0.0.11");
+            });
+            startVerifyLatch.countDown();
 
-        User confirmed = service.confirmAdminEmailOtp(1L, "admin-s", 10L, codeCaptor.getValue(), "127.0.0.1");
-        assertThat(confirmed.getEmail()).isEqualTo("recovered@aureliabook.vn");
-        assertThat(confirmed.isEmailVerified()).isTrue();
-        assertThat(service.findAdminEmailChallenge(1L, "admin-s", 10L)).isEmpty();
-        verify(writer, never()).applySelfVerifiedEmail(any(), any(), any(), any(), any(), any());
+            assertThat(v10.get(5, TimeUnit.SECONDS).getEmail()).isEqualTo("s10@aureliabook.vn");
+            assertThat(v11.get(5, TimeUnit.SECONDS).getEmail()).isEqualTo("s11@aureliabook.vn");
+        }
+
+        assertThat(service.findSelfEmailChallenge(10L, "sess-10")).isEmpty();
+        assertThat(service.findSelfEmailChallenge(11L, "sess-11")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Concurrent start on the same staff account fails fast while initial SMTP send is in flight")
+    void concurrentSameUserStartBlockedWhileDeliveryInFlight() throws Exception {
+        when(users.existsByEmail(anyString())).thenReturn(false);
+        CountDownLatch inFlight = new CountDownLatch(1);
+        CountDownLatch releaseDelivery = new CountDownLatch(1);
+        doAnswer(inv -> {
+            inFlight.countDown();
+            releaseDelivery.await(5, TimeUnit.SECONDS);
+            return null;
+        }).when(delivery).send(eq("EMAIL"), eq("first@aureliabook.vn"), anyString());
+
+        try (ExecutorService pool = Executors.newSingleThreadExecutor()) {
+            Future<AdminStaffEmailChallengeView> first = pool.submit(() ->
+                    service.startSelfEmailVerification(10L, "sess-1", "first@aureliabook.vn", "10.0.0.1"));
+
+            assertThat(inFlight.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThatThrownBy(() -> service.startSelfEmailVerification(10L, "sess-1", "second@aureliabook.vn", "10.0.0.1"))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OTP_RESEND_COOLDOWN);
+
+            releaseDelivery.countDown();
+            assertThat(first.get(5, TimeUnit.SECONDS).targetUserId()).isEqualTo(10L);
+            assertThat(service.findSelfEmailChallenge(10L, "sess-1")).isPresent();
+        }
     }
 }

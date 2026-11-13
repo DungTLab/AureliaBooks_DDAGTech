@@ -50,9 +50,6 @@ class AdminUserControllerTest {
     private AdminUserService adminUserService;
 
     @MockitoBean
-    private com.ddagtech.aureliabooks.service.StaffContactService staffContactService;
-
-    @MockitoBean
     private RoleRepository roleRepository;
 
     private CustomUserDetails adminUserDetails;
@@ -226,7 +223,7 @@ class AdminUserControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/error/404"));
 
-        verifyNoInteractions(adminUserService, staffContactService);
+        verifyNoInteractions(adminUserService);
     }
 
     @Test
@@ -275,6 +272,8 @@ class AdminUserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/reset-password"))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Cấp lại MK"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/contact/email/send-otp"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Cách 2"))))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/admin/users/2/contact")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Chưa xác minh")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Email khôi phục")));
@@ -306,32 +305,30 @@ class AdminUserControllerTest {
     }
 
     @Test
-    @DisplayName("POST /admin/users/{id}/contact/email/send-otp, resend, and confirm invoke StaffContactService cleanly")
-    void testAdminEmailOtpSupport_Workflow() throws Exception {
-        when(staffContactService.startAdminEmailOtp(eq(1L), any(), eq(10L), any(), any()))
-                .thenReturn(new com.ddagtech.aureliabooks.dto.response.AdminStaffEmailChallengeView(
-                        10L, "r***@aureliabook.vn", 300L, 60L));
-
+    @DisplayName("Admin-session email OTP routes are removed and redirect to /error/404")
+    void testAdminEmailOtpEndpoints_Removed() throws Exception {
         mockMvc.perform(post("/admin/users/10/contact/email/send-otp")
                         .with(csrf())
                         .with(user(adminUserDetails))
                         .param("email", "recovered@aureliabook.vn")
                         .param("identityVerified", "true"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attribute("openContactOtpUserId", 10L))
-                .andExpect(flash().attributeExists("successMessage"));
+                .andExpect(redirectedUrl("/error/404"));
+
+        mockMvc.perform(post("/admin/users/10/contact/email/resend")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/404"));
 
         mockMvc.perform(post("/admin/users/10/contact/email/confirm")
                         .with(csrf())
                         .with(user(adminUserDetails))
                         .param("code", "123456"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attributeExists("successMessage"));
+                .andExpect(redirectedUrl("/error/404"));
 
-        verify(staffContactService).startAdminEmailOtp(eq(1L), any(), eq(10L), any(), any());
-        verify(staffContactService).confirmAdminEmailOtp(eq(1L), any(), eq(10L), eq("123456"), any());
+        verifyNoInteractions(adminUserService);
     }
 
     @Test

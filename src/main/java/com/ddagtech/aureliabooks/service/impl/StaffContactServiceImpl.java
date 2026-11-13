@@ -1,7 +1,6 @@
 package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
-import com.ddagtech.aureliabooks.dto.request.AdminStaffEmailOtpRequest;
 import com.ddagtech.aureliabooks.dto.response.AdminStaffEmailChallengeView;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
@@ -11,18 +10,19 @@ import com.ddagtech.aureliabooks.service.StaffContactService;
 import com.ddagtech.aureliabooks.service.StaffContactWriter;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
- * In-memory OTP verification workflow for internal staff recovery email setup and
- * admin-assisted lost-channel email replacement (UC28 GIAC-02).
+ * Thread-safe in-memory OTP verification workflow for internal staff self-service recovery email setup (UC28 GIAC-02).
+ * Uses a {@link ConcurrentHashMap}, immutable challenge snapshots, and per-user lock striping outside SMTP I/O.
  */
 @Slf4j
 @Service
@@ -30,8 +30,6 @@ public class StaffContactServiceImpl implements StaffContactService {
 
     private static final int MAX_PENDING_FLOWS = 5_000;
     private static final int QUOTA_PER_USER = 5;
-    private static final int QUOTA_PER_ACTOR = 10;
-    private static final int QUOTA_PER_RECIPIENT = 5;
     private static final int QUOTA_PER_IP = 20;
     private static final int QUOTA_VERIFY = 10;
 
@@ -41,21 +39,64 @@ public class StaffContactServiceImpl implements StaffContactService {
     private final ContactOtpEngine engine;
 
     private final Object[] locks = new Object[64];
-    private final Map<ChallengeKey, PendingEmailOtp> pending = new HashMap<>();
+    private final ConcurrentMap<Long, PendingEmailOtp> pending = new ConcurrentHashMap<>();
 
-    private record ChallengeKey(String mode, Long actorId, Long targetUserId) {
-    }
+    private record PendingEmailOtp(
+            String flowId,
+            String sessionId,
+            String recipient,
+            String oldEmail,
+            String oldHash,
+            byte[] mac,
+            Instant expiresAt,
+            Instant lastSentAt,
+            int attempts,
+            boolean sending
+    ) {
+        PendingEmailOtp withSending(boolean inProgress, Instant attemptTime) {
+            return new PendingEmailOtp(
+                    flowId,
+                    sessionId,
+                    recipient,
+                    oldEmail,
+                    oldHash,
+                    mac,
+                    expiresAt,
+                    attemptTime,
+                    attempts,
+                    inProgress
+            );
+        }
 
-    private static final class PendingEmailOtp {
-        String sessionId;
-        String recipient;
-        String oldEmail;
-        String oldHash;
-        String reason;
-        byte[] mac;
-        Instant expiresAt;
-        Instant lastSentAt;
-        int attempts;
+        PendingEmailOtp withSentToken(byte[] newMac, Instant sentAt) {
+            return new PendingEmailOtp(
+                    flowId,
+                    sessionId,
+                    recipient,
+                    oldEmail,
+                    oldHash,
+                    newMac,
+                    sentAt.plus(ContactOtpEngine.TTL),
+                    sentAt,
+                    0,
+                    false
+            );
+        }
+
+        PendingEmailOtp withIncrementedAttempts() {
+            return new PendingEmailOtp(
+                    flowId,
+                    sessionId,
+                    recipient,
+                    oldEmail,
+                    oldHash,
+                    mac,
+                    expiresAt,
+                    lastSentAt,
+                    attempts + 1,
+                    sending
+            );
+        }
     }
 
     @Autowired
@@ -95,8 +136,15 @@ public class StaffContactServiceImpl implements StaffContactService {
         if (staffId == null || sessionId == null) {
             return Optional.empty();
         }
-        ChallengeKey key = new ChallengeKey("SELF", staffId, staffId);
-        return findChallengeView(key, sessionId);
+        PendingEmailOtp flow = pending.get(staffId);
+        if (flow == null
+                || flow.sending()
+                || flow.mac() == null
+                || !Objects.equals(flow.sessionId(), sessionId)
+                || engine.isExpired(flow.expiresAt())) {
+            return Optional.empty();
+        }
+        return Optional.of(toChallengeView(staffId, flow));
     }
 
     @Override
@@ -109,163 +157,15 @@ public class StaffContactServiceImpl implements StaffContactService {
         if (staffId == null || sessionId == null || sessionId.isBlank()) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-        ChallengeKey key = new ChallengeKey("SELF", staffId, staffId);
-        return startChallenge(
-                key,
-                sessionId,
-                staffId,
-                staffId,
-                targetEmail,
-                null,
-                "staff-self-user:" + staffId,
-                ipAddress
-        );
-    }
-
-    @Override
-    public AdminStaffEmailChallengeView resendSelfEmailVerification(Long staffId, String sessionId, String ipAddress) {
-        if (staffId == null || sessionId == null || sessionId.isBlank()) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-        ChallengeKey key = new ChallengeKey("SELF", staffId, staffId);
-        return resendChallenge(key, sessionId, "staff-self-user:" + staffId, ipAddress);
-    }
-
-    @Override
-    public User verifySelfEmail(Long staffId, String sessionId, String otpCode, String ipAddress) {
-        if (staffId == null || sessionId == null || sessionId.isBlank()) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-        ChallengeKey key = new ChallengeKey("SELF", staffId, staffId);
-        PendingEmailOtp verified = verifyChallengeCode(key, sessionId, otpCode, "staff-self-verify:" + staffId);
-        return writer.applySelfVerifiedEmail(
-                staffId,
-                verified.oldEmail,
-                verified.oldHash,
-                verified.recipient,
-                sessionId,
-                ipAddress
-        );
-    }
-
-    @Override
-    public Optional<AdminStaffEmailChallengeView> findAdminEmailChallenge(
-            Long adminId,
-            String adminSessionId,
-            Long targetUserId
-    ) {
-        if (adminId == null || targetUserId == null || adminSessionId == null || adminId.equals(targetUserId)) {
-            return Optional.empty();
-        }
-        return findChallengeView(new ChallengeKey("ADMIN", adminId, targetUserId), adminSessionId);
-    }
-
-    @Override
-    public AdminStaffEmailChallengeView startAdminEmailOtp(
-            Long adminId,
-            String adminSessionId,
-            Long targetUserId,
-            AdminStaffEmailOtpRequest request,
-            String ipAddress
-    ) {
-        if (adminId == null || adminSessionId == null || adminSessionId.isBlank()) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-        if (targetUserId == null || adminId.equals(targetUserId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-        if (request == null || !Boolean.TRUE.equals(request.identityVerified())) {
-            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng xác nhận đã kiểm tra danh tính nhân sự.");
-        }
-        ChallengeKey key = new ChallengeKey("ADMIN", adminId, targetUserId);
-        return startChallenge(
-                key,
-                adminSessionId,
-                adminId,
-                targetUserId,
-                request.email(),
-                request.reason(),
-                "admin-otp-actor:" + adminId,
-                ipAddress
-        );
-    }
-
-    @Override
-    public AdminStaffEmailChallengeView resendAdminEmailOtp(
-            Long adminId,
-            String adminSessionId,
-            Long targetUserId,
-            String ipAddress
-    ) {
-        if (adminId == null || adminSessionId == null || adminSessionId.isBlank()) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-        if (targetUserId == null || adminId.equals(targetUserId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-        ChallengeKey key = new ChallengeKey("ADMIN", adminId, targetUserId);
-        return resendChallenge(key, adminSessionId, "admin-otp-actor:" + adminId, ipAddress);
-    }
-
-    @Override
-    public User confirmAdminEmailOtp(
-            Long adminId,
-            String adminSessionId,
-            Long targetUserId,
-            String otpCode,
-            String ipAddress
-    ) {
-        if (adminId == null || adminSessionId == null || adminSessionId.isBlank()) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-        if (targetUserId == null || adminId.equals(targetUserId)) {
-            throw new AppException(ErrorCode.UNAUTHORIZED);
-        }
-        ChallengeKey key = new ChallengeKey("ADMIN", adminId, targetUserId);
-        PendingEmailOtp verified = verifyChallengeCode(
-                key,
-                adminSessionId,
-                otpCode,
-                "admin-otp-verify:" + adminId + ":" + targetUserId
-        );
-        return writer.applyAdminSupportedEmail(
-                adminId,
-                targetUserId,
-                verified.oldEmail,
-                verified.oldHash,
-                verified.recipient,
-                verified.reason,
-                ipAddress
-        );
-    }
-
-    private Optional<AdminStaffEmailChallengeView> findChallengeView(ChallengeKey key, String sessionId) {
-        synchronized (lockFor(key)) {
-            PendingEmailOtp flow = pending.get(key);
-            if (flow == null || !Objects.equals(flow.sessionId, sessionId) || engine.isExpired(flow.expiresAt)) {
-                return Optional.empty();
-            }
-            return Optional.of(toChallengeView(key.targetUserId(), flow));
-        }
-    }
-
-    private AdminStaffEmailChallengeView startChallenge(
-            ChallengeKey key,
-            String sessionId,
-            Long actorId,
-            Long targetUserId,
-            String rawEmail,
-            String reason,
-            String actorQuotaKey,
-            String ipAddress
-    ) {
-        String normalizedEmail = ContactOtpEngine.normalizeEmail(rawEmail);
+        String normalizedEmail = ContactOtpEngine.normalizeEmail(targetEmail);
         if (!ContactOtpEngine.isValidEmail(normalizedEmail)) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Email công việc không hợp lệ.");
         }
 
-        synchronized (lockFor(key)) {
-            User target = requireActiveInternalStaff(targetUserId);
+        PendingEmailOtp placeholder;
+        ContactOtpEngine.OtpToken token;
+        synchronized (lockFor(staffId)) {
+            User target = requireActiveInternalStaff(staffId);
             boolean emailChanged = !normalizedEmail.equalsIgnoreCase(target.getEmail() == null ? "" : target.getEmail());
             if (!emailChanged && target.isEmailVerified()) {
                 throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Email này đã được xác minh.");
@@ -274,131 +174,160 @@ public class StaffContactServiceImpl implements StaffContactService {
                 throw new AppException(ErrorCode.USER_EXISTED);
             }
 
-            PendingEmailOtp existing = pending.get(key);
-            if (existing != null && engine.isInCooldown(existing.lastSentAt)) {
+            PendingEmailOtp existing = pending.get(staffId);
+            if (existing != null && (existing.sending() || engine.isInCooldown(existing.lastSentAt()))) {
                 throw new AppException(ErrorCode.OTP_RESEND_COOLDOWN);
             }
 
             purgeExpiredPending();
-            if (pending.size() >= MAX_PENDING_FLOWS && !pending.containsKey(key)) {
+            if (pending.size() >= MAX_PENDING_FLOWS && !pending.containsKey(staffId)) {
                 throw new AppException(ErrorCode.OTP_DELIVERY_FAILED, "Hệ thống đang bận, vui lòng thử lại sau.");
             }
 
-            int actorLimit = actorId.equals(targetUserId) ? QUOTA_PER_USER : QUOTA_PER_ACTOR;
-            enforceSendQuotas(actorQuotaKey, actorLimit, targetUserId, normalizedEmail, ipAddress);
+            enforceSendQuotas(staffId, normalizedEmail, ipAddress);
 
-            PendingEmailOtp flow = new PendingEmailOtp();
-            flow.sessionId = sessionId;
-            flow.recipient = normalizedEmail;
-            flow.oldEmail = target.getEmail();
-            flow.oldHash = target.getPasswordHash();
-            flow.reason = reason;
-
-            issueAndDeliver(key, flow, true);
-            pending.put(key, flow);
-            return toChallengeView(targetUserId, flow);
+            Instant now = engine.now();
+            placeholder = new PendingEmailOtp(
+                    UUID.randomUUID().toString(),
+                    sessionId,
+                    normalizedEmail,
+                    target.getEmail(),
+                    target.getPasswordHash(),
+                    null,
+                    now.plus(ContactOtpEngine.TTL),
+                    now,
+                    0,
+                    true
+            );
+            byte[] previousMac = existing != null ? existing.mac() : null;
+            token = engine.issueCode(otpContext(staffId, placeholder), previousMac);
+            pending.put(staffId, placeholder);
         }
+
+        return deliverAndPublish(staffId, placeholder, null, token);
     }
 
-    private AdminStaffEmailChallengeView resendChallenge(
-            ChallengeKey key,
-            String sessionId,
-            String actorQuotaKey,
-            String ipAddress
-    ) {
-        synchronized (lockFor(key)) {
-            PendingEmailOtp flow = pending.get(key);
-            if (flow == null || engine.isExpired(flow.expiresAt)) {
-                if (flow != null) {
-                    pending.remove(key, flow);
+    @Override
+    public AdminStaffEmailChallengeView resendSelfEmailVerification(Long staffId, String sessionId, String ipAddress) {
+        if (staffId == null || sessionId == null || sessionId.isBlank()) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        PendingEmailOtp current;
+        PendingEmailOtp placeholder;
+        ContactOtpEngine.OtpToken token;
+        synchronized (lockFor(staffId)) {
+            current = pending.get(staffId);
+            if (current == null || (!current.sending() && engine.isExpired(current.expiresAt()))) {
+                if (current != null) {
+                    pending.remove(staffId, current);
                 }
                 throw new AppException(ErrorCode.OTP_INVALID_OR_EXPIRED);
             }
-            if (!Objects.equals(flow.sessionId, sessionId)) {
+            if (!Objects.equals(current.sessionId(), sessionId)) {
                 throw new AppException(ErrorCode.OTP_INVALID_OR_EXPIRED);
             }
-            if (engine.isInCooldown(flow.lastSentAt)) {
+            if (current.sending() || engine.isInCooldown(current.lastSentAt())) {
                 throw new AppException(ErrorCode.OTP_RESEND_COOLDOWN);
             }
 
-            requireActiveInternalStaff(key.targetUserId());
-            int actorLimit = key.actorId().equals(key.targetUserId()) ? QUOTA_PER_USER : QUOTA_PER_ACTOR;
-            enforceSendQuotas(actorQuotaKey, actorLimit, key.targetUserId(), flow.recipient, ipAddress);
+            requireActiveInternalStaff(staffId);
+            enforceSendQuotas(staffId, current.recipient(), ipAddress);
 
-            issueAndDeliver(key, flow, false);
-            return toChallengeView(key.targetUserId(), flow);
+            placeholder = current.withSending(true, engine.now());
+            token = engine.issueCode(otpContext(staffId, placeholder), current.mac());
+            pending.put(staffId, placeholder);
         }
+
+        return deliverAndPublish(staffId, placeholder, current, token);
     }
 
-    private PendingEmailOtp verifyChallengeCode(
-            ChallengeKey key,
-            String sessionId,
-            String otpCode,
-            String verifyQuotaKey
+    @Override
+    public User verifySelfEmail(Long staffId, String sessionId, String otpCode, String ipAddress) {
+        if (staffId == null || sessionId == null || sessionId.isBlank()) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        PendingEmailOtp verified = verifyChallengeCode(staffId, sessionId, otpCode);
+        return writer.applySelfVerifiedEmail(
+                staffId,
+                verified.oldEmail(),
+                verified.oldHash(),
+                verified.recipient(),
+                sessionId,
+                ipAddress
+        );
+    }
+
+    private AdminStaffEmailChallengeView deliverAndPublish(
+            Long staffId,
+            PendingEmailOtp placeholder,
+            PendingEmailOtp rollbackTarget,
+            ContactOtpEngine.OtpToken token
     ) {
-        synchronized (lockFor(key)) {
-            PendingEmailOtp flow = pending.get(key);
-            if (flow == null || engine.isExpired(flow.expiresAt)) {
-                if (flow != null) {
-                    pending.remove(key, flow);
+        // Perform external SMTP I/O outside per-user lock stripes so slow mail sends cannot block other accounts.
+        try {
+            delivery.send("EMAIL", placeholder.recipient(), token.code());
+        } catch (RuntimeException ex) {
+            synchronized (lockFor(staffId)) {
+                if (rollbackTarget == null) {
+                    pending.remove(staffId, placeholder);
+                } else {
+                    pending.replace(staffId, placeholder, rollbackTarget);
+                }
+            }
+            log.warn("Failed to deliver staff verification OTP to target user {}: {}", staffId, ex.getMessage());
+            throw new AppException(ErrorCode.OTP_DELIVERY_FAILED);
+        }
+
+        PendingEmailOtp ready = placeholder.withSentToken(token.mac(), engine.now());
+        synchronized (lockFor(staffId)) {
+            if (!pending.replace(staffId, placeholder, ready)) {
+                throw new AppException(ErrorCode.OTP_INVALID_OR_EXPIRED);
+            }
+        }
+        return toChallengeView(staffId, ready);
+    }
+
+    private PendingEmailOtp verifyChallengeCode(Long staffId, String sessionId, String otpCode) {
+        synchronized (lockFor(staffId)) {
+            PendingEmailOtp flow = pending.get(staffId);
+            if (flow == null || flow.mac() == null || engine.isExpired(flow.expiresAt())) {
+                if (flow != null && !flow.sending() && engine.isExpired(flow.expiresAt())) {
+                    pending.remove(staffId, flow);
                 }
                 throw new AppException(ErrorCode.OTP_INVALID_OR_EXPIRED);
             }
-            if (!Objects.equals(flow.sessionId, sessionId)) {
+            if (!Objects.equals(flow.sessionId(), sessionId)) {
                 throw new AppException(ErrorCode.OTP_INVALID_OR_EXPIRED);
             }
-            if (!engine.consumeAllQuotas(List.of(verifyQuotaKey), QUOTA_VERIFY)) {
+            if (!engine.consumeAllQuotas(List.of("staff-self-verify:" + staffId), QUOTA_VERIFY)) {
                 throw new AppException(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED);
             }
-            String otpContext = otpContext(key, flow);
-            if (!engine.matches(otpContext, otpCode, flow.mac)) {
-                flow.attempts++;
-                if (flow.attempts >= ContactOtpEngine.MAX_ATTEMPTS) {
-                    pending.remove(key, flow);
+            if (!engine.matches(otpContext(staffId, flow), otpCode, flow.mac())) {
+                PendingEmailOtp updated = flow.withIncrementedAttempts();
+                if (updated.attempts() >= ContactOtpEngine.MAX_ATTEMPTS) {
+                    pending.remove(staffId, flow);
                     throw new AppException(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED);
                 }
+                pending.replace(staffId, flow, updated);
                 throw new AppException(ErrorCode.OTP_INVALID_OR_EXPIRED);
             }
-            pending.remove(key, flow);
+            pending.remove(staffId, flow);
             return flow;
         }
     }
 
-    private void issueAndDeliver(ChallengeKey key, PendingEmailOtp flow, boolean removeOnFailure) {
-        ContactOtpEngine.OtpToken token = engine.issueCode(otpContext(key, flow), flow.mac);
-        try {
-            delivery.send("EMAIL", flow.recipient, token.code());
-        } catch (RuntimeException ex) {
-            if (removeOnFailure) {
-                pending.remove(key, flow);
-            }
-            log.warn("Failed to deliver staff verification OTP to target user {}: {}", key.targetUserId(), ex.getMessage());
-            throw new AppException(ErrorCode.OTP_DELIVERY_FAILED);
-        }
-        Instant now = engine.now();
-        flow.mac = token.mac();
-        flow.expiresAt = now.plus(ContactOtpEngine.TTL);
-        flow.lastSentAt = now;
-        flow.attempts = 0;
-    }
-
-    private void enforceSendQuotas(
-            String actorQuotaKey,
-            int actorLimit,
-            Long targetUserId,
-            String recipientEmail,
-            String ipAddress
-    ) {
+    private void enforceSendQuotas(Long staffId, String recipientEmail, String ipAddress) {
         String safeIp = (ipAddress == null || ipAddress.isBlank()) ? "127.0.0.1" : ipAddress.trim();
-        if (!engine.consumeAllQuotas(List.of(actorQuotaKey), actorLimit)
-                || !engine.consumeAllQuotas(List.of("staff-target-user:" + targetUserId, "staff-email-target:" + recipientEmail), QUOTA_PER_USER)
+        if (!engine.consumeAllQuotas(List.of("staff-self-user:" + staffId), QUOTA_PER_USER)
+                || !engine.consumeAllQuotas(List.of("staff-target-user:" + staffId, "staff-email-target:" + recipientEmail), QUOTA_PER_USER)
                 || !engine.consumeAllQuotas(List.of("staff-email-ip:" + safeIp), QUOTA_PER_IP)) {
             throw new AppException(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED, "Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng thử lại sau 15 phút.");
         }
     }
 
-    private String otpContext(ChallengeKey key, PendingEmailOtp flow) {
-        return key.mode() + "|" + key.actorId() + "|" + key.targetUserId() + "|" + flow.sessionId + "|" + flow.recipient;
+    private String otpContext(Long staffId, PendingEmailOtp flow) {
+        return "SELF|" + staffId + "|" + staffId + "|" + flow.sessionId() + "|" + flow.recipient();
     }
 
     private User requireActiveInternalStaff(Long userId) {
@@ -417,17 +346,20 @@ public class StaffContactServiceImpl implements StaffContactService {
     private AdminStaffEmailChallengeView toChallengeView(Long targetUserId, PendingEmailOtp flow) {
         return new AdminStaffEmailChallengeView(
                 targetUserId,
-                ContactOtpEngine.maskEmail(flow.recipient),
-                engine.remainingExpirySeconds(flow.expiresAt),
-                engine.remainingCooldownSeconds(flow.lastSentAt)
+                ContactOtpEngine.maskEmail(flow.recipient()),
+                engine.remainingExpirySeconds(flow.expiresAt()),
+                engine.remainingCooldownSeconds(flow.lastSentAt())
         );
     }
 
     private void purgeExpiredPending() {
-        pending.entrySet().removeIf(entry -> engine.isExpired(entry.getValue().expiresAt));
+        pending.entrySet().removeIf(entry -> {
+            PendingEmailOtp flow = entry.getValue();
+            return flow != null && !flow.sending() && engine.isExpired(flow.expiresAt());
+        });
     }
 
-    private Object lockFor(ChallengeKey key) {
-        return locks[Math.floorMod(key.hashCode(), locks.length)];
+    private Object lockFor(Long staffId) {
+        return locks[Math.floorMod(staffId.hashCode(), locks.length)];
     }
 }

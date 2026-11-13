@@ -404,8 +404,14 @@ public class AdminUserServiceImpl implements AdminUserService {
         details.put("target_user_id", targetUserId);
         details.put("email_changed", emailChanged);
         details.put("phone_changed", phoneChanged);
-        details.put("email_verified", targetUser.isEmailVerified());
-        details.put("phone_verified", targetUser.isPhoneVerified());
+        if (emailChanged) {
+            details.put("email_verified", false);
+        }
+        if (phoneChanged) {
+            details.put("phone_verified", false);
+        }
+        details.put("email_verification_reset", emailChanged);
+        details.put("phone_verification_reset", phoneChanged);
         details.put("identity_confirmed", true);
         if (request.reason() != null && !request.reason().isBlank()) {
             String cleanReason = request.reason().trim();
