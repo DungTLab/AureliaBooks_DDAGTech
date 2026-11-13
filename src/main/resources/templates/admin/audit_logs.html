@@ -232,8 +232,22 @@
                                 <span th:text="${log.action}">UPDATE_ORDER_STATUS</span>
                             </span>
 
-                            <!-- Fallback Generic Badge -->
-                            <span th:if="${log.action != 'USER_STATUS_TOGGLE' and log.action != 'USER_ROLE_UPDATE' and log.action != 'USER_CREATE' and log.action != 'LOGIN_FAILED' and log.action != 'LOGOUT' and log.action != 'GOODS_RECEIPT_FINALIZE' and log.action != 'VNPAY_IPN_CALLBACK' and log.action != 'ORDER_RETURN_CONFIRMED' and log.action != 'UPDATE_ORDER_STATUS'}"
+                            <!-- Staff Recovery Email Verified (UC28 PR 2) -->
+                            <span th:if="${log.action == 'INTERNAL_EMAIL_VERIFIED'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <i class="bi bi-envelope-check-fill"></i>
+                                <span th:text="${log.action}">INTERNAL_EMAIL_VERIFIED</span>
+                            </span>
+
+                            <!-- Admin Supported Staff Contact Update / Revoke (UC28 PR 2) -->
+                            <span th:if="${log.action == 'ADMIN_STAFF_CONTACT_UPDATED' or log.action == 'ADMIN_STAFF_EMAIL_REVOKED'}"
+                                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                <i class="bi bi-person-lines-fill"></i>
+                                <span th:text="${log.action}">ADMIN_STAFF_CONTACT_UPDATED</span>
+                            </span>
+
+                            <!-- Fallback Generic Badge (retains readability of legacy RESET_STAFF_PASSWORD) -->
+                            <span th:if="${log.action != 'USER_STATUS_TOGGLE' and log.action != 'USER_ROLE_UPDATE' and log.action != 'USER_CREATE' and log.action != 'LOGIN_FAILED' and log.action != 'LOGOUT' and log.action != 'GOODS_RECEIPT_FINALIZE' and log.action != 'VNPAY_IPN_CALLBACK' and log.action != 'ORDER_RETURN_CONFIRMED' and log.action != 'UPDATE_ORDER_STATUS' and log.action != 'INTERNAL_EMAIL_VERIFIED' and log.action != 'ADMIN_STAFF_CONTACT_UPDATED' and log.action != 'ADMIN_STAFF_EMAIL_REVOKED'}"
                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">
                                 <i class="bi bi-activity"></i>
                                 <span th:text="${log.action}">ACTION</span>
