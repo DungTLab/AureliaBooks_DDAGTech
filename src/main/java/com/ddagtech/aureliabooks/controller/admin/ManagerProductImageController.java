@@ -24,6 +24,10 @@ public class ManagerProductImageController {
     @PreAuthorize("hasRole('MANAGER')")
     @PostMapping(value = "/manager/products/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
+    /**
+     * Stores an image and returns its application URL without modifying a product record.
+     * The product form must be saved separately to persist that image reference.
+     */
     public ResponseEntity<UploadedImage> upload(@RequestPart("file") MultipartFile file) {
         String url = ProductImageUrls.fromObjectKey(storage.store(file));
         return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore())

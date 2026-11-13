@@ -1,16 +1,19 @@
 package com.ddagtech.aureliabooks.service;
 
-import com.ddagtech.aureliabooks.dto.request.*;
-import com.ddagtech.aureliabooks.dto.response.*;
+import com.ddagtech.aureliabooks.dto.request.AuthorForm;
+import com.ddagtech.aureliabooks.dto.request.BrandForm;
+import com.ddagtech.aureliabooks.dto.request.CategoryForm;
+import com.ddagtech.aureliabooks.dto.request.PublisherForm;
 import com.ddagtech.aureliabooks.entity.Author;
 import com.ddagtech.aureliabooks.entity.Brand;
 import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Publisher;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
-/** UC17/18/19/20. Owner: Huỳnh Nhật Duy. Sprint 1 scaffold; business implementation pending. */
+/** Manages authors, publishers, brands, and categories for the catalog. */
 public interface MasterDataService {
 
     // =========================================================================

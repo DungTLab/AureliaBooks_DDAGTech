@@ -8,7 +8,8 @@
 <div id="main-content" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Page Header Card -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+    <div
+        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div>
             <nav class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-carbon_black-400 mb-1">
                 <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Tổng quan</a>
@@ -44,7 +45,7 @@
     <form data-form-validation data-required-values="authorIds" th:action="@{${isEdit ? '/manager/books/' + bookForm.id() + '/edit' : '/manager/books'}}"
           th:object="${bookForm}" method="post" class="space-y-6">
 
-        <!-- 1. Thông Tin Chung (Base Product) -->
+        <!-- General product information -->
         <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
             <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
                 <i class="bi bi-box-seam text-blazing_flame"></i>
@@ -148,7 +149,7 @@
             </div>
         </div>
 
-        <!-- 2. Thông Tin Chi Tiết Sách (Specific Book Entity) -->
+        <!-- Book details -->
         <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
             <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
                 <i class="bi bi-book-half text-blazing_flame"></i>
@@ -189,7 +190,9 @@
                     </p>
                     <div role="group" aria-labelledby="bookAuthorsLabel" class="p-4 bg-alabaster_grey/40 border rounded-xl max-h-48 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-2"
                          th:classappend="${#fields.hasErrors('authorIds')} ? 'border-rose-500' : 'border-dust_grey'">
-                        <label th:each="author : ${authors}" class="flex items-center gap-2 text-xs font-medium text-carbon_black cursor-pointer hover:text-blazing_flame">
+                        <label
+                            th:each="author : ${authors}"
+                            class="flex items-center gap-2 text-xs font-medium text-carbon_black cursor-pointer hover:text-blazing_flame">
                             <input type="checkbox" name="authorIds" th:value="${author.id}"
                                    th:checked="${bookForm.authorIds() != null and bookForm.authorIds().contains(author.id)}"
                                    class="rounded text-blazing_flame focus:ring-blazing_flame">
