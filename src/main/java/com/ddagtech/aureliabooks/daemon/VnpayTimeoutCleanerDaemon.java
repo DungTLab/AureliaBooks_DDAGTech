@@ -272,12 +272,4 @@ public class VnpayTimeoutCleanerDaemon {
     int trackedIndeterminateAlertCount() {
         return lastIndeterminateAlertAt.size();
     }
-
-    @Deprecated
-    static boolean legacyShouldEmitErrorAlert(long postExpiredMinutes) {
-        if (postExpiredMinutes < 5) {
-            return false;
-        }
-        return postExpiredMinutes == 5 || (postExpiredMinutes > 5 && postExpiredMinutes % 15 == 0);
-    }
 }

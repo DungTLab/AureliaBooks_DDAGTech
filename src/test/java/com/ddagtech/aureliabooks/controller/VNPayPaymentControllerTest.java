@@ -337,4 +337,31 @@ class VNPayPaymentControllerTest {
                 .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))))
                 .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))));
     }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("PAY-03: GET /payment/vnpay-return with missing query parameters should safely render signature error view")
+    void handleVNPayBrowserReturn_MissingParameters_RendersInvalidSignatureHeading() throws Exception {
+        VNPayPaymentResultView missingParamsView = new VNPayPaymentResultView(
+                false,
+                false,
+                "",
+                BigDecimal.ZERO,
+                "",
+                "",
+                "",
+                "",
+                "UNKNOWN",
+                "UNKNOWN",
+                "Chữ ký xác thực phản hồi từ cổng thanh toán không hợp lệ."
+        );
+        when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(missingParamsView);
+
+        mockMvc.perform(get("/payment/vnpay-return"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("payment/result"))
+                .andExpect(model().attribute("paymentResult", missingParamsView))
+                .andExpect(content().string(containsString("Không Thể Xác Thực Giao Dịch")))
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))));
+    }
 }

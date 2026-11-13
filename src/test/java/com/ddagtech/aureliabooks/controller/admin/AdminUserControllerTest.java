@@ -341,4 +341,16 @@ class AdminUserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("overflow-x-auto")));
     }
+
+    @Test
+    @DisplayName("INT-02 / INT-10: POST /admin/users/{id}/reset-password by non-ADMIN is rejected without invoking service")
+    void testResetPassword_NonAdmin_Forbidden() throws Exception {
+        mockMvc.perform(post("/admin/users/10/reset-password")
+                        .with(csrf())
+                        .with(user(staffUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
+
+        verify(adminUserService, never()).resetStaffPassword(any(), any(), any());
+    }
 }

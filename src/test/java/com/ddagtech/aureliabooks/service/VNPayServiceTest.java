@@ -40,6 +40,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,7 +57,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -801,6 +810,7 @@ class VNPayServiceTest {
         assertThat(view.paymentStatus()).isEqualTo("UNPAID");
         assertThat(view.displayMessage()).contains("đang đối soát và xác minh kết quả thanh toán");
         assertThat(view.displayMessage()).doesNotContain("xác minh thành công");
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -1325,7 +1335,7 @@ class VNPayServiceTest {
 
         // Must return 02 idempotently without repeating audit log
         assertThat(res2.rspCode()).isEqualTo("02");
-        verify(auditLogService, org.mockito.Mockito.times(1)).record(
+        verify(auditLogService, times(1)).record(
                 eq(99L),
                 eq("VNPAY_DUPLICATE_PAYMENT_RECONCILIATION"),
                 eq("orders"),
@@ -1333,6 +1343,110 @@ class VNPayServiceTest {
                 any(),
                 eq("203.0.113.10")
         );
+    }
+
+    @Test
+    @DisplayName("PAY-02: createPaymentUrl() rejects null orderId and non-VNPay orders before locking")
+    void createPaymentUrl_NullOrNonVnpayOrder_ThrowsInvalidInput() {
+        assertThatThrownBy(() -> vnPayService.createPaymentUrl(1L, null, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+
+        Order codOrder = Order.builder()
+                .id(120L)
+                .orderCode("ORD-COD-120")
+                .user(ownerCustomer)
+                .paymentMethod(Order.PaymentMethod.COD)
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("100000.00"))
+                .stockDeductedAt(LocalDateTime.now())
+                .build();
+        when(orderRepository.findByIdWithLock(120L)).thenReturn(Optional.of(codOrder));
+
+        assertThatThrownBy(() -> vnPayService.createPaymentUrl(1L, 120L, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .extracting(ex -> ((AppException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_INPUT_DATA);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("PAY-03: evaluateBrowserReturn() handles null or empty query parameters safely without DB mutation")
+    void evaluateBrowserReturn_NullOrEmptyParams_ReturnsInvalidSignatureSafely() {
+        VNPayPaymentResultView nullView = vnPayService.evaluateBrowserReturn(null);
+        VNPayPaymentResultView emptyView = vnPayService.evaluateBrowserReturn(Map.of());
+
+        assertThat(nullView.validSignature()).isFalse();
+        assertThat(nullView.paymentSuccess()).isFalse();
+        assertThat(nullView.orderStatus()).isEqualTo("UNKNOWN");
+        assertThat(emptyView.validSignature()).isFalse();
+        assertThat(emptyView.paymentSuccess()).isFalse();
+        assertThat(emptyView.paymentStatus()).isEqualTo("UNKNOWN");
+        verifyNoInteractions(orderRepository);
+    }
+
+    @Test
+    @DisplayName("PAY-08: Concurrent identical IPN callbacks serialize under lock and confirm payment exactly once")
+    void processIpnWebhook_ConcurrentCallbacks_SerializesUnderLockAndConfirmsOnce() throws Exception {
+        Order lockedOrder = Order.builder()
+                .id(130L)
+                .orderCode("ORD-CONCURRENT-130")
+                .user(ownerCustomer)
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .finalTotalAmount(new BigDecimal("300000.00"))
+                .stockDeductedAt(LocalDateTime.now())
+                .build();
+
+        CountDownLatch bothEntered = new CountDownLatch(2);
+        CountDownLatch startRace = new CountDownLatch(1);
+        CountDownLatch firstCommitted = new CountDownLatch(1);
+        AtomicInteger lockOrderIndex = new AtomicInteger(0);
+
+        when(orderRepository.findByVnpayTxnRefWithLock("ORD-CONCURRENT-130")).thenAnswer(invocation -> {
+            if (lockOrderIndex.getAndIncrement() > 0) {
+                firstCommitted.await(5, TimeUnit.SECONDS);
+            }
+            return Optional.of(lockedOrder);
+        });
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Map<String, String> params = signedParams("ORD-CONCURRENT-130", "30000000", "00", "00");
+        Callable<VNPayIpnResponse> callbackTask = () -> {
+            bothEntered.countDown();
+            startRace.await(5, TimeUnit.SECONDS);
+            try {
+                return vnPayService.processIpnWebhook(params, "203.0.113.20");
+            } finally {
+                firstCommitted.countDown();
+            }
+        };
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<VNPayIpnResponse> future1 = pool.submit(callbackTask);
+            Future<VNPayIpnResponse> future2 = pool.submit(callbackTask);
+            assertThat(bothEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            startRace.countDown();
+
+            VNPayIpnResponse res1 = future1.get(5, TimeUnit.SECONDS);
+            VNPayIpnResponse res2 = future2.get(5, TimeUnit.SECONDS);
+            assertThat(List.of(res1.rspCode(), res2.rspCode())).containsExactlyInAnyOrder("00", "02");
+        }
+
+        assertThat(lockedOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.PENDING_CONFIRMATION);
+        assertThat(lockedOrder.getPaymentStatus()).isEqualTo(Order.PaymentStatus.PAID);
+        verify(auditLogService, times(1)).record(
+                eq(1L),
+                eq("VNPAY_PAYMENT_SUCCESS"),
+                eq("orders"),
+                eq(130L),
+                any(),
+                eq("203.0.113.20")
+        );
+        verifyNoInteractions(stockMutationService);
     }
 
     private void authenticateAsCustomer(User user) {
