@@ -1,24 +1,35 @@
 package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
-import com.ddagtech.aureliabooks.dto.request.*;
+import com.ddagtech.aureliabooks.dto.request.PasswordChangeRequest;
+import com.ddagtech.aureliabooks.dto.request.PasswordSetupRequest;
+import com.ddagtech.aureliabooks.dto.request.ProfileUpdateRequest;
+import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.dto.response.ProfileView;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.mapper.UserMapper;
 import com.ddagtech.aureliabooks.repository.UserRepository;
-import com.ddagtech.aureliabooks.security.*;
-import com.ddagtech.aureliabooks.service.*;
+import com.ddagtech.aureliabooks.security.CustomUserDetails;
+import com.ddagtech.aureliabooks.security.CustomerIdentity;
+import com.ddagtech.aureliabooks.service.AuditLogService;
+import com.ddagtech.aureliabooks.service.AvatarStorage;
+import com.ddagtech.aureliabooks.service.RegistrationService;
+import com.ddagtech.aureliabooks.service.UserService;
+import com.ddagtech.aureliabooks.validation.BirthDateValidator;
 import jakarta.validation.Validator;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.*;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -48,7 +59,9 @@ public class UserServiceImpl implements UserService {
         validate(request);
         User u = owner(id);
         if (request.dob() != null && !Objects.equals(request.dob(), u.getDob())) {
-            if (!canCompleteDob(u)) throw new AppException(ErrorCode.DOB_IMMUTABLE);
+            if (!canCompleteDob(u)) {
+                throw new AppException(ErrorCode.DOB_IMMUTABLE);
+            }
             u.setDob(request.dob());
         }
         if (request.phone() != null && !Objects.equals(request.phone(), u.getPhone())) {
@@ -66,13 +79,17 @@ public class UserServiceImpl implements UserService {
     public void changePassword(Long id, PasswordChangeRequest request, String clientIp) {
         validate(request);
         User u = owner(id);
-        if (u.getPasswordHash() == null) throw new AppException(
-            ErrorCode.INVALID_INPUT_DATA,
-            "Tài khoản Google chưa có mật khẩu. Vui lòng tiếp tục đăng nhập bằng Google."
-        );
-        if (!passwords.matches(request.currentPassword(), u.getPasswordHash())) throw new AppException(
-            ErrorCode.PASSWORD_NOT_MATCH
-        );
+        if (u.getPasswordHash() == null) {
+            throw new AppException(
+                ErrorCode.INVALID_INPUT_DATA,
+                "Tài khoản Google chưa có mật khẩu. Vui lòng tiếp tục đăng nhập bằng Google."
+            );
+        }
+        if (!passwords.matches(request.currentPassword(), u.getPasswordHash())) {
+            throw new AppException(
+                ErrorCode.PASSWORD_NOT_MATCH
+            );
+        }
         u.setPasswordHash(passwords.encode(request.newPassword()));
         users.saveAndFlush(u);
         auditLogService.record(
@@ -157,16 +174,18 @@ public class UserServiceImpl implements UserService {
     private boolean canCompleteDob(User u) {
         return (
             u.getDob() == null ||
-            !com.ddagtech.aureliabooks.validation.BirthDateValidator.isValidDate(u.getDob(), java.time.LocalDate.now())
+            !BirthDateValidator.isValidDate(u.getDob(), LocalDate.now())
         );
     }
 
     private void validate(Object request) {
         var violations = validator.validate(request);
-        if (!violations.isEmpty()) throw new AppException(
-            ErrorCode.INVALID_INPUT_DATA,
-            violations.iterator().next().getMessage()
-        );
+        if (!violations.isEmpty()) {
+            throw new AppException(
+                ErrorCode.INVALID_INPUT_DATA,
+                violations.iterator().next().getMessage()
+            );
+        }
     }
 
     private void afterCommit(Runnable callback) {

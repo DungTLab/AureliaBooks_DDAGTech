@@ -14,14 +14,15 @@ import com.ddagtech.aureliabooks.repository.CartRepository;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.CartService;
-import org.springframework.transaction.annotation.Transactional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +32,6 @@ public class CartServiceImpl implements CartService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final CartMapper cartMapper;
-
 
     /** Adds the chosen products atomically using the existing cart quantity/availability checks. */
     @Override
@@ -78,7 +78,7 @@ public class CartServiceImpl implements CartService {
         Product product = productRepository.findById(productId).orElseThrow(
                 () -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Sản phẩm không tồn tại"));
 
-        Cart cart = cartRepository.findByUser_Id((userId)).orElse(null);
+        Cart cart = cartRepository.findByUser_Id(userId).orElse(null);
 
         CartItem item = null;
         if (cart != null) {
@@ -129,20 +129,20 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public void updateQuantity(Long userId, Long itemId, CartQuantityRequest request) {
-        int quantity = validatedQuantity((request));
+        int quantity = validatedQuantity(request);
         requireCustomer(userId, true);
 
         CartItem item = findOwnedItem(itemId, userId);
-        if (item.getProduct().getStockQuantity() > 0) {
-            quantity = Math.min(quantity, item.getProduct().getStockQuantity());
+        Product product = item.getProduct();
+        if (product.getStockQuantity() > 0) {
+            quantity = Math.min(quantity, product.getStockQuantity());
         }
-        validateProductAndQuantity(item.getProduct(), quantity);
+        validateProductAndQuantity(product, quantity);
 
         item.setQuantity(quantity);
         cartItemRepository.save(item);
         touchCart(item.getCart());
     }
-
 
     private int validatedQuantity(CartQuantityRequest request) {
         if (request == null
@@ -174,7 +174,9 @@ public class CartServiceImpl implements CartService {
     }
 
     private CartItem findOwnedItem(Long itemId, Long userId) {
-        return cartItemRepository.findByIdAndCart_User_Id(itemId, userId).orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sản phẩm trong giỏ của bạn"));
+        return cartItemRepository.findByIdAndCart_User_Id(itemId, userId)
+                .orElseThrow(() -> new AppException(
+                        ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sản phẩm trong giỏ của bạn"));
     }
 
     private User requireCustomer(Long userId, boolean lock) {

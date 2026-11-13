@@ -2,26 +2,42 @@ package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.VoucherForm;
-import com.ddagtech.aureliabooks.dto.response.*;
-import com.ddagtech.aureliabooks.entity.*;
+import com.ddagtech.aureliabooks.dto.response.VoucherQuote;
+import com.ddagtech.aureliabooks.dto.response.VoucherSummary;
 import com.ddagtech.aureliabooks.entity.Order;
+import com.ddagtech.aureliabooks.entity.OrderVoucher;
+import com.ddagtech.aureliabooks.entity.User;
+import com.ddagtech.aureliabooks.entity.Voucher;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.mapper.VoucherMapper;
-import com.ddagtech.aureliabooks.repository.*;
+import com.ddagtech.aureliabooks.repository.OrderItemRepository;
+import com.ddagtech.aureliabooks.repository.OrderRepository;
+import com.ddagtech.aureliabooks.repository.OrderVoucherRepository;
+import com.ddagtech.aureliabooks.repository.UserRepository;
+import com.ddagtech.aureliabooks.repository.VoucherRepository;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
-import com.ddagtech.aureliabooks.service.*;
+import com.ddagtech.aureliabooks.service.AuditLogService;
+import com.ddagtech.aureliabooks.service.VoucherService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.*;
-import java.math.*;
-import java.time.*;
-import java.util.*;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -167,8 +183,7 @@ public class VoucherServiceImpl implements VoucherService {
             order.setShippingVoucherCode(voucher.getCode());
             order.setShippingDiscountAmount(applied.discountAmount());
         }
-        // Persist the payable snapshot before downstream stock posting refreshes this order.
-        // This flush does not commit; the enclosing placement transaction still owns rollback.
+        // Flush the payable snapshot before stock posting reloads the order inside the same transaction.
         orders.flush();
         record(customerId, "VOUCHER_REDEEMED", voucher.getId(),
                 Map.of("orderId", orderId, "discount", applied.discountAmount()), clientIp);
