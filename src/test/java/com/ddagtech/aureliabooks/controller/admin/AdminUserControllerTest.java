@@ -388,4 +388,26 @@ class AdminUserControllerTest {
 
         verify(adminUserService, never()).resetStaffPassword(any(), any(), any());
     }
+
+    @Test
+    @DisplayName("GET /admin/users renders wide workspace container and accessible confirm modal without redundant quick filters or browser confirm()")
+    void testListView_RendersAccessibleConfirmModalWithoutNativeConfirm() throws Exception {
+        UserSummary staffUser = new UserSummary(
+                2L, "staff@aureliabook.vn", "Nhân viên B", "0900000002", 3L, "ROLE_SALE_STAFF", true, LocalDateTime.now(), true
+        );
+        when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(staffUser)));
+
+        mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("max-w-[1600px]")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"confirmActionModal\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-custom-modal=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-confirm-form=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-confirm-select=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Lọc nhanh"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("return confirm("))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("if(confirm("))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("window.confirm("))));
+    }
 }
