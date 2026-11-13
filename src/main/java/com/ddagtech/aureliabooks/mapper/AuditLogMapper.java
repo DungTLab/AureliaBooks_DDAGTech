@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.mapper;
 
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.entity.AuditLog;
+import com.ddagtech.aureliabooks.util.AuditLogLabelFormatter;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,7 +21,9 @@ public class AuditLogMapper {
         if (entity == null) {
             return null;
         }
-        String name = entity.getUser() != null ? entity.getUser().getFullName() : "Hệ thống / Gateway";
+        String name = entity.getUser() != null
+                ? entity.getUser().getFullName()
+                : AuditLogLabelFormatter.SYSTEM_OPERATOR_LABEL;
         String email = entity.getUser() != null ? entity.getUser().getEmail() : null;
         Long uid = entity.getUser() != null ? entity.getUser().getId() : null;
 

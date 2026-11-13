@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.dto.response;
 
 import com.ddagtech.aureliabooks.entity.AuditLog;
+import com.ddagtech.aureliabooks.util.AuditLogLabelFormatter;
 
 import java.time.LocalDateTime;
 
@@ -9,8 +10,8 @@ import java.time.LocalDateTime;
  * Used for administrative log inquiries (SCR-DB-18) and payload inspection (POP-DB-12).
  *
  * @param id persistent audit log entry identifier
- * @param userId identifier of the actor user who initiated the event (null for system/gateway)
- * @param operatorName full display name of the operator or "Hệ thống / Gateway"
+ * @param userId identifier of the actor user who initiated the event (null for system/automated jobs)
+ * @param operatorName full display name of the operator or "Hệ thống / Tự động"
  * @param operatorEmail email address of the operator or null if initiated by system
  * @param action audited action descriptor (e.g. USER_STATUS_TOGGLE, USER_ROLE_UPDATE, LOGIN_FAILED)
  * @param targetTable database table name affected by the mutation
@@ -33,7 +34,7 @@ public record AuditLogResponse(
 ) {
     /**
      * Factory mapping method converting a managed {@link AuditLog} entity into an immutable record.
-     * Gracefully handles null operator references by defaulting operator name to "Hệ thống / Gateway".
+     * Gracefully handles null operator references by defaulting operator name to "Hệ thống / Tự động".
      *
      * @param entity source AuditLog entity
      * @return populated AuditLogResponse record
@@ -42,7 +43,9 @@ public record AuditLogResponse(
         if (entity == null) {
             return null;
         }
-        String name = entity.getUser() != null ? entity.getUser().getFullName() : "Hệ thống / Gateway";
+        String name = entity.getUser() != null
+                ? entity.getUser().getFullName()
+                : AuditLogLabelFormatter.SYSTEM_OPERATOR_LABEL;
         String email = entity.getUser() != null ? entity.getUser().getEmail() : null;
         Long uid = entity.getUser() != null ? entity.getUser().getId() : null;
 
