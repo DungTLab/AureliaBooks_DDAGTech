@@ -5,7 +5,6 @@ import com.ddagtech.aureliabooks.util.HttpRequestUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
@@ -28,17 +27,12 @@ public class InternalPasswordRecoveryController {
 
     private final AccountOtpService otp;
 
-    // Enable once staff email verification has been corrected for new and existing accounts.
-    @Value("${app.internal-recovery.enabled:false}")
-    private boolean enabled;
-
     @GetMapping
     public String view(@RequestParam(required = false) String step, HttpServletRequest request, Model model) {
         var session = request.getSession(false);
         String id = session == null ? null : (String) session.getAttribute(FLOW);
-        boolean showCode = enabled && "verify".equals(step) && id != null;
+        boolean showCode = "verify".equals(step) && id != null;
         var flow = showCode ? otp.view(id, session.getId(), true) : null;
-        model.addAttribute("recoveryEnabled", enabled);
         model.addAttribute("showCode", showCode);
         model.addAttribute("authorized", flow != null && flow.authorized());
         return "internal/forgot-password";
@@ -46,7 +40,6 @@ public class InternalPasswordRecoveryController {
 
     @PostMapping("/send")
     public String send(@RequestParam String email, HttpServletRequest request, RedirectAttributes flash) {
-        if (!enabled) return START;
         var session = request.getSession();
         // Render the same response when the account is ineligible or mail cannot be sent.
         String id = "";
@@ -62,7 +55,6 @@ public class InternalPasswordRecoveryController {
 
     @PostMapping("/resend")
     public String resend(HttpServletRequest request, RedirectAttributes flash) {
-        if (!enabled) return START;
         var session = request.getSession();
         try {
             otp.resend((String) session.getAttribute(FLOW), session.getId(), HttpRequestUtil.getClientIp(request), true);
@@ -75,7 +67,6 @@ public class InternalPasswordRecoveryController {
 
     @PostMapping("/verify")
     public String verify(@RequestParam String code, HttpServletRequest request, RedirectAttributes flash) {
-        if (!enabled) return START;
         var session = request.getSession();
         try {
             otp.verify((String) session.getAttribute(FLOW), session.getId(), code.strip(),
@@ -91,7 +82,6 @@ public class InternalPasswordRecoveryController {
             @RequestParam String password, @RequestParam String confirmation,
             HttpServletRequest request, HttpServletResponse response, Authentication authentication,
             RedirectAttributes flash) {
-        if (!enabled) return START;
         var session = request.getSession();
         String id = (String) session.getAttribute(FLOW);
         var flow = otp.view(id, session.getId(), true);

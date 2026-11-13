@@ -30,8 +30,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 
 @WebMvcTest(
     controllers = {AuthController.class, InternalPortalController.class, InternalPasswordRecoveryController.class,
-        DashboardController.class, com.ddagtech.aureliabooks.controller.CustomErrorController.class},
-    properties = "app.internal-recovery.enabled=true"
+        DashboardController.class, com.ddagtech.aureliabooks.controller.CustomErrorController.class}
 )
 @Import({SecurityConfig.class, CustomAuthenticationEntryPoint.class, CustomAccessDeniedHandler.class,
         CustomAuthenticationFailureHandler.class, RoleBasedAuthenticationSuccessHandler.class})
