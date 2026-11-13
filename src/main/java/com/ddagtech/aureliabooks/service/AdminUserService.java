@@ -32,10 +32,22 @@ public interface AdminUserService {
 
     void setActive(Long adminId, Long userId, boolean active, String ipAddress);
 
-    default void resetStaffPassword(Long adminId, Long targetUserId) {
-        resetStaffPassword(adminId, targetUserId, null);
+    default void updateStaffContact(Long adminId, Long targetUserId, StaffContactUpdateRequest request) {
+        updateStaffContact(adminId, targetUserId, request, null);
     }
 
-    void resetStaffPassword(Long adminId, Long targetUserId, String ipAddress);
+    /**
+     * Updates an internal staff member's phone and/or unverified email after identity verification (UC28 GIAC-02).
+     */
+    void updateStaffContact(Long adminId, Long targetUserId, StaffContactUpdateRequest request, String ipAddress);
+
+    default void revokeEmailVerification(Long adminId, Long targetUserId) {
+        revokeEmailVerification(adminId, targetUserId, null);
+    }
+
+    /**
+     * Revokes email verification status on another internal staff account (UC28 GIAC-02).
+     */
+    void revokeEmailVerification(Long adminId, Long targetUserId, String ipAddress);
 }
 

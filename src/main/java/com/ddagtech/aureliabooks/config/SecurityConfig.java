@@ -148,6 +148,7 @@ public class SecurityConfig {
                 ).hasAnyRole("MANAGER", "SALE_STAFF")
                 .requestMatchers("/manager", "/manager/**").hasRole("MANAGER")
                 .requestMatchers("/staff", "/staff/**").hasAnyRole("SALE_STAFF", "MANAGER")
+                .requestMatchers("/internal/account", "/internal/account/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
                 .requestMatchers("/dashboard", "/dashboard/**", "/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
                 .anyRequest().hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF"));
         http.formLogin(login -> {

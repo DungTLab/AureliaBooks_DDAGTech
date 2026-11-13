@@ -1,6 +1,7 @@
 package com.ddagtech.aureliabooks.service.impl;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
+import com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
 import com.ddagtech.aureliabooks.dto.response.RoleOption;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
@@ -199,6 +200,8 @@ public class AdminUserServiceImpl implements AdminUserService {
         details.put("email", savedUser.getEmail());
         details.put("full_name", savedUser.getFullName());
         details.put("role", assignedRole.getRoleName());
+        details.put("email_verified", false);
+        details.put("phone_verified", false);
 
         auditLogService.record(
                 adminId,
@@ -346,83 +349,177 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     /**
-     * Resets the password of an internal back-office staff account in an emergency (UC28).
-     * Enforces customer isolation guard: rejects any attempt to reset customer passwords.
-     * Generates a secure random temporary password, hashes it, emails it to staff,
-     * unlocks brute-force cooldown, invalidates existing sessions, and writes a clean audit log.
+     * Updates an internal staff member's phone and/or unverified email after identity verification (UC28 GIAC-02).
+     * Never alters password hashes and resets verification flags on changed contact channels.
      *
-     * @param adminId authenticated administrator performing the reset
-     * @param targetUserId staff user whose password should be reset
+     * @param adminId authenticated administrator performing the update
+     * @param targetUserId target internal staff user ID
+     * @param request validated contact update payload
      * @param ipAddress originating client IP
      */
     @Override
     @Transactional
-    public void resetStaffPassword(Long adminId, Long targetUserId, String ipAddress) {
+    public void updateStaffContact(Long adminId, Long targetUserId, StaffContactUpdateRequest request, String ipAddress) {
+        if (adminId == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
         if (targetUserId == null) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
-        if (adminId != null && adminId.equals(targetUserId)) {
-            throw new AppException(ErrorCode.CANNOT_RESET_SELF_PASSWORD);
+        if (adminId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        if (request == null || !Boolean.TRUE.equals(request.identityVerified())) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng xác nhận đã kiểm tra danh tính nhân sự.");
         }
 
-        User targetUser = userRepository.findById(targetUserId)
+        User targetUser = userRepository.findOwnerForUpdate(targetUserId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-
         Role targetRole = targetUser.getRole();
-        if (targetRole == null || "ROLE_CUSTOMER".equalsIgnoreCase(targetRole.getRoleName())
-                || !ALLOWED_INTERNAL_ROLES.contains(targetRole.getRoleName())) {
-            throw new AppException(ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD);
+        if (targetRole == null || !ALLOWED_INTERNAL_ROLES.contains(targetRole.getRoleName())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!Boolean.TRUE.equals(targetUser.getIsActive())) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
 
-        String tempPassword = generateTemporaryPassword();
-        targetUser.setPasswordHash(passwordEncoder.encode(tempPassword));
-        userRepository.save(targetUser);
+        String normalizedEmail = ContactOtpEngine.normalizeEmail(request.email());
+        String normalizedPhone = ContactOtpEngine.normalizePhone(request.phone());
 
-        // 1. Send temporary password directly to staff email before revoking sessions or clearing attempts
-        JavaMailSender sender = mailSenderProvider != null ? mailSenderProvider.getIfAvailable() : null;
-        if (sender == null || targetUser.getEmail() == null || targetUser.getEmail().isBlank()) {
-            log.error("Mail dispatch unavailable for staff password reset [{}]", targetUser.getEmail());
-            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
-        }
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(mailFrom);
-            message.setTo(targetUser.getEmail());
-            message.setSubject(OtpMailContent.STAFF_PASSWORD_RESET_SUBJECT);
-            message.setText(OtpMailContent.staffPasswordResetBody(targetUser.getFullName(), tempPassword));
-            sender.send(message);
-        } catch (Exception ex) {
-            log.error("Failed to send temporary password email to staff [{}]", targetUser.getEmail(), ex);
-            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+        boolean emailChanged = applyUnverifiedEmailUpdate(targetUser, normalizedEmail);
+        boolean phoneChanged = applyUnverifiedPhoneUpdate(targetUser, normalizedPhone);
+
+        if (!emailChanged && !phoneChanged) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Vui lòng nhập email hoặc số điện thoại mới cần cập nhật.");
         }
 
-        // 2. Clear brute-force cooldown if locked
-        if (loginAttemptService != null) {
-            loginAttemptService.resetAttempts(targetUserId);
+        userRepository.saveAndFlush(targetUser);
+        if (emailChanged) {
+            runAfterCommit(() -> expireUserSessions(targetUserId));
         }
 
-        // 3. Expire existing sessions
-        expireUserSessions(targetUserId);
-
-        // 4. Record audit entry (clean - no password or hash)
         Map<String, Object> details = new LinkedHashMap<>();
-        details.put("action", "RESET_STAFF_PASSWORD");
+        details.put("action", "ADMIN_STAFF_CONTACT_UPDATED");
         details.put("actor_id", adminId);
         details.put("target_user_id", targetUserId);
-        details.put("target_email", targetUser.getEmail());
-        details.put("target_role", targetRole.getRoleName());
+        details.put("email_changed", emailChanged);
+        details.put("phone_changed", phoneChanged);
+        details.put("email_verified", targetUser.isEmailVerified());
+        details.put("phone_verified", targetUser.isPhoneVerified());
+        details.put("identity_confirmed", true);
+        if (request.reason() != null && !request.reason().isBlank()) {
+            String cleanReason = request.reason().trim();
+            details.put("reason", cleanReason.length() > 200 ? cleanReason.substring(0, 200) : cleanReason);
+        }
 
         auditLogService.record(
                 adminId,
-                "RESET_STAFF_PASSWORD",
+                "ADMIN_STAFF_CONTACT_UPDATED",
                 "users",
                 targetUserId,
                 toJson(details),
                 ipAddress
         );
+        log.info("Admin [{}] updated unverified contact channels for staff [{}] from IP [{}]", adminId, targetUserId, ipAddress);
+    }
 
-        log.info("Admin [{}] reset temporary password for staff [{}] ({}) from IP [{}]",
-                adminId, targetUserId, targetUser.getEmail(), ipAddress);
+    /**
+     * Revokes the verified email status of an internal staff member (UC28 GIAC-02).
+     *
+     * @param adminId authenticated administrator performing the revocation
+     * @param targetUserId target internal staff user ID
+     * @param ipAddress originating client IP
+     */
+    @Override
+    @Transactional
+    public void revokeEmailVerification(Long adminId, Long targetUserId, String ipAddress) {
+        if (adminId == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        if (targetUserId == null) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA);
+        }
+        if (adminId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        User targetUser = userRepository.findOwnerForUpdate(targetUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        Role targetRole = targetUser.getRole();
+        if (targetRole == null || !ALLOWED_INTERNAL_ROLES.contains(targetRole.getRoleName())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        targetUser.setEmailVerified(false);
+        userRepository.saveAndFlush(targetUser);
+        runAfterCommit(() -> expireUserSessions(targetUserId));
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("action", "ADMIN_STAFF_EMAIL_REVOKED");
+        details.put("actor_id", adminId);
+        details.put("target_user_id", targetUserId);
+        details.put("email_verified", false);
+
+        auditLogService.record(
+                adminId,
+                "ADMIN_STAFF_EMAIL_REVOKED",
+                "users",
+                targetUserId,
+                toJson(details),
+                ipAddress
+        );
+        log.info("Admin [{}] revoked email verification flag for staff [{}] from IP [{}]", adminId, targetUserId, ipAddress);
+    }
+
+    private boolean applyUnverifiedEmailUpdate(User targetUser, String normalizedEmail) {
+        if (normalizedEmail == null || normalizedEmail.isEmpty()) {
+            return false;
+        }
+        if (!ContactOtpEngine.isValidEmail(normalizedEmail)) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Email công việc không hợp lệ.");
+        }
+        String currentEmail = targetUser.getEmail() == null ? "" : targetUser.getEmail();
+        if (normalizedEmail.equalsIgnoreCase(currentEmail)) {
+            return false;
+        }
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new AppException(ErrorCode.USER_EXISTED);
+        }
+        targetUser.setEmail(normalizedEmail);
+        targetUser.setEmailVerified(false);
+        return true;
+    }
+
+    private boolean applyUnverifiedPhoneUpdate(User targetUser, String normalizedPhone) {
+        if (normalizedPhone == null || normalizedPhone.isEmpty()) {
+            return false;
+        }
+        if (!ContactOtpEngine.isValidVietnamPhone(normalizedPhone)) {
+            throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Số điện thoại Việt Nam không hợp lệ (10 số bắt đầu bằng 03/05/07/08/09).");
+        }
+        String currentPhone = targetUser.getPhone() == null ? "" : targetUser.getPhone();
+        if (normalizedPhone.equals(currentPhone)) {
+            return false;
+        }
+        if (userRepository.existsByPhone(normalizedPhone)) {
+            throw new AppException(ErrorCode.USER_EXISTED);
+        }
+        targetUser.setPhone(normalizedPhone);
+        targetUser.setPhoneVerified(false);
+        return true;
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 
     /**

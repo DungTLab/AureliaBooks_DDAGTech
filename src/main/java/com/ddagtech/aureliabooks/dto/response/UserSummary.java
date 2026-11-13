@@ -13,7 +13,8 @@ import java.time.LocalDateTime;
  * @param roleName assigned Spring Security role authority name (e.g., ROLE_ADMIN)
  * @param active account active status indicator
  * @param createdAt timestamp when the account record was created
- * @param passwordResetAllowed whether administrative emergency password reset is permitted
+ * @param emailVerified whether the recovery/work email has been verified via OTP
+ * @param phoneVerified whether the contact phone number has been verified via OTP
  */
 public record UserSummary(
         Long id,
@@ -24,7 +25,8 @@ public record UserSummary(
         String roleName,
         Boolean active,
         LocalDateTime createdAt,
-        boolean passwordResetAllowed
+        boolean emailVerified,
+        boolean phoneVerified
 ) {
     public UserSummary(
             Long id,
@@ -36,7 +38,6 @@ public record UserSummary(
             Boolean active,
             LocalDateTime createdAt
     ) {
-        this(id, email, fullName, phone, roleId, roleName, active, createdAt,
-                roleName != null && !"ROLE_CUSTOMER".equalsIgnoreCase(roleName));
+        this(id, email, fullName, phone, roleId, roleName, active, createdAt, false, false);
     }
 }
