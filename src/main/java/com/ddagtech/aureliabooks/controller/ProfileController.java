@@ -1,22 +1,38 @@
 package com.ddagtech.aureliabooks.controller;
 
-import com.ddagtech.aureliabooks.dto.request.*;
+import com.ddagtech.aureliabooks.constant.ErrorCode;
+import com.ddagtech.aureliabooks.dto.request.AddressRequest;
+import com.ddagtech.aureliabooks.dto.request.PasswordChangeRequest;
+import com.ddagtech.aureliabooks.dto.request.ProfileUpdateRequest;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
-import com.ddagtech.aureliabooks.service.*;
+import com.ddagtech.aureliabooks.service.AddressService;
+import com.ddagtech.aureliabooks.service.AvatarStorage;
+import com.ddagtech.aureliabooks.service.UserService;
 import com.ddagtech.aureliabooks.util.DeliveryProvinceCatalog;
-import jakarta.servlet.http.*;
+import com.ddagtech.aureliabooks.util.HttpRequestUtil;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.*;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -78,7 +94,7 @@ public class ProfileController {
             feedback(errors, flash);
             return "redirect:/profile";
         }
-        users.changePassword(owner, form, com.ddagtech.aureliabooks.util.HttpRequestUtil.getClientIp(request));
+        users.changePassword(owner, form, HttpRequestUtil.getClientIp(request));
         new SecurityContextLogoutHandler().logout(request, response, auth);
         Cookie cookie = new Cookie("JSESSIONID", "");
         cookie.setPath("/");
@@ -98,7 +114,9 @@ public class ProfileController {
     @GetMapping("/profile/avatar/{filename}")
     public ResponseEntity<byte[]> avatarFile(Authentication auth, @PathVariable String filename) {
         var profile = users.viewProfile(identity.resolve(auth));
-        if (!("/profile/avatar/" + filename).equals(profile.avatarUrl())) return ResponseEntity.notFound().build();
+        if (!("/profile/avatar/" + filename).equals(profile.avatarUrl())) {
+            return ResponseEntity.notFound().build();
+        }
         return ResponseEntity.ok()
             .cacheControl(CacheControl.noStore())
             .contentType(MediaType.IMAGE_PNG)
@@ -116,9 +134,11 @@ public class ProfileController {
                 .stream()
                 .filter(a -> a.id().equals(edit))
                 .findFirst();
-            if (edit != null && selected.isEmpty()) throw new AppException(
-                com.ddagtech.aureliabooks.constant.ErrorCode.ADDRESS_NOT_FOUND
-            );
+            if (edit != null && selected.isEmpty()) {
+                throw new AppException(
+                    ErrorCode.ADDRESS_NOT_FOUND
+                );
+            }
             model.addAttribute(
                 "addressForm",
                 selected
@@ -190,15 +210,17 @@ public class ProfileController {
         RedirectAttributes flash
     ) {
         flash.addFlashAttribute("errorMessage", e.getMessage());
-        if (e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.UNAUTHORIZED) return "redirect:/error/403";
+        if (e.getErrorCode() == ErrorCode.UNAUTHORIZED) {
+            return "redirect:/error/403";
+        }
         if (
-            e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.UNAUTHENTICATED ||
-            e.getErrorCode() == com.ddagtech.aureliabooks.constant.ErrorCode.ACCOUNT_LOCKED
+            e.getErrorCode() == ErrorCode.UNAUTHENTICATED ||
+            e.getErrorCode() == ErrorCode.ACCOUNT_LOCKED
         ) {
             new SecurityContextLogoutHandler().logout(
                 request,
                 response,
-                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication()
+                SecurityContextHolder.getContext().getAuthentication()
             );
             return "redirect:/auth/login";
         }
