@@ -491,6 +491,12 @@ public class VNPayServiceImpl implements VNPayService {
     @Override
     @Transactional(readOnly = true)
     public VNPayPaymentResultView evaluateBrowserReturn(Map<String, String> params) {
+        return evaluateBrowserReturn(null, params);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VNPayPaymentResultView evaluateBrowserReturn(Long authenticatedUserId, Map<String, String> params) {
         boolean validSignature = vnPayConfig != null
                 && vnPayConfig.isConfigured()
                 && VNPayUtil.verifySignature(params, vnPayConfig.getHashSecret());
@@ -530,6 +536,10 @@ public class VNPayServiceImpl implements VNPayService {
         Optional<Order> orderOpt = orderRepository.findByVnpayTxnRefOrOrderCode(txnRef);
         if (orderOpt.isEmpty()) {
             orderOpt = orderRepository.findByOrderCode(extractCanonicalOrderCode(txnRef));
+        }
+        // Fail closed after signature verification to prevent cross-customer return URL inspection (IDOR)
+        if (orderOpt.isPresent()) {
+            verifyOrderOwnership(orderOpt.get(), authenticatedUserId);
         }
         String canonicalOrderCode = orderOpt.map(Order::getOrderCode).orElseGet(() -> extractCanonicalOrderCode(txnRef));
         String orderStatus = orderOpt.map(o -> o.getOrderStatus().name()).orElse("PENDING_PAYMENT");

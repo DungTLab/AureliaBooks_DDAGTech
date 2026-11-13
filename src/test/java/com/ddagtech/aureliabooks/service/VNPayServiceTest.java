@@ -771,6 +771,7 @@ class VNPayServiceTest {
     void evaluateBrowserReturn_ConfirmedPaid_ReturnsPaymentSuccessTrue() {
         Order order = Order.builder()
                 .id(70L)
+                .user(ownerCustomer)
                 .orderCode("ORD-20261016-070")
                 .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
                 .paymentStatus(Order.PaymentStatus.PAID)
@@ -785,6 +786,9 @@ class VNPayServiceTest {
         assertThat(view.paymentSuccess()).isTrue();
         assertThat(view.orderStatus()).isEqualTo("PENDING_CONFIRMATION");
         assertThat(view.paymentStatus()).isEqualTo("PAID");
+        assertThat(view.displayOrderStatus()).isEqualTo("Chờ xác nhận");
+        assertThat(view.displayPaymentStatus()).isEqualTo("Đã thanh toán");
+        assertThat(view.statusTone()).isEqualTo("success");
         assertThat(view.displayMessage()).contains("xác minh thành công");
         verify(orderRepository, never()).save(any());
     }
@@ -794,6 +798,7 @@ class VNPayServiceTest {
     void evaluateBrowserReturn_AwaitingIpnConfirmation_ReturnsPendingVerification() {
         Order order = Order.builder()
                 .id(71L)
+                .user(ownerCustomer)
                 .orderCode("ORD-20261016-071")
                 .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
                 .paymentStatus(Order.PaymentStatus.UNPAID)
@@ -808,6 +813,9 @@ class VNPayServiceTest {
         assertThat(view.paymentSuccess()).isFalse();
         assertThat(view.orderStatus()).isEqualTo("PENDING_PAYMENT");
         assertThat(view.paymentStatus()).isEqualTo("UNPAID");
+        assertThat(view.displayOrderStatus()).isEqualTo("Chờ thanh toán");
+        assertThat(view.displayPaymentStatus()).isEqualTo("Chưa thanh toán");
+        assertThat(view.statusTone()).isEqualTo("pending");
         assertThat(view.displayMessage()).contains("đang đối soát và xác minh kết quả thanh toán");
         assertThat(view.displayMessage()).doesNotContain("xác minh thành công");
         verify(orderRepository, never()).save(any());
@@ -818,6 +826,7 @@ class VNPayServiceTest {
     void evaluateBrowserReturn_LateSuccessOnCancelledOrder_ReturnsReconciliationMessage() {
         Order cancelledOrder = Order.builder()
                 .id(72L)
+                .user(ownerCustomer)
                 .orderCode("ORD-20261016-072")
                 .orderStatus(Order.OrderStatus.CANCELLED)
                 .paymentStatus(Order.PaymentStatus.UNPAID)
@@ -831,6 +840,8 @@ class VNPayServiceTest {
         assertThat(view.validSignature()).isTrue();
         assertThat(view.paymentSuccess()).isFalse();
         assertThat(view.orderStatus()).isEqualTo("CANCELLED");
+        assertThat(view.displayOrderStatus()).isEqualTo("Đã hủy");
+        assertThat(view.statusTone()).isEqualTo("reconcile");
         assertThat(view.displayMessage()).contains("đối soát");
         assertThat(view.displayMessage()).contains("hoàn tiền");
         assertThat(view.displayMessage()).doesNotContain("Đơn hàng đang chờ nhân viên xác nhận");
@@ -841,6 +852,7 @@ class VNPayServiceTest {
     void evaluateBrowserReturn_RetryTxnRef_ResolvesCanonicalOrderCode() {
         Order order = Order.builder()
                 .id(73L)
+                .user(ownerCustomer)
                 .orderCode("ORD-20261016-073")
                 .vnpayTxnRef("ORD-20261016-073-R101200")
                 .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
@@ -858,6 +870,99 @@ class VNPayServiceTest {
         assertThat(view.orderCode()).isEqualTo("ORD-20261016-073");
         assertThat(view.orderStatus()).isEqualTo("PENDING_CONFIRMATION");
         assertThat(view.paymentStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    @DisplayName("UC11.1 Security: evaluateBrowserReturn() must reject another customer opening a valid signed return URL")
+    void evaluateBrowserReturn_DifferentCustomer_ThrowsUnauthorized() {
+        User otherCustomer = User.builder()
+                .id(2L)
+                .email("other@aureliabook.vn")
+                .fullName("Other Customer")
+                .build();
+        authenticateAsCustomer(otherCustomer);
+
+        Order order = Order.builder()
+                .id(730L)
+                .user(ownerCustomer)
+                .orderCode("ORD-20261016-730")
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("120000.00"))
+                .build();
+        when(orderRepository.findByVnpayTxnRefOrOrderCode("ORD-20261016-730")).thenReturn(Optional.of(order));
+
+        Map<String, String> params = signedParams("ORD-20261016-730", "12000000", "00", "00");
+
+        assertThatThrownBy(() -> vnPayService.evaluateBrowserReturn(params))
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("UC11.1 Security: evaluateBrowserReturn() must fail closed when caller is unauthenticated")
+    void evaluateBrowserReturn_Unauthenticated_ThrowsUnauthenticated() {
+        SecurityContextHolder.clearContext();
+
+        Order order = Order.builder()
+                .id(731L)
+                .user(ownerCustomer)
+                .orderCode("ORD-20261016-731")
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("120000.00"))
+                .build();
+        when(orderRepository.findByVnpayTxnRefOrOrderCode("ORD-20261016-731")).thenReturn(Optional.of(order));
+
+        Map<String, String> params = signedParams("ORD-20261016-731", "12000000", "00", "00");
+
+        assertThatThrownBy(() -> vnPayService.evaluateBrowserReturn(params))
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHENTICATED);
+    }
+
+    @Test
+    @DisplayName("UC11.1 Security: evaluateBrowserReturn() must reject non-customer role")
+    void evaluateBrowserReturn_NonCustomerRole_ThrowsUnauthorized() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        "staff@aureliabook.vn",
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_SALE_STAFF"))
+                )
+        );
+
+        Order order = Order.builder()
+                .id(732L)
+                .user(ownerCustomer)
+                .orderCode("ORD-20261016-732")
+                .orderStatus(Order.OrderStatus.PENDING_CONFIRMATION)
+                .paymentStatus(Order.PaymentStatus.PAID)
+                .finalTotalAmount(new BigDecimal("120000.00"))
+                .build();
+        when(orderRepository.findByVnpayTxnRefOrOrderCode("ORD-20261016-732")).thenReturn(Optional.of(order));
+
+        Map<String, String> params = signedParams("ORD-20261016-732", "12000000", "00", "00");
+
+        assertThatThrownBy(() -> vnPayService.evaluateBrowserReturn(params))
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("UC11.1 Security: evaluateBrowserReturn() with forged signature rejects before DB lookup to prevent order enumeration")
+    void evaluateBrowserReturn_ForgedSignature_DoesNotLookupOrder() {
+        Map<String, String> forged = signedParams("ORD-20261016-733", "12000000", "00", "00");
+        forged.put("vnp_SecureHash", "0000deadbeef");
+
+        VNPayPaymentResultView view = vnPayService.evaluateBrowserReturn(forged);
+
+        assertThat(view.validSignature()).isFalse();
+        assertThat(view.paymentSuccess()).isFalse();
+        verifyNoInteractions(orderRepository);
     }
 
     @Test
@@ -1381,6 +1486,9 @@ class VNPayServiceTest {
         assertThat(nullView.validSignature()).isFalse();
         assertThat(nullView.paymentSuccess()).isFalse();
         assertThat(nullView.orderStatus()).isEqualTo("UNKNOWN");
+        assertThat(nullView.displayOrderStatus()).isEqualTo("Chưa xác định");
+        assertThat(nullView.displayPaymentStatus()).isEqualTo("Chưa xác định");
+        assertThat(nullView.statusTone()).isEqualTo("failure");
         assertThat(emptyView.validSignature()).isFalse();
         assertThat(emptyView.paymentSuccess()).isFalse();
         assertThat(emptyView.paymentStatus()).isEqualTo("UNKNOWN");

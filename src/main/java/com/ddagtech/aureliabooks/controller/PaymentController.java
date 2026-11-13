@@ -10,6 +10,7 @@ import com.ddagtech.aureliabooks.service.VNPayService;
 import com.ddagtech.aureliabooks.util.VNPayUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,11 +18,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Collection;
 import java.util.Map;
@@ -103,5 +107,26 @@ public class PaymentController {
         if (!isCustomer) {
             throw new AppException(ErrorCode.UNAUTHORIZED, "Only customers are permitted to access payment endpoints.");
         }
+    }
+
+    /**
+     * Routes payment authorization and business failures explicitly so cross-customer return probes
+     * land on /error/403 rather than falling back to the HTTP Referer header.
+     */
+    @ExceptionHandler(AppException.class)
+    public Object handlePaymentError(AppException exception, RedirectAttributes flash) {
+        ErrorCode code = exception.getErrorCode();
+        if (code == ErrorCode.UNAUTHENTICATED || code == ErrorCode.ACCOUNT_LOCKED || code == ErrorCode.USER_NOT_EXISTED) {
+            flash.addFlashAttribute("errorMessage", exception.getMessage());
+            return "redirect:/auth/login";
+        }
+        if (code == ErrorCode.UNAUTHORIZED) {
+            return "redirect:/error/403";
+        }
+        if (code == ErrorCode.ORDER_NOT_FOUND) {
+            return new ModelAndView("error/404", HttpStatus.NOT_FOUND);
+        }
+        flash.addFlashAttribute("errorMessage", exception.getMessage());
+        return "redirect:/orders/my-orders";
     }
 }
