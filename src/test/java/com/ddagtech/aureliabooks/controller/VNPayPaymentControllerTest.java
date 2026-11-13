@@ -1,8 +1,10 @@
 package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.config.SecurityConfig;
+import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.response.VNPayIpnResponse;
 import com.ddagtech.aureliabooks.dto.response.VNPayPaymentResultView;
+import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.service.VNPayService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -186,6 +188,11 @@ class VNPayPaymentControllerTest {
                 .andExpect(view().name("payment/result"))
                 .andExpect(model().attribute("paymentResult", viewModel))
                 .andExpect(content().string(containsString("Thanh Toán Thành Công")))
+                .andExpect(content().string(containsString("250.000 đ")))
+                .andExpect(content().string(containsString("Chờ xác nhận")))
+                .andExpect(content().string(containsString("Đã thanh toán")))
+                .andExpect(content().string(not(containsString("SCR-ST-13"))))
+                .andExpect(content().string(not(containsString("PENDING_CONFIRMATION"))))
                 .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))));
     }
 
@@ -336,5 +343,64 @@ class VNPayPaymentControllerTest {
                 .andExpect(content().string(containsString("Không Thể Xác Thực Giao Dịch")))
                 .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))))
                 .andExpect(content().string(not(containsString("Thanh Toán Không Thành Công"))));
+    }
+
+    @Test
+    @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("PAY-03: GET /payment/vnpay-return with missing query parameters should safely render signature error view")
+    void handleVNPayBrowserReturn_MissingParameters_RendersInvalidSignatureHeading() throws Exception {
+        VNPayPaymentResultView missingParamsView = new VNPayPaymentResultView(
+                false,
+                false,
+                "",
+                BigDecimal.ZERO,
+                "",
+                "",
+                "",
+                "",
+                "UNKNOWN",
+                "UNKNOWN",
+                "Chữ ký xác thực phản hồi từ cổng thanh toán không hợp lệ."
+        );
+        when(vnPayService.evaluateBrowserReturn(anyMap())).thenReturn(missingParamsView);
+
+        mockMvc.perform(get("/payment/vnpay-return"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("payment/result"))
+                .andExpect(model().attribute("paymentResult", missingParamsView))
+                .andExpect(content().string(containsString("Không Thể Xác Thực Giao Dịch")))
+                .andExpect(content().string(not(containsString("Thanh Toán Thành Công"))));
+    }
+
+    @Test
+    @WithMockUser(username = "other@aureliabook.vn", roles = {"CUSTOMER"})
+    @DisplayName("UC11.1 Security: GET /payment/vnpay-return for another customer's order redirects to /error/403")
+    void handleVNPayBrowserReturn_UnauthorizedCustomer_RedirectsTo403() throws Exception {
+        when(vnPayService.evaluateBrowserReturn(anyMap()))
+                .thenThrow(new AppException(ErrorCode.UNAUTHORIZED, "Order does not belong to the authenticated customer."));
+
+        mockMvc.perform(get("/payment/vnpay-return").param("vnp_TxnRef", "ORD-20261016-001"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
+    }
+
+    @Test
+    @DisplayName("UC11.1 Security: GET /payment/vnpay-return by unauthenticated guest redirects to login without calling service")
+    void handleVNPayBrowserReturn_UnauthenticatedGuest_RedirectsToLogin() throws Exception {
+        mockMvc.perform(get("/payment/vnpay-return").param("vnp_TxnRef", "ORD-20261016-001"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("**/login"));
+
+        verify(vnPayService, never()).evaluateBrowserReturn(anyMap());
+    }
+
+    @Test
+    @WithMockUser(username = "staff@aureliabook.vn", roles = {"SALE_STAFF"})
+    @DisplayName("UC11.1 Security: GET /payment/vnpay-return by non-customer role is rejected with 403 Forbidden")
+    void handleVNPayBrowserReturn_SaleStaffRole_Returns403Forbidden() throws Exception {
+        mockMvc.perform(get("/payment/vnpay-return").param("vnp_TxnRef", "ORD-20261016-001"))
+                .andExpect(status().isForbidden());
+
+        verify(vnPayService, never()).evaluateBrowserReturn(anyMap());
     }
 }

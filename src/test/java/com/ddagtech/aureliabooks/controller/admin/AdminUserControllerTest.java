@@ -341,4 +341,73 @@ class AdminUserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("overflow-x-auto")));
     }
+
+    @Test
+    @DisplayName("GET /admin/users renders localized Vietnamese UI labels without redundant English suffixes or rule IDs")
+    void testListView_RendersPureVietnameseLabelsWithoutEnglishClutter() throws Exception {
+        UserSummary selfAdmin = new UserSummary(
+                1L, "admin@aureliabook.vn", "Quản trị viên A", "0900000001", 1L, "ROLE_ADMIN", true, LocalDateTime.now(), false
+        );
+        UserSummary managerUser = new UserSummary(
+                2L, "manager@aureliabook.vn", "Quản lý B", "0900000002", 2L, "ROLE_MANAGER", true, LocalDateTime.now(), true
+        );
+        Page<UserSummary> page = new PageImpl<>(List.of(selfAdmin, managerUser));
+        when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Quản lý tài khoản nội bộ")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Tài khoản nội bộ")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Bạn không thể tự khóa tài khoản của chính mình")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Quản lý kho &amp; danh mục")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Quản trị tài khoản, phân quyền và giám sát toàn hệ thống")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Quản lý sản phẩm, nhà cung cấp, nhập kho và khuyến mại")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Tiếp nhận, xử lý đơn hàng và lập phiếu nhập nháp")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Phân quyền RBAC"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("(ADMIN)"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("(MANAGER)"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("(SALE_STAFF)"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("(CUSTOMER)"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("(BR-08-01)"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("System administrator"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Store Manager"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Sales Staff"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(">ADMIN<"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(">MANAGER<"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(">SALE_STAFF<"))));
+    }
+
+    @Test
+    @DisplayName("INT-02 / INT-10: POST /admin/users/{id}/reset-password by non-ADMIN is rejected without invoking service")
+    void testResetPassword_NonAdmin_Forbidden() throws Exception {
+        mockMvc.perform(post("/admin/users/10/reset-password")
+                        .with(csrf())
+                        .with(user(staffUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
+
+        verify(adminUserService, never()).resetStaffPassword(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("GET /admin/users renders wide workspace container and accessible confirm modal without redundant quick filters or browser confirm()")
+    void testListView_RendersAccessibleConfirmModalWithoutNativeConfirm() throws Exception {
+        UserSummary staffUser = new UserSummary(
+                2L, "staff@aureliabook.vn", "Nhân viên B", "0900000002", 3L, "ROLE_SALE_STAFF", true, LocalDateTime.now(), true
+        );
+        when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(staffUser)));
+
+        mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("max-w-[1600px]")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"confirmActionModal\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-custom-modal=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-confirm-form=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-confirm-select=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Lọc nhanh"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("return confirm("))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("if(confirm("))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("window.confirm("))));
+    }
 }

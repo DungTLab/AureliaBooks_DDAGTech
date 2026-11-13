@@ -1,12 +1,18 @@
 package com.ddagtech.aureliabooks.service;
 
-import com.ddagtech.aureliabooks.dto.request.*;
-import com.ddagtech.aureliabooks.dto.response.*;
-import org.springframework.data.domain.*;
+import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
+import com.ddagtech.aureliabooks.dto.response.RoleOption;
+import com.ddagtech.aureliabooks.dto.response.UserSummary;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-/** UC28. Owner: Trần Huỳnh Giác. Sprint 1 scaffold; business implementation pending. */
+import java.util.List;
+
+/**
+ * Service contract managing internal back-office staff accounts and RBAC role assignments (UC28).
+ */
 public interface AdminUserService {
-    java.util.List<RoleOption> listAssignableRoles();
+    List<RoleOption> listAssignableRoles();
 
     default Page<UserSummary> list(String roleName, Pageable pageable) {
         return list(roleName, null, null, pageable);

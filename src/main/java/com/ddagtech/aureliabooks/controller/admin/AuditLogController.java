@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.dto.response.ActorOption;
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.service.AuditLogService;
+import com.ddagtech.aureliabooks.util.AuditLogLabelFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -13,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -32,6 +34,16 @@ import java.util.List;
 public class AuditLogController {
 
     private final AuditLogService auditLogService;
+
+    /**
+     * Exposes the stateless Vietnamese audit label formatter to the view layer.
+     *
+     * @return singleton {@link AuditLogLabelFormatter} instance
+     */
+    @ModelAttribute("auditLabels")
+    public AuditLogLabelFormatter auditLabels() {
+        return AuditLogLabelFormatter.INSTANCE;
+    }
 
     /**
      * Renders the paginated audit logs inquiry console with multi-criteria filtering.
