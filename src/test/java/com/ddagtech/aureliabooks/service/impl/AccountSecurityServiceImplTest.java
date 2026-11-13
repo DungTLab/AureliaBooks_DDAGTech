@@ -15,6 +15,7 @@ import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -195,5 +196,61 @@ class AccountSecurityServiceImplTest {
         assertThat(result.getPasswordHash()).isEqualTo("$2a$12$hashedWithSpaces");
         verify(passwords).encode(rawPasswordWithSpaces);
         verify(passwords, never()).encode("Abc123!");
+    }
+
+    @Test
+    @DisplayName("reauthenticateStaff verifies active staff password through LoginAttemptService and locks after 5 consecutive failures")
+    void reauthenticateStaff_EnforcesThrottleAndInternalRoleGuards() {
+        LoginAttemptService realAttempts = new LoginAttemptService();
+        AccountSecurityServiceImpl throttledService = new AccountSecurityServiceImpl(
+                users, roles, passwords, realAttempts, sessions, audit);
+
+        Long staffId = 22L;
+        User staff = User.builder()
+                .id(staffId)
+                .email("manager@aureliabook.vn")
+                .passwordHash("$2a$12$hash")
+                .role(Role.builder().id(2L).roleName("ROLE_MANAGER").build())
+                .isActive(true)
+                .build();
+        when(users.findById(staffId)).thenReturn(Optional.of(staff));
+        when(passwords.matches("RightPass@1", "$2a$12$hash")).thenReturn(true);
+        when(passwords.matches("WrongPass@1", "$2a$12$hash")).thenReturn(false);
+
+        throttledService.reauthenticateStaff(staffId, "RightPass@1");
+
+        for (int i = 0; i < 4; i++) {
+            assertThatThrownBy(() -> throttledService.reauthenticateStaff(staffId, "WrongPass@1"))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PASSWORD_NOT_MATCH);
+        }
+        assertThatThrownBy(() -> throttledService.reauthenticateStaff(staffId, "WrongPass@1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCOUNT_LOCKED);
+
+        // Customer and inactive accounts are rejected before checking password
+        User customer = User.builder().id(99L).role(customerRole).isActive(true).passwordHash("h").build();
+        when(users.findById(99L)).thenReturn(Optional.of(customer));
+        assertThatThrownBy(() -> throttledService.reauthenticateStaff(99L, "RightPass@1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+
+        staff.setIsActive(false);
+        assertThatThrownBy(() -> service.reauthenticateStaff(staffId, "RightPass@1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCOUNT_LOCKED);
+    }
+
+    @Test
+    @DisplayName("reauthenticateStaff delegates credential check into LoginAttemptService.authenticate")
+    void reauthenticateStaff_DelegatesToAttemptLimiter() {
+        User staff = User.builder().id(15L).role(staffRole).isActive(true).passwordHash("$2a$12$hash").build();
+        when(users.findById(15L)).thenReturn(Optional.of(staff));
+        when(passwords.matches("Correct@1", "$2a$12$hash")).thenReturn(true);
+        when(attempts.authenticate(eq(15L), any())).thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+
+        service.reauthenticateStaff(15L, "Correct@1");
+
+        verify(attempts).authenticate(eq(15L), any());
     }
 }

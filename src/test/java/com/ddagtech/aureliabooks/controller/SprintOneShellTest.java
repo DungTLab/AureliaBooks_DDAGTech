@@ -32,6 +32,9 @@ class SprintOneShellTest {
     private com.ddagtech.aureliabooks.service.AdminUserService adminUserService;
 
     @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private com.ddagtech.aureliabooks.service.StaffContactService staffContactService;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private com.ddagtech.aureliabooks.service.ProductService productService;
 
     @org.springframework.test.context.bean.override.mockito.MockitoBean

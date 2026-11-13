@@ -61,8 +61,16 @@ class PortalSeparationIntegrationTest {
         String html = mvc.perform(get("/internal/login")).andExpect(status().isOk())
                 .andExpect(view().name("internal/login")).andReturn().getResponse().getContentAsString();
         assertThat(html).contains("data-portal=\"internal\"", "name=\"_csrf\"", "/internal/login", "/css/workspace.css")
+                .contains("/internal/forgot-password")
                 .contains("liên hệ Quản trị viên")
                 .doesNotContain("/js/cart.js", "/auth/google/login", "/auth/register", "/auth/forgot-password", "name=\"keyword\"");
+    }
+
+    @Test
+    void internalAccountRoutesEnforceInternalPortalBoundary() throws Exception {
+        mvc.perform(get("/internal/account/email")).andExpect(redirectedUrl("/internal/login"));
+        mvc.perform(get("/internal/account/email").with(user("customer").roles("CUSTOMER")).header("Accept", "application/json"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
