@@ -26,4 +26,6 @@ public interface AccountSecurityService {
     User completeGoogleLink(Long id, String sub, String mail, String channel, String recipient, String ip);
 
     User changeStaffPassword(Long staffId, com.ddagtech.aureliabooks.dto.request.PasswordChangeRequest request, String currentSessionId, String clientIp);
+
+    void reauthenticateStaff(Long staffId, String password);
 }

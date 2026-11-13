@@ -201,6 +201,42 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         return savedStaff;
     }
 
+    @Override
+    public void reauthenticateStaff(Long staffId, String password) {
+        if (staffId == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        User staff = users.findById(staffId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        String roleName = staff.getRole() != null ? staff.getRole().getRoleName() : null;
+        if (roleName == null || !ContactOtpEngine.ALLOWED_INTERNAL_ROLES.contains(roleName)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!Boolean.TRUE.equals(staff.getIsActive())) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+        }
+        if (attempts == null) {
+            if (password == null || staff.getPasswordHash() == null
+                    || !passwords.matches(password, staff.getPasswordHash())) {
+                throw new AppException(ErrorCode.PASSWORD_NOT_MATCH);
+            }
+            return;
+        }
+        try {
+            attempts.authenticate(staffId, () -> {
+                if (password == null || staff.getPasswordHash() == null
+                        || !passwords.matches(password, staff.getPasswordHash())) {
+                    throw new org.springframework.security.authentication.BadCredentialsException("Invalid password");
+                }
+                return Boolean.TRUE;
+            });
+        } catch (com.ddagtech.aureliabooks.security.TemporaryLoginLockException ex) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED, ex.getMessage());
+        } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+            throw new AppException(ErrorCode.PASSWORD_NOT_MATCH);
+        }
+    }
+
     private void expireOtherSessionsAfterCommit(Long userId, String currentSessionId) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             expireOtherSessionsNow(userId, currentSessionId);
