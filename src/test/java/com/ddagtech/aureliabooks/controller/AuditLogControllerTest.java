@@ -192,4 +192,23 @@ class AuditLogControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Nội dung Payload JSON:"))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("dữ liệu payload"))));
     }
+
+    @Test
+    @DisplayName("GET /admin/audit-logs renders wide workspace container, page-size selector, and empty JSON modal state without redundant quick filters")
+    void testListAuditLogs_RendersExpandedLayoutAndCalmEmptyPayloadModal() throws Exception {
+        Page<AuditLogResponse> mockPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any())).thenReturn(mockPage);
+        when(auditLogService.getDistinctActions()).thenReturn(List.of("LOGIN_FAILED"));
+        when(auditLogService.getDistinctTargetTables()).thenReturn(List.of("users", "orders"));
+        when(auditLogService.getDistinctActors()).thenReturn(List.of());
+
+        mockMvc.perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("max-w-[1600px]")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"pageSizeFilter\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"modalJsonContainer\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"modalEmptyPayloadState\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-custom-modal=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Lọc nhanh"))));
+    }
 }
