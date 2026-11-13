@@ -78,18 +78,26 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         audit.record(u.getId(), "ACCOUNT_REGISTERED", "users", u.getId(), "{\"phone_verified\":true}", ip);
     }
 
-        @Override
+    @Override
     @Transactional
     public User reset(Long id, String oldHash, String channel, String recipient, String newHash, String ip) {
-        var u = users.findOwnerForUpdate(id).orElseThrow();
+        var u = users.findOwnerForUpdate(id)
+            .orElseThrow(() -> new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại."));
+        boolean contactMatches =
+            ("EMAIL".equals(channel) && u.isEmailVerified() && Objects.equals(recipient, u.getEmail())) ||
+            ("SMS".equals(channel) && u.isPhoneVerified() && Objects.equals(recipient, u.getPhone()));
         if (
             !Boolean.TRUE.equals(u.getIsActive()) ||
+            u.getRole() == null ||
+            !"ROLE_CUSTOMER".equals(u.getRole().getRoleName()) ||
             u.getPasswordHash() == null ||
             !Objects.equals(oldHash, u.getPasswordHash()) ||
-            !("EMAIL".equals(channel)
-                ? u.isEmailVerified() && Objects.equals(recipient, u.getEmail())
-                : u.isPhoneVerified() && Objects.equals(recipient, u.getPhone()))
-        ) throw new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
+            recipient == null ||
+            recipient.isBlank() ||
+            !contactMatches
+        ) {
+            throw new IllegalArgumentException("Yêu cầu không còn hiệu lực. Vui lòng bắt đầu lại.");
+        }
         u.setPasswordHash(newHash);
         User saved = users.saveAndFlush(u);
         if (attempts != null) {
