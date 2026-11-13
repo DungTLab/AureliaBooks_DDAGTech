@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/internal :: layout('Quản lý tài khoản nội bộ & Phân quyền RBAC', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Quản lý tài khoản nội bộ', ~{::#main-content})}">
 <head>
-    <title>Quản lý tài khoản nội bộ &amp; Phân quyền RBAC - AureliaBook</title>
+    <title>Quản lý tài khoản nội bộ - AureliaBook</title>
 </head>
 <body>
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -13,14 +13,14 @@
             <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
                 <span>Quản trị hệ thống</span>
                 <i class="bi bi-chevron-right text-[10px]"></i>
-                <span class="text-blazing_flame font-bold">Phân quyền RBAC</span>
+                <span class="text-blazing_flame font-bold">Tài khoản nội bộ</span>
             </div>
             <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
                 <i class="bi bi-shield-lock-fill text-blazing_flame"></i>
                 <span>Quản lý tài khoản nội bộ &amp; Vai trò</span>
             </h1>
             <p class="text-sm text-carbon_black-600 mt-1">
-                Phân quyền tài khoản quản trị (ADMIN), quản lý (MANAGER) và nhân viên bán hàng (SALE_STAFF).
+                Quản lý và phân quyền tài khoản Quản trị viên, Quản lý và Nhân viên bán hàng.
             </p>
         </div>
 
@@ -54,16 +54,10 @@
                         onchange="this.form.submit()"
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
                     <option value="" th:selected="${selectedRole == null or selectedRole == ''}">Tất cả vai trò</option>
-                    <option value="ROLE_ADMIN" th:selected="${selectedRole == 'ROLE_ADMIN'}">Quản trị viên (ADMIN)
-                    </option>
-                    <option value="ROLE_MANAGER" th:selected="${selectedRole == 'ROLE_MANAGER'}">Quản lý (MANAGER)
-                    </option>
-                    <option value="ROLE_SALE_STAFF" th:selected="${selectedRole == 'ROLE_SALE_STAFF'}">Nhân viên
-                        (SALE_STAFF)
-                    </option>
-                    <option value="ROLE_CUSTOMER" th:selected="${selectedRole == 'ROLE_CUSTOMER'}">Khách hàng
-                        (CUSTOMER)
-                    </option>
+                    <option value="ROLE_ADMIN" th:selected="${selectedRole == 'ROLE_ADMIN'}">Quản trị viên</option>
+                    <option value="ROLE_MANAGER" th:selected="${selectedRole == 'ROLE_MANAGER'}">Quản lý</option>
+                    <option value="ROLE_SALE_STAFF" th:selected="${selectedRole == 'ROLE_SALE_STAFF'}">Nhân viên</option>
+                    <option value="ROLE_CUSTOMER" th:selected="${selectedRole == 'ROLE_CUSTOMER'}">Khách hàng</option>
                 </select>
 
                 <!-- Status Filter -->
@@ -204,7 +198,7 @@
                                     class="text-xs font-medium border border-dust_grey rounded-lg px-2 py-1 bg-white text-carbon_black focus:ring-1 focus:ring-blazing_flame focus:outline-none transition cursor-pointer">
                                 <option th:each="r : ${roles}"
                                         th:value="${r.id}"
-                                        th:text="${r.roleName == 'ROLE_ADMIN' ? 'ADMIN' : (r.roleName == 'ROLE_MANAGER' ? 'MANAGER' : 'SALE_STAFF')}"
+                                        th:text="${r.roleName == 'ROLE_ADMIN' ? 'Quản trị viên' : (r.roleName == 'ROLE_MANAGER' ? 'Quản lý' : 'Nhân viên')}"
                                         th:selected="${r.roleName == user.roleName}">
                                 </option>
                             </select>
@@ -238,7 +232,7 @@
                             <div th:if="${#authentication.principal.id == user.id}">
                                 <button type="button"
                                         disabled
-                                        title="Bạn không thể tự khóa tài khoản của chính mình (BR-08-01)"
+                                        title="Bạn không thể tự khóa tài khoản của chính mình"
                                         class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-carbon_black-400 bg-dust_grey/30 border border-dust_grey cursor-not-allowed opacity-60">
                                     <i class="bi bi-lock-fill"></i>
                                     <span>Tự khóa</span>
@@ -379,7 +373,7 @@
                     </label>
                     <input type="email" id="email" th:field="*{email}"
                            required
-                           placeholder="staff@aureliabook.vn"
+                           placeholder="nhanvien@aureliabook.vn"
                            class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
                 </div>
 
@@ -420,11 +414,11 @@
                                    class="text-blazing_flame focus:ring-blazing_flame h-4 w-4"/>
                             <span class="block">
                                 <span class="block font-bold text-xs text-carbon_black"
-                                      th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị viên (ADMIN)' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý kho & danh mục (MANAGER)' : 'Nhân viên bán hàng (SALE_STAFF)')}">
+                                      th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị viên' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý kho & danh mục' : 'Nhân viên bán hàng')}">
                                     Vai trò
                                 </span>
                                 <span class="block text-[11px] text-carbon_black-500"
-                                      th:text="${role.description != null ? role.description : role.roleName}">Mô tả vai trò</span>
+                                      th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị tài khoản, phân quyền và giám sát toàn hệ thống' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý sản phẩm, nhà cung cấp, nhập kho và khuyến mại' : 'Tiếp nhận, xử lý đơn hàng và lập phiếu nhập nháp')}">Mô tả vai trò</span>
                             </span>
                         </label>
                     </div>
