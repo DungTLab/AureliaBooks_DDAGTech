@@ -15,6 +15,7 @@ import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
 import com.ddagtech.aureliabooks.service.AdminUserService;
 import com.ddagtech.aureliabooks.service.AuditLogService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.core.session.SessionInformation;
@@ -176,6 +178,12 @@ public class AdminUserServiceImpl implements AdminUserService {
             throw new AppException(ErrorCode.INVALID_ROLE_ASSIGNMENT);
         }
 
+        JavaMailSender sender = mailSenderProvider != null ? mailSenderProvider.getIfAvailable() : null;
+        if (sender == null) {
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION,
+                    "Chưa cấu hình dịch vụ gửi email. Vui lòng cấu hình SMTP trước khi tạo tài khoản.");
+        }
+
         // Generate cryptographically strong initial password for new staff
         String initialPassword = generateTemporaryPassword();
 
@@ -187,9 +195,6 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         User savedUser = userRepository.save(user);
 
-        // Send initial credentials directly to staff email
-        sendInitialPasswordEmail(savedUser, initialPassword);
-
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "USER_CREATE");
         details.put("actor_id", adminId);
@@ -200,7 +205,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         details.put("email_verified", false);
         details.put("phone_verified", false);
 
-        auditLogService.record(
+        auditLogService.recordRequired(
                 adminId,
                 "USER_CREATE",
                 "users",
@@ -211,6 +216,7 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         log.info("Admin [{}] created staff user [{}] with role [{}] from IP [{}]",
                 adminId, savedUser.getId(), assignedRole.getRoleName(), ipAddress);
+        runAfterCommit(() -> sendInitialPasswordEmail(sender, savedUser, initialPassword));
         return savedUser.getId();
     }
 
@@ -252,10 +258,6 @@ public class AdminUserServiceImpl implements AdminUserService {
             userRepository.save(user);
         }
 
-        if (!active) {
-            expireUserSessions(userId);
-        }
-
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "USER_STATUS_TOGGLE");
         details.put("actor_id", adminId);
@@ -264,7 +266,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         details.put("before", Map.of("active", oldStatus));
         details.put("after", Map.of("active", active));
 
-        auditLogService.record(
+        auditLogService.recordRequired(
                 adminId,
                 "USER_STATUS_TOGGLE",
                 "users",
@@ -273,6 +275,9 @@ public class AdminUserServiceImpl implements AdminUserService {
                 ipAddress
         );
 
+        if (!active) {
+            runAfterCommit(() -> expireUserSessions(userId));
+        }
         log.info("Admin [{}] updated user [{}] active status to [{}] from IP [{}]", adminId, userId, active, ipAddress);
     }
 
@@ -322,8 +327,6 @@ public class AdminUserServiceImpl implements AdminUserService {
             userRepository.save(user);
         }
 
-        expireUserSessions(userId);
-
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "USER_ROLE_UPDATE");
         details.put("actor_id", adminId);
@@ -332,7 +335,7 @@ public class AdminUserServiceImpl implements AdminUserService {
         details.put("before", Map.of("role", oldRoleName));
         details.put("after", Map.of("role", newRole.getRoleName()));
 
-        auditLogService.record(
+        auditLogService.recordRequired(
                 adminId,
                 "USER_ROLE_UPDATE",
                 "users",
@@ -341,6 +344,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 ipAddress
         );
 
+        runAfterCommit(() -> expireUserSessions(userId));
         log.info("Admin [{}] changed role for user [{}] to [{}] from IP [{}]",
                 adminId, userId, newRole.getRoleName(), ipAddress);
     }
@@ -391,10 +395,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
 
         userRepository.saveAndFlush(targetUser);
-        if (emailChanged) {
-            runAfterCommit(() -> expireUserSessions(targetUserId));
-        }
-
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "ADMIN_STAFF_CONTACT_UPDATED");
         details.put("actor_id", adminId);
@@ -415,7 +415,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             details.put("reason", cleanReason.length() > 200 ? cleanReason.substring(0, 200) : cleanReason);
         }
 
-        auditLogService.record(
+        auditLogService.recordRequired(
                 adminId,
                 "ADMIN_STAFF_CONTACT_UPDATED",
                 "users",
@@ -423,6 +423,9 @@ public class AdminUserServiceImpl implements AdminUserService {
                 toJson(details),
                 ipAddress
         );
+        if (emailChanged) {
+            runAfterCommit(() -> expireUserSessions(targetUserId));
+        }
         log.info("Admin [{}] updated unverified contact channels for staff [{}] from IP [{}]", adminId, targetUserId, ipAddress);
     }
 
@@ -455,15 +458,13 @@ public class AdminUserServiceImpl implements AdminUserService {
 
         targetUser.setEmailVerified(false);
         userRepository.saveAndFlush(targetUser);
-        runAfterCommit(() -> expireUserSessions(targetUserId));
-
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("action", "ADMIN_STAFF_EMAIL_REVOKED");
         details.put("actor_id", adminId);
         details.put("target_user_id", targetUserId);
         details.put("email_verified", false);
 
-        auditLogService.record(
+        auditLogService.recordRequired(
                 adminId,
                 "ADMIN_STAFF_EMAIL_REVOKED",
                 "users",
@@ -471,6 +472,7 @@ public class AdminUserServiceImpl implements AdminUserService {
                 toJson(details),
                 ipAddress
         );
+        runAfterCommit(() -> expireUserSessions(targetUserId));
         log.info("Admin [{}] revoked email verification flag for staff [{}] from IP [{}]", adminId, targetUserId, ipAddress);
     }
 
@@ -554,43 +556,35 @@ public class AdminUserServiceImpl implements AdminUserService {
         return new String(chars);
     }
 
-    /**
-     * Sends initial credentials with auto-generated temporary password directly to staff email.
-     * Fails gracefully with warning logging if mail dispatch fails.
-     *
-     * @param user newly provisioned staff entity
-     * @param initialPassword cryptographically generated plaintext password
-     */
-    private void sendInitialPasswordEmail(User user, String initialPassword) {
-        JavaMailSender sender = mailSenderProvider != null ? mailSenderProvider.getIfAvailable() : null;
-        if (sender == null || user.getEmail() == null || user.getEmail().isBlank()) {
-            log.error("Mail dispatch unavailable for staff initial password [{}]", user.getEmail());
-            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+    private void sendInitialPasswordEmail(JavaMailSender sender, User user, String initialPassword) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailFrom);
+        message.setTo(user.getEmail());
+        message.setSubject(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
+        message.setText(OtpMailContent.staffAccountCreatedBody(user.getFullName(), initialPassword));
+
+        // Retry the same credential once without retaining plaintext beyond this request.
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            try {
+                sender.send(message);
+                return;
+            } catch (MailException ex) {
+                log.warn("Initial password delivery failed for staff [{}], attempt [{}]: {}",
+                        user.getId(), attempt, ex.getClass().getSimpleName());
+            }
         }
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(mailFrom);
-            message.setTo(user.getEmail());
-            message.setSubject(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
-            message.setText(OtpMailContent.staffAccountCreatedBody(user.getFullName(), initialPassword));
-            sender.send(message);
-        } catch (Exception ex) {
-            log.error("Failed to send initial password email to staff [{}]", user.getEmail(), ex);
-            throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
-        }
+
+        throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED,
+                "Tài khoản nhân viên #" + user.getId()
+                        + " đã được tạo, nhưng chưa xác nhận gửi thành công email mật khẩu khởi tạo."
+                        + " Vui lòng kiểm tra nhật ký SMTP và liên hệ bộ phận vận hành.");
     }
-    /**
-     * Serializes any payload object into a JSON string for audit storage.
-     *
-     * @param value payload object
-     * @return serialized JSON string, or empty JSON object on serialization failure
-     */
+
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            log.error("Failed to serialize audit log details to JSON", ex);
-            return "{}";
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Unable to serialize required staff account audit details", ex);
         }
     }
 

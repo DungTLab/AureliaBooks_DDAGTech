@@ -1,5 +1,6 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
+import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
@@ -117,6 +118,10 @@ public class AdminUserController {
             redirectAttributes.addFlashAttribute("successMessage", "Tạo tài khoản nhân viên thành công!");
             return "redirect:/admin/users";
         } catch (AppException ex) {
+            if (ex.getErrorCode() == ErrorCode.EMAIL_DELIVERY_FAILED) {
+                redirectAttributes.addFlashAttribute("warningMessage", ex.getMessage());
+                return "redirect:/admin/users";
+            }
             log.warn("Failed to provision internal staff account: {}", ex.getMessage());
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
             redirectAttributes.addFlashAttribute("newUserForm", request);

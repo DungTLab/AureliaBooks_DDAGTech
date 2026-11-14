@@ -62,6 +62,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select u from User u where u.id =:userId")
     Optional<User> findForCartUpdate(@Param("userId") Long userId);
 
+    @Query("SELECT u.passwordHash FROM User u WHERE u.id = :id")
+    Optional<String> findPasswordHash(@Param("id") Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u JOIN FETCH u.role WHERE u.id = :id")
     Optional<User> findOwnerForUpdate(@Param("id") Long id);

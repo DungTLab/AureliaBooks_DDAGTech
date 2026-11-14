@@ -171,7 +171,7 @@ public class StaffContactServiceImpl implements StaffContactService {
         ContactOtpEngine.OtpToken token;
         synchronized (lockFor(staffId)) {
             User target = requireActiveInternalStaff(staffId);
-            boolean emailChanged = !normalizedEmail.equalsIgnoreCase(target.getEmail() == null ? "" : target.getEmail());
+            boolean emailChanged = !normalizedEmail.equals(ContactOtpEngine.normalizeEmail(target.getEmail()));
             if (!emailChanged && users.hasCurrentStaffEmailProof(target)) {
                 throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Email này đã được xác minh.");
             }

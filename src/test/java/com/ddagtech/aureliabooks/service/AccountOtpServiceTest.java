@@ -12,6 +12,9 @@ import com.ddagtech.aureliabooks.service.impl.AccountOtpServiceImpl;
 import jakarta.validation.Validation;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -120,6 +123,67 @@ class AccountOtpServiceTest {
     }
 
     @Test
+    void recoveryRequestQuotaIsAppliedBeforeAccountLookup() {
+        for (int attempt = 0; attempt < 40; attempt++) {
+            assertThatThrownBy(() -> service.internalRecovery("missing@example.test", "session", "ip"))
+                .hasMessageContaining("Không thể gửi mã");
+        }
+
+        assertThatThrownBy(() -> service.internalRecovery("missing@example.test", "session", "ip"))
+            .hasMessageContaining("Quá nhiều yêu cầu");
+        assertThatThrownBy(() -> service.recoveryChannels("missing@example.test", "ip"))
+            .hasMessageContaining("Quá nhiều yêu cầu");
+        verify(users, times(40)).findByIdentifierWithRoles("missing@example.test");
+        verifyNoMoreInteractions(users);
+        verifyNoInteractions(delivery, writer);
+    }
+
+    @Test
+    void rejectedOtpDoesNotQueryTheAccountOrAuditProof() {
+        User user = account();
+        user.setRole(Role.builder().roleName("ROLE_MANAGER").build());
+        when(users.findByIdentifierWithRoles(user.getEmail())).thenReturn(Optional.of(user));
+        when(users.hasCurrentStaffEmailProof(user)).thenReturn(true);
+        String id = service.internalRecovery(user.getEmail(), "session", "ip");
+        String wrong = code.equals("000000") ? "111111" : "000000";
+        clearInvocations(users);
+
+        assertThatThrownBy(() -> service.verify(id, "session", wrong, "ip", true))
+            .hasMessageContaining("Mã xác thực không đúng");
+        assertThatThrownBy(() -> service.resend(id, "session", "ip", true))
+            .hasMessageContaining("60 giây");
+        verifyNoInteractions(users, writer);
+    }
+
+    @Test
+    void slowEmailDoesNotHoldTheMonitorForIndependentRegistration() throws Exception {
+        when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(account()));
+        var emailStarted = new CountDownLatch(1);
+        var releaseEmail = new CountDownLatch(1);
+        doAnswer(a -> {
+            emailStarted.countDown();
+            if (!releaseEmail.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Test email did not resume");
+            }
+            return null;
+        }).when(delivery).send(eq("EMAIL"), anyString(), anyString());
+
+        try (var workers = Executors.newFixedThreadPool(2)) {
+            var recovery = workers.submit(() -> service.recovery("a@example.test", "EMAIL", "recovery", "ip"));
+            try {
+                assertThat(emailStarted.await(2, TimeUnit.SECONDS)).isTrue();
+                var registration = workers.submit(() -> service.registration(request(), "registration", "ip"));
+                String id = registration.get(2, TimeUnit.SECONDS);
+                assertThat(service.verify(id, "registration", code, "ip").complete()).isTrue();
+                assertThat(recovery.isDone()).isFalse();
+            } finally {
+                releaseEmail.countDown();
+            }
+            assertThat(recovery.get(2, TimeUnit.SECONDS)).isNotBlank();
+        }
+    }
+
+    @Test
     void phoneRegistrationHasNoEmailAndWritesOnlyAfterProof() {
         String id = service.registration(request(), "session", "ip");
         verifyNoInteractions(writer);
@@ -183,7 +247,7 @@ class AccountOtpServiceTest {
         verifyNoInteractions(delivery);
         assertThat(service.recovery("a@example.test", "SMS", "session", "ip")).isNotBlank();
         verify(delivery).send(eq("SMS"), eq(u.getPhone()), anyString());
-        assertThat(service.recoveryChannels("a@example.test")).containsExactly("SMS");
+        assertThat(service.recoveryChannels("a@example.test", "ip")).containsExactly("SMS");
     }
 
     @Test
@@ -194,7 +258,7 @@ class AccountOtpServiceTest {
         User u = account();
         u.setPasswordHash(null);
         when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(u));
-        assertThatThrownBy(() -> service.recoveryChannels("a@example.test")).hasMessageContaining("Google");
+        assertThatThrownBy(() -> service.recoveryChannels("a@example.test", "ip")).hasMessageContaining("Google");
         assertThatThrownBy(() -> reset(u)).hasMessageContaining("Google");
         u.setPasswordHash("hash");
         u.setIsActive(false);
@@ -204,10 +268,10 @@ class AccountOtpServiceTest {
 
     @Test
     void unknownLookupAndInvalidFormatCannotOfferChannels() {
-        assertThatThrownBy(() -> service.recoveryChannels("missing@example.test")).hasMessageContaining(
+        assertThatThrownBy(() -> service.recoveryChannels("missing@example.test", "ip")).hasMessageContaining(
             "Không tìm thấy tài khoản"
         );
-        assertThatThrownBy(() -> service.recoveryChannels("not-an-email-or-phone")).hasMessageContaining("hợp lệ");
+        assertThatThrownBy(() -> service.recoveryChannels("not-an-email-or-phone", "ip")).hasMessageContaining("hợp lệ");
         verify(users, never()).findByIdentifierWithRoles("not-an-email-or-phone");
         verifyNoInteractions(delivery, writer);
     }
@@ -218,7 +282,7 @@ class AccountOtpServiceTest {
         u.setEmailVerified(false);
         u.setPhoneVerified(false);
         when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(u));
-        assertThatThrownBy(() -> service.recoveryChannels("a@example.test")).hasMessageContaining("chưa có");
+        assertThatThrownBy(() -> service.recoveryChannels("a@example.test", "ip")).hasMessageContaining("chưa có");
         assertThatThrownBy(() -> reset(u)).hasMessageContaining("chưa có");
         verifyNoInteractions(delivery, writer);
     }
@@ -317,7 +381,7 @@ class AccountOtpServiceTest {
         when(users.findByIdentifierWithRoles("a@example.test")).thenReturn(Optional.of(staff));
         when(users.findByIdentifierWithRoles("0912345678")).thenReturn(Optional.of(staff));
 
-        assertThatThrownBy(() -> service.recoveryChannels("a@example.test")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.recoveryChannels("a@example.test", "ip")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.recovery("a@example.test", "EMAIL", "session", "ip"))
             .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.recovery("0912345678", "SMS", "session", "ip"))

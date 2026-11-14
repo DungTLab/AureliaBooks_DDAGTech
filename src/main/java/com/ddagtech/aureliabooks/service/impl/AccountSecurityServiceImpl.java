@@ -115,7 +115,7 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         u.setPasswordHash(newHash);
         User saved = users.saveAndFlush(u);
         if (attempts != null) {
-            attempts.resetAttempts(id);
+            afterCommit(() -> attempts.resetAttempts(id));
         }
         audit.record(id, internal ? "STAFF_PASSWORD_RESET" : "PASSWORD_RESET", "users", id, "{}", ip);
         expireAfterCommit(saved);
@@ -171,16 +171,15 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         if (request == null) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Dữ liệu đổi mật khẩu không hợp lệ");
         }
+        String expectedHash = users.findPasswordHash(staffId).orElse(null);
+        verifyStaffPassword(staffId, request.currentPassword(), expectedHash);
+
+        // Release the attempt lock before taking the database lock.
         User staff = users.findOwnerForUpdate(staffId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-
-        if (!Boolean.TRUE.equals(staff.getIsActive()) || staff.getRole() == null ||
-                "ROLE_CUSTOMER".equals(staff.getRole().getRoleName())) {
-            throw new AppException(ErrorCode.UNAUTHORIZED, "Chỉ tài khoản nhân sự mới có thể đổi mật khẩu tại đây");
-        }
-
-        if (staff.getPasswordHash() == null || !passwords.matches(request.currentPassword(), staff.getPasswordHash())) {
-            throw new AppException(ErrorCode.PASSWORD_NOT_MATCH, "Mật khẩu hiện tại không chính xác");
+        requireActiveStaff(staff);
+        if (!Objects.equals(expectedHash, staff.getPasswordHash())) {
+            throw new AppException(ErrorCode.PASSWORD_NOT_MATCH);
         }
 
         String newPassword = request.newPassword() != null ? request.newPassword() : "";
@@ -198,10 +197,6 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
 
         staff.setPasswordHash(passwords.encode(newPassword));
         User savedStaff = users.saveAndFlush(staff);
-        if (attempts != null) {
-            attempts.resetAttempts(staffId);
-        }
-
         audit.record(
                 staffId,
                 "STAFF_PASSWORD_CHANGED",
@@ -223,6 +218,11 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         }
         User staff = users.findById(staffId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        requireActiveStaff(staff);
+        verifyStaffPassword(staffId, password, staff.getPasswordHash());
+    }
+
+    private static void requireActiveStaff(User staff) {
         String roleName = staff.getRole() != null ? staff.getRole().getRoleName() : null;
         if (roleName == null || !ContactOtpEngine.ALLOWED_INTERNAL_ROLES.contains(roleName)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -230,41 +230,38 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
         if (!Boolean.TRUE.equals(staff.getIsActive())) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
-        if (attempts == null) {
-            if (password == null || staff.getPasswordHash() == null
-                    || !passwords.matches(password, staff.getPasswordHash())) {
-                throw new AppException(ErrorCode.PASSWORD_NOT_MATCH);
-            }
-            return;
-        }
+    }
+
+    private void verifyStaffPassword(Long staffId, String password, String hash) {
         try {
             attempts.authenticate(staffId, () -> {
-                if (password == null || staff.getPasswordHash() == null
-                        || !passwords.matches(password, staff.getPasswordHash())) {
-                    throw new org.springframework.security.authentication.BadCredentialsException("Invalid password");
+                if (password == null || hash == null || !passwords.matches(password, hash)) {
+                    throw new BadCredentialsException("Invalid password");
                 }
-                return Boolean.TRUE;
+                return true;
             });
-        } catch (com.ddagtech.aureliabooks.security.TemporaryLoginLockException ex) {
+        } catch (TemporaryLoginLockException ex) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED, ex.getMessage());
-        } catch (org.springframework.security.authentication.BadCredentialsException ex) {
+        } catch (BadCredentialsException ex) {
             throw new AppException(ErrorCode.PASSWORD_NOT_MATCH);
         }
     }
 
     private void expireOtherSessionsAfterCommit(Long userId, String currentSessionId) {
+        afterCommit(() -> expireOtherSessionsNow(userId, currentSessionId));
+    }
+
+    private void afterCommit(Runnable action) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            expireOtherSessionsNow(userId, currentSessionId);
+            action.run();
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(
-            new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    expireOtherSessionsNow(userId, currentSessionId);
-                }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
             }
-        );
+        });
     }
 
     private void expireOtherSessionsNow(Long userId, String currentSessionId) {
@@ -278,20 +275,17 @@ public class AccountSecurityServiceImpl implements AccountSecurityService {
     }
 
     private void expireAfterCommit(User u) {
-        TransactionSynchronizationManager.registerSynchronization(
-            new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    for (Object p : sessions.getAllPrincipals()) {
-                        boolean same =
-                            (p instanceof CustomUserDetails local && u.getId().equals(local.getId())) ||
-                            (u.getProviderId() != null &&
-                                p instanceof OAuth2User google &&
-                                u.getProviderId().equals(google.getAttribute("sub")));
-                        if (same) sessions.getAllSessions(p, false).forEach(s -> s.expireNow());
-                    }
+        afterCommit(() -> {
+            for (Object principal : sessions.getAllPrincipals()) {
+                boolean sameAccount =
+                    (principal instanceof CustomUserDetails local && u.getId().equals(local.getId())) ||
+                    (u.getProviderId() != null &&
+                        principal instanceof OAuth2User google &&
+                        u.getProviderId().equals(google.getAttribute("sub")));
+                if (sameAccount) {
+                    sessions.getAllSessions(principal, false).forEach(SessionInformation::expireNow);
                 }
             }
-        );
+        });
     }
 }

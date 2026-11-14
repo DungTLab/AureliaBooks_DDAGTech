@@ -345,9 +345,11 @@ class AdminUserControllerTest {
     }
 
     @Test
-    @DisplayName("POST /admin/users/create when email delivery fails preserves form state and shows error message")
-    void testCreate_EmailDeliveryFailed_PreservesFormAndShowsError() throws Exception {
-        when(adminUserService.create(any(), any(), any())).thenThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED));
+    @DisplayName("POST /admin/users/create shows a warning for post-commit delivery failure")
+    void testCreate_EmailDeliveryFailed_ShowsWarningWithoutReopeningCreateForm() throws Exception {
+        String message = "Tài khoản nhân viên #10 đã được tạo, nhưng chưa xác nhận gửi email.";
+        when(adminUserService.create(any(), any(), any()))
+                .thenThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED, message));
 
         mockMvc.perform(post("/admin/users/create")
                         .with(csrf())
@@ -358,9 +360,8 @@ class AdminUserControllerTest {
                         .param("roleId", "3"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attribute("errorMessage", ErrorCode.EMAIL_DELIVERY_FAILED.getMessage()))
-                .andExpect(flash().attribute("openCreateModal", true))
-                .andExpect(flash().attributeExists("newUserForm"))
+                .andExpect(flash().attribute("warningMessage", message))
+                .andExpect(flash().attributeCount(1))
                 .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
 
         verify(adminUserService).create(eq(1L), any(), any());

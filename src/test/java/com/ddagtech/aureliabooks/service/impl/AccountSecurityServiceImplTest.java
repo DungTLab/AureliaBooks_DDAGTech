@@ -145,6 +145,8 @@ class AccountSecurityServiceImplTest {
                 .isActive(true)
                 .build();
 
+        when(attempts.authenticate(eq(staffId), any())).thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        when(users.findPasswordHash(staffId)).thenReturn(Optional.of(staff.getPasswordHash()));
         when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
         when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
         when(passwords.matches("NewStrongP@ss123", "$2a$12$oldHashedPassword")).thenReturn(false);
@@ -171,6 +173,9 @@ class AccountSecurityServiceImplTest {
                 .isActive(true)
                 .build();
 
+        when(users.findPasswordHash(customerId)).thenReturn(Optional.of(customer.getPasswordHash()));
+        when(attempts.authenticate(eq(customerId), any())).thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        when(passwords.matches("OldPass123@", customer.getPasswordHash())).thenReturn(true);
         when(users.findOwnerForUpdate(customerId)).thenReturn(Optional.of(customer));
         PasswordChangeRequest request = new PasswordChangeRequest("OldPass123@", "NewStrongP@ss123", "NewStrongP@ss123");
 
@@ -191,7 +196,8 @@ class AccountSecurityServiceImplTest {
                 .role(staffRole)
                 .build();
 
-        when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
+        when(attempts.authenticate(eq(staffId), any())).thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        when(users.findPasswordHash(staffId)).thenReturn(Optional.of(staff.getPasswordHash()));
         when(passwords.matches("WrongPassword123@", "$2a$12$oldHashedPassword")).thenReturn(false);
 
         PasswordChangeRequest request = new PasswordChangeRequest("WrongPassword123@", "NewStrongP@ss123", "NewStrongP@ss123");
@@ -211,8 +217,9 @@ class AccountSecurityServiceImplTest {
                 .role(staffRole)
                 .build();
 
+        when(attempts.authenticate(eq(staffId), any())).thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        when(users.findPasswordHash(staffId)).thenReturn(Optional.of(staff.getPasswordHash()));
         when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
-        when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
         when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
 
         PasswordChangeRequest request = new PasswordChangeRequest("OldPassword123@", "OldPassword123@", "OldPassword123@");
@@ -235,6 +242,8 @@ class AccountSecurityServiceImplTest {
                 .build();
 
         String rawPasswordWithSpaces = " Abc123! ";
+        when(attempts.authenticate(eq(staffId), any())).thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        when(users.findPasswordHash(staffId)).thenReturn(Optional.of(staff.getPasswordHash()));
         when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
         when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
         when(passwords.matches(rawPasswordWithSpaces, "$2a$12$oldHashedPassword")).thenReturn(false);
@@ -247,6 +256,43 @@ class AccountSecurityServiceImplTest {
         assertThat(result.getPasswordHash()).isEqualTo("$2a$12$hashedWithSpaces");
         verify(passwords).encode(rawPasswordWithSpaces);
         verify(passwords, never()).encode("Abc123!");
+    }
+
+    @Test
+    void passwordChangeRejectsHashChangedBetweenVerificationAndLock() {
+        long staffId = 15L;
+        var locked = User.builder().id(staffId).role(staffRole).passwordHash("newer-hash").build();
+        when(users.findPasswordHash(staffId)).thenReturn(Optional.of("old-hash"));
+        when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(locked));
+        when(attempts.authenticate(eq(staffId), any())).thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
+        when(passwords.matches("RightPass@1", "old-hash")).thenReturn(true);
+        var request = new PasswordChangeRequest("RightPass@1", "NewStrongP@ss123", "NewStrongP@ss123");
+
+        assertThatThrownBy(() -> service.changeStaffPassword(staffId, request, "session", "ip"))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PASSWORD_NOT_MATCH);
+        verify(users, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void staffPasswordChangeAndReauthenticationShareAttemptLimit() {
+        LoginAttemptService realAttempts = new LoginAttemptService();
+        var throttledService = new AccountSecurityServiceImpl(users, roles, passwords, realAttempts, sessions, audit);
+        long staffId = 15L;
+        User staff = User.builder().id(staffId).role(staffRole).passwordHash("old-hash").build();
+        when(users.findPasswordHash(staffId)).thenReturn(Optional.of(staff.getPasswordHash()));
+        when(users.findById(staffId)).thenReturn(Optional.of(staff));
+        var wrong = new PasswordChangeRequest("WrongPassword123@", "NewStrongP@ss123", "NewStrongP@ss123");
+
+        for (int i = 0; i < 4; i++) {
+            assertThatThrownBy(() -> throttledService.changeStaffPassword(staffId, wrong, "session", "ip"))
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.PASSWORD_NOT_MATCH);
+        }
+        assertThatThrownBy(() -> throttledService.reauthenticateStaff(staffId, wrong.currentPassword()))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCOUNT_LOCKED);
+        assertThatThrownBy(() -> throttledService.changeStaffPassword(staffId, wrong, "session", "ip"))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCOUNT_LOCKED);
+        verify(passwords, times(5)).matches(wrong.currentPassword(), "old-hash");
+        verify(users, never()).saveAndFlush(any());
     }
 
     @Test

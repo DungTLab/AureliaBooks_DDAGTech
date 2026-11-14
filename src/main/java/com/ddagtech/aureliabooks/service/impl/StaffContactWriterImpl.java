@@ -49,7 +49,7 @@ public class StaffContactWriterImpl implements StaffContactWriter {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA);
         }
 
-        boolean emailChanged = !Objects.equals(cleanEmail, staff.getEmail());
+        boolean emailChanged = !cleanEmail.equals(ContactOtpEngine.normalizeEmail(staff.getEmail()));
         if (emailChanged && users.existsByEmail(cleanEmail)) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }

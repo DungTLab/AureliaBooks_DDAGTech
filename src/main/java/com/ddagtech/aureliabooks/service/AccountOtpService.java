@@ -30,7 +30,7 @@ public interface AccountOtpService {
 
     String registration(RegisterRequest request, String session, String ip);
 
-    List<String> recoveryChannels(String identifier);
+    List<String> recoveryChannels(String identifier, String ip);
 
     String recovery(String identifier, String channel, String session, String ip);
 

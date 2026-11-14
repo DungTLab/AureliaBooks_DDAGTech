@@ -107,6 +107,33 @@ class StaffContactWriterTest {
     }
 
     @Test
+    void verifiesExistingMixedCaseEmailWithoutTreatingItAsADuplicate() {
+        String storedEmail = "Staff.Work@AureliaBook.vn";
+        String canonicalEmail = "staff.work@aureliabook.vn";
+        String passwordHash = "$2a$12$fixedHash";
+        User staff = User.builder()
+                .id(20L)
+                .email(storedEmail)
+                .passwordHash(passwordHash)
+                .role(managerRole)
+                .isActive(true)
+                .build();
+        when(users.findOwnerForUpdate(20L)).thenReturn(Optional.of(staff));
+        when(users.saveAndFlush(staff)).thenReturn(staff);
+
+        User updated = writer.applySelfVerifiedEmail(
+                20L, storedEmail, passwordHash, canonicalEmail, "sess-active", "10.0.0.5");
+
+        assertThat(updated.getEmail()).isEqualTo(canonicalEmail);
+        assertThat(updated.isEmailVerified()).isTrue();
+        verify(users, never()).existsByEmail(canonicalEmail);
+        ArgumentCaptor<String> details = ArgumentCaptor.forClass(String.class);
+        verify(audit).recordRequired(eq(20L), eq("INTERNAL_EMAIL_VERIFIED"), eq("users"),
+                eq(20L), details.capture(), eq("10.0.0.5"));
+        assertThat(details.getValue()).contains("\"email_changed\":false");
+    }
+
+    @Test
     @DisplayName("applySelfVerifiedEmail rejects stale hash/email race, customer role, inactive account, and duplicate email")
     void applySelfVerifiedEmail_Guards() {
         User staff = User.builder()

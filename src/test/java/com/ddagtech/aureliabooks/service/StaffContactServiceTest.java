@@ -95,6 +95,17 @@ class StaffContactServiceTest {
     }
 
     @Test
+    void sendsOtpForCanonicalFormOfExistingEmailWithoutDuplicateLookup() {
+        activeStaff.setEmail(" Staff@AureliaBook.vn ");
+        String canonicalEmail = "staff@aureliabook.vn";
+
+        service.startSelfEmailVerification(10L, "sess-1", canonicalEmail, "10.0.0.1");
+
+        verify(users, never()).existsByEmail(canonicalEmail);
+        verify(delivery).send(eq("EMAIL"), eq(canonicalEmail), anyString());
+    }
+
+    @Test
     @DisplayName("Self email verification issues 6-digit OTP, enforces cooldown & max 5 wrong attempts, and succeeds cleanly")
     void selfVerification_Lifecycle_EnforcesCooldownAttemptsExpiryAndWritesViaWriter() {
         when(users.existsByEmail("new@aureliabook.vn")).thenReturn(false);

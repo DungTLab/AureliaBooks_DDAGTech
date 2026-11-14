@@ -50,7 +50,7 @@ public class AccountVerificationController {
             ) {
                 throw new IllegalArgumentException("Vui lòng nhập thông tin phù hợp với phương thức nhận mã đã chọn.");
             }
-            var channels = otp.recoveryChannels(identifier);
+            var channels = otp.recoveryChannels(identifier, HttpRequestUtil.getClientIp(request));
             if (channel != null) {
                 if (!channels.contains(channel)) {
                     throw new IllegalArgumentException("Thông tin này chưa được xác minh để nhận mã khôi phục.");

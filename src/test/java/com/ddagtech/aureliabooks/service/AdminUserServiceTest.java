@@ -33,6 +33,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Date;
 import java.util.List;
@@ -190,7 +192,7 @@ class AdminUserServiceTest {
 
         assertThat(customer.getIsActive()).isFalse();
         verify(userRepository).save(customer);
-        verify(auditLogService).record(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(customerId), anyString(), eq("10.0.0.1"));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(customerId), anyString(), eq("10.0.0.1"));
     }
 
     @Test
@@ -248,7 +250,7 @@ class AdminUserServiceTest {
         assertThat(sentMail.getText()).contains("/internal/account/email").contains("/internal/forgot-password");
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), jsonCaptor.capture(), eq(clientIp));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), jsonCaptor.capture(), eq(clientIp));
         JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
         assertThat(root.get("action").asText()).isEqualTo("USER_CREATE");
         assertThat(root.get("created_user_id").asLong()).isEqualTo(100L);
@@ -408,7 +410,7 @@ class AdminUserServiceTest {
         verify(userRepository).save(targetUser);
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
         JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
         assertThat(root.get("action").asText()).isEqualTo("USER_STATUS_TOGGLE");
         assertThat(root.get("before").get("active").asBoolean()).isTrue();
@@ -567,7 +569,7 @@ class AdminUserServiceTest {
         verify(userRepository).save(staffUser);
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("USER_ROLE_UPDATE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_ROLE_UPDATE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
         JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
         assertThat(root.get("action").asText()).isEqualTo("USER_ROLE_UPDATE");
         assertThat(root.get("before").get("role").asText()).isEqualTo("ROLE_SALE_STAFF");
@@ -839,37 +841,83 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("create() should throw EMAIL_DELIVERY_FAILED and not record audit when mail dispatch fails")
-    void testCreateStaff_MailFailure_ThrowsExceptionAndRollsBack() {
-        Long adminId = 1L;
-        UserCreateRequest request = new UserCreateRequest(
-                "manager_fail@aureliabook.vn",
-                "Tran Fail",
-                "0912345678",
-                2L
-        );
+    void createSendsOnlyAfterCommitAndReportsUnconfirmedDeliveryAfterRetry() {
+        stubStaffCreation();
+        doThrow(new org.springframework.mail.MailSendException("SMTP connection refused"))
+                .when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
 
-        when(userRepository.existsByEmail("manager_fail@aureliabook.vn")).thenReturn(false);
-        when(userRepository.existsByPhone("0912345678")).thenReturn(false);
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThat(adminUserService.create(1L, newStaffRequest(), "192.168.1.100")).isEqualTo(105L);
+            verify(auditLogService).recordRequired(eq(1L), eq("USER_CREATE"), eq("users"), eq(105L),
+                    anyString(), eq("192.168.1.100"));
+            verifyNoInteractions(mailSender);
+
+            assertThatThrownBy(() -> TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_DELIVERY_FAILED)
+                    .hasMessageContaining("đã được tạo");
+            var mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+            verify(mailSender, times(2)).send(mailCaptor.capture());
+            assertThat(mailCaptor.getAllValues().getFirst().getText())
+                    .isEqualTo(mailCaptor.getAllValues().getLast().getText());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void createDoesNotSendWhenTransactionRollsBack() {
+        stubStaffCreation();
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            adminUserService.create(1L, newStaffRequest(), "192.168.1.100");
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+            verifyNoInteractions(mailSender);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void auditFailurePreventsProvisioningMail() {
+        stubStaffCreation();
+        doThrow(new IllegalStateException("Audit write failed"))
+                .when(auditLogService).recordRequired(eq(1L), eq("USER_CREATE"), anyString(),
+                        eq(105L), anyString(), anyString());
+
+        assertThatThrownBy(() -> adminUserService.create(1L, newStaffRequest(), "192.168.1.100"))
+                .isInstanceOf(IllegalStateException.class).hasMessage("Audit write failed");
+        verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void createFailsBeforePersistenceWhenMailSenderIsUnavailable() {
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        when(mailSenderProvider.getIfAvailable()).thenReturn(null);
+
+        assertThatThrownBy(() -> adminUserService.create(1L, newStaffRequest(), "192.168.1.100"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNCATEGORIZED_EXCEPTION);
+        verify(userRepository, never()).save(any(User.class));
+        verifyNoInteractions(auditLogService, mailSender);
+    }
+
+    private UserCreateRequest newStaffRequest() {
+        return new UserCreateRequest("manager_fail@aureliabook.vn", "Tran Fail", "0912345678", 2L);
+    }
+
+    private void stubStaffCreation() {
         when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$12$hashedPassword");
-
-        User savedUser = User.builder()
+        when(userRepository.save(any(User.class))).thenReturn(User.builder()
                 .id(105L)
                 .email("manager_fail@aureliabook.vn")
                 .fullName("Tran Fail")
                 .role(managerRole)
-                .build();
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
-
-        doThrow(new org.springframework.mail.MailSendException("SMTP connection refused"))
-                .when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
-
-        assertThatThrownBy(() -> adminUserService.create(adminId, request, "192.168.1.100"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_DELIVERY_FAILED);
-
-        verifyNoInteractions(auditLogService);
+                .build());
     }
 
     @Test
@@ -916,7 +964,7 @@ class AdminUserServiceTest {
         verify(passwordEncoder, never()).encode(anyString());
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(targetId), jsonCaptor.capture(), eq("10.0.0.8"));
+        verify(auditLogService).recordRequired(eq(adminId), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(targetId), jsonCaptor.capture(), eq("10.0.0.8"));
         assertThat(jsonCaptor.getValue()).contains("\"identity_confirmed\":true", "\"email_verified\":false", "\"phone_verified\":false");
         assertThat(jsonCaptor.getValue().toLowerCase()).doesNotContain("password", "otp", "token", "hash");
     }
@@ -966,7 +1014,7 @@ class AdminUserServiceTest {
         adminUserService.revokeEmailVerification(1L, 20L, "127.0.0.1");
 
         assertThat(staff.isEmailVerified()).isFalse();
-        verify(auditLogService).record(eq(1L), eq("ADMIN_STAFF_EMAIL_REVOKED"), eq("users"), eq(20L), contains("\"email_verified\":false"), eq("127.0.0.1"));
+        verify(auditLogService).recordRequired(eq(1L), eq("ADMIN_STAFF_EMAIL_REVOKED"), eq("users"), eq(20L), contains("\"email_verified\":false"), eq("127.0.0.1"));
 
         assertThatThrownBy(() -> adminUserService.revokeEmailVerification(1L, 1L, "127.0.0.1"))
                 .isInstanceOf(AppException.class)
@@ -1005,7 +1053,7 @@ class AdminUserServiceTest {
         assertThat(staff.getPhone()).isEqualTo("0988776655");
         assertThat(staff.isPhoneVerified()).isFalse();
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(targetId), jsonCaptor.capture(), eq("10.0.0.9"));
+        verify(auditLogService).recordRequired(eq(adminId), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(targetId), jsonCaptor.capture(), eq("10.0.0.9"));
         assertThat(jsonCaptor.getValue())
                 .contains("\"email_changed\":false", "\"email_verification_reset\":false", "\"phone_changed\":true", "\"phone_verified\":false")
                 .doesNotContain("\"email_verified\":true");
