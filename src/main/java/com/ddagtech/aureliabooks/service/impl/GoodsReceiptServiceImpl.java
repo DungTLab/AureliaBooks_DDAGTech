@@ -4,14 +4,38 @@ import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptForm;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptItemForm;
 import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
-import com.ddagtech.aureliabooks.dto.response.*;
-import com.ddagtech.aureliabooks.entity.*;
+import com.ddagtech.aureliabooks.dto.response.GoodsReceiptDetailDto;
+import com.ddagtech.aureliabooks.dto.response.GoodsReceiptItemDetailDto;
+import com.ddagtech.aureliabooks.dto.response.ProductStockAlertDto;
+import com.ddagtech.aureliabooks.dto.response.ProductSummary;
+import com.ddagtech.aureliabooks.dto.response.QuickProductResponse;
+import com.ddagtech.aureliabooks.dto.response.ReceiptSummary;
+import com.ddagtech.aureliabooks.dto.response.StockMetricSummary;
+import com.ddagtech.aureliabooks.entity.Book;
+import com.ddagtech.aureliabooks.entity.Brand;
+import com.ddagtech.aureliabooks.entity.Category;
+import com.ddagtech.aureliabooks.entity.GoodsReceipt;
+import com.ddagtech.aureliabooks.entity.GoodsReceiptItem;
+import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.entity.Publisher;
+import com.ddagtech.aureliabooks.entity.Stationery;
+import com.ddagtech.aureliabooks.entity.Supplier;
+import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
-import com.ddagtech.aureliabooks.repository.*;
-import com.ddagtech.aureliabooks.util.BarcodeUtils;
+import com.ddagtech.aureliabooks.repository.BookRepository;
+import com.ddagtech.aureliabooks.repository.BrandRepository;
+import com.ddagtech.aureliabooks.repository.CategoryRepository;
+import com.ddagtech.aureliabooks.repository.GoodsReceiptItemRepository;
+import com.ddagtech.aureliabooks.repository.GoodsReceiptRepository;
+import com.ddagtech.aureliabooks.repository.ProductRepository;
+import com.ddagtech.aureliabooks.repository.PublisherRepository;
+import com.ddagtech.aureliabooks.repository.StationeryRepository;
+import com.ddagtech.aureliabooks.repository.SupplierRepository;
+import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.service.AuditLogService;
 import com.ddagtech.aureliabooks.service.GoodsReceiptService;
 import com.ddagtech.aureliabooks.service.StockMutationService;
+import com.ddagtech.aureliabooks.util.BarcodeUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.criteria.Predicate;
@@ -26,7 +50,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -146,7 +177,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
         GoodsReceipt receipt = goodsReceiptRepository.findById(receiptId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy phiếu nhập kho."));
 
-        // Immutable Lock check: Prohibit modifying finalized receipts
+        // Immutable lock check: Prohibit modifying finalized receipts
         if (receipt.getStatus() == GoodsReceipt.Status.RECEIVED) {
             throw new AppException(ErrorCode.RECEIPT_ALREADY_RECEIVED, "Phiếu nhập kho đã hoàn tất (RECEIVED), không thể chỉnh sửa.");
         }
@@ -215,7 +246,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
         GoodsReceipt receipt = goodsReceiptRepository.findById(receiptId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy phiếu nhập kho."));
 
-        // Immutable Lock check: Prohibit deleting finalized receipts
+        // Immutable lock check: Prohibit deleting finalized receipts
         if (receipt.getStatus() == GoodsReceipt.Status.RECEIVED) {
             throw new AppException(ErrorCode.RECEIPT_ALREADY_RECEIVED, "Phiếu nhập kho đã hoàn tất (RECEIVED), không thể xóa.");
         }
@@ -562,7 +593,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                             .build()));
         }
 
-        // 2. Resolve Barcode (Theo chuẩn EAN-13 quy định trong tài liệu BR-02-05, UC-10, UC-12)
+        // 2. Resolve Barcode (EAN-13 compliant standard per BR-02-05, UC-10, UC-12)
         String barcode = request.barcode();
         if (barcode != null && !barcode.isBlank()) {
             barcode = barcode.trim();
@@ -581,7 +612,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             } while (productRepository.existsByBarcode(barcode));
         }
 
-        // 3. Persist Product & Validate Price >= Cost (Tránh bán lỗ)
+        // 3. Persist Product & Validate Price >= Cost (prohibit negative gross margin / loss-making sales)
         BigDecimal cost = request.originalCost() != null ? request.originalCost() : BigDecimal.ZERO;
         if (request.price() != null && cost.compareTo(request.price()) > 0) {
             throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Giá niêm yết không được thấp hơn giá vốn nhập (tránh bán lỗ).");
@@ -595,17 +626,17 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
                 .price(request.price())
                 .originalCost(cost)
                 .weightGrams(200)
-                .stockQuantity(0) // Luôn = 0 khi mới tạo; tăng tồn kho khi duyệt phiếu (UC23)
+                .stockQuantity(0) // Initial stock is always 0 upon creation; stock increments upon receipt approval (UC23)
                 .isActive(true)
                 .build();
         product = productRepository.saveAndFlush(product);
 
         // 4. Persist subtype (Book or Stationery)
-        // Lưu ý: Tuyệt đối không set .productId(product.getId()) tại đây!
-        // Do Book/Stationery có @MapsId, việc gán ID trước khi save sẽ khiến Spring Data JPA hiểu nhầm
-        // entity này đã tồn tại (isNew() == false) và thực hiện merge() thay vì persist(),
-        // dẫn tới lỗi OptimisticLockException: "Row was updated or deleted by another transaction".
-        // Khi để productId = null, Hibernate sẽ tự động đồng bộ ID từ product khi persist.
+        // Note: Never explicitly set .productId(product.getId()) here.
+        // Because Book/Stationery uses @MapsId, assigning the ID prior to persist causes Spring Data JPA
+        // to detect isNew() == false and invoke merge() instead of persist(), triggering
+        // OptimisticLockException: "Row was updated or deleted by another transaction".
+        // Leaving productId null allows Hibernate to synchronize the ID from product during persist.
         boolean isTextbook = request.isTextbookSafe();
         if (request.productType() == Product.ProductType.BOOK) {
             Publisher publisher = publisherRepository.findAll().stream().findFirst().orElseGet(() ->
@@ -652,7 +683,7 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
 
     @Override
     @Transactional(readOnly = true)
-    public java.util.Set<Long> getTextbookProductIds() {
+    public Set<Long> getTextbookProductIds() {
         return bookRepository.findProductIdsByIsTextbookTrue();
     }
 }

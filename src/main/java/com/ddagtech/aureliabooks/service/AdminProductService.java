@@ -1,8 +1,9 @@
 package com.ddagtech.aureliabooks.service;
 
-import com.ddagtech.aureliabooks.dto.request.*;
-import com.ddagtech.aureliabooks.dto.response.*;
-import org.springframework.data.domain.*;
+import com.ddagtech.aureliabooks.dto.request.BookForm;
+import com.ddagtech.aureliabooks.dto.request.StationeryForm;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Service contract for catalog administration (UC15: Books, UC16: Stationery).

@@ -20,7 +20,11 @@
                     th:href="@{/auth/google/register}"
                     class="flex items-center justify-center gap-3 bg-white text-[#1f1f1f] border border-[#747775] rounded-xl px-4 py-3 font-medium transition-colors hover:bg-[#f2f2f2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blazing_flame focus-visible:ring-offset-2"
                 >
-                    <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <svg
+                        class="w-5 h-5 shrink-0"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        focusable="false">
                         <path
                             fill="#4285F4"
                             d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-2 3.02v2.51h3.24c1.9-1.75 2.98-4.33 2.98-7.36Z"
@@ -53,7 +57,9 @@
                     hoặc đăng ký bằng số điện thoại
                     <hr class="flex-1 border-dust_grey" />
                 </div>
-                <p th:if="${smsDemoRegistrationEnabled}" class="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
+                <p
+                    th:if="${smsDemoRegistrationEnabled}"
+                    class="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
                     Đăng ký số điện thoại ở chế độ demo. Mã xác thực được gửi vào hộp thư của nhóm.
                 </p>
                 <form

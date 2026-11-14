@@ -7,22 +7,28 @@ import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.service.AdminProductService;
 import com.ddagtech.aureliabooks.service.MasterDataService;
-import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.dao.DataAccessException;
-import org.springframework.transaction.TransactionException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.TransactionException;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -57,7 +63,7 @@ public class AdminProductController {
     @GetMapping("/manager/products")
     public String list(@RequestParam(value = "type", required = false) Product.ProductType type,
                        @RequestParam(value = "keyword", required = false) String keyword,
-                       @PageableDefault(size = 10) Pageable pageable,
+                       @PageableDefault(size = 10, sort = "stockQuantity", direction = Sort.Direction.DESC) Pageable pageable,
                        Model model) {
         Page<Product> productsPage = adminProductService.listProducts(type, keyword, pageable);
         model.addAttribute("productsPage", productsPage);
@@ -286,17 +292,17 @@ public class AdminProductController {
     private void populateBookFormForRetry(Model model) {
         try { populateBookFormData(model); }
         catch (DataAccessException | TransactionException unavailable) {
-            model.addAttribute("categories", java.util.List.of());
-            model.addAttribute("publishers", java.util.List.of());
-            model.addAttribute("authors", java.util.List.of());
+            model.addAttribute("categories", List.of());
+        model.addAttribute("publishers", List.of());
+            model.addAttribute("authors", List.of());
         }
     }
 
     private void populateStationeryFormForRetry(Model model) {
         try { populateStationeryFormData(model); }
         catch (DataAccessException | TransactionException unavailable) {
-            model.addAttribute("categories", java.util.List.of());
-            model.addAttribute("brands", java.util.List.of());
+            model.addAttribute("categories", List.of());
+            model.addAttribute("brands", List.of());
         }
     }
 

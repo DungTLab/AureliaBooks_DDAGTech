@@ -5,7 +5,9 @@
     <link th:if="${internalPage == true}" rel="stylesheet" th:href="@{/css/workspace.css}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" th:href="@{/css/password-fields.css}">
-    <meta name="description" content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
+    <meta
+        name="description"
+        content="AureliaBook - Premium Online Bookstore & Stationery. Curated titles, fast shipping, and secure shopping experience.">
     
     <!-- Spring Security CSRF Meta Tokens -->
     <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">

@@ -218,13 +218,7 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
     }
 
     /**
-     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters to prevent wildcard pollution [L-04].
-     *
-     * @param raw keyword input
-     * @return lowercase escaped LIKE pattern with leading and trailing wildcard
-     */
-    /**
-     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters for prefix matching (L-REMAIN-03).
+     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters for prefix matching.
      * Unlike substring LIKE pattern, does NOT prepend '%' so MySQL B-Tree indexes on barcode/isbn can be utilized.
      *
      * @param raw keyword input
@@ -239,7 +233,7 @@ public class InventoryMovementRepositoryImpl implements InventoryMovementReposit
     }
 
     /**
-     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters to prevent wildcard pollution [L-04].
+     * Escapes SQL LIKE wildcards (%, _) and backslash escape characters to prevent wildcard pollution.
      *
      * @param raw keyword input
      * @return lowercase escaped LIKE pattern with leading and trailing wildcard

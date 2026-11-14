@@ -73,9 +73,47 @@ class PortalSeparationIntegrationTest {
 
     @Test
     void internalErrorKeepsItsPortalForAnonymousVisitors() throws Exception {
-        mvc.perform(get("/error/403").requestAttr("internalPortalError", true))
+        String html = mvc.perform(get("/error/403").requestAttr("internalPortalError", true))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-portal=\"internal\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-portal=\"internal\"")))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("Khách vãng lai", "Chưa xác thực")
+                .doesNotContain("403 Forbidden", "Role-Based Access Control", "ROLE_ANONYMOUS", "/auth/logout", "/internal/logout");
+    }
+
+    @Test
+    void forbiddenPageRoutesLogoutAndLabelsByPortalRole() throws Exception {
+        String staffHtml = mvc.perform(get("/error/403").with(user("manager@aureliabook.vn").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(staffHtml).contains("data-portal=\"internal\"", "action=\"/internal/logout\"", "Quản lý")
+                .doesNotContain("action=\"/auth/logout\"", "ROLE_MANAGER");
+
+        String customerHtml = mvc.perform(get("/error/403").with(user("customer@aureliabook.vn").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(customerHtml).contains("action=\"/auth/logout\"", "Khách hàng")
+                .doesNotContain("action=\"/internal/logout\"", "ROLE_CUSTOMER");
+    }
+
+    @Test
+    void error404And500RenderLocalizedVietnameseCopyAndPortalHomeLinks() throws Exception {
+        String internal404 = mvc.perform(get("/error/404").with(user("admin@aureliabook.vn").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(internal404).contains("data-portal=\"internal\"", "Quay về bảng điều khiển")
+                .doesNotContain("404 Not Found", "action=\"/products/search\"");
+
+        String storefront404 = mvc.perform(get("/error/404"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(storefront404).contains("action=\"/products/search\"", "Về trang chủ").doesNotContain("404 Not Found");
+
+        String internal500 = mvc.perform(get("/error/500").with(user("staff@aureliabook.vn").roles("SALE_STAFF")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(internal500).contains("data-portal=\"internal\"", "Quay về bảng điều khiển")
+                .doesNotContain("500 Server Error");
     }
 
     @Test

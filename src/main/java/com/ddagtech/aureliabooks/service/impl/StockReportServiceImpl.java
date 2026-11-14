@@ -1,15 +1,19 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-import com.ddagtech.aureliabooks.dto.analytics.*;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementFilterRequest;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementReportItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockReportView;
+import com.ddagtech.aureliabooks.dto.analytics.StockValuationItemDto;
 import com.ddagtech.aureliabooks.service.AnalyticsService;
 import com.ddagtech.aureliabooks.service.StockReportService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /** One selection contract serves the stock screen and both workbook exports. */
 @Service

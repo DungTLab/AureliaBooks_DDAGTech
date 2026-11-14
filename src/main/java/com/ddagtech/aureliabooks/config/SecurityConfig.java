@@ -1,27 +1,29 @@
 package com.ddagtech.aureliabooks.config;
 
 import com.ddagtech.aureliabooks.security.AuthEntryGuard;
-import com.ddagtech.aureliabooks.security.PortalAuthenticationProvider;
-import com.ddagtech.aureliabooks.security.PortalSecurity;
-import org.springframework.core.annotation.Order;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
-import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAccessDeniedHandler;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationEntryPoint;
 import com.ddagtech.aureliabooks.security.CustomAuthenticationFailureHandler;
 import com.ddagtech.aureliabooks.security.CustomOAuth2UserService;
 import com.ddagtech.aureliabooks.security.CustomUserDetailsService;
+import com.ddagtech.aureliabooks.security.GoogleAccountAction;
+import com.ddagtech.aureliabooks.security.GoogleAuthorizationRequestResolver;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
 import com.ddagtech.aureliabooks.security.LogoutAuditHandler;
+import com.ddagtech.aureliabooks.security.PortalAuthenticationProvider;
+import com.ddagtech.aureliabooks.security.PortalSecurity;
+import com.ddagtech.aureliabooks.security.ProductImageUploadFilter;
 import com.ddagtech.aureliabooks.security.RoleBasedAuthenticationSuccessHandler;
 import com.ddagtech.aureliabooks.security.ThrottledAuthenticationProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,10 +34,14 @@ import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import org.springframework.http.HttpMethod;
+import org.springframework.web.context.request.RequestContextListener;
 import org.springframework.web.servlet.FlashMap;
 import org.springframework.web.servlet.support.SessionFlashMapManager;
 
@@ -98,8 +104,8 @@ public class SecurityConfig {
      * Google callbacks run in Security filters before MVC; expose their session-bound intent there.
      */
     @Bean
-    public org.springframework.web.context.request.RequestContextListener oauthRequestContextListener() {
-        return new org.springframework.web.context.request.RequestContextListener();
+    public RequestContextListener oauthRequestContextListener() {
+        return new RequestContextListener();
     }
 
     /**
@@ -117,15 +123,17 @@ public class SecurityConfig {
     /** Higher-priority chain for management pages and administrative APIs. */
     @Bean
     @Order(1)
-    public SecurityFilterChain internalSecurityFilterChain(HttpSecurity http,
-            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-enabled:true}") boolean uploadsEnabled,
-            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-requests-per-minute:10}") int requestsPerMinute,
-            @org.springframework.beans.factory.annotation.Value("${app.r2.upload-max-concurrent:2}") int maxConcurrent) throws Exception {
+    public SecurityFilterChain internalSecurityFilterChain(
+        HttpSecurity http,
+        @Value("${app.r2.upload-enabled:true}") boolean uploadsEnabled,
+        @Value("${app.r2.upload-requests-per-minute:10}") int requestsPerMinute,
+        @Value("${app.r2.upload-max-concurrent:2}") int maxConcurrent
+    ) throws Exception {
         http.securityMatcher(PortalSecurity::internalRequest);
-        // Construct only inside the security chain; not a servlet Filter bean (no double registration).
-        http.addFilterBefore(new com.ddagtech.aureliabooks.security.ProductImageUploadFilter(
+        // Register the upload guard here so the servlet container does not register it twice.
+        http.addFilterBefore(new ProductImageUploadFilter(
                 uploadsEnabled, requestsPerMinute, maxConcurrent),
-                org.springframework.security.web.csrf.CsrfFilter.class);
+                CsrfFilter.class);
         portalAuthentication(http, true);
         http.addFilterBefore(new AuthEntryGuard(),
                 UsernamePasswordAuthenticationFilter.class);
@@ -181,10 +189,12 @@ public class SecurityConfig {
 
     private void portalAuthentication(HttpSecurity http, boolean internal) {
         var users = userDetailsServiceProvider.getIfAvailable();
-        if (users == null) return;
+        if (users == null) {
+            return;
+        }
         var throttled = new ThrottledAuthenticationProvider(users, passwordEncoder(),
                 loginAttempts.getIfAvailable(LoginAttemptService::new));
-        // Keep OAuth providers in this chain, but disallow an unrestricted parent fallback.
+        // A parent fallback could accept credentials that this portal rejects.
         http.getSharedObject(AuthenticationManagerBuilder.class)
                 .parentAuthenticationManager(null);
         http.authenticationProvider(new PortalAuthenticationProvider(throttled, internal));
@@ -209,7 +219,6 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/payments/vnpay-ipn"))
             .authorizeHttpRequests(authorize ->
                 authorize
-                    // 1. Public Storefront Catalog, Auth Entry, VNPay IPN Webhook, and Static Assets
                     .requestMatchers(
                         "/",
                         "/home",
@@ -226,7 +235,7 @@ public class SecurityConfig {
                     )
                     .permitAll()
 
-                    // 2. Storefront Member Operations (Strictly No Guest Cart: BR-03-01, BR-04-04, F04)
+                    // BR-03-01: Only customers can access the cart and checkout.
                     .requestMatchers(
                         "/cart",
                         "/cart/**",
@@ -243,7 +252,6 @@ public class SecurityConfig {
                     )
                     .hasRole("CUSTOMER")
 
-                    // 3. Default: All other routes require an authenticated session
                     .anyRequest()
                     .authenticated()
             )
@@ -304,14 +312,14 @@ public class SecurityConfig {
 
         http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
 
-        // Enable Google only when the opt-in google profile supplies a client registration.
+        // The Google profile supplies this registration. Local sign-in works without it.
         if (clientRegistrations.getIfAvailable() != null) {
             http.oauth2Login(oauth -> {
                 oauth
                     .loginPage("/auth/login")
                     .authorizationEndpoint(endpoint ->
                         endpoint.authorizationRequestResolver(
-                            new com.ddagtech.aureliabooks.security.GoogleAuthorizationRequestResolver(
+                            new GoogleAuthorizationRequestResolver(
                                 clientRegistrations.getObject()
                             )
                         )
@@ -337,14 +345,14 @@ public class SecurityConfig {
                             message = failure.getMessage();
                         }
                         if (
-                            com.ddagtech.aureliabooks.security.GoogleAccountAction.restoreAfterFailure(
+                            GoogleAccountAction.restoreAfterFailure(
                                 request,
                                 response
                             )
                         ) {
                             FlashMap reauthFlash = new FlashMap();
                             reauthFlash.put("contactMessage", message);
-                            String target = com.ddagtech.aureliabooks.security.GoogleAccountAction.returnPath(
+                            String target = GoogleAccountAction.returnPath(
                                 request.getSession()
                             );
                             reauthFlash.setTargetRequestPath(request.getContextPath() + "/profile/contact-change");

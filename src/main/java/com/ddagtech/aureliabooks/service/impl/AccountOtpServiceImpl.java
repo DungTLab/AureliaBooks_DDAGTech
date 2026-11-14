@@ -1,24 +1,38 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-import com.ddagtech.aureliabooks.dto.request.*;
+import com.ddagtech.aureliabooks.dto.request.PasswordChangeRequest;
+import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.repository.UserRepository;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
-import com.ddagtech.aureliabooks.service.*;
+import com.ddagtech.aureliabooks.service.AccountOtpService;
+import com.ddagtech.aureliabooks.service.AccountSecurityService;
+import com.ddagtech.aureliabooks.service.ContactOtpDelivery;
 import jakarta.validation.Validator;
-import java.nio.charset.StandardCharsets;
-import java.security.*;
-import java.time.*;
-import java.util.*;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
 /**
- * Single JVM OTP store, shared registration/recovery UI. No raw credentials retained.
+ * Session-bound OTP challenges for registration, recovery and Google linking.
+ * Pending challenges and rate limits expire in memory and are lost on restart.
  */
 @Service
 @RequiredArgsConstructor
@@ -64,8 +78,12 @@ public class AccountOtpServiceImpl implements AccountOtpService {
     }
 
     public synchronized String registration(RegisterRequest r, String session, String ip) {
-        if (!validator.validate(r).isEmpty()) throw new IllegalArgumentException("Thông tin đăng ký không hợp lệ.");
-        if (users.existsByPhone(r.phone())) throw new IllegalArgumentException("Số điện thoại đã được đăng ký.");
+        if (!validator.validate(r).isEmpty()) {
+            throw new IllegalArgumentException("Thông tin đăng ký không hợp lệ.");
+        }
+        if (users.existsByPhone(r.phone())) {
+            throw new IllegalArgumentException("Số điện thoại đã được đăng ký.");
+        }
         var f = new Flow();
         f.kind = "REGISTER";
         f.channel = "SMS";
@@ -93,21 +111,27 @@ public class AccountOtpServiceImpl implements AccountOtpService {
             !value.isBlank() &&
             value.length() <= 100 &&
             validator.validateValue(RegisterRequest.class, "email", value).isEmpty();
-        if (!email && !value.matches("0[0-9]{9}")) throw new IllegalArgumentException(
-            "Vui lòng nhập email hợp lệ hoặc số điện thoại 10 chữ số bắt đầu bằng 0."
-        );
+        if (!email && !value.matches("0[0-9]{9}")) {
+            throw new IllegalArgumentException(
+                "Vui lòng nhập email hợp lệ hoặc số điện thoại 10 chữ số bắt đầu bằng 0."
+            );
+        }
         var u = users
             .findByIdentifierWithRoles(value)
             .filter(AccountOtpServiceImpl::hasCustomerRole)
             .orElseThrow(() ->
                 new IllegalArgumentException("Không tìm thấy tài khoản với email hoặc số điện thoại này.")
             );
-        if (!Boolean.TRUE.equals(u.getIsActive())) throw new IllegalArgumentException(
-            "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ hỗ trợ."
-        );
-        if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) throw new IllegalArgumentException(
-            "Tài khoản chỉ đăng nhập bằng Google. Vui lòng khôi phục quyền truy cập tại Google."
-        );
+        if (!Boolean.TRUE.equals(u.getIsActive())) {
+            throw new IllegalArgumentException(
+                "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ hỗ trợ."
+            );
+        }
+        if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) {
+            throw new IllegalArgumentException(
+                "Tài khoản chỉ đăng nhập bằng Google. Vui lòng khôi phục quyền truy cập tại Google."
+            );
+        }
         return u;
     }
 
@@ -133,25 +157,28 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         var channels = new ArrayList<String>();
         if (u.isEmailVerified() && u.getEmail() != null && !u.getEmail().isBlank()) channels.add("EMAIL");
         if (u.isPhoneVerified() && u.getPhone() != null && !u.getPhone().isBlank()) channels.add("SMS");
-        if (channels.isEmpty()) throw new IllegalArgumentException(
-            "Tài khoản chưa có email hoặc số điện thoại đã xác minh để khôi phục mật khẩu. Vui lòng liên hệ hỗ trợ."
-        );
+        if (channels.isEmpty()) {
+            throw new IllegalArgumentException(
+                "Tài khoản chưa có email hoặc số điện thoại đã xác minh để khôi phục mật khẩu. Vui lòng liên hệ hỗ trợ."
+            );
+        }
         return channels;
     }
 
     public synchronized String recovery(String identifier, String channel, String session, String ip) {
         var u = recoveryAccount(identifier);
         var channels = verifiedRecoveryChannels(u);
-        String selected = channel;
-        if (!channels.contains(selected)) throw new IllegalArgumentException(
-            "Kênh khôi phục không hợp lệ. Vui lòng chọn email hoặc số điện thoại đã xác minh."
-        );
+        if (!channels.contains(channel)) {
+            throw new IllegalArgumentException(
+                "Kênh khôi phục không hợp lệ. Vui lòng chọn email hoặc số điện thoại đã xác minh."
+            );
+        }
         var f = new Flow();
         f.kind = "RESET";
-        f.channel = selected;
+        f.channel = channel;
         f.owner = u.getId();
         f.oldHash = u.getPasswordHash();
-        f.target = "EMAIL".equals(selected) ? u.getEmail() : u.getPhone();
+        f.target = "EMAIL".equals(channel) ? u.getEmail() : u.getPhone();
         install(f, session);
         try {
             issue(f, ip);
@@ -184,10 +211,14 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         if ("RESET".equals(f.kind)) {
             requireCurrentRecoveryAccount(f);
         }
-        if (f.authorized != null) throw new IllegalArgumentException("Mã đã được xác minh.");
-        if (Duration.between(f.sent, Instant.now()).getSeconds() < 60) throw new IllegalArgumentException(
-            "Vui lòng chờ đủ 60 giây."
-        );
+        if (f.authorized != null) {
+            throw new IllegalArgumentException("Mã đã được xác minh.");
+        }
+        if (Duration.between(f.sent, Instant.now()).getSeconds() < 60) {
+            throw new IllegalArgumentException(
+                "Vui lòng chờ đủ 60 giây."
+            );
+        }
         issue(f, ip);
     }
 
@@ -211,11 +242,15 @@ public class AccountOtpServiceImpl implements AccountOtpService {
     }
 
     private void verifyCode(Flow f, String code) {
-        if (f.authorized != null) throw new IllegalArgumentException("Mã đã được sử dụng.");
+        if (f.authorized != null) {
+            throw new IllegalArgumentException("Mã đã được sử dụng.");
+        }
         quota("verify:" + (f.owner == null ? f.target : f.owner), 10);
-        if (f.mac == null || !Instant.now().isBefore(f.expires) || f.failures >= 5) throw new IllegalArgumentException(
-            "Mã đã hết hạn hoặc hết lượt thử."
-        );
+        if (f.mac == null || !Instant.now().isBefore(f.expires) || f.failures >= 5) {
+            throw new IllegalArgumentException(
+                "Mã đã hết hạn hoặc hết lượt thử."
+            );
+        }
         if (code == null || !code.matches("[0-9]{6}") || !MessageDigest.isEqual(f.mac, protect(f, code))) {
             f.failures++;
             throw new IllegalArgumentException("Mã xác thực không đúng.");
@@ -338,7 +373,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         return List.copyOf(channels);
     }
 
-        @Override
+    @Override
     public synchronized User reset(String id, String session, String password, String confirmation, String ip) {
         var f = required(id, session);
         if (
@@ -361,7 +396,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
                     (e.getValue().expires.isBefore(Instant.now()) && e.getValue().authorized == null) ||
                     (e.getValue().authorized != null && !Instant.now().isBefore(e.getValue().authorized))
             );
-        if (flows.size() >= 5000) throw new IllegalArgumentException("Hệ thống đang bận.");
+        if (flows.size() >= 5000) {
+            throw new IllegalArgumentException("Hệ thống đang bận.");
+        }
         f.id = UUID.randomUUID().toString();
         f.session = session;
         f.expires = Instant.now().plusSeconds(300);
@@ -371,6 +408,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
 
     private void issue(Flow f, String ip) {
         String targetKey = "target:" + f.target;
+        // Share the cooldown across sessions so restarting the form cannot bypass it.
         var previousSend = limits.get(targetKey);
         if (
             previousSend != null &&
@@ -414,9 +452,13 @@ public class AccountOtpServiceImpl implements AccountOtpService {
     private void quota(String id, int max) {
         var now = Instant.now();
         limits.entrySet().removeIf(e -> !now.isBefore(e.getValue().until));
-        if (limits.size() >= 10000 && !limits.containsKey(id)) throw new IllegalArgumentException("Hệ thống đang bận.");
+        if (limits.size() >= 10000 && !limits.containsKey(id)) {
+            throw new IllegalArgumentException("Hệ thống đang bận.");
+        }
         var c = limits.computeIfAbsent(id, k -> new Counter(now.plusSeconds(900)));
-        if (c.count >= max) throw new IllegalArgumentException("Quá nhiều yêu cầu. Vui lòng thử lại sau 15 phút.");
+        if (c.count >= max) {
+            throw new IllegalArgumentException("Quá nhiều yêu cầu. Vui lòng thử lại sau 15 phút.");
+        }
         c.count++;
     }
 
@@ -427,7 +469,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
 
     private Flow required(String id, String session) {
         var f = bound(id, session);
-        if (f == null) throw new IllegalArgumentException("Yêu cầu không còn hiệu lực.");
+        if (f == null) {
+            throw new IllegalArgumentException("Yêu cầu không còn hiệu lực.");
+        }
         return f;
     }
 

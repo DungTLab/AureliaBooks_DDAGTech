@@ -1,82 +1,60 @@
-# AureliaBooks development accounts and first production admin
+# AureliaBooks
 
-## Local / coursework demo
+Ứng dụng bán sách và văn phòng phẩm của nhóm DDAGTech. Khách mua hàng ở storefront. Admin, Manager và Sale Staff dùng cổng nội bộ để quản lý theo vai trò.
 
-Run `docker compose up -d mysql-db`. Compose automatically loads
-`docker-compose.override.yml`, including `docker/demo/03_seed_users.sql` on a
-**fresh** MySQL data volume. Existing volumes do not rerun init scripts; restarting
-Spring Boot or MySQL does not reset accounts. Do not remove your volume to refresh users.
+**Stack** · Java 21, Spring Boot 3.5, Spring Security, Spring Data JPA, MySQL 8.0, Thymeleaf, Tailwind CSS và Maven.
 
-| Role | Demo email | Demo password |
-|---|---|---|
-| ADMIN | aureliabook.team@gmail.com | DDAGTechAdmin391@ |
-| MANAGER | manager@aureliabook.vn | Manager@123 |
-| SALE_STAFF | staff@aureliabook.vn | Staff@123 |
-| CUSTOMER | customer@aureliabook.vn | Customer@123 |
-| MANAGER (supplementary) | kho.nguyen@aureliabook.vn | Manager@123 |
-| SALE_STAFF (supplementary) | lan.tran@aureliabook.vn | Staff@123 |
-| CUSTOMER (supplementary) | anhntdce200031@gmail.com | Customer@123 |
+## Chạy local
 
-These credentials are public **demo fixtures**, never production credentials.
-The SQL stores BCrypt cost-12 hashes, resolves role IDs by role name, and never
-overwrites an existing password, role, name or active flag. Email/phone ownership
-conflicts abort and roll back the whole seed. It does not claim contacts are verified.
-The supplementary fixtures from main use the same mechanism. The legacy
-`docker/initdb/03_seed_users.sql` is removed; it must not be run alongside this seed.
-The agreed Admin is `aureliabook.team@gmail.com`, not the legacy Admin email.
+Cài JDK 21 và Docker Compose. Chạy từ thư mục gốc repo.
 
-For an existing development DB, run the roles script and demo users script in a
-MySQL console after reviewing account conflicts. Do not rerun `01_schema.sql`:
-that schema script recreates the database. The previous opt-in
-`03_seed_test_accounts.sql` is replaced by this single demo-account mechanism.
-
-## Production
-
-Supply `MYSQL_ROOT_PASSWORD`, `DB_USER`, and `DB_PASS` through the deployment
-environment or an untracked `.env`, then use this **explicit** file list:
-
-```shell
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d mysql-db
+```powershell
+docker compose up -d mysql-db
+$env:DB_USER = 'app_user'
+$env:DB_PASS = 'app_password'
+.\mvnw.cmd spring-boot:run
 ```
 
-This excludes the automatically discovered local override, sample catalog and
-demo accounts. A fresh DB receives the schema and four foundational roles only.
-For an existing production DB, use the existing database/migration process;
-never rerun the destructive schema initializer.
+Trên Linux/macOS, truyền cùng hai biến môi trường cho `./mvnw spring-boot:run`. MySQL mặc định ở `localhost:3306`, database `aurelia_books_db`. Nếu dùng DB khác, đặt `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` cho tiến trình Java.
 
-Set the following variables on the **Spring Boot process/container** to create
-the first administrator (variables in the MySQL container alone do not configure Java):
+- [Cửa hàng](http://localhost:8080/) và [đăng nhập khách hàng](http://localhost:8080/auth/login).
+- [Cổng nội bộ](http://localhost:8080/internal/login) dành cho Admin, Manager và Sale Staff.
+- Compose nạp seed demo khi MySQL khởi tạo **volume mới**. Xem [tài khoản demo và cách dùng DB đã có](docs/accounts/ACCOUNTS.md).
+
+## Cấu hình tích hợp
+
+| Tính năng | Cấu hình |
+|---|---|
+| Google Sign-In | Bật profile `google`, đặt `GOOGLE_CLIENT_ID` và `GOOGLE_CLIENT_SECRET`. Khai báo callback `/login/oauth2/code/google` trên đúng URL môi trường. |
+| Email và OTP demo | Chạy `docker compose --profile mail up -d mailpit` để dùng SMTP local cổng 1025 và xem thư ở cổng 8025. Bật profile `sms-demo` và đặt `DEMO_SMS_INBOX` để nhận OTP SĐT qua hộp thư thử. Với SMTP riêng, đặt các biến `MAIL_*`. |
+| VNPay Sandbox | Đặt `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` và `VNPAY_RETURN_URL` cho Spring Boot. Đăng ký IPN công khai tại `/api/v1/payments/vnpay-ipn`. |
+| Ảnh và R2 | Xem [runbook R2](docs/storage/R2_PRODUCT_IMAGES.md). Khi R2 tắt, avatar lưu local ở `AVATAR_DIRECTORY`. Ảnh sản phẩm tải từ form dùng cấu hình upload R2. |
+
+Xem [.env.example](.env.example) và [application.yaml](src/main/resources/application.yaml). Khi chạy Maven hoặc IntelliJ, truyền biến cho tiến trình Java. Giữ secret thật ngoài Git.
+
+## Cấu trúc repo
 
 ```text
-BOOTSTRAP_ADMIN_ENABLED=true
-BOOTSTRAP_ADMIN_EMAIL=<business administrator email>
-BOOTSTRAP_ADMIN_PASSWORD=<secret satisfying the password policy>
-BOOTSTRAP_ADMIN_PHONE=<optional 10-digit phone>
+src/main/java/      Java theo tầng controller, service, repository, entity và security
+src/main/resources/
+  templates/        View Thymeleaf theo chức năng
+    internal/       View dùng chung ở cổng quản lý, gồm báo cáo analytics
+    admin/          Các view quản trị hiện có
+    manager/        View dành cho Manager, gồm voucher
+  static/           CSS, JavaScript, ảnh và font
+src/test/java/      Test theo lớp và chức năng
+database/seeds/     Dữ liệu danh mục đầu vào
+docker/             Schema khởi tạo, demo seed và migration
+deployment/         Tệp cấu hình phục vụ triển khai
+scripts/            Lệnh hỗ trợ dev, seed và kiểm thử
+docs/               Hướng dẫn vận hành, nghiệp vụ và tư liệu lưu trữ
+.github/workflows/  Kiểm thử, đóng gói image và triển khai
 ```
 
-Configure the normal `DB_HOST`, `DB_PORT`, `DB_NAME=aurelia_books_db`, `DB_USER`
-and `DB_PASS` for Spring Boot. Google/SMTP credentials are separate configuration.
-The bootstrap runs in one transaction, locks the ADMIN role, hashes the secret,
-and writes an `ADMIN_BOOTSTRAPPED` audit event. It creates an admin only when
-none exists, including inactive administrators in that check. It never promotes
-another account, resets a password, or reactivates an administrator. Concurrent
-startup requests serialize on the same role lock.
+[Chỉ mục tài liệu](docs/README.md) · [Phân công chuẩn hóa code](docs/maintenance/code-cleanup.md)
 
-After the first successful deployment, disable `BOOTSTRAP_ADMIN_ENABLED` and
-remove the bootstrap password from the runtime configuration. Restarting keeps
-the existing account. Never commit a real `.env` or reuse the demo password in production.
+## Kiểm thử và triển khai
 
-## Opt-in bootstrap persistence test
+Chạy `./mvnw -B -ntp verify` trên Linux/macOS hoặc `.\mvnw.cmd -B -ntp verify` trên Windows. Một số test runtime config cần Linux và quyền tệp POSIX. Các test MySQL tích hợp dùng DB QA riêng và bật theo cờ của từng suite.
 
-`AdminBootstrapMySqlTest` requires `-Dbootstrap.mysql=true` and a **fresh** database
-whose name starts with `auth_bootstrap_qa_`, supplied through the DB environment
-variables. It mutates only that disposable QA database. Regular tests leave this
-integration check disabled.
-
-### Avatar and product image storage
-
-With `R2_ENABLED=true`, avatars use the configured R2 bucket under `avatars/`; product images use the existing product image storage. Both uploads require `R2_UPLOAD_ENABLED=true`. Configure `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in the application runtime, never in tracked files. The application proxies private avatar URLs and checks ownership; the bucket does not need public access.
-
-With R2 disabled, avatars still use `app.avatar.directory` (default `./uploads/avatars`), which must be writable and persistent in a container. Existing local avatars remain readable after enabling R2 only while that directory is available. This change does not migrate old files or recover files lost from a replaced container.
-
-Product forms now use **Chọn ảnh → Tải ảnh lên → Lưu sản phẩm**. The existing image stays unchanged if upload fails. A disabled image chooser indicates that R2 uploads are not enabled in the application runtime. Selecting an avatar only previews it; **Lưu ảnh đại diện** submits the upload.
+Production dùng pipeline GitHub Actions và cấu hình runtime riêng. Khi khởi tạo MySQL production bằng Compose, chỉ định rõ `docker-compose.yml` và `docker-compose.prod.yml` để loại override demo. DB đã tồn tại cập nhật qua migration. Xem [runbook cấu hình runtime](docs/deployment/RUNTIME_CONFIG_SYNC.md) và [bootstrap Admin](docs/accounts/ACCOUNTS.md#bootstrap-admin-production).

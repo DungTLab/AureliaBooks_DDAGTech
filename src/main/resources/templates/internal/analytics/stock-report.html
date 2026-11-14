@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/internal :: layout('Báo cáo kho', ~{::#main-content})}">
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/internal :: layout('Báo cáo kho', ~{::#main-content})}">
     <body>
         <section id="main-content" class="max-w-7xl mx-auto px-4 py-8 space-y-6">
             <header class="flex flex-wrap gap-3 items-center justify-between">
@@ -7,7 +9,9 @@
                 <a th:href="@{/manager/analytics/revenue}" class="underline">Báo cáo doanh thu</a>
             </header>
             <p class="text-sm text-carbon_black-600">Biến động kỳ được tính từ chứng từ đã ghi nhận. Định giá hiện tại được trình bày riêng; số liệu không thay thế kiểm kê thực tế.</p>
-            <form th:action="@{/manager/analytics/stock}" method="get" class="bg-white border border-dust_grey rounded-2xl p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <form th:action="@{/manager/analytics/stock}"
+                  method="get"
+                  class="bg-white border border-dust_grey rounded-2xl p-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label for="stockStart" class="block text-sm font-semibold mb-2">Từ ngày</label>
                     <input id="stockStart" name="startDate" type="date" required th:value="${stockReport.filter.startDate}" class="w-full border rounded-xl p-2">
@@ -25,7 +29,7 @@
                     <select id="stockCategory" name="category" class="w-full border rounded-xl p-2">
                         <option value="">Tất cả</option>
                         <option th:each="name : ${stockReport.categories}" th:value="${name}" th:text="${name}" th:selected="${name == stockReport.category}">
-                    </option>
+                        </option>
                     </select>
                 </div>
                 <div>

@@ -49,7 +49,10 @@ public class RecommendationPreloaderDaemon {
      *
      * @return number of valid product embedding vectors loaded into memory
      */
-    @Scheduled(cron = "${app.cron.vector-preload:0 0 2 * * ?}")
+    @Scheduled(
+            cron = "${app.cron.vector-preload:0 0 2 * * ?}",
+            zone = "${app.cron.zone:Asia/Ho_Chi_Minh}"
+    )
     @Transactional(readOnly = true)
     public int preloadProductVectors() {
         List<Product> activeProducts = productRepository.findActiveProductsWithEmbedding();
