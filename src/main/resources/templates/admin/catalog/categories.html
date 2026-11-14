@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/internal :: layout('Quản Trị Cây Danh Mục | AureliaBook', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Quản lý danh mục sản phẩm | AureliaBook', ~{::#main-content})}">
 <head>
-    <title>Quản Trị Cây Danh Mục</title>
+    <title>Quản lý danh mục sản phẩm</title>
 </head>
 <body>
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -20,9 +20,9 @@
             </div>
             <h1 class="text-2xl font-bold font-serif text-carbon_black flex items-center gap-2.5">
                 <i class="bi bi-diagram-3-fill text-blazing_flame"></i>
-                <span>Quản Trị Cây Danh Mục Sản Phẩm</span>
+                <span>Quản lý danh mục sản phẩm</span>
             </h1>
-            <p class="text-sm text-carbon_black-600 mt-1">Cấu trúc phân cấp đa tầng (Cha - Con) áp dụng cho cả Sách và Văn phòng phẩm</p>
+            <p class="text-sm text-carbon_black-600 mt-1">Sắp xếp danh mục sách và văn phòng phẩm theo cấu trúc cha–con.</p>
         </div>
         <div class="flex items-center gap-2.5">
             <button type="button" onclick="openCategoryModal(null, '', '', '', true)"
@@ -39,12 +39,11 @@
                 <i class="bi bi-diagram-3-fill text-lg"></i>
             </div>
             <div>
-                <h4 class="text-sm font-bold text-carbon_black">Cây Phân Cấp Taxonomy</h4>
-                <p class="text-xs text-carbon_black-500">Hỗ trợ danh mục gốc và danh mục con đa cấp độ, bảo toàn tính toàn vẹn khi xóa</p>
+                <h4 class="text-sm font-bold text-carbon_black">Danh sách danh mục</h4>
             </div>
         </div>
         <div class="text-xs text-carbon_black-600 font-medium">
-            Tổng số: <span class="font-bold text-carbon_black" th:text="${categories.size()}">0</span> danh mục hệ thống
+            Tổng số: <span class="font-bold text-carbon_black" th:text="${totalCategories}">0</span> danh mục
         </div>
     </div>
 
@@ -143,6 +142,32 @@
         </div>
     </div>
 
+    <!-- Pagination Bar -->
+    <nav th:if="${rootPage.totalPages > 1}" aria-label="Phân trang danh mục gốc"
+         class="px-6 py-4 bg-alabaster_grey/30 border border-dust_grey/60 rounded-lg flex flex-wrap items-center justify-between gap-3">
+        <span class="text-xs text-carbon_black-500"
+              th:text="|Trang ${rootPage.number + 1} / ${rootPage.totalPages} · ${rootPage.totalElements} danh mục gốc|"></span>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <th:block th:each="i : ${#numbers.sequence(0, rootPage.totalPages - 1)}">
+                <th:block th:if="${rootPage.totalPages <= 7
+                                  or i == 0 or i == rootPage.totalPages - 1
+                                  or (i >= rootPage.number - 2 and i <= rootPage.number + 2)}">
+                    <span th:if="${i == rootPage.number}" th:text="${i + 1}" aria-current="page"
+                          class="px-3 py-1.5 border border-blazing_flame bg-blazing_flame text-white rounded-lg text-xs font-semibold"></span>
+                    <a th:unless="${i == rootPage.number}"
+                       th:href="@{/manager/categories(page=${i + 1})}"
+                       th:text="${i + 1}" th:aria-label="|Đến trang ${i + 1}|"
+                       class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey"></a>
+                </th:block>
+                <span th:if="${rootPage.totalPages > 7
+                               and ((i == 1 and rootPage.number > 3)
+                                    or (i == rootPage.totalPages - 2
+                                        and rootPage.number < rootPage.totalPages - 4))}"
+                      class="px-2 text-xs text-carbon_black-500">…</span>
+            </th:block>
+        </div>
+    </nav>
+
     <!-- Modal Form (Create / Edit Category) -->
     <dialog
         id="categoryModal"
@@ -176,7 +201,7 @@
                     <select id="categoryParentSelect" name="parentId"
                             class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame">
                         <option value="">-- Là Danh Mục Gốc (Không có cha) --</option>
-                        <option th:each="c : ${categories}"
+                        <option th:each="c : ${parentCategories}"
                                 th:value="${c.id}"
                                 th:text="${(c.parent != null ? '↳ ' + c.parent.name + ' > ' : '📁 ') + c.name}">
                             Danh mục
