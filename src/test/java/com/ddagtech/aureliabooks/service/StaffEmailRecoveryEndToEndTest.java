@@ -132,6 +132,15 @@ class StaffEmailRecoveryEndToEndTest {
             ));
             return null;
         }).when(auditLogService).record(any(), anyString(), anyString(), any(), anyString(), any());
+        doAnswer(inv -> {
+            auditRecords.add(new RecordedAudit(
+                    inv.getArgument(0),
+                    inv.getArgument(1),
+                    inv.getArgument(3),
+                    inv.getArgument(4)
+            ));
+            return null;
+        }).when(auditLogService).recordRequired(any(), anyString(), anyString(), any(), anyString(), any());
 
         SessionRegistry sessionRegistry = mock(SessionRegistry.class);
         when(sessionRegistry.getAllPrincipals()).thenReturn(List.of());

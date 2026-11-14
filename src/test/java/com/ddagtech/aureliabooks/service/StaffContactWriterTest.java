@@ -95,7 +95,7 @@ class StaffContactWriterTest {
         verify(otherSession).expireNow();
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(audit).record(eq(20L), eq("INTERNAL_EMAIL_VERIFIED"), eq("users"), eq(20L), jsonCaptor.capture(), eq("10.0.0.5"));
+        verify(audit).recordRequired(eq(20L), eq("INTERNAL_EMAIL_VERIFIED"), eq("users"), eq(20L), jsonCaptor.capture(), eq("10.0.0.5"));
         String json = jsonCaptor.getValue();
         assertThat(json).contains(
                 "\"email_verified\":true",

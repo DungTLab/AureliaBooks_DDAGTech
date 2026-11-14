@@ -209,6 +209,7 @@ class InternalAccountEmailControllerTest {
                 .emailVerified(true)
                 .build();
         when(staffContactService.loadInternalStaff(15L)).thenReturn(verifiedManager);
+        when(staffContactService.hasVerifiedEmail(verifiedManager)).thenReturn(true);
 
         mockMvc.perform(get("/internal/account/email").with(user("mgr").roles("MANAGER")))
                 .andExpect(status().isOk())
@@ -222,6 +223,7 @@ class InternalAccountEmailControllerTest {
                 .emailVerified(true)
                 .build();
         when(staffContactService.loadInternalStaff(15L)).thenReturn(verifiedAdmin);
+        when(staffContactService.hasVerifiedEmail(verifiedAdmin)).thenReturn(true);
 
         mockMvc.perform(get("/internal/account/email").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isOk())

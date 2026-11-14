@@ -20,6 +20,42 @@ import org.springframework.stereotype.Repository;
 public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByRole_RoleName(String roleName);
 
+    // Legacy verification flags alone do not prove ownership of a staff email.
+    @Query(value = """
+        SELECT CASE WHEN EXISTS (
+            SELECT 1
+            FROM audit_logs proof
+            WHERE proof.target_table = 'users'
+              AND proof.target_id = :userId
+              AND proof.user_id = :userId
+              AND proof.action = 'INTERNAL_EMAIL_VERIFIED'
+              AND JSON_EXTRACT(proof.details_json, '$.email_verified') = CAST('true' AS JSON)
+              AND JSON_TYPE(JSON_EXTRACT(proof.details_json, '$.verified_email')) = 'STRING'
+              AND LOWER(TRIM(JSON_UNQUOTE(JSON_EXTRACT(proof.details_json, '$.verified_email')))) = LOWER(TRIM(:email))
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM audit_logs rev
+                  WHERE rev.target_table = 'users'
+                    AND rev.target_id = proof.target_id
+                    AND rev.id > proof.id
+                    AND (
+                        rev.action IN ('ADMIN_STAFF_EMAIL_REVOKED', 'USER_CREATE')
+                        OR (rev.action = 'ADMIN_STAFF_CONTACT_UPDATED' AND (
+                            JSON_EXTRACT(rev.details_json, '$.email_changed') = CAST('true' AS JSON)
+                            OR JSON_EXTRACT(rev.details_json, '$.email_verification_reset') = CAST('true' AS JSON)
+                            OR JSON_EXTRACT(rev.details_json, '$.email_verified') = CAST('false' AS JSON)
+                        ))
+                    )
+              )
+        ) THEN 1 ELSE 0 END
+        """, nativeQuery = true)
+    int countCurrentStaffEmailProof(@Param("userId") Long userId, @Param("email") String email);
+
+    default boolean hasCurrentStaffEmailProof(User user) {
+        return user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()
+            && countCurrentStaffEmailProof(user.getId(), user.getEmail()) == 1;
+    }
+
     // TODO: owner adds only queries required by their Sprint 1 use cases.
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

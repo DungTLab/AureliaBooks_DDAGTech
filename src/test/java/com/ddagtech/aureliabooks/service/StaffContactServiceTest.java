@@ -282,6 +282,45 @@ class StaffContactServiceTest {
     }
 
     @Test
+    void rejectsVerificationWhileResendIsInFlight() throws Exception {
+        String email = activeStaff.getEmail();
+        activeStaff.setEmailVerified(true);
+        service.startSelfEmailVerification(10L, "session", email, "10.0.0.1");
+        ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
+        verify(delivery).send(eq("EMAIL"), eq(email), code.capture());
+        String previousCode = code.getValue();
+        clockInstant.updateAndGet(now -> now.plusSeconds(60));
+        CountDownLatch sending = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicReference<String> renewedCode = new AtomicReference<>();
+        doAnswer(invocation -> {
+            renewedCode.set(invocation.getArgument(2));
+            sending.countDown();
+            assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+            return null;
+        }).when(delivery).send(eq("EMAIL"), eq(email), anyString());
+
+        try (ExecutorService pool = Executors.newSingleThreadExecutor()) {
+            var resend = pool.submit(() -> service.resendSelfEmailVerification(10L, "session", "10.0.0.1"));
+            try {
+                assertThat(sending.await(5, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> service.verifySelfEmail(10L, "session", previousCode, "10.0.0.1"))
+                        .isInstanceOf(AppException.class)
+                        .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OTP_INVALID_OR_EXPIRED);
+                verifyNoInteractions(writer);
+            } finally {
+                release.countDown();
+            }
+            resend.get(5, TimeUnit.SECONDS);
+        }
+
+        assertThatThrownBy(() -> service.verifySelfEmail(10L, "session", previousCode, "10.0.0.1"))
+                .isInstanceOf(AppException.class);
+        service.verifySelfEmail(10L, "session", renewedCode.get(), "10.0.0.1");
+        verify(writer).applySelfVerifiedEmail(10L, email, activeStaff.getPasswordHash(), email, "session", "10.0.0.1");
+    }
+
+    @Test
     @DisplayName("Concurrent start on the same staff account fails fast while initial SMTP send is in flight")
     void concurrentSameUserStartBlockedWhileDeliveryInFlight() throws Exception {
         when(users.existsByEmail(anyString())).thenReturn(false);

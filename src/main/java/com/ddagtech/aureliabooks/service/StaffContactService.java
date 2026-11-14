@@ -11,6 +11,8 @@ public interface StaffContactService {
 
     User loadInternalStaff(Long staffId);
 
+    boolean hasVerifiedEmail(User staff);
+
     Optional<AdminStaffEmailChallengeView> findSelfEmailChallenge(Long staffId, String sessionId);
 
     AdminStaffEmailChallengeView startSelfEmailVerification(

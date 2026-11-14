@@ -55,6 +55,7 @@ public class InternalAccountEmailController {
                 .orElse(null);
 
         model.addAttribute("staff", staff);
+        model.addAttribute("emailVerified", staffContactService.hasVerifiedEmail(staff));
         model.addAttribute("reauthenticated", hasValidReauth(session, staffId));
         model.addAttribute("challenge", challenge);
         return "internal/recovery-email";

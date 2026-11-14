@@ -131,6 +131,9 @@ public class SecurityConfig {
                 UsernamePasswordAuthenticationFilter.class);
         http.authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/internal/login").permitAll()
+                .requestMatchers("/internal/forgot-password", "/internal/forgot-password/send",
+                        "/internal/forgot-password/verify", "/internal/forgot-password/resend",
+                        "/internal/forgot-password/reset").anonymous()
                 .requestMatchers("/admin/users", "/admin/users/**", "/admin/audit-logs", "/admin/audit-logs/**").hasRole("ADMIN")
                 .requestMatchers("/admin/analytics/**", "/manager/analytics/**").hasAnyRole("ADMIN", "MANAGER")
                 .requestMatchers("/manager/stock/history", "/manager/inventory/history").hasAnyRole("ADMIN", "MANAGER")

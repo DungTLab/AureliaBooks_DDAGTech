@@ -132,6 +132,11 @@ public class StaffContactServiceImpl implements StaffContactService {
     }
 
     @Override
+    public boolean hasVerifiedEmail(User staff) {
+        return users.hasCurrentStaffEmailProof(staff);
+    }
+
+    @Override
     public Optional<AdminStaffEmailChallengeView> findSelfEmailChallenge(Long staffId, String sessionId) {
         if (staffId == null || sessionId == null) {
             return Optional.empty();
@@ -167,7 +172,7 @@ public class StaffContactServiceImpl implements StaffContactService {
         synchronized (lockFor(staffId)) {
             User target = requireActiveInternalStaff(staffId);
             boolean emailChanged = !normalizedEmail.equalsIgnoreCase(target.getEmail() == null ? "" : target.getEmail());
-            if (!emailChanged && target.isEmailVerified()) {
+            if (!emailChanged && users.hasCurrentStaffEmailProof(target)) {
                 throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Email này đã được xác minh.");
             }
             if (emailChanged && users.existsByEmail(normalizedEmail)) {
@@ -291,7 +296,7 @@ public class StaffContactServiceImpl implements StaffContactService {
     private PendingEmailOtp verifyChallengeCode(Long staffId, String sessionId, String otpCode) {
         synchronized (lockFor(staffId)) {
             PendingEmailOtp flow = pending.get(staffId);
-            if (flow == null || flow.mac() == null || engine.isExpired(flow.expiresAt())) {
+            if (flow == null || flow.sending() || flow.mac() == null || engine.isExpired(flow.expiresAt())) {
                 if (flow != null && !flow.sending() && engine.isExpired(flow.expiresAt())) {
                     pending.remove(staffId, flow);
                 }

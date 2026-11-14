@@ -16,6 +16,7 @@ SET
                  FROM audit_logs al
                  WHERE al.target_table = 'users'
                    AND al.target_id = u.id
+                   AND al.user_id = u.id
                    AND al.action = 'INTERNAL_EMAIL_VERIFIED'
                    AND JSON_VALID(al.details_json)
                    AND JSON_EXTRACT(al.details_json, '$.email_verified') = CAST('true' AS JSON)

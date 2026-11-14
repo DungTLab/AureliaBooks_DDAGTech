@@ -65,7 +65,7 @@ public class StaffContactWriterImpl implements StaffContactWriter {
         details.put("email_changed", emailChanged);
         details.put("verification_channel", "EMAIL");
         details.put("email_verified", true);
-        audit.record(
+        audit.recordRequired(
                 staffId,
                 "INTERNAL_EMAIL_VERIFIED",
                 "users",
@@ -127,7 +127,7 @@ public class StaffContactWriterImpl implements StaffContactWriter {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
-            return "{}";
+            throw new IllegalStateException("Cannot serialize staff email verification proof", ex);
         }
     }
 

@@ -28,12 +28,12 @@
         </div>
 
         <div class="shrink-0">
-            <span th:if="${staff.emailVerified}"
+            <span th:if="${emailVerified}"
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <i class="bi bi-patch-check-fill"></i>
                 <span>Email đã xác minh</span>
             </span>
-            <span th:unless="${staff.emailVerified}"
+            <span th:unless="${emailVerified}"
                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                 <i class="bi bi-exclamation-circle-fill"></i>
                 <span>Chưa xác minh OTP</span>
@@ -64,16 +64,16 @@
                 <p class="text-base font-bold font-mono text-carbon_black mt-0.5"
                    th:text="${staff.email != null ? staff.email : 'Chưa thiết lập'}">staff@aureliabook.vn</p>
             </div>
-            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-carbon_black-600" th:if="${staff.emailVerified}">
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-carbon_black-600" th:if="${emailVerified}">
                 Tài khoản đã đủ điều kiện dùng chức năng <strong>Quên mật khẩu</strong> tại <code>/internal/forgot-password</code>.
             </p>
-            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-carbon_black-600" th:if="${staff.emailVerified}">
+            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-carbon_black-600" th:if="${emailVerified}">
                 Email công việc đã được xác minh. Khôi phục quyền truy cập Quản trị viên áp dụng quy trình vận hành riêng, không qua <code>/internal/forgot-password</code>.
             </p>
-            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-amber-800 font-medium" th:unless="${staff.emailVerified}">
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-amber-800 font-medium" th:unless="${emailVerified}">
                 Cần xác minh OTP để kích hoạt tự khôi phục mật khẩu nội bộ.
             </p>
-            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-amber-800 font-medium" th:unless="${staff.emailVerified}">
+            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-amber-800 font-medium" th:unless="${emailVerified}">
                 Email công việc của Quản trị viên chưa xác minh OTP.
             </p>
         </div>

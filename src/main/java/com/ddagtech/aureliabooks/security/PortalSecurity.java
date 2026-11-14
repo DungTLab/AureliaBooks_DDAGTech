@@ -33,6 +33,10 @@ public final class PortalSecurity {
                 .anyMatch(authority -> INTERNAL_ROLES.contains(authority.getAuthority()));
     }
 
+    public static boolean staffRecoveryRole(String role) {
+        return "ROLE_MANAGER".equals(role) || "ROLE_SALE_STAFF".equals(role);
+    }
+
     public static boolean signedIn(Authentication authentication) {
         return authentication != null && authentication.isAuthenticated()
                 && !(authentication instanceof AnonymousAuthenticationToken);

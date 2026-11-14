@@ -12,8 +12,11 @@ import com.ddagtech.aureliabooks.entity.User;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
+import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.security.LoginAttemptService;
 import com.ddagtech.aureliabooks.service.AuditLogService;
+import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +25,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class AccountSecurityServiceImplTest {
@@ -83,6 +88,52 @@ class AccountSecurityServiceImplTest {
     }
 
     @Test
+    void internalResetRechecksCurrentRoleEmailAndHashUnderLock() {
+        User staff = User.builder().id(7L).role(staffRole).email("staff@example.test")
+            .emailVerified(true).passwordHash("current-hash").build();
+        when(users.findOwnerForUpdate(7L)).thenReturn(Optional.of(staff));
+
+        assertThatThrownBy(() -> service.resetStaff(7L, "current-hash", "previous@example.test", "new-hash", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.resetStaff(7L, "stale-hash", staff.getEmail(), "new-hash", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.resetStaff(7L, "current-hash", staff.getEmail(), "new-hash", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        staff.setRole(customerRole);
+        assertThatThrownBy(() -> service.resetStaff(7L, "current-hash", staff.getEmail(), "new-hash", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(staff.getPasswordHash()).isEqualTo("current-hash");
+        verify(users, never()).saveAndFlush(any());
+        verifyNoInteractions(audit, sessions, attempts);
+    }
+
+    @Test
+    void internalResetExpiresSessionsOnlyAfterCommit() {
+        User staff = User.builder().id(7L).role(staffRole).email("staff@example.test")
+            .emailVerified(true).passwordHash("current-hash").build();
+        var principal = new CustomUserDetails(staff);
+        var session = new SessionInformation(principal, "staff-session", new Date());
+        when(users.findOwnerForUpdate(7L)).thenReturn(Optional.of(staff));
+        when(users.saveAndFlush(staff)).thenReturn(staff);
+        when(users.hasCurrentStaffEmailProof(staff)).thenReturn(true);
+        when(sessions.getAllPrincipals()).thenReturn(List.of(principal));
+        when(sessions.getAllSessions(principal, false)).thenReturn(List.of(session));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.resetStaff(7L, "current-hash", staff.getEmail(), "new-hash", "ip");
+            assertThat(staff.getPasswordHash()).isEqualTo("new-hash");
+            assertThat(session.isExpired()).isFalse();
+            TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
+            assertThat(session.isExpired()).isTrue();
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+        verify(audit).record(7L, "STAFF_PASSWORD_RESET", "users", 7L, "{}", "ip");
+    }
+
+    @Test
     @DisplayName("changeStaffPassword should update password and record audit log for staff")
     void changeStaffPassword_Success() {
         Long staffId = 15L;
@@ -94,7 +145,7 @@ class AccountSecurityServiceImplTest {
                 .isActive(true)
                 .build();
 
-        when(users.findById(staffId)).thenReturn(Optional.of(staff));
+        when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
         when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
         when(passwords.matches("NewStrongP@ss123", "$2a$12$oldHashedPassword")).thenReturn(false);
         when(passwords.encode("NewStrongP@ss123")).thenReturn("$2a$12$newHashedPassword");
@@ -120,7 +171,7 @@ class AccountSecurityServiceImplTest {
                 .isActive(true)
                 .build();
 
-        when(users.findById(customerId)).thenReturn(Optional.of(customer));
+        when(users.findOwnerForUpdate(customerId)).thenReturn(Optional.of(customer));
         PasswordChangeRequest request = new PasswordChangeRequest("OldPass123@", "NewStrongP@ss123", "NewStrongP@ss123");
 
         assertThatThrownBy(() -> service.changeStaffPassword(customerId, request, "session-1", "127.0.0.1"))
@@ -140,7 +191,7 @@ class AccountSecurityServiceImplTest {
                 .role(staffRole)
                 .build();
 
-        when(users.findById(staffId)).thenReturn(Optional.of(staff));
+        when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
         when(passwords.matches("WrongPassword123@", "$2a$12$oldHashedPassword")).thenReturn(false);
 
         PasswordChangeRequest request = new PasswordChangeRequest("WrongPassword123@", "NewStrongP@ss123", "NewStrongP@ss123");
@@ -160,7 +211,7 @@ class AccountSecurityServiceImplTest {
                 .role(staffRole)
                 .build();
 
-        when(users.findById(staffId)).thenReturn(Optional.of(staff));
+        when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
         when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
         when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
 
@@ -184,7 +235,7 @@ class AccountSecurityServiceImplTest {
                 .build();
 
         String rawPasswordWithSpaces = " Abc123! ";
-        when(users.findById(staffId)).thenReturn(Optional.of(staff));
+        when(users.findOwnerForUpdate(staffId)).thenReturn(Optional.of(staff));
         when(passwords.matches("OldPassword123@", "$2a$12$oldHashedPassword")).thenReturn(true);
         when(passwords.matches(rawPasswordWithSpaces, "$2a$12$oldHashedPassword")).thenReturn(false);
         when(passwords.encode(rawPasswordWithSpaces)).thenReturn("$2a$12$hashedWithSpaces");
