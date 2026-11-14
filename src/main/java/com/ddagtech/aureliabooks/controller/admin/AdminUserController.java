@@ -1,5 +1,7 @@
 package com.ddagtech.aureliabooks.controller.admin;
 
+import com.ddagtech.aureliabooks.constant.ErrorCode;
+import com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest;
 import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
 import com.ddagtech.aureliabooks.dto.response.UserSummary;
 import com.ddagtech.aureliabooks.dto.response.RoleOption;
@@ -116,6 +118,10 @@ public class AdminUserController {
             redirectAttributes.addFlashAttribute("successMessage", "Tạo tài khoản nhân viên thành công!");
             return "redirect:/admin/users";
         } catch (AppException ex) {
+            if (ex.getErrorCode() == ErrorCode.EMAIL_DELIVERY_FAILED) {
+                redirectAttributes.addFlashAttribute("warningMessage", ex.getMessage());
+                return "redirect:/admin/users";
+            }
             log.warn("Failed to provision internal staff account: {}", ex.getMessage());
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
             redirectAttributes.addFlashAttribute("newUserForm", request);
@@ -176,18 +182,42 @@ public class AdminUserController {
     }
 
     /**
-     * Resets the password of an internal back-office staff account in an emergency (UC28).
-     * Generates a secure random temporary password, emails it to staff,
-     * unlocks brute-force cooldown, and invalidates active sessions.
-     *
-     * @param admin authenticated administrator principal
-     * @param id target user identifier
-     * @param httpRequest incoming HTTP servlet request
-     * @param redirectAttributes redirect attributes for flash messaging
-     * @return redirect URL
+     * Updates phone and/or unverified email for an internal staff member during lost-channel support (UC28 GIAC-02).
+     * Never alters account passwords or automatically marks contacts verified.
      */
-    @PostMapping("/{id}/reset-password")
-    public String resetPassword(
+    @PostMapping("/{id}/contact")
+    public String updateStaffContact(
+            @AuthenticationPrincipal CustomUserDetails admin,
+            @PathVariable Long id,
+            @Valid @ModelAttribute StaffContactUpdateRequest request,
+            BindingResult bindingResult,
+            HttpServletRequest httpRequest,
+            RedirectAttributes redirectAttributes
+    ) {
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("errorMessage", bindingResult.getAllErrors().get(0).getDefaultMessage());
+            return "redirect:/admin/users";
+        }
+        Long adminId = admin != null ? admin.getId() : null;
+        String clientIp = HttpRequestUtil.getClientIp(httpRequest);
+        try {
+            adminUserService.updateStaffContact(adminId, id, request, clientIp);
+            redirectAttributes.addFlashAttribute(
+                    "successMessage",
+                    "Đã cập nhật thông tin liên hệ nhân sự (trạng thái chưa xác minh). Nhân sự có thể tự xác minh tại mục Email khôi phục."
+            );
+        } catch (AppException ex) {
+            log.warn("Failed to update staff contact: {}", ex.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
+        return "redirect:/admin/users";
+    }
+
+    /**
+     * Revokes email verification status on another internal staff account (UC28 GIAC-02).
+     */
+    @PostMapping("/{id}/contact/revoke-verification")
+    public String revokeEmailVerification(
             @AuthenticationPrincipal CustomUserDetails admin,
             @PathVariable Long id,
             HttpServletRequest httpRequest,
@@ -196,10 +226,9 @@ public class AdminUserController {
         Long adminId = admin != null ? admin.getId() : null;
         String clientIp = HttpRequestUtil.getClientIp(httpRequest);
         try {
-            adminUserService.resetStaffPassword(adminId, id, clientIp);
-            redirectAttributes.addFlashAttribute("successMessage", "Cấp lại mật khẩu tạm thời thành công! Mật khẩu mới đã được gửi tới email của nhân sự.");
+            adminUserService.revokeEmailVerification(adminId, id, clientIp);
+            redirectAttributes.addFlashAttribute("successMessage", "Đã gỡ trạng thái xác minh email của nhân sự.");
         } catch (AppException ex) {
-            log.warn("Failed to reset staff password: {}", ex.getMessage());
             redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }
         return "redirect:/admin/users";

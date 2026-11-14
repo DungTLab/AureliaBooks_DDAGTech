@@ -33,8 +33,16 @@ public enum ErrorCode {
     OTP_DELIVERY_FAILED(1016, "Không thể gửi mã xác thực OTP lúc này. Vui lòng thử lại sau.", HttpStatus.SERVICE_UNAVAILABLE),
     GOOGLE_IDENTITY_CONFLICT(1017, "Tài khoản Google này đã được liên kết với một tài khoản khác.", HttpStatus.CONFLICT),
     PHONE_REQUIRED_BEFORE_CHECKOUT(1018, "Vui lòng bổ sung và xác minh số điện thoại trước khi đặt hàng.", HttpStatus.BAD_REQUEST),
+    /**
+     * @deprecated Retained for catalog stability (70 codes); administrative password reset was removed in UC28 PR 2.
+     */
+    @Deprecated(forRemoval = false)
     CANNOT_RESET_CUSTOMER_PASSWORD(1019, "Quản trị viên không được phép đặt lại mật khẩu cho tài khoản khách hàng.", HttpStatus.FORBIDDEN),
     EMAIL_DELIVERY_FAILED(1020, "Không thể gửi email cấp mật khẩu. Vui lòng kiểm tra cấu hình/kết nối SMTP và thử gửi lại.", HttpStatus.SERVICE_UNAVAILABLE),
+    /**
+     * @deprecated Retained for catalog stability (70 codes); administrative password reset was removed in UC28 PR 2.
+     */
+    @Deprecated(forRemoval = false)
     CANNOT_RESET_SELF_PASSWORD(1021, "Bạn không thể tự cấp lại mật khẩu của chính mình. Vui lòng sử dụng chức năng Đổi mật khẩu.", HttpStatus.BAD_REQUEST),
 
     // 2xxx: Address & Shipping Constraints — Lê Tiến Dũng (3 codes)

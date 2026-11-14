@@ -36,7 +36,15 @@
             Đăng nhập quản lý
         </button>
     </form>
-    <p class="mt-6 text-sm text-carbon_black-600">Quên mật khẩu? Vui lòng liên hệ Quản trị viên để được hỗ trợ.</p>
+    <div class="mt-6 pt-5 border-t border-dust_grey text-sm text-carbon_black-600 space-y-2">
+        <p class="flex items-center justify-between gap-3">
+            <span>Nhân viên/Quản lý đã xác minh email?</span>
+            <a th:href="@{/internal/forgot-password}" class="font-semibold text-blazing_flame hover:underline">Quên mật khẩu?</a>
+        </p>
+        <p class="text-xs text-carbon_black-500">
+            Nếu mất quyền truy cập email hoặc cần hỗ trợ khác, vui lòng liên hệ Quản trị viên để xác minh danh tính và cập nhật liên hệ.
+        </p>
+    </div>
 </section>
 </body>
 </html>

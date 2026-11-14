@@ -88,6 +88,37 @@ class AccountFlowMySqlTest {
     }
 
     @Test
+    void staffRecoveryRequiresCurrentSelfVerificationProof() {
+        Long roleId = jdbc.queryForObject("SELECT id FROM roles WHERE role_name = 'ROLE_MANAGER'", Long.class);
+        jdbc.update("""
+            INSERT INTO users (role_id, email, phone, password_hash, full_name, auth_provider, is_active, email_verified)
+            VALUES (?, ?, ?, ?, 'Staff recovery QA', 'LOCAL', TRUE, TRUE)
+            """, roleId, email, phone, passwords.encode("OldPass1!"));
+        var staff = users.findByPhone(phone).orElseThrow();
+        id = staff.getId();
+
+        assertThat(users.hasCurrentStaffEmailProof(staff)).isFalse();
+        assertThatThrownBy(() -> otp.internalRecovery(email, "staff-session", "ip"))
+            .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(delivery);
+
+        jdbc.update("""
+            INSERT INTO audit_logs (user_id, action, target_table, target_id, details_json)
+            VALUES (?, 'INTERNAL_EMAIL_VERIFIED', 'users', ?, JSON_OBJECT('verified_email', ?, 'email_verified', CAST('true' AS JSON)))
+            """, id, id, email);
+        assertThat(users.hasCurrentStaffEmailProof(staff)).isTrue();
+
+        String flow = otp.internalRecovery(email, "staff-session", "ip");
+        jdbc.update("""
+            INSERT INTO audit_logs (user_id, action, target_table, target_id, details_json)
+            VALUES (?, 'ADMIN_STAFF_EMAIL_REVOKED', 'users', ?, JSON_OBJECT())
+            """, id, id);
+        assertThat(users.hasCurrentStaffEmailProof(staff)).isFalse();
+        assertThatThrownBy(() -> otp.verify(flow, "staff-session", code, "ip", true))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void registrationCreatesPhoneVerifiedCustomerWithoutEmailAndPhoneLoginPrincipal() {
         register();
         User u = users.findById(id).orElseThrow();

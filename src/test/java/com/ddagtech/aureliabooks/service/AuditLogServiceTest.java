@@ -229,12 +229,18 @@ class AuditLogServiceTest {
     }
 
     @Test
-    @DisplayName("getDistinctActions() should delegate to repository and filter out deprecated MANUAL_STOCK_ADJUST (D04)")
+    @DisplayName("getDistinctActions() should delegate to repository, preserve legacy UC28 history, and filter only deprecated MANUAL_STOCK_ADJUST (D04)")
     void testGetDistinctActions() {
         when(auditLogRepository.findDistinctActions())
-                .thenReturn(List.of("USER_CREATE", "MANUAL_STOCK_ADJUST", "LOGIN_FAILED"));
+                .thenReturn(List.of("USER_CREATE", "RESET_STAFF_PASSWORD", "ADMIN_STAFF_CONTACT_UPDATED", "INTERNAL_EMAIL_VERIFIED", "MANUAL_STOCK_ADJUST", "LOGIN_FAILED"));
         List<String> actions = auditLogService.getDistinctActions();
-        assertThat(actions).containsExactly("USER_CREATE", "LOGIN_FAILED");
+        assertThat(actions).containsExactly(
+                "USER_CREATE",
+                "RESET_STAFF_PASSWORD",
+                "ADMIN_STAFF_CONTACT_UPDATED",
+                "INTERNAL_EMAIL_VERIFIED",
+                "LOGIN_FAILED"
+        );
     }
 
     @Test

@@ -144,6 +144,32 @@ class AuditLogControllerTest {
     }
 
     @Test
+    @DisplayName("GET /admin/audit-logs preserves readability of legacy RESET_STAFF_PASSWORD and new UC28 contact audit entries")
+    void testListAuditLogs_LegacyPasswordResetAndStaffContactAuditEntriesRemainReadable() throws Exception {
+        AuditLogResponse legacyReset = new AuditLogResponse(
+                10L, 1L, "Legacy Admin", "admin@aureliabook.vn",
+                "RESET_STAFF_PASSWORD", "users", 20L,
+                "{\"action\":\"RESET_STAFF_PASSWORD\",\"target_role\":\"ROLE_SALE_STAFF\"}", "127.0.0.1", LocalDateTime.now()
+        );
+        AuditLogResponse newVerify = new AuditLogResponse(
+                11L, 20L, "Staff User", "staff@aureliabook.vn",
+                "INTERNAL_EMAIL_VERIFIED", "users", 20L,
+                "{\"email_verified\":true,\"verification_channel\":\"EMAIL\"}", "127.0.0.1", LocalDateTime.now()
+        );
+        Page<AuditLogResponse> mockPage = new PageImpl<>(List.of(legacyReset, newVerify), PageRequest.of(0, 20), 2);
+        when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any())).thenReturn(mockPage);
+        when(auditLogService.getDistinctActions()).thenReturn(List.of("RESET_STAFF_PASSWORD", "INTERNAL_EMAIL_VERIFIED"));
+        when(auditLogService.getDistinctTargetTables()).thenReturn(List.of("users"));
+        when(auditLogService.getDistinctActors()).thenReturn(List.of());
+
+        mockMvc.perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-action=\"RESET_STAFF_PASSWORD\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-action=\"INTERNAL_EMAIL_VERIFIED\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Xác minh email nội bộ")));
+    }
+
+    @Test
     @DisplayName("GET /admin/audit-logs displays Vietnamese UI labels while retaining raw filter values and forensic JSON modal hooks")
     void testListAuditLogs_RendersLocalizedVietnameseLabelsAndPreservesRawFilterValues() throws Exception {
         AuditLogResponse userEvent = new AuditLogResponse(

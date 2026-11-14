@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/internal :: layout('Email khôi phục nội bộ - AureliaBook', ~{::#main-content})}">
+<head>
+    <title>Email khôi phục nội bộ - AureliaBook</title>
+</head>
+<body>
+<div id="main-content" class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Page Header -->
+    <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
+                <span>Tài khoản nội bộ</span>
+                <i class="bi bi-chevron-right text-[10px]"></i>
+                <span class="text-blazing_flame font-bold">Email khôi phục</span>
+            </div>
+            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-envelope-check text-blazing_flame"></i>
+                Xác minh Email công việc khôi phục
+            </h1>
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-sm text-carbon_black-600 mt-1">
+                Xác minh email công việc bằng mã OTP 6 số để tự đặt lại mật khẩu tại cổng nội bộ khi cần.
+            </p>
+            <p sec:authorize="hasRole('ADMIN')" class="text-sm text-carbon_black-600 mt-1">
+                Xác minh địa chỉ email công việc cho tài khoản Quản trị viên (không áp dụng tự đặt lại mật khẩu qua <code>/internal/forgot-password</code>).
+            </p>
+        </div>
+
+        <div class="shrink-0">
+            <span th:if="${emailVerified}"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <i class="bi bi-patch-check-fill"></i>
+                <span>Email đã xác minh</span>
+            </span>
+            <span th:unless="${emailVerified}"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                <i class="bi bi-exclamation-circle-fill"></i>
+                <span>Chưa xác minh OTP</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Feedback Banners -->
+    <div th:if="${successMessage}"
+         class="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium shadow-sm"
+         role="status">
+        <i class="bi bi-check-circle-fill text-lg shrink-0 mt-0.5 text-emerald-600"></i>
+        <p th:text="${successMessage}">Thành công.</p>
+    </div>
+
+    <div th:if="${errorMessage}"
+         class="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm font-medium shadow-sm"
+         role="alert">
+        <i class="bi bi-exclamation-triangle-fill text-lg shrink-0 mt-0.5 text-red-600"></i>
+        <p th:text="${errorMessage}">Đã xảy ra lỗi.</p>
+    </div>
+
+    <!-- Current Email Summary -->
+    <div class="bg-parchment/60 border border-dust_grey rounded-2xl p-5 space-y-2">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-carbon_black-500">Email công việc hiện tại</p>
+                <p class="text-base font-bold font-mono text-carbon_black mt-0.5"
+                   th:text="${staff.email != null ? staff.email : 'Chưa thiết lập'}">staff@aureliabook.vn</p>
+            </div>
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-carbon_black-600" th:if="${emailVerified}">
+                Tài khoản đã đủ điều kiện dùng chức năng <strong>Quên mật khẩu</strong> tại <code>/internal/forgot-password</code>.
+            </p>
+            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-carbon_black-600" th:if="${emailVerified}">
+                Email công việc đã được xác minh. Khôi phục quyền truy cập Quản trị viên áp dụng quy trình vận hành riêng, không qua <code>/internal/forgot-password</code>.
+            </p>
+            <p sec:authorize="hasAnyRole('MANAGER','SALE_STAFF')" class="text-xs text-amber-800 font-medium" th:unless="${emailVerified}">
+                Cần xác minh OTP để kích hoạt tự khôi phục mật khẩu nội bộ.
+            </p>
+            <p sec:authorize="hasRole('ADMIN')" class="text-xs text-amber-800 font-medium" th:unless="${emailVerified}">
+                Email công việc của Quản trị viên chưa xác minh OTP.
+            </p>
+        </div>
+    </div>
+
+    <!-- Step 1: Re-authentication -->
+    <div th:if="${!reauthenticated and challenge == null}"
+         class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
+        <div>
+            <span class="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-alabaster_grey text-carbon_black-700 mb-2">
+                Bước 1 / 2 · Bảo vệ phiên làm việc
+            </span>
+            <h2 class="text-lg font-bold text-carbon_black">Xác thực lại mật khẩu hiện tại</h2>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Vui lòng nhập mật khẩu đăng nhập hiện tại trước khi gửi mã OTP xác minh email khôi phục (hiệu lực phiên xác thực: 5 phút).
+            </p>
+        </div>
+
+        <form method="post" th:action="@{/internal/account/email/reauth}" data-valid-form="true" class="space-y-4">
+            <div>
+                <label for="currentPasswordReauth" class="block text-sm font-semibold text-carbon_black mb-1.5">
+                    Mật khẩu hiện tại <span class="text-blazing_flame">*</span>
+                </label>
+                <div data-password-field class="relative">
+                    <input id="currentPasswordReauth"
+                           name="currentPassword"
+                           type="password"
+                           required
+                           autocomplete="current-password"
+                           placeholder="Nhập mật khẩu hiện tại của bạn"
+                           class="w-full px-3.5 py-2.5 pr-11 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
+                    <button type="button"
+                            data-password-toggle
+                            aria-label="Hiện hoặc ẩn mật khẩu"
+                            class="absolute inset-y-0 right-0 px-3 text-carbon_black-500 hover:text-carbon_black transition">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-1">
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blazing_flame hover:bg-blazing_flame-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition shadow-sm">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Xác thực tài khoản</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Step 2A: Enter / Confirm Recovery Work Email -->
+    <div th:if="${reauthenticated and challenge == null}"
+         class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-4">
+        <div>
+            <span class="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 mb-2">
+                Bước 2 / 2 · Gửi mã xác thực
+            </span>
+            <h2 class="text-lg font-bold text-carbon_black">Xác nhận hoặc đổi email công việc</h2>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Hệ thống sẽ gửi mã OTP 6 chữ số tới địa chỉ email dưới đây (hiệu lực 5 phút). Quản trị viên không cấp lại mật khẩu sau bước tạo tài khoản ban đầu.
+            </p>
+        </div>
+
+        <form method="post" th:action="@{/internal/account/email/start}" data-valid-form="true" class="space-y-4">
+            <div>
+                <label for="recoveryEmailInput" class="block text-sm font-semibold text-carbon_black mb-1.5">
+                    Email công việc khôi phục <span class="text-blazing_flame">*</span>
+                </label>
+                <input id="recoveryEmailInput"
+                       name="email"
+                       type="email"
+                       maxlength="100"
+                       required
+                       th:value="${staff.email}"
+                       placeholder="ten.nhanvien@aureliabook.vn"
+                       class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
+            </div>
+
+            <div class="pt-1 flex flex-wrap items-center gap-3">
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blazing_flame hover:bg-blazing_flame-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition shadow-sm">
+                    <i class="bi bi-send-check"></i>
+                    <span>Gửi mã xác thực OTP</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Step 2B: Verify 6-Digit OTP -->
+    <div th:if="${challenge != null}"
+         data-otp-timer
+         th:attr="data-expires-seconds=${challenge.expiresSeconds},data-resend-seconds=${challenge.resendSeconds}"
+         class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-5">
+        <div>
+            <span class="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blazing_flame/10 text-blazing_flame mb-2">
+                Bước 2 / 2 · Nhập mã OTP 6 số
+            </span>
+            <h2 class="text-lg font-bold text-carbon_black">Nhập mã xác thực email</h2>
+            <p class="text-sm text-carbon_black-600 mt-1">
+                Mã xác thực gồm 6 chữ số đã được gửi tới
+                <strong class="font-mono text-carbon_black" th:text="${challenge.maskedEmail}">s***@aureliabook.vn</strong>.
+                Mã còn hiệu lực trong <strong data-otp-expiry th:text="${challenge.expiresSeconds}">300</strong> giây.
+            </p>
+        </div>
+
+        <form method="post"
+              th:action="@{/internal/account/email/verify}"
+              data-otp-code-form="true"
+              data-valid-form="true"
+              class="space-y-4">
+            <div>
+                <label for="otpCodeInput" class="block text-sm font-semibold text-carbon_black mb-1.5">
+                    Mã xác thực 6 chữ số <span class="text-blazing_flame">*</span>
+                </label>
+                <input id="otpCodeInput"
+                       name="code"
+                       type="text"
+                       inputmode="numeric"
+                       pattern="\d{6}"
+                       minlength="6"
+                       maxlength="6"
+                       autocomplete="one-time-code"
+                       required
+                       placeholder="000000"
+                       class="w-full sm:w-56 px-4 py-2.5 bg-white border border-dust_grey rounded-xl text-center text-lg font-mono tracking-[0.35em] text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blazing_flame hover:bg-blazing_flame-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition shadow-sm">
+                    <i class="bi bi-check2-circle"></i>
+                    <span>Xác nhận mã OTP</span>
+                </button>
+            </div>
+        </form>
+
+        <div class="pt-4 border-t border-dust_grey/70 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span class="text-carbon_black-500" data-otp-cooldown>
+                Có thể gửi lại mã sau <strong data-otp-resend-seconds th:text="${challenge.resendSeconds}">60</strong> giây.
+            </span>
+
+            <form method="post" th:action="@{/internal/account/email/resend}">
+                <button type="submit"
+                        data-otp-resend="true"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-dust_grey bg-alabaster_grey hover:bg-dust_grey/50 disabled:opacity-50 disabled:cursor-not-allowed text-carbon_black text-xs font-semibold transition">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span>Gửi lại mã OTP</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script th:src="@{/js/otp-countdown.js}" defer></script>
+</div>
+</body>
+</html>

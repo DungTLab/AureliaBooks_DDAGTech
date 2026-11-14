@@ -215,38 +215,20 @@ class AdminUserControllerTest {
     }
 
     @Test
-    @DisplayName("POST /admin/users/{id}/reset-password invokes service and redirects with success message")
-    void testResetPassword_Success() throws Exception {
+    @DisplayName("POST /admin/users/{id}/reset-password is removed and redirects to /error/404")
+    void testResetPasswordEndpoint_Removed() throws Exception {
         mockMvc.perform(post("/admin/users/10/reset-password")
                         .with(csrf())
                         .with(user(adminUserDetails)))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attribute("successMessage", org.hamcrest.Matchers.containsString("Cấp lại mật khẩu tạm thời thành công")));
+                .andExpect(redirectedUrl("/error/404"));
 
-        verify(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
+        verifyNoInteractions(adminUserService);
     }
 
     @Test
-    @DisplayName("POST /admin/users/{id}/reset-password when target is self redirects with error message")
-    void testResetPassword_SelfResetRejected_Error() throws Exception {
-        doThrow(new AppException(ErrorCode.CANNOT_RESET_SELF_PASSWORD))
-                .when(adminUserService).resetStaffPassword(eq(1L), eq(1L), any());
-
-        mockMvc.perform(post("/admin/users/1/reset-password")
-                        .with(csrf())
-                        .with(user(adminUserDetails)))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attribute("errorMessage", ErrorCode.CANNOT_RESET_SELF_PASSWORD.getMessage()))
-                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
-
-        verify(adminUserService).resetStaffPassword(eq(1L), eq(1L), any());
-    }
-
-    @Test
-    @DisplayName("GET /admin/users does not render reset password action for authenticated admin's own row")
-    void testList_DoesNotRenderResetPasswordForSelf() throws Exception {
+    @DisplayName("GET /admin/users hides reset-password button, renders verification status badges, and shows contact update for other staff")
+    void testList_HidesResetPasswordAndShowsVerificationBadgesAndContactModalButton() throws Exception {
         UserSummary selfAdmin = new UserSummary(
                 1L,
                 "admin@aureliabook.vn",
@@ -256,7 +238,8 @@ class AdminUserControllerTest {
                 "ROLE_ADMIN",
                 true,
                 LocalDateTime.now(),
-                true
+                true,
+                false
         );
         UserSummary otherStaff = new UserSummary(
                 2L,
@@ -267,54 +250,106 @@ class AdminUserControllerTest {
                 "ROLE_SALE_STAFF",
                 true,
                 LocalDateTime.now(),
+                false,
+                false
+        );
+        UserSummary customer = new UserSummary(
+                3L,
+                "cust@example.com",
+                "Customer User",
+                "0900000003",
+                4L,
+                "ROLE_CUSTOMER",
+                true,
+                LocalDateTime.now(),
+                true,
                 true
         );
-        Page<UserSummary> page = new PageImpl<>(List.of(selfAdmin, otherStaff));
+        Page<UserSummary> page = new PageImpl<>(List.of(selfAdmin, otherStaff, customer));
         when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/admin/users").with(user(adminUserDetails)))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/admin/users/1/reset-password"))))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/admin/users/2/reset-password")));
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/reset-password"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Cấp lại MK"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/contact/email/send-otp"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Cách 2"))))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/admin/users/2/contact")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Chưa xác minh")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Email khôi phục")));
     }
 
     @Test
-    @DisplayName("POST /admin/users/{id}/reset-password when target is Customer redirects with error message")
-    void testResetPassword_CustomerRejected_Error() throws Exception {
-        doThrow(new AppException(ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD))
-                .when(adminUserService).resetStaffPassword(eq(1L), eq(50L), any());
+    @DisplayName("POST /admin/users/{id}/contact delegates to AdminUserService.updateStaffContact and requires ADMIN role")
+    void testUpdateStaffContact_SuccessAndRbac() throws Exception {
+        mockMvc.perform(post("/admin/users/10/contact")
+                        .with(csrf())
+                        .with(user(staffUserDetails))
+                        .param("phone", "0912345678")
+                        .param("identityVerified", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
 
-        mockMvc.perform(post("/admin/users/50/reset-password")
+        mockMvc.perform(post("/admin/users/10/contact")
+                        .with(csrf())
+                        .with(user(adminUserDetails))
+                        .param("email", "updated@aureliabook.vn")
+                        .param("phone", "0912345678")
+                        .param("identityVerified", "true")
+                        .param("reason", "Staff changed phone"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/users"))
+                .andExpect(flash().attributeExists("successMessage"));
+
+        verify(adminUserService).updateStaffContact(eq(1L), eq(10L), any(), any());
+    }
+
+    @Test
+    @DisplayName("Admin-session email OTP routes are removed and redirect to /error/404")
+    void testAdminEmailOtpEndpoints_Removed() throws Exception {
+        mockMvc.perform(post("/admin/users/10/contact/email/send-otp")
+                        .with(csrf())
+                        .with(user(adminUserDetails))
+                        .param("email", "recovered@aureliabook.vn")
+                        .param("identityVerified", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/404"));
+
+        mockMvc.perform(post("/admin/users/10/contact/email/resend")
+                        .with(csrf())
+                        .with(user(adminUserDetails)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/404"));
+
+        mockMvc.perform(post("/admin/users/10/contact/email/confirm")
+                        .with(csrf())
+                        .with(user(adminUserDetails))
+                        .param("code", "123456"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/404"));
+
+        verifyNoInteractions(adminUserService);
+    }
+
+    @Test
+    @DisplayName("POST /admin/users/{id}/contact/revoke-verification delegates to revokeEmailVerification")
+    void testRevokeEmailVerification_Success() throws Exception {
+        mockMvc.perform(post("/admin/users/10/contact/revoke-verification")
                         .with(csrf())
                         .with(user(adminUserDetails)))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attribute("errorMessage", org.hamcrest.Matchers.containsString("không được phép")));
+                .andExpect(flash().attributeExists("successMessage"));
 
-        verify(adminUserService).resetStaffPassword(eq(1L), eq(50L), any());
+        verify(adminUserService).revokeEmailVerification(eq(1L), eq(10L), any());
     }
 
     @Test
-    @DisplayName("POST /admin/users/{id}/reset-password when email delivery fails redirects with error message")
-    void testResetPassword_EmailDeliveryFailed_ShowsErrorMessage() throws Exception {
-        doThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED))
-                .when(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
-
-        mockMvc.perform(post("/admin/users/10/reset-password")
-                        .with(csrf())
-                        .with(user(adminUserDetails)))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attribute("errorMessage", ErrorCode.EMAIL_DELIVERY_FAILED.getMessage()))
-                .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
-
-        verify(adminUserService).resetStaffPassword(eq(1L), eq(10L), any());
-    }
-
-    @Test
-    @DisplayName("POST /admin/users/create when email delivery fails preserves form state and shows error message")
-    void testCreate_EmailDeliveryFailed_PreservesFormAndShowsError() throws Exception {
-        when(adminUserService.create(any(), any(), any())).thenThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED));
+    @DisplayName("POST /admin/users/create shows a warning for post-commit delivery failure")
+    void testCreate_EmailDeliveryFailed_ShowsWarningWithoutReopeningCreateForm() throws Exception {
+        String message = "Tài khoản nhân viên #10 đã được tạo, nhưng chưa xác nhận gửi email.";
+        when(adminUserService.create(any(), any(), any()))
+                .thenThrow(new AppException(ErrorCode.EMAIL_DELIVERY_FAILED, message));
 
         mockMvc.perform(post("/admin/users/create")
                         .with(csrf())
@@ -325,9 +360,8 @@ class AdminUserControllerTest {
                         .param("roleId", "3"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/users"))
-                .andExpect(flash().attribute("errorMessage", ErrorCode.EMAIL_DELIVERY_FAILED.getMessage()))
-                .andExpect(flash().attribute("openCreateModal", true))
-                .andExpect(flash().attributeExists("newUserForm"))
+                .andExpect(flash().attribute("warningMessage", message))
+                .andExpect(flash().attributeCount(1))
                 .andExpect(result -> assertThat(result.getFlashMap().get("successMessage")).isNull());
 
         verify(adminUserService).create(eq(1L), any(), any());
@@ -346,10 +380,10 @@ class AdminUserControllerTest {
     @DisplayName("GET /admin/users renders localized Vietnamese UI labels without redundant English suffixes or rule IDs")
     void testListView_RendersPureVietnameseLabelsWithoutEnglishClutter() throws Exception {
         UserSummary selfAdmin = new UserSummary(
-                1L, "admin@aureliabook.vn", "Quản trị viên A", "0900000001", 1L, "ROLE_ADMIN", true, LocalDateTime.now(), false
+                1L, "admin@aureliabook.vn", "Quản trị viên A", "0900000001", 1L, "ROLE_ADMIN", true, LocalDateTime.now(), false, false
         );
         UserSummary managerUser = new UserSummary(
-                2L, "manager@aureliabook.vn", "Quản lý B", "0900000002", 2L, "ROLE_MANAGER", true, LocalDateTime.now(), true
+                2L, "manager@aureliabook.vn", "Quản lý B", "0900000002", 2L, "ROLE_MANAGER", true, LocalDateTime.now(), false, false
         );
         Page<UserSummary> page = new PageImpl<>(List.of(selfAdmin, managerUser));
         when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class))).thenReturn(page);
@@ -386,14 +420,14 @@ class AdminUserControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/error/403"));
 
-        verify(adminUserService, never()).resetStaffPassword(any(), any(), any());
+        verifyNoInteractions(adminUserService);
     }
 
     @Test
     @DisplayName("GET /admin/users renders wide workspace container and accessible confirm modal without redundant quick filters or browser confirm()")
     void testListView_RendersAccessibleConfirmModalWithoutNativeConfirm() throws Exception {
         UserSummary staffUser = new UserSummary(
-                2L, "staff@aureliabook.vn", "Nhân viên B", "0900000002", 3L, "ROLE_SALE_STAFF", true, LocalDateTime.now(), true
+                2L, "staff@aureliabook.vn", "Nhân viên B", "0900000002", 3L, "ROLE_SALE_STAFF", true, LocalDateTime.now(), false, false
         );
         when(adminUserService.list(isNull(), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(staffUser)));

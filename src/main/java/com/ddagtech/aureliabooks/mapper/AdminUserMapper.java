@@ -26,7 +26,6 @@ public class AdminUserMapper {
             return null;
         }
         String roleName = user.getRole() != null ? user.getRole().getRoleName() : null;
-        boolean passwordResetAllowed = roleName != null && !"ROLE_CUSTOMER".equalsIgnoreCase(roleName);
         return new UserSummary(
                 user.getId(),
                 user.getEmail(),
@@ -36,7 +35,8 @@ public class AdminUserMapper {
                 roleName,
                 user.getIsActive(),
                 user.getCreatedAt(),
-                passwordResetAllowed
+                user.isEmailVerified(),
+                user.isPhoneVerified()
         );
     }
 
@@ -53,18 +53,17 @@ public class AdminUserMapper {
         if (req == null) {
             return null;
         }
-        String rawPhone = req.phone() != null ? req.phone().trim() : "";
-        String canonicalPhone = rawPhone.startsWith("+84") ? "0" + rawPhone.substring(3) : rawPhone;
+        String canonicalPhone = com.ddagtech.aureliabooks.service.impl.ContactOtpEngine.normalizePhone(req.phone());
         return User.builder()
-                .email(req.email() != null ? req.email().trim().toLowerCase(Locale.ROOT) : null)
+                .email(com.ddagtech.aureliabooks.service.impl.ContactOtpEngine.normalizeEmail(req.email()))
                 .passwordHash(encodedPassword)
                 .fullName(req.fullName() != null ? req.fullName().trim() : null)
                 .phone(canonicalPhone)
                 .role(assignedRole)
                 .authProvider(User.AuthProvider.LOCAL)
                 .isActive(true)
-                .emailVerified(req.email() != null && !req.email().isBlank())
-                .phoneVerified(!canonicalPhone.isBlank())
+                .emailVerified(false)
+                .phoneVerified(false)
                 .build();
     }
 
