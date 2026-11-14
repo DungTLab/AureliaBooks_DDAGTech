@@ -58,19 +58,14 @@ class AdminAnalyticsControllerTest {
 
     @Test
     @WithMockUser(username = "admin@aureliabook.vn", roles = {"ADMIN"})
-    @DisplayName("ROLE_ADMIN can access revenue analytics dashboard (HTTP 200)")
-    void admin_canAccessRevenueDashboard() throws Exception {
-        RevenueAnalyticsReportDto mockReport = RevenueAnalyticsReportDto.builder()
-                .filter(new RevenueFilterRequest())
-                .kpi(RevenueSummaryKpiDto.builder().totalOrders(10).grossRevenue(BigDecimal.valueOf(3000000)).build())
-                .build();
-
-        when(analyticsService.getRevenueReport(any())).thenReturn(mockReport);
-
+    @DisplayName("ROLE_ADMIN is blocked from revenue and stock analytics routes (Option A1 — HTTP 403 Forbidden)")
+    void admin_isForbiddenFromAnalytics() throws Exception {
+        mockMvc.perform(get("/manager/analytics/revenue"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/manager/analytics/stock"))
+                .andExpect(status().isForbidden());
         mockMvc.perform(get("/admin/analytics/revenue"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("internal/analytics/revenue-report"))
-                .andExpect(model().attributeExists("report"));
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -137,16 +132,12 @@ class AdminAnalyticsControllerTest {
 
     @Test
     @WithMockUser(username = "admin@aureliabook.vn", roles = {"ADMIN"})
-    @DisplayName("ROLE_ADMIN can export stock movement excel (HTTP 200)")
-    void exportPeriodStockExcel_admin_success() throws Exception {
-        when(analyticsService.getPeriodStockMovementReport(any())).thenReturn(Collections.emptyList());
-        when(analyticsService.getStockValuationReport()).thenReturn(Collections.emptyList());
-        doNothing().when(excelExportService).exportPeriodStockReport(any(), any(), any(), any(OutputStream.class));
-
+    @DisplayName("ROLE_ADMIN is blocked from exporting stock movement or revenue excel (Option A1 — HTTP 403 Forbidden)")
+    void exportPeriodStockExcel_admin_forbidden() throws Exception {
         mockMvc.perform(get("/manager/analytics/export/stock"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .andExpect(header().exists("Content-Disposition"));
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/manager/analytics/export/revenue"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

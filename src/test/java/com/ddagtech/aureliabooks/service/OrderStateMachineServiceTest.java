@@ -149,6 +149,16 @@ class OrderStateMachineServiceTest {
         verifyNoInteractions(orders, stock, audit);
     }
 
+    @Test void adminCannotUseStaffServicePerOptionA1() {
+        when(users.findById(7L)).thenReturn(Optional.of(User.builder().id(7L).isActive(true)
+                .role(Role.builder().roleName("ROLE_ADMIN").build()).build()));
+        assertThatThrownBy(() -> service.transitionStatus(12L, request(OrderStatus.CONFIRMED), 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
+        assertThatThrownBy(() -> service.getOrderQueue(new OrderQueueFilter(null, null, null, null, null), PageRequest.of(0, 20), 7L))
+                .isInstanceOf(AppException.class).extracting("errorCode").isEqualTo(ErrorCode.UNAUTHORIZED);
+        verifyNoInteractions(orders, stock, audit);
+    }
+
     @Test void reversedDateRangeIsRejected() {
         staff();
         assertThatThrownBy(() -> service.getOrderQueue(new OrderQueueFilter(null, null, null,

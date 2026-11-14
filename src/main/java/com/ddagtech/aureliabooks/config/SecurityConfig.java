@@ -143,25 +143,38 @@ public class SecurityConfig {
                         "/internal/forgot-password/verify", "/internal/forgot-password/resend",
                         "/internal/forgot-password/reset").anonymous()
                 .requestMatchers("/admin/users", "/admin/users/**", "/admin/audit-logs", "/admin/audit-logs/**").hasRole("ADMIN")
-                .requestMatchers("/admin/analytics/**", "/manager/analytics/**").hasAnyRole("ADMIN", "MANAGER")
-                .requestMatchers("/manager/stock/history", "/manager/inventory/history").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/admin/analytics/**", "/manager/analytics/**").hasRole("MANAGER")
+                .requestMatchers("/manager/stock/history", "/manager/inventory/history").hasRole("MANAGER")
                 .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
-                .requestMatchers("/manager/stock/alerts", "/staff/stock/alerts", "/inventory/stock/alerts").hasAnyRole("MANAGER", "SALE_STAFF")
                 .requestMatchers("/manager/receipts/*/finalize").hasRole("MANAGER")
-                .requestMatchers(HttpMethod.GET, "/api/receipts/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .requestMatchers("/api/products/quick-create").hasRole("MANAGER")
                 .requestMatchers(
                         "/manager/receipts",
                         "/manager/receipts/**",
                         "/staff/receipts",
                         "/staff/receipts/**",
+                        "/api/receipts",
                         "/api/receipts/**",
-                        "/api/products/quick-create"
+                        "/api/orders",
+                        "/api/orders/**",
+                        "/manager/stock/alerts",
+                        "/staff/stock/alerts",
+                        "/inventory/stock/alerts",
+                        "/inventory",
+                        "/inventory/**"
                 ).hasAnyRole("MANAGER", "SALE_STAFF")
                 .requestMatchers("/manager", "/manager/**").hasRole("MANAGER")
+                .requestMatchers("/staff/orders/*/return-restock", "/staff/orders/*/refund").hasRole("SALE_STAFF")
                 .requestMatchers("/staff", "/staff/**").hasAnyRole("SALE_STAFF", "MANAGER")
-                .requestMatchers("/internal/account", "/internal/account/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .requestMatchers("/dashboard", "/dashboard/**", "/inventory", "/inventory/**").hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
-                .anyRequest().hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF"));
+                .requestMatchers(
+                        "/internal",
+                        "/internal/",
+                        "/internal/account",
+                        "/internal/account/**",
+                        "/dashboard",
+                        "/dashboard/**"
+                ).hasAnyRole("ADMIN", "MANAGER", "SALE_STAFF")
+                .anyRequest().denyAll());
         http.formLogin(login -> {
             login.loginPage("/internal/login").loginProcessingUrl("/internal/login").permitAll();
             var success = authenticationSuccessHandlerProvider.getIfAvailable();

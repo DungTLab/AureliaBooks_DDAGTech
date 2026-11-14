@@ -277,7 +277,7 @@ class AdminReceiptControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/products/quick-create: Tạo nhanh sản phẩm thành công trả về 200 OK và JSON")
+    @DisplayName("POST /api/products/quick-create: MANAGER tạo nhanh sản phẩm thành công trả về 200 OK và JSON (S2)")
     void quickCreateProduct_success() throws Exception {
         com.ddagtech.aureliabooks.dto.response.QuickProductResponse res =
                 new com.ddagtech.aureliabooks.dto.response.QuickProductResponse(
@@ -299,7 +299,7 @@ class AdminReceiptControllerTest {
                 """;
 
         mvc.perform(post("/api/products/quick-create")
-                        .with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF")))
+                        .with(user(mockUser(20L, "manager@aureliabooks.com", "MANAGER")))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
@@ -322,7 +322,7 @@ class AdminReceiptControllerTest {
                 """;
 
         mvc.perform(post("/api/products/quick-create")
-                        .with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF")))
+                        .with(user(mockUser(20L, "manager@aureliabooks.com", "MANAGER")))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidJson))
@@ -331,20 +331,32 @@ class AdminReceiptControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/receipts/{id}: ADMIN truy cập thành công để đối chiếu lịch sử biến động kho (UC25 / P2 fix)")
-    void getReceiptApi_admin_accessGranted() throws Exception {
-        GoodsReceiptDetailDto mockDetail = new GoodsReceiptDetailDto(
-                1L, "GR-20261027-001", 10L, "Nhà Sách FAHASA", "0901234567", "contact@fahasa.com",
-                2L, "Staff Tester", GoodsReceipt.Status.RECEIVED, BigDecimal.valueOf(500000), "Nhập sách mới",
-                LocalDateTime.now(), 3L, "Manager Tester", LocalDateTime.now(), LocalDateTime.now(), List.of()
-        );
-        when(goodsReceiptService.getReceiptDetail(1L)).thenReturn(mockDetail);
+    @DisplayName("POST /api/products/quick-create: SALE_STAFF bị từ chối 403 Forbidden (S2)")
+    void quickCreateProduct_saleStaff_forbidden() throws Exception {
+        String json = """
+                {
+                    "title": "Sách Mới Thêm Nhanh",
+                    "productType": "BOOK",
+                    "isTextbook": false,
+                    "price": 90000.00,
+                    "originalCost": 60000.00,
+                    "initialQuantity": 15
+                }
+                """;
 
+        mvc.perform(post("/api/products/quick-create")
+                        .with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF")))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/receipts/{id}: ADMIN bị từ chối 403 Forbidden (Option A1)")
+    void getReceiptApi_admin_forbidden() throws Exception {
         mvc.perform(get("/api/receipts/1").with(user(mockUser(1L, "admin@aureliabooks.com", "ADMIN"))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.receiptCode").value("GR-20261027-001"))
-                .andExpect(jsonPath("$.status").value("RECEIVED"));
+                .andExpect(status().isForbidden());
     }
 
     @Test
