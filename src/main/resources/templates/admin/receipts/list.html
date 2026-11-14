@@ -174,9 +174,9 @@
                                 <span>Xóa</span>
                             </button>
 
-                            <!-- Finalize Button (Only for DRAFT and Manager/Admin role) -->
+                            <!-- Finalize Button (Only for DRAFT and Manager role) -->
                             <button th:if="${r.status == 'DRAFT'}"
-                                    sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
+                                    sec:authorize="hasRole('MANAGER')"
                                     type="button"
                                     th:data-receipt-id="${r.id}"
                                     th:data-receipt-code="${r.receiptCode}"

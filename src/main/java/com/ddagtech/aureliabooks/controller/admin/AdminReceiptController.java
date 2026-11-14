@@ -82,7 +82,7 @@ public class AdminReceiptController {
             Model model
     ) {
         populateFormReferenceData(model);
-        String baseUri = isManagerOrAdmin(user) ? "/manager/receipts" : "/staff/receipts";
+        String baseUri = isManager(user) ? "/manager/receipts" : "/staff/receipts";
         model.addAttribute("baseUri", baseUri);
 
         if (!model.containsAttribute("receiptForm")) {
@@ -138,7 +138,7 @@ public class AdminReceiptController {
             Long receiptId = goodsReceiptService.createDraft(staffId, form);
             redirectAttributes.addFlashAttribute("successMessage",
                     "Đã lưu phiếu nhập kho ở trạng thái NHÁP (DRAFT) thành công! Tồn kho chưa bị thay đổi.");
-            return isManagerOrAdmin(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
+            return isManager(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
             redirectAttributes.addFlashAttribute("receiptForm", form);
@@ -160,7 +160,7 @@ public class AdminReceiptController {
         if (user == null || user.getId() == null) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-        String baseUri = isManagerOrAdmin(user) ? "/manager/receipts" : "/staff/receipts";
+        String baseUri = isManager(user) ? "/manager/receipts" : "/staff/receipts";
         model.addAttribute("baseUri", baseUri);
 
         try {
@@ -168,7 +168,7 @@ public class AdminReceiptController {
             if (detail.status() == GoodsReceipt.Status.RECEIVED) {
                 redirectAttributes.addFlashAttribute("errorMessage",
                         "Phiếu nhập kho đã hoàn tất (RECEIVED), không được phép chỉnh sửa!");
-                return isManagerOrAdmin(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
+                return isManager(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
             }
 
             populateFormReferenceData(model);
@@ -185,7 +185,7 @@ public class AdminReceiptController {
             return "admin/receipts/form";
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return isManagerOrAdmin(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
+            return isManager(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
         }
     }
 
@@ -216,7 +216,7 @@ public class AdminReceiptController {
             goodsReceiptService.updateDraft(staffId, id, form);
             redirectAttributes.addFlashAttribute("successMessage",
                     "Cập nhật phiếu nhập kho nháp thành công! Tồn kho chưa bị thay đổi.");
-            return isManagerOrAdmin(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
+            return isManager(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
             return "redirect:/staff/receipts/" + id + "/edit";
@@ -243,7 +243,7 @@ public class AdminReceiptController {
         } catch (AppException e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
-        return isManagerOrAdmin(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
+        return isManager(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
     }
 
     /**
@@ -309,7 +309,7 @@ public class AdminReceiptController {
      */
     @GetMapping("/api/receipts/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public ResponseEntity<GoodsReceiptDetailDto> getReceiptApi(@PathVariable Long id) {
         GoodsReceiptDetailDto detail = goodsReceiptService.getReceiptDetail(id);
         return ResponseEntity.ok(detail);
@@ -366,7 +366,7 @@ public class AdminReceiptController {
      */
     @PostMapping("/api/products/quick-create")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> quickCreateProduct(
             @Valid @RequestBody QuickCreateProductRequest request,
             BindingResult bindingResult
@@ -406,11 +406,10 @@ public class AdminReceiptController {
         model.addAttribute("textbookIds", textbookIds != null ? textbookIds : Collections.emptySet());
     }
 
-    private boolean isManagerOrAdmin(CustomUserDetails user) {
+    private boolean isManager(CustomUserDetails user) {
         if (user == null || user.getAuthorities() == null) {
             return false;
         }
-        return user.getAuthorities().stream().anyMatch(a ->
-                "ROLE_ADMIN".equals(a.getAuthority()) || "ROLE_MANAGER".equals(a.getAuthority()));
+        return user.getAuthorities().stream().anyMatch(a -> "ROLE_MANAGER".equals(a.getAuthority()));
     }
 }
