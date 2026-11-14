@@ -10,6 +10,7 @@ import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Publisher;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.service.MasterDataService;
+import com.ddagtech.aureliabooks.util.CategoryTreePage;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -331,7 +332,7 @@ Page<Author> authorsPage = masterDataService.listAuthors(keyword, pageable);
     @GetMapping("/manager/categories")
     public String categories(@RequestParam(defaultValue = "1") int page, Model model) {
         List<Category> allCategories = masterDataService.getAllCategoriesWithParent();
-        var treePage = com.ddagtech.aureliabooks.util.CategoryTreePage.from(allCategories, page);
+        var treePage = CategoryTreePage.from(allCategories, page);
         model.addAttribute("categories", treePage.rows());
         model.addAttribute("rootPage", treePage.roots());
         model.addAttribute("parentCategories", allCategories);
