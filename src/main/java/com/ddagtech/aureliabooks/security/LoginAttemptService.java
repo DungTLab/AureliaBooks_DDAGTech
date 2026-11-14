@@ -64,7 +64,7 @@ public class LoginAttemptService {
         }
     }
 
-        /**
+    /**
      * Resets failed login attempts and lifts any active temporary lock for the specified user.
      * Called when password is recovered via verified OTP or administratively reset.
      *

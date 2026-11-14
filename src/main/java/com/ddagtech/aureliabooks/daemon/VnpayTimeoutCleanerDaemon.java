@@ -9,7 +9,6 @@ import com.ddagtech.aureliabooks.service.StockMutationService;
 import com.ddagtech.aureliabooks.service.VNPayGatewayReconciliationClient;
 import com.ddagtech.aureliabooks.service.VNPayGatewayReconciliationClient.ReconciliationOutcome;
 import com.ddagtech.aureliabooks.service.VNPayGatewayReconciliationClient.ReconciliationResult;
-import com.ddagtech.aureliabooks.service.impl.VNPayServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
@@ -250,7 +249,9 @@ public class VnpayTimeoutCleanerDaemon {
      * Escalates to ERROR at 5 minutes past deadline, then throttles to periodic reminders
      * (every 15 minutes thereafter: 15m, 30m, 45m...) to avoid infinite log flooding on every daemon cycle.
      *
-     * @param postExpiredMinutes minutes elapsed past the order's expiration deadline
+     * @param orderId persistent order identifier
+     * @param postExpiration duration elapsed past the order's payment expiration deadline
+     * @param nowInstant current evaluation instant
      * @return true if an escalated ERROR alert should be emitted on this cycle
      */
     boolean shouldEmitErrorAlert(Long orderId, Duration postExpiration, Instant nowInstant) {
@@ -270,13 +271,5 @@ public class VnpayTimeoutCleanerDaemon {
 
     int trackedIndeterminateAlertCount() {
         return lastIndeterminateAlertAt.size();
-    }
-
-    @Deprecated
-    static boolean legacyShouldEmitErrorAlert(long postExpiredMinutes) {
-        if (postExpiredMinutes < 5) {
-            return false;
-        }
-        return postExpiredMinutes == 5 || (postExpiredMinutes > 5 && postExpiredMinutes % 15 == 0);
     }
 }

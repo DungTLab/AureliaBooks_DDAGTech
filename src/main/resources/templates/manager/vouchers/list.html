@@ -42,7 +42,9 @@
               data-form-validation
               class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
             <div>
-                <label for="voucherKeyword" class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Tìm theo mã</label>
+                <label
+                    for="voucherKeyword"
+                    class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Tìm theo mã</label>
                 <div class="relative">
                     <input id="voucherKeyword"
                            name="keyword"
@@ -54,15 +56,22 @@
                 </div>
             </div>
             <div>
-                <label for="voucherActive" class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Trạng thái bật/tắt</label>
-                <select id="voucherActive" name="active" class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
+                <label
+                    for="voucherActive"
+                    class="block text-xs font-semibold text-carbon_black-600 uppercase tracking-wider mb-1.5">Trạng thái bật/tắt</label>
+                <select
+                    id="voucherActive"
+                    name="active"
+                    class="w-full px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame transition">
                     <option value="">Tất cả</option>
                     <option value="true" th:selected="${active == true}">Đã bật</option>
                     <option value="false" th:selected="${active == false}">Đã tắt</option>
                 </select>
             </div>
             <div class="flex items-center gap-2">
-                <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-carbon_black hover:bg-carbon_black-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
+                <button
+                    type="submit"
+                    class="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-carbon_black hover:bg-carbon_black-700 text-white text-sm font-semibold rounded-xl transition shadow-sm">
                     <i class="bi bi-funnel-fill text-xs"></i>
                     <span>Lọc mã giảm giá</span>
                 </button>
@@ -170,7 +179,9 @@
          aria-label="Phân trang mã giảm giá"
          class="flex items-center justify-between bg-white border border-dust_grey rounded-2xl px-5 py-3 shadow-sm">
         <div>
-            <span class="text-xs text-carbon_black-600" th:text="'Trang ' + ${vouchers.number + 1} + ' / ' + ${vouchers.totalPages}">Trang 1 / 1</span>
+            <span
+                class="text-xs text-carbon_black-600"
+                th:text="'Trang ' + ${vouchers.number + 1} + ' / ' + ${vouchers.totalPages}">Trang 1 / 1</span>
         </div>
         <div class="flex items-center gap-2">
             <a th:if="${vouchers.hasPrevious()}"

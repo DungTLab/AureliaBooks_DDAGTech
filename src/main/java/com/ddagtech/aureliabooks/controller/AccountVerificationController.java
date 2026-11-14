@@ -2,15 +2,19 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.service.AccountOtpService;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
-import jakarta.servlet.http.*;
-import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -54,7 +58,9 @@ public class AccountVerificationController {
                 return startRecovery(identifier, channel, request, flash);
             }
             session.setAttribute("RECOVERY_IDENTIFIER", identifier);
-            if (channels.size() == 1) return startRecovery(identifier, channels.getFirst(), request, flash);
+            if (channels.size() == 1) {
+                return startRecovery(identifier, channels.getFirst(), request, flash);
+            }
             model.addAttribute("channels", channels);
         } catch (IllegalArgumentException ex) {
             model.addAttribute("recoveryError", ex.getMessage());
@@ -107,7 +113,9 @@ public class AccountVerificationController {
     public String view(HttpServletRequest request, Model model) {
         var s = request.getSession();
         var flow = otp.view((String) s.getAttribute("ACCOUNT_OTP_FLOW"), s.getId());
-        if (flow == null) return "redirect:/auth/forgot-password";
+        if (flow == null) {
+            return "redirect:/auth/forgot-password";
+        }
         model.addAttribute("verification", flow);
         return "auth/verification";
     }

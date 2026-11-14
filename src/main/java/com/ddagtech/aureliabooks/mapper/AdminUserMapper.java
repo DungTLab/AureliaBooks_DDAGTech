@@ -15,6 +15,12 @@ import java.util.Locale;
 @Component
 public class AdminUserMapper {
 
+    /**
+     * Converts a persistent {@link User} entity into a read-only {@link UserSummary} projection.
+     *
+     * @param user persisted user entity (nullable)
+     * @return immutable user summary DTO, or null when input is null
+     */
     public static UserSummary toSummary(User user) {
         if (user == null) {
             return null;
@@ -34,6 +40,15 @@ public class AdminUserMapper {
         );
     }
 
+    /**
+     * Builds a new active local internal staff {@link User} entity from admin creation input.
+     * Preserves existing verification behavior without modifying account security policy.
+     *
+     * @param req validated internal user creation payload
+     * @param encodedPassword BCrypt-encoded initial password hash
+     * @param assignedRole resolved internal {@link Role} entity
+     * @return new transient {@link User} instance, or null when request is null
+     */
     public User toInternalStaffEntity(UserCreateRequest req, String encodedPassword, Role assignedRole) {
         if (req == null) {
             return null;
@@ -52,6 +67,12 @@ public class AdminUserMapper {
                 .build();
     }
 
+    /**
+     * Converts a persistent {@link Role} entity into a selectable {@link RoleOption} DTO.
+     *
+     * @param role role entity (nullable)
+     * @return role option DTO, or null when role is null
+     */
     public RoleOption toRoleOption(Role role) {
         if (role == null) {
             return null;

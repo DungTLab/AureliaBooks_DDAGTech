@@ -1,50 +1,51 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/internal :: layout('Quản lý tài khoản nội bộ & Phân quyền RBAC', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Quản lý tài khoản nội bộ', ~{::#main-content})}">
 <head>
-    <title>Quản lý tài khoản nội bộ &amp; Phân quyền RBAC - AureliaBook</title>
+    <title>Quản lý tài khoản nội bộ - AureliaBook</title>
 </head>
 <body>
-<div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+<div id="main-content" class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-5 space-y-4">
 
     <!-- Page Header & Action Bar -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white border border-dust_grey rounded-2xl p-4 sm:p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
                 <span>Quản trị hệ thống</span>
-                <i class="bi bi-chevron-right text-[10px]"></i>
-                <span class="text-blazing_flame font-bold">Phân quyền RBAC</span>
+                <i class="bi bi-chevron-right text-[10px]" aria-hidden="true"></i>
+                <span class="text-blazing_flame font-bold">Tài khoản nội bộ</span>
             </div>
-            <h1 class="text-2xl font-bold text-carbon_black flex items-center gap-2">
-                <i class="bi bi-shield-lock-fill text-blazing_flame"></i>
+            <h1 class="text-xl sm:text-2xl font-bold text-carbon_black flex items-center gap-2">
+                <i class="bi bi-shield-lock-fill text-blazing_flame" aria-hidden="true"></i>
                 <span>Quản lý tài khoản nội bộ &amp; Vai trò</span>
             </h1>
-            <p class="text-sm text-carbon_black-600 mt-1">
-                Phân quyền tài khoản quản trị (ADMIN), quản lý (MANAGER) và nhân viên bán hàng (SALE_STAFF).
+            <p class="text-sm text-carbon_black-600 mt-0.5">
+                Quản lý và phân quyền tài khoản Quản trị viên, Quản lý và Nhân viên bán hàng.
             </p>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 shrink-0">
             <button type="button"
-                    onclick="openModal('createStaffModal')"
-                    class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame">
-                <i class="bi bi-person-plus-fill text-lg"></i>
+                    data-modal-open="createStaffModal"
+                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl shadow-sm hover:shadow-md transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame">
+                <i class="bi bi-person-plus-fill text-base" aria-hidden="true"></i>
                 <span>Thêm nhân viên mới</span>
             </button>
         </div>
     </div>
 
     <!-- Filter & Statistics Toolbar -->
-    <div class="bg-white border border-dust_grey rounded-2xl p-5 shadow-sm">
-        <form method="get" th:action="@{/admin/users}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div class="flex flex-wrap items-center gap-3">
+    <div class="bg-white border border-dust_grey rounded-2xl p-4 shadow-sm">
+        <form method="get" th:action="@{/admin/users}"
+              class="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+            <div class="flex flex-1 flex-wrap items-center gap-2.5">
                 <!-- Search Keyword -->
-                <div class="relative min-w-[220px]">
+                <div class="relative flex-1 min-w-[220px] max-w-sm">
                     <input type="text" name="keyword" th:value="${keyword}"
                            aria-label="Tìm kiếm theo tên, email hoặc số điện thoại"
-                           placeholder="Tìm tên, email, SĐT..."
-                           class="w-full pl-9 pr-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
-                    <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs"></i>
+                           placeholder="Tìm tên, email, số điện thoại..."
+                           class="w-full pl-9 pr-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black placeholder:text-carbon_black-400 focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition"/>
+                    <i class="bi bi-search absolute left-3 top-2.5 text-carbon_black-400 text-xs" aria-hidden="true"></i>
                 </div>
 
                 <!-- Role Filter -->
@@ -53,10 +54,10 @@
                         onchange="this.form.submit()"
                         class="px-3.5 py-2 bg-white border border-dust_grey rounded-xl text-sm font-medium text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition">
                     <option value="" th:selected="${selectedRole == null or selectedRole == ''}">Tất cả vai trò</option>
-                    <option value="ROLE_ADMIN" th:selected="${selectedRole == 'ROLE_ADMIN'}">Quản trị viên (ADMIN)</option>
-                    <option value="ROLE_MANAGER" th:selected="${selectedRole == 'ROLE_MANAGER'}">Quản lý (MANAGER)</option>
-                    <option value="ROLE_SALE_STAFF" th:selected="${selectedRole == 'ROLE_SALE_STAFF'}">Nhân viên (SALE_STAFF)</option>
-                    <option value="ROLE_CUSTOMER" th:selected="${selectedRole == 'ROLE_CUSTOMER'}">Khách hàng (CUSTOMER)</option>
+                    <option value="ROLE_ADMIN" th:selected="${selectedRole == 'ROLE_ADMIN'}">Quản trị viên</option>
+                    <option value="ROLE_MANAGER" th:selected="${selectedRole == 'ROLE_MANAGER'}">Quản lý</option>
+                    <option value="ROLE_SALE_STAFF" th:selected="${selectedRole == 'ROLE_SALE_STAFF'}">Nhân viên</option>
+                    <option value="ROLE_CUSTOMER" th:selected="${selectedRole == 'ROLE_CUSTOMER'}">Khách hàng</option>
                 </select>
 
                 <!-- Status Filter -->
@@ -69,20 +70,21 @@
                     <option value="false" th:selected="${selectedActive == false}">Đã khóa</option>
                 </select>
 
-                <button type="submit" class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black text-white text-sm font-semibold rounded-xl hover:bg-carbon_black-800 transition shadow-sm">
-                    <i class="bi bi-funnel-fill text-xs"></i>
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-carbon_black text-white text-sm font-semibold rounded-xl hover:bg-carbon_black-800 transition shadow-sm">
+                    <i class="bi bi-funnel-fill text-xs" aria-hidden="true"></i>
                     <span>Lọc</span>
                 </button>
 
                 <a th:if="${(selectedRole != null and selectedRole != '') or selectedActive != null or (keyword != null and keyword != '')}"
                    th:href="@{/admin/users}"
                    class="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-carbon_black-500 hover:text-blazing_flame transition">
-                    <i class="bi bi-x-circle"></i>
+                    <i class="bi bi-x-circle" aria-hidden="true"></i>
                     <span>Xóa lọc</span>
                 </a>
             </div>
 
-            <div class="text-sm text-carbon_black-600 flex items-center gap-2">
+            <div class="text-sm text-carbon_black-600 flex items-center gap-2 shrink-0">
                 <span>Tổng số:</span>
                 <span class="font-bold text-carbon_black px-2.5 py-0.5 bg-alabaster_grey rounded-lg"
                       th:text="${usersPage != null ? usersPage.totalElements : 0} + ' tài khoản'">0 tài khoản</span>
@@ -95,39 +97,39 @@
         <div class="w-full overflow-x-auto">
             <table class="w-full divide-y divide-dust_grey text-left text-sm">
                 <thead class="bg-alabaster_grey/60 text-carbon_black-600 font-semibold uppercase text-xs tracking-wider border-b border-dust_grey">
-                    <tr>
-                        <th class="px-2.5 py-3.5 text-center w-12 font-bold">ID</th>
-                        <th class="px-3 py-3.5 text-left font-bold">Nhân sự</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28">Số điện thoại</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-32">Vai trò hiện tại</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-32">Đổi vai trò</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28">Trạng thái</th>
-                        <th class="px-2.5 py-3.5 text-center whitespace-nowrap font-bold w-28 hidden lg:table-cell">Ngày tạo</th>
-                        <th class="px-3 py-3.5 text-center whitespace-nowrap font-bold w-44">Hành động</th>
-                    </tr>
+                <tr>
+                    <th class="px-3 py-3 text-center w-14 font-bold">ID</th>
+                    <th class="px-3.5 py-3 text-left font-bold min-w-[220px]">Nhân sự</th>
+                    <th class="px-3 py-3 text-center whitespace-nowrap font-bold">Số điện thoại</th>
+                    <th class="px-3 py-3 text-center whitespace-nowrap font-bold">Vai trò hiện tại</th>
+                    <th class="px-3 py-3 text-center whitespace-nowrap font-bold">Đổi vai trò</th>
+                    <th class="px-3 py-3 text-center whitespace-nowrap font-bold">Trạng thái</th>
+                    <th class="px-3 py-3 text-center whitespace-nowrap font-bold hidden lg:table-cell">Ngày tạo</th>
+                    <th class="px-3.5 py-3 text-center whitespace-nowrap font-bold">Hành động</th>
+                </tr>
                 </thead>
                 <tbody class="divide-y divide-dust_grey/70 bg-white">
-                    <tr th:each="user : ${usersPage?.content}"
-                        class="hover:bg-alabaster_grey/30 transition-colors"
-                        th:classappend="${#authentication.principal.id == user.id} ? 'bg-amber-50/40' : ''">
+                <tr th:each="user : ${usersPage?.content}"
+                    class="hover:bg-alabaster_grey/30 transition-colors"
+                    th:classappend="${#authentication.principal.id == user.id} ? 'bg-amber-50/40' : ''">
 
-                        <!-- ID -->
-                        <td class="px-2.5 py-3 text-center font-mono text-xs font-semibold whitespace-nowrap">
-                            <span class="text-carbon_black-500" th:text="'#' + ${user.id}">#1</span>
-                        </td>
+                    <!-- ID -->
+                    <td class="px-3 py-2.5 text-center font-mono text-xs font-semibold whitespace-nowrap">
+                        <span class="text-carbon_black-500" th:text="'#' + ${user.id}">#1</span>
+                    </td>
 
-                        <!-- Name & Email -->
-                        <td class="px-3 py-3">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs bg-blazing_flame/10 text-blazing_flame">
-                                    <span th:text="${user.fullName != null and !#strings.isEmpty(user.fullName) ? #strings.substring(user.fullName, 0, 1) : 'U'}">A</span>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <div class="font-semibold text-carbon_black text-sm flex items-center gap-1.5 truncate">
-                                        <span class="truncate" th:text="${user.fullName}" th:title="${user.fullName}">Nguyễn Văn A</span>
-                                        <!-- Current Authenticated Admin Badge -->
-                                        <span th:if="${#authentication.principal.id == user.id}"
-                                              class="text-[9px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                    <!-- Name & Email -->
+                    <td class="px-3.5 py-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs bg-blazing_flame/10 text-blazing_flame">
+                                <span th:text="${user.fullName != null and !#strings.isEmpty(user.fullName) ? #strings.substring(user.fullName, 0, 1) : 'U'}">A</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-semibold text-carbon_black text-sm flex items-center gap-1.5 truncate">
+                                    <span class="truncate" th:text="${user.fullName}" th:title="${user.fullName}">Nguyễn Văn A</span>
+                                    <!-- Current Authenticated Admin Badge -->
+                                    <span th:if="${#authentication.principal.id == user.id}"
+                                          class="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-full flex-shrink-0">
                                             (Bạn)
                                         </span>
                                     </div>
@@ -147,10 +149,10 @@
                                             <i class="bi bi-exclamation-circle text-[10px]" aria-hidden="true"></i>
                                             <span>Chưa xác minh</span>
                                         </span>
-                                    </div>
                                 </div>
                             </div>
-                        </td>
+                        </div>
+                    </td>
 
                         <!-- Phone -->
                         <td class="px-2.5 py-3 text-center whitespace-nowrap">
@@ -170,167 +172,181 @@
                             </div>
                         </td>
 
-                        <!-- Role Badge -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap">
+                    <!-- Role Badge -->
+                    <td class="px-3 py-2.5 text-center whitespace-nowrap">
                             <span th:if="${user.roleName == 'ROLE_ADMIN'}"
                                   class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">
-                                <i class="bi bi-shield-shaded text-[11px]"></i>
+                                <i class="bi bi-shield-shaded text-[11px]" aria-hidden="true"></i>
                                 Quản trị viên
                             </span>
-                            <span th:if="${user.roleName == 'ROLE_MANAGER'}"
-                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-                                <i class="bi bi-briefcase-fill text-[11px]"></i>
+                        <span th:if="${user.roleName == 'ROLE_MANAGER'}"
+                              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                <i class="bi bi-briefcase-fill text-[11px]" aria-hidden="true"></i>
                                 Quản lý
                             </span>
-                            <span th:if="${user.roleName == 'ROLE_SALE_STAFF'}"
-                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                <i class="bi bi-person-badge-fill text-[11px]"></i>
+                        <span th:if="${user.roleName == 'ROLE_SALE_STAFF'}"
+                              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <i class="bi bi-person-badge-fill text-[11px]" aria-hidden="true"></i>
                                 Nhân viên
                             </span>
-                            <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
-                                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
-                                <i class="bi bi-person-fill text-[11px]"></i>
+                        <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
+                              class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+                                <i class="bi bi-person-fill text-[11px]" aria-hidden="true"></i>
                                 Khách hàng
                             </span>
-                        </td>
+                    </td>
 
-                        <!-- Quick Role Change (Centered, No reset-password button here) -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap">
-                            <!-- Customer -> Non-changeable inline -->
-                            <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
-                                  class="text-xs text-carbon_black-400 italic">
+                    <!-- Quick Role Change (Centered, Brand Confirm Modal) -->
+                    <td class="px-3 py-2.5 text-center whitespace-nowrap">
+                        <!-- Customer -> Non-changeable inline -->
+                        <span th:if="${user.roleName == 'ROLE_CUSTOMER'}"
+                              class="text-xs text-carbon_black-400 italic">
                                 Khách hàng
                             </span>
 
-                            <!-- Authenticated Admin cannot demote self -->
-                            <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
-                                  class="text-xs text-carbon_black-400 italic"
-                                  title="Không thể tự thu hồi quyền Admin của chính mình">
+                        <!-- Authenticated Admin cannot demote self -->
+                        <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
+                              class="text-xs text-carbon_black-400 italic"
+                              title="Không thể tự thu hồi quyền Admin của chính mình">
                                 Không thể đổi
                             </span>
 
-                            <!-- Other Internal Staff -> Can change role if not current authenticated admin -->
-                            <form th:if="${user.roleName != 'ROLE_CUSTOMER' and (#authentication.principal.id != user.id or user.roleName != 'ROLE_ADMIN')}"
-                                  method="post"
-                                  th:action="@{/admin/users/{id}/change-role(id=${user.id})}"
-                                  class="inline-flex justify-center">
-                                <select name="roleId"
-                                        aria-label="Thay đổi vai trò nhân sự"
-                                        onchange="if(confirm('Bạn có chắc chắn muốn thay đổi vai trò tài khoản này? Người dùng sẽ phải đăng nhập lại.')) this.form.submit(); else this.value=this.getAttribute('data-original');"
-                                        th:data-original="${user.roleId}"
-                                        class="text-xs font-medium border border-dust_grey rounded-lg px-2 py-1 bg-white text-carbon_black focus:ring-1 focus:ring-blazing_flame focus:outline-none transition cursor-pointer">
-                                    <option th:each="r : ${roles}"
-                                            th:value="${r.id}"
-                                            th:text="${r.roleName == 'ROLE_ADMIN' ? 'ADMIN' : (r.roleName == 'ROLE_MANAGER' ? 'MANAGER' : 'SALE_STAFF')}"
-                                            th:selected="${r.roleName == user.roleName}">
-                                    </option>
-                                </select>
-                            </form>
-                        </td>
+                        <!-- Other Internal Staff -> Can change role if not current authenticated admin -->
+                        <form th:if="${user.roleName != 'ROLE_CUSTOMER' and (#authentication.principal.id != user.id or user.roleName != 'ROLE_ADMIN')}"
+                              method="post"
+                              th:action="@{/admin/users/{id}/change-role(id=${user.id})}"
+                              class="inline-flex justify-center">
+                            <select name="roleId"
+                                    aria-label="Thay đổi vai trò nhân sự"
+                                    data-confirm-select="true"
+                                    th:data-original="${user.roleId}"
+                                    th:data-confirm-target="${user.fullName}"
+                                    class="min-w-[136px] text-xs font-medium border border-dust_grey rounded-lg px-2.5 py-1.5 bg-white text-carbon_black focus:ring-2 focus:ring-blazing_flame/20 focus:border-blazing_flame focus:outline-none transition cursor-pointer">
+                                <option th:each="r : ${roles}"
+                                        th:value="${r.id}"
+                                        th:text="${r.roleName == 'ROLE_ADMIN' ? 'Quản trị viên' : (r.roleName == 'ROLE_MANAGER' ? 'Quản lý' : 'Nhân viên')}"
+                                        th:selected="${r.roleName == user.roleName}">
+                                </option>
+                            </select>
+                        </form>
+                    </td>
 
-                        <!-- Active Status Badge -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap">
+                    <!-- Active Status Badge -->
+                    <td class="px-3 py-2.5 text-center whitespace-nowrap">
                             <span th:if="${user.active}"
                                   class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
                                 <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                                 Hoạt động
                             </span>
-                            <span th:unless="${user.active}"
-                                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+                        <span th:unless="${user.active}"
+                              class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
                                 <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                                 Đã khóa
                             </span>
-                        </td>
+                    </td>
 
-                        <!-- Created At (Hidden on smaller viewports to prevent overflow) -->
-                        <td class="px-2.5 py-3 text-center whitespace-nowrap text-xs text-carbon_black-500 hidden lg:table-cell"
-                            th:text="${user.createdAt != null ? #temporals.format(user.createdAt, 'dd/MM/yyyy') : '—'}">
-                            01/01/2026
-                        </td>
+                    <!-- Created At (Hidden on smaller viewports to prevent overflow) -->
+                    <td class="px-3 py-2.5 text-center whitespace-nowrap text-xs text-carbon_black-500 hidden lg:table-cell"
+                        th:text="${user.createdAt != null ? #temporals.format(user.createdAt, 'dd/MM/yyyy') : '—'}">
+                        01/01/2026
+                    </td>
 
-                        <!-- Actions (Self-Lock Protected per BR-08-01, Contact Support without password reset) -->
-                        <td class="px-3 py-3 text-center">
-                            <div class="inline-flex flex-wrap items-center justify-center gap-1.5">
-                                <!-- Case 1: Self Account -> Disallow Self-Lock -->
-                                <div th:if="${#authentication.principal.id == user.id}">
-                                    <button type="button"
-                                            disabled
-                                            title="Bạn không thể tự khóa tài khoản của chính mình (BR-08-01)"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-carbon_black-400 bg-dust_grey/30 border border-dust_grey cursor-not-allowed opacity-60">
-                                        <i class="bi bi-lock-fill"></i>
-                                        <span>Tự khóa</span>
-                                    </button>
-                                </div>
+                    <!-- Actions (Self-Lock Protected per BR-08-01, Centered Buttons) -->
+                    <td class="px-3.5 py-2.5 whitespace-nowrap text-center">
+                        <div class="inline-flex flex-wrap items-center justify-center gap-1.5">
+                            <!-- Case 1: Self Account -> Disallow Self-Lock -->
+                            <div th:if="${#authentication.principal.id == user.id}">
+                                <button type="button"
+                                        disabled
+                                        title="Bạn không thể tự khóa tài khoản của chính mình"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-carbon_black-400 bg-dust_grey/30 border border-dust_grey cursor-not-allowed opacity-60">
+                                    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                                    <span>Tự khóa</span>
+                                </button>
+                            </div>
 
-                                <!-- Case 2: Other Staff / Customer -> Allow Lock / Unlock Toggle -->
-                                <form th:if="${#authentication.principal.id != user.id}"
-                                      method="post"
-                                      th:action="@{/admin/users/{id}/toggle-status(id=${user.id})}"
-                                      class="inline-block">
-                                    <input type="hidden" name="active" th:value="${!user.active}" />
-                                    
-                                    <button th:if="${user.active}"
-                                            type="submit"
-                                            onclick="return confirm('Bạn có chắc chắn muốn khóa tài khoản này? Mọi phiên đăng nhập hiện tại của người dùng sẽ bị thu hồi ngay lập tức.');"
-                                            title="Khóa tài khoản này và thu hồi các phiên đăng nhập"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition">
-                                        <i class="bi bi-lock-fill"></i>
-                                        <span>Khóa</span>
-                                    </button>
+                            <!-- Case 2: Other Staff / Customer -> Allow Lock / Unlock Toggle -->
+                            <form th:if="${#authentication.principal.id != user.id}"
+                                  method="post"
+                                  data-confirm-form="true"
+                                  th:action="@{/admin/users/{id}/toggle-status(id=${user.id})}"
+                                  class="inline-block">
+                                <input type="hidden" name="active" th:value="${!user.active}"/>
 
-                                    <button th:unless="${user.active}"
-                                            type="submit"
-                                            onclick="return confirm('Bạn có chắc chắn muốn mở khóa cho tài khoản này?');"
-                                            title="Mở khóa tài khoản"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
-                                        <i class="bi bi-unlock-fill"></i>
-                                        <span>Mở khóa</span>
-                                    </button>
-                                </form>
-
-                                <!-- Case 3: Contact Support for other Internal Staff (never CUSTOMER, never self, never password reset) -->
-                                <button th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id != user.id}"
-                                        type="button"
-                                        onclick="openContactSupportModal(this)"
-                                        th:data-user-id="${user.id}"
-                                        th:data-user-name="${user.fullName}"
-                                        th:data-user-email="${user.email}"
-                                        th:data-user-phone="${user.phone}"
-                                        th:data-email-verified="${user.emailVerified}"
-                                        th:data-contact-url="@{/admin/users/{id}/contact(id=${user.id})}"
-                                        title="Cập nhật thông tin liên hệ nhân sự (đặt lại trạng thái chưa xác minh)"
-                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-blazing_flame bg-blazing_flame/10 hover:bg-blazing_flame/20 border border-blazing_flame/30 transition whitespace-nowrap">
-                                    <i class="bi bi-envelope-at-fill" aria-hidden="true"></i>
-                                    <span>Cập nhật liên hệ</span>
+                                <button th:if="${user.active}"
+                                        type="submit"
+                                        data-confirm-title="Xác nhận khóa tài khoản"
+                                        data-confirm-message="Mọi phiên đăng nhập hiện tại của tài khoản này sẽ bị thu hồi ngay lập tức."
+                                        data-confirm-tone="danger"
+                                        data-confirm-cta="Khóa tài khoản"
+                                        th:data-confirm-target="${user.fullName}"
+                                        title="Khóa tài khoản này và thu hồi các phiên đăng nhập"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition">
+                                    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                                    <span>Khóa</span>
                                 </button>
 
-                                <!-- Case 4: Optional Revoke Email Verification when compromised -->
-                                <form th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id != user.id and user.emailVerified}"
-                                      method="post"
-                                      th:action="@{/admin/users/{id}/contact/revoke-verification(id=${user.id})}"
-                                      class="inline-block">
-                                    <button type="submit"
-                                            onclick="return confirm('Gỡ trạng thái xác minh email khôi phục của nhân sự này? Nhân sự sẽ cần xác minh lại email trước khi tự khôi phục mật khẩu.');"
-                                            title="Gỡ xác minh email khôi phục"
-                                            class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition whitespace-nowrap">
-                                        <i class="bi bi-shield-x" aria-hidden="true"></i>
-                                        <span>Gỡ xác minh</span>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
+                                <button th:unless="${user.active}"
+                                        type="submit"
+                                        data-confirm-title="Xác nhận mở khóa tài khoản"
+                                        data-confirm-message="Tài khoản này sẽ có thể đăng nhập lại vào hệ thống."
+                                        data-confirm-tone="success"
+                                        data-confirm-cta="Mở khóa tài khoản"
+                                        th:data-confirm-target="${user.fullName}"
+                                        title="Mở khóa tài khoản"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition">
+                                    <i class="bi bi-unlock-fill" aria-hidden="true"></i>
+                                    <span>Mở khóa</span>
+                                </button>
+                            </form>
 
-                    <!-- Empty State -->
-                    <tr th:if="${usersPage == null or usersPage.content.isEmpty()}">
-                        <td colspan="8" class="px-4 py-12 text-center text-carbon_black-500">
-                            <div class="flex flex-col items-center justify-center gap-2">
-                                <i class="bi bi-people text-4xl text-dust_grey"></i>
-                                <span class="font-semibold text-base">Không tìm thấy tài khoản người dùng nào phù hợp.</span>
-                                <span class="text-xs text-carbon_black-400">Hãy thử thay đổi tiêu chí lọc hoặc thêm nhân viên mới.</span>
-                            </div>
-                        </td>
-                    </tr>
+                            <!-- Case 3: Contact Support for other Internal Staff (never CUSTOMER, never self, never password reset) -->
+                            <button th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id != user.id}"
+                                    type="button"
+                                    data-modal-open="contactSupportModal"
+                                    th:data-user-id="${user.id}"
+                                    th:data-user-name="${user.fullName}"
+                                    th:data-user-email="${user.email}"
+                                    th:data-user-phone="${user.phone}"
+                                    th:data-email-verified="${user.emailVerified}"
+                                    th:data-contact-url="@{/admin/users/{id}/contact(id=${user.id})}"
+                                    title="Cập nhật thông tin liên hệ nhân sự (đặt lại trạng thái chưa xác minh)"
+                                    class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-blazing_flame bg-blazing_flame/10 hover:bg-blazing_flame/20 border border-blazing_flame/30 transition whitespace-nowrap">
+                                <i class="bi bi-envelope-at-fill" aria-hidden="true"></i>
+                                <span>Cập nhật liên hệ</span>
+                            </button>
+
+                            <!-- Case 4: Optional Revoke Email Verification when compromised -->
+                            <form th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id != user.id and user.emailVerified}"
+                                  method="post"
+                                  data-confirm-form="true"
+                                  th:action="@{/admin/users/{id}/contact/revoke-verification(id=${user.id})}"
+                                  class="inline-block">
+                                <button type="submit"
+                                        data-confirm-title="Gỡ xác minh email khôi phục?"
+                                        data-confirm-message="Nhân sự sẽ cần xác minh lại email trước khi tự khôi phục mật khẩu."
+                                        data-confirm-cta="Gỡ xác minh"
+                                        th:data-confirm-target="${user.fullName}"
+                                        title="Gỡ xác minh email khôi phục"
+                                        class="inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition whitespace-nowrap">
+                                    <i class="bi bi-shield-x" aria-hidden="true"></i>
+                                    <span>Gỡ xác minh</span>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Empty State -->
+                <tr th:if="${usersPage == null or usersPage.content.isEmpty()}">
+                    <td colspan="8" class="px-4 py-12 text-center text-carbon_black-500">
+                        <div class="flex flex-col items-center justify-center gap-2">
+                            <i class="bi bi-people text-4xl text-dust_grey"></i>
+                            <span class="font-semibold text-base">Không tìm thấy tài khoản người dùng nào phù hợp.</span>
+                            <span class="text-xs text-carbon_black-400">Hãy thử thay đổi tiêu chí lọc hoặc thêm nhân viên mới.</span>
+                        </div>
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>
@@ -368,49 +384,74 @@
 
     <!-- Create Staff Modal Dialog -->
     <div id="createStaffModal"
+         data-custom-modal="true"
          class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
          role="dialog"
          aria-modal="true"
+         aria-hidden="true"
          aria-labelledby="createStaffModalTitle">
-        <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-dust_grey overflow-hidden animate-fade-in-down">
+        <div class="relative w-full max-w-xl my-auto max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-xl border border-dust_grey">
             <!-- Modal Header -->
-            <div class="px-6 py-4 bg-alabaster_grey/60 border-b border-dust_grey flex items-center justify-between">
+            <div class="px-5 py-3.5 bg-alabaster_grey/60 border-b border-dust_grey flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-blazing_flame/10 text-blazing_flame flex items-center justify-center font-bold">
-                        <i class="bi bi-person-plus-fill"></i>
+                        <i class="bi bi-person-plus-fill" aria-hidden="true"></i>
                     </div>
-                    <h3 id="createStaffModalTitle" class="font-bold text-lg text-carbon_black">Thêm nhân viên nội bộ mới</h3>
+                    <h3 id="createStaffModalTitle" class="font-bold text-base sm:text-lg text-carbon_black">Thêm nhân viên nội bộ mới</h3>
                 </div>
                 <button type="button"
-                        onclick="closeModal('createStaffModal')"
+                        data-modal-close="createStaffModal"
                         aria-label="Đóng"
                         class="text-carbon_black-400 hover:text-carbon_black p-1.5 rounded-lg hover:bg-dust_grey/20 transition">
-                    <i class="bi bi-x-lg text-sm"></i>
+                    <i class="bi bi-x-lg text-sm" aria-hidden="true"></i>
                 </button>
             </div>
 
             <!-- Modal Form -->
-            <form method="post" th:action="@{/admin/users/create}" th:object="${newUserForm}" class="p-6 space-y-4">
-                <!-- Full Name -->
-                <div>
-                    <label for="fullName" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                        Họ và tên <span class="text-blazing_flame">*</span>
-                    </label>
-                    <input type="text" id="fullName" th:field="*{fullName}"
-                           required
-                           placeholder="Nguyễn Văn A"
-                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+            <form method="post" th:action="@{/admin/users/create}" th:object="${newUserForm}" class="p-5 space-y-3.5">
+                <!-- Full Name & Mobile Phone (2-column compact row) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label for="fullName"
+                               class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                            Họ và tên <span class="text-blazing_flame">*</span>
+                        </label>
+                        <input type="text" id="fullName" th:field="*{fullName}"
+                               required
+                               placeholder="Nguyễn Văn A"
+                               th:classappend="${#fields.hasErrors('fullName')} ? 'border-[#d3380d] focus:ring-[#d3380d]/20' : 'border-dust_grey focus:border-blazing_flame focus:ring-blazing_flame/20'"
+                               class="w-full px-3.5 py-2 bg-white border rounded-xl text-sm text-carbon_black focus:outline-none focus:ring-2 transition"/>
+                        <p class="text-xs text-[#d3380d] mt-1 font-medium" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></p>
+                    </div>
+
+                    <div>
+                        <label for="phone"
+                               class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                            Số điện thoại <span class="text-blazing_flame">*</span>
+                        </label>
+                        <input type="tel" id="phone" th:field="*{phone}"
+                               required
+                               pattern="^(0|\+84)[35789][0-9]{8}$"
+                               placeholder="0912345678"
+                               th:classappend="${#fields.hasErrors('phone')} ? 'border-[#d3380d] focus:ring-[#d3380d]/20' : 'border-dust_grey focus:border-blazing_flame focus:ring-blazing_flame/20'"
+                               class="w-full px-3.5 py-2 bg-white border rounded-xl text-sm text-carbon_black focus:outline-none focus:ring-2 transition"/>
+                        <p class="text-xs text-[#d3380d] mt-1 font-medium" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></p>
+                        <span class="text-[11px] text-carbon_black-500 mt-0.5 block">Định dạng số điện thoại Việt Nam (10 chữ số).</span>
+                    </div>
                 </div>
 
                 <!-- Email -->
                 <div>
-                    <label for="email" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
+                    <label for="email"
+                           class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
                         Email đăng nhập <span class="text-blazing_flame">*</span>
                     </label>
                     <input type="email" id="email" th:field="*{email}"
                            required
-                           placeholder="staff@aureliabook.vn"
-                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
+                           placeholder="nhanvien@aureliabook.vn"
+                           th:classappend="${#fields.hasErrors('email')} ? 'border-[#d3380d] focus:ring-[#d3380d]/20' : 'border-dust_grey focus:border-blazing_flame focus:ring-blazing_flame/20'"
+                           class="w-full px-3.5 py-2 bg-white border rounded-xl text-sm text-carbon_black focus:outline-none focus:ring-2 transition"/>
+                    <p class="text-xs text-[#d3380d] mt-1 font-medium" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></p>
                 </div>
 
                 <!-- Initial Password & Recovery Email Notice -->
@@ -423,51 +464,38 @@
                     </div>
                 </div>
 
-                <!-- Mobile Phone -->
-                <div>
-                    <label for="phone" class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1">
-                        Số điện thoại <span class="text-blazing_flame">*</span>
-                    </label>
-                    <input type="tel" id="phone" th:field="*{phone}"
-                           required
-                           pattern="^(0|\+84)[35789][0-9]{8}$"
-                           placeholder="0912345678"
-                           class="w-full px-3.5 py-2.5 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
-                    <span class="text-[11px] text-carbon_black-500 mt-0.5 block">Định dạng số điện thoại Việt Nam (10 chữ số).</span>
-                </div>
-
                 <!-- Role Selection -->
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-carbon_black-700 mb-1.5">
                         Vai trò được phân quyền <span class="text-blazing_flame">*</span>
                     </label>
-                    <div class="space-y-2">
+                    <div class="space-y-1.5">
                         <label th:each="role : ${roles}"
-                               class="flex items-center gap-3 p-3 border border-dust_grey rounded-xl hover:bg-alabaster_grey/40 cursor-pointer transition">
+                               class="flex items-center gap-3 p-2.5 border border-dust_grey rounded-xl hover:bg-alabaster_grey/40 cursor-pointer transition">
                             <input type="radio" th:field="*{roleId}" th:value="${role.id}"
                                    required
-                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4" />
+                                   class="text-blazing_flame focus:ring-blazing_flame h-4 w-4"/>
                             <span class="block">
                                 <span class="block font-bold text-xs text-carbon_black"
-                                      th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị viên (ADMIN)' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý kho & danh mục (MANAGER)' : 'Nhân viên bán hàng (SALE_STAFF)')}">
+                                      th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị viên' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý kho & danh mục' : 'Nhân viên bán hàng')}">
                                     Vai trò
                                 </span>
                                 <span class="block text-[11px] text-carbon_black-500"
-                                      th:text="${role.description != null ? role.description : role.roleName}">Mô tả vai trò</span>
+                                      th:text="${role.roleName == 'ROLE_ADMIN' ? 'Quản trị tài khoản, phân quyền và giám sát toàn hệ thống' : (role.roleName == 'ROLE_MANAGER' ? 'Quản lý sản phẩm, nhà cung cấp, nhập kho và khuyến mại' : 'Tiếp nhận, xử lý đơn hàng và lập phiếu nhập nháp')}">Mô tả vai trò</span>
                             </span>
                         </label>
                     </div>
                 </div>
 
                 <!-- Form Actions -->
-                <div class="pt-4 border-t border-dust_grey flex items-center justify-end gap-3">
+                <div class="pt-3 border-t border-dust_grey flex items-center justify-end gap-2.5">
                     <button type="button"
-                            onclick="closeModal('createStaffModal')"
+                            data-modal-close="createStaffModal"
                             class="px-4 py-2 border border-dust_grey rounded-xl text-sm font-semibold text-carbon_black hover:bg-alabaster_grey transition">
                         Hủy
                     </button>
                     <button type="submit"
-                            class="px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl shadow-md transition">
+                            class="px-5 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl shadow-sm transition">
                         Tạo tài khoản
                     </button>
                 </div>
@@ -477,6 +505,8 @@
 
     <!-- Contact Support Modal Dialog (Direct Unverified Contact Update, No Password Access) -->
     <div id="contactSupportModal"
+         data-custom-modal="true"
+         aria-hidden="true"
          class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
          role="dialog"
          aria-modal="true"
@@ -494,7 +524,7 @@
                     </div>
                 </div>
                 <button type="button"
-                        onclick="closeModal('contactSupportModal')"
+                        data-modal-close="contactSupportModal"
                         aria-label="Đóng"
                         class="text-carbon_black-400 hover:text-carbon_black p-1.5 rounded-lg hover:bg-dust_grey/20 transition">
                     <i class="bi bi-x-lg text-sm"></i>
@@ -554,7 +584,7 @@
                                id="supportContactReason"
                                name="reason"
                                required
-                               maxlength="255"
+                               maxlength="200"
                                placeholder="Ví dụ: Đã kiểm tra thẻ nhân sự trực tiếp, cập nhật lại liên hệ công việc"
                                class="w-full px-3 py-2 bg-white border border-dust_grey rounded-xl text-sm text-carbon_black focus:outline-none focus:border-blazing_flame focus:ring-2 focus:ring-blazing_flame/20 transition" />
                     </div>
@@ -569,7 +599,7 @@
                     </label>
                     <div class="flex justify-end gap-2">
                         <button type="button"
-                                onclick="closeModal('contactSupportModal')"
+                                data-modal-close="contactSupportModal"
                                 class="px-4 py-2 border border-dust_grey bg-white rounded-xl text-xs font-semibold text-carbon_black hover:bg-alabaster_grey transition">
                             Đóng
                         </button>
@@ -583,113 +613,313 @@
         </div>
     </div>
 
-    <!-- Vanilla Modal Controller Script with A11y & Auto-Reopen -->
+    <!-- Reusable Action Confirmation Modal Dialog -->
+    <div id="confirmActionModal"
+         data-custom-modal="true"
+         class="fixed inset-0 z-50 hidden bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+         role="dialog"
+         aria-modal="true"
+         aria-hidden="true"
+         aria-labelledby="confirmActionTitle"
+         aria-describedby="confirmActionMessage">
+        <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-dust_grey overflow-hidden">
+            <div class="p-5 space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3">
+                        <div id="confirmActionBadge"
+                             class="w-10 h-10 rounded-xl border flex items-center justify-center text-lg shrink-0 bg-amber-50 text-amber-800 border-amber-200">
+                            <i id="confirmActionIcon" class="bi bi-shield-exclamation" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <h3 id="confirmActionTitle" class="font-bold text-base text-carbon_black">Xác nhận thao tác</h3>
+                            <p id="confirmActionTargetRow" class="text-xs text-carbon_black-500 mt-0.5 hidden">
+                                Đối tượng: <strong id="confirmActionTarget" class="text-carbon_black"></strong>
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button"
+                            data-modal-close="confirmActionModal"
+                            aria-label="Đóng hộp thoại xác nhận"
+                            class="text-carbon_black-400 hover:text-carbon_black p-1 rounded-lg hover:bg-dust_grey/20 transition">
+                        <i class="bi bi-x-lg text-sm" aria-hidden="true"></i>
+                    </button>
+                </div>
+
+                <p id="confirmActionMessage" class="text-sm text-carbon_black-700 leading-relaxed bg-parchment/60 border border-dust_grey/80 rounded-xl p-3">
+                    Bạn có chắc chắn muốn thực hiện thao tác này?
+                </p>
+            </div>
+
+            <div class="px-5 py-3.5 bg-alabaster_grey/40 border-t border-dust_grey flex items-center justify-end gap-2.5">
+                <button type="button"
+                        id="confirmActionCancelBtn"
+                        data-modal-close="confirmActionModal"
+                        class="px-4 py-2 bg-white border border-dust_grey rounded-xl text-sm font-semibold text-carbon_black hover:bg-alabaster_grey transition">
+                    Hủy bỏ
+                </button>
+                <button type="button"
+                        id="confirmActionSubmitBtn"
+                        class="px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame">
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unified Accessible Modal & Action Confirmation Controller -->
     <script>
-        let createStaffInFlight = false;
-
-        function openModal(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.remove('hidden');
-                document.body.classList.add('overflow-hidden');
-                const firstInput = modal.querySelector('input:not([type="hidden"])');
-                if (firstInput) {
-                    firstInput.focus();
-                }
-            }
-        }
-
-        function closeModal(modalId) {
-            if (modalId === 'createStaffModal' && createStaffInFlight) {
-                return;
-            }
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('hidden');
-                document.body.classList.remove('overflow-hidden');
-            }
-        }
-
-        function configureContactSupportForUser(userId, userName, userEmail, userPhone, emailVerified, contactUrl) {
-            const directForm = document.getElementById('contactSupportDirectForm');
-            if (directForm) {
-                directForm.setAttribute('action', contactUrl || ('/admin/users/' + userId + '/contact'));
-            }
-            const summary = document.getElementById('contactSupportTargetSummary');
-            if (summary) {
-                const displayName = userName ? userName : ('Nhân sự #' + userId);
-                const statusLabel = emailVerified === true || emailVerified === 'true' ? 'Đã xác minh email' : 'Email chưa xác minh';
-                summary.textContent = displayName + ' (#' + userId + ') · ' + statusLabel;
-            }
-            const emailInput = document.getElementById('supportContactEmail');
-            if (emailInput) {
-                emailInput.value = userEmail || '';
-            }
-            const phoneInput = document.getElementById('supportContactPhone');
-            if (phoneInput) {
-                phoneInput.value = userPhone || '';
-            }
-        }
-
-        function openContactSupportModal(trigger) {
-            if (!trigger) {
-                return;
-            }
-            configureContactSupportForUser(
-                trigger.getAttribute('data-user-id'),
-                trigger.getAttribute('data-user-name'),
-                trigger.getAttribute('data-user-email'),
-                trigger.getAttribute('data-user-phone'),
-                trigger.getAttribute('data-email-verified'),
-                trigger.getAttribute('data-contact-url')
-            );
-            openModal('contactSupportModal');
-        }
-
-        // Close modal when clicking outside dialog backdrop
-        window.addEventListener('click', function (e) {
-            ['createStaffModal', 'contactSupportModal'].forEach(function (modalId) {
-                const modal = document.getElementById(modalId);
-                if (modal && e.target === modal) {
-                    closeModal(modalId);
+        (() => {
+            const CONFIRM_TONES = Object.freeze({
+                danger: {
+                    badge: 'w-10 h-10 rounded-xl border flex items-center justify-center text-lg shrink-0 bg-red-50 text-red-700 border-red-200',
+                    icon: 'bi bi-exclamation-triangle-fill',
+                    cta: 'px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                },
+                success: {
+                    badge: 'w-10 h-10 rounded-xl border flex items-center justify-center text-lg shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200',
+                    icon: 'bi bi-check-circle-fill',
+                    cta: 'px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold rounded-xl shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600'
+                },
+                warning: {
+                    badge: 'w-10 h-10 rounded-xl border flex items-center justify-center text-lg shrink-0 bg-amber-50 text-amber-800 border-amber-200',
+                    icon: 'bi bi-shield-exclamation',
+                    cta: 'px-4 py-2 bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold rounded-xl shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blazing_flame'
                 }
             });
-        });
 
-        // Close modal when Escape key is pressed (W3C A11y Pattern)
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') {
-                closeModal('createStaffModal');
-                closeModal('contactSupportModal');
+            let createStaffInFlight = false;
+            let previousFocusedElement = null;
+            let pendingForm = null;
+            let pendingSelect = null;
+
+            function getFocusableControls(container) {
+                return Array.from(container.querySelectorAll(
+                    'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                )).filter((el) => el.getClientRects().length > 0);
             }
-        });
 
-        document.addEventListener('DOMContentLoaded', function () {
+            function openModal(modalId, triggerElement, initialFocusTarget) {
+                const modal = document.getElementById(modalId);
+                if (!modal) return;
+                previousFocusedElement = triggerElement || document.activeElement;
+                modal.classList.remove('hidden');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('overflow-hidden');
+
+                const target = initialFocusTarget
+                    || modal.querySelector('input:not([type="hidden"])')
+                    || getFocusableControls(modal)[0];
+                if (target && typeof target.focus === 'function') {
+                    target.focus();
+                }
+            }
+
+            function closeModal(modalId) {
+                if (modalId === 'createStaffModal' && createStaffInFlight) {
+                    return;
+                }
+                const modal = document.getElementById(modalId);
+                if (!modal || modal.classList.contains('hidden')) return;
+
+                modal.classList.add('hidden');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('overflow-hidden');
+
+                if (modalId === 'confirmActionModal') {
+                    if (pendingSelect) {
+                        pendingSelect.value = pendingSelect.dataset.original || pendingSelect.value;
+                    }
+                    pendingForm = null;
+                    pendingSelect = null;
+                }
+
+                if (previousFocusedElement && typeof previousFocusedElement.focus === 'function') {
+                    previousFocusedElement.focus();
+                }
+                previousFocusedElement = null;
+            }
+
+            function openConfirmDialog({ title, message, target, tone, cta, form, select, trigger }) {
+                const palette = CONFIRM_TONES[tone] || CONFIRM_TONES.warning;
+                document.getElementById('confirmActionTitle').textContent = title || 'Xác nhận thao tác';
+                document.getElementById('confirmActionMessage').textContent = message || '';
+                document.getElementById('confirmActionBadge').className = palette.badge;
+                document.getElementById('confirmActionIcon').className = palette.icon;
+
+                const submitBtn = document.getElementById('confirmActionSubmitBtn');
+                submitBtn.className = palette.cta;
+                submitBtn.textContent = cta || 'Xác nhận';
+                submitBtn.disabled = false;
+
+                const targetRow = document.getElementById('confirmActionTargetRow');
+                const targetText = document.getElementById('confirmActionTarget');
+                if (target && target.trim() !== '') {
+                    targetText.textContent = target;
+                    targetRow.classList.remove('hidden');
+                } else {
+                    targetText.textContent = '';
+                    targetRow.classList.add('hidden');
+                }
+
+                pendingForm = form || null;
+                pendingSelect = select || null;
+                openModal('confirmActionModal', trigger, document.getElementById('confirmActionCancelBtn'));
+            }
+
+            function configureContactSupport(trigger) {
+                const { userId, userName, userEmail, userPhone, emailVerified, contactUrl } = trigger.dataset;
+                const form = document.getElementById('contactSupportDirectForm');
+                form.reset();
+                form.setAttribute('action', contactUrl);
+                const summary = document.getElementById('contactSupportTargetSummary');
+                if (summary) {
+                    const displayName = userName ? userName : ('Nhân sự #' + userId);
+                    const statusLabel = emailVerified === true || emailVerified === 'true' ? 'Đã xác minh email' : 'Email chưa xác minh';
+                    summary.textContent = displayName + ' (#' + userId + ') · ' + statusLabel;
+                }
+                const emailInput = document.getElementById('supportContactEmail');
+                if (emailInput) {
+                    emailInput.value = userEmail || '';
+                }
+                const phoneInput = document.getElementById('supportContactPhone');
+                if (phoneInput) {
+                    phoneInput.value = userPhone || '';
+                }
+            }
+
+            window.openModal = openModal;
+            window.closeModal = closeModal;
+
+            document.addEventListener('click', (event) => {
+                const openTrigger = event.target.closest('[data-modal-open]');
+                if (openTrigger) {
+                    const modalId = openTrigger.getAttribute('data-modal-open');
+                    if (modalId === 'contactSupportModal') {
+                        configureContactSupport(openTrigger);
+                    }
+                    openModal(modalId, openTrigger);
+                    return;
+                }
+
+                const closeTrigger = event.target.closest('[data-modal-close]');
+                if (closeTrigger) {
+                    closeModal(closeTrigger.getAttribute('data-modal-close'));
+                    return;
+                }
+
+                if (event.target.matches('[data-custom-modal="true"]')) {
+                    closeModal(event.target.id);
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                const activeModal = document.querySelector('[data-custom-modal="true"]:not(.hidden)');
+                if (!activeModal) return;
+
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    closeModal(activeModal.id);
+                    return;
+                }
+
+                if (event.key === 'Tab') {
+                    const controls = getFocusableControls(activeModal);
+                    if (controls.length === 0) return;
+                    const first = controls[0];
+                    const last = controls[controls.length - 1];
+                    if (event.shiftKey && (document.activeElement === first || !activeModal.contains(document.activeElement))) {
+                        event.preventDefault();
+                        last.focus();
+                    } else if (!event.shiftKey && (document.activeElement === last || !activeModal.contains(document.activeElement))) {
+                        event.preventDefault();
+                        first.focus();
+                    }
+                }
+            });
+
+            document.addEventListener('change', (event) => {
+                const select = event.target.closest('select[data-confirm-select="true"]');
+                if (!select) return;
+                if (select.value === select.dataset.original) return;
+
+                const nextRoleLabel = select.options[select.selectedIndex]
+                    ? select.options[select.selectedIndex].text.trim()
+                    : '';
+                openConfirmDialog({
+                    title: 'Xác nhận thay đổi vai trò',
+                    message: 'Bạn có chắc chắn muốn chuyển vai trò sang "' + nextRoleLabel + '"? Người dùng sẽ phải đăng nhập lại sau khi cập nhật.',
+                    target: select.getAttribute('data-confirm-target') || '',
+                    tone: 'warning',
+                    cta: 'Lưu vai trò mới',
+                    form: select.form,
+                    select,
+                    trigger: select
+                });
+            });
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target.closest('form[data-confirm-form="true"]');
+                if (!form || form.dataset.confirmed === 'true') return;
+
+                event.preventDefault();
+                const submitter = event.submitter || form.querySelector('button[type="submit"]');
+                if (!submitter) return;
+
+                openConfirmDialog({
+                    title: submitter.getAttribute('data-confirm-title') || 'Xác nhận thao tác',
+                    message: submitter.getAttribute('data-confirm-message') || 'Bạn có chắc chắn muốn tiếp tục?',
+                    target: submitter.getAttribute('data-confirm-target') || '',
+                    tone: submitter.getAttribute('data-confirm-tone') || 'warning',
+                    cta: submitter.getAttribute('data-confirm-cta') || 'Xác nhận',
+                    form,
+                    select: null,
+                    trigger: submitter
+                });
+            });
+
+            const confirmSubmitBtn = document.getElementById('confirmActionSubmitBtn');
+            if (confirmSubmitBtn) {
+                confirmSubmitBtn.addEventListener('click', () => {
+                    if (!pendingForm) return;
+                    const formToSubmit = pendingForm;
+                    pendingForm = null;
+                    pendingSelect = null;
+                    confirmSubmitBtn.disabled = true;
+                    confirmSubmitBtn.textContent = 'Đang xử lý...';
+                    formToSubmit.dataset.confirmed = 'true';
+                    formToSubmit.submit();
+                });
+
+            }
+
             const createStaffForm = document.querySelector('form[action*="/admin/users/create"]');
             if (createStaffForm) {
-                createStaffForm.addEventListener('submit', function (e) {
+                createStaffForm.addEventListener('submit', (event) => {
                     if (createStaffInFlight) {
-                        e.preventDefault();
+                        event.preventDefault();
                         return;
                     }
                     createStaffInFlight = true;
-                    const btn = createStaffForm.querySelector('button[type="submit"]');
-                    const cancelBtn = createStaffForm.querySelector('button[onclick*="closeModal"]');
-                    if (btn) {
+                    const submitBtn = createStaffForm.querySelector('button[type="submit"]');
+                    const closeControls = document.querySelectorAll('#createStaffModal [data-modal-close="createStaffModal"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = 'Đang tạo...';
+                    }
+                    closeControls.forEach((btn) => {
                         btn.disabled = true;
-                        btn.textContent = 'Đang tạo...';
-                    }
-                    if (cancelBtn) {
-                        cancelBtn.disabled = true;
-                        cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                    }
+                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                    });
                 });
             }
-        });
+        })();
     </script>
     <script th:if="${openCreateModal == true or (errorMessage != null and newUserForm != null and newUserForm.email != null and newUserForm.email != '')}">
         document.addEventListener('DOMContentLoaded', function () {
-            openModal('createStaffModal');
+            if (typeof window.openModal === 'function') {
+                window.openModal('createStaffModal');
+            }
         });
     </script>
 </div>

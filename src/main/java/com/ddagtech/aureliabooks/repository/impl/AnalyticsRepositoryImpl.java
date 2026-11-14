@@ -1,6 +1,12 @@
 package com.ddagtech.aureliabooks.repository.impl;
 
-import com.ddagtech.aureliabooks.dto.analytics.*;
+import com.ddagtech.aureliabooks.dto.analytics.DailyRevenueDto;
+import com.ddagtech.aureliabooks.dto.analytics.PaymentBreakdownDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueOrderSummaryDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueSummaryKpiDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementReportItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockValuationItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.TopProductSaleDto;
 import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.repository.AnalyticsRepository;
@@ -19,6 +25,9 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+/**
+ * JDBC implementation of AnalyticsRepository delivering fast aggregate metrics and period reports.
+ */
 @Slf4j
 @Repository
 @RequiredArgsConstructor

@@ -164,7 +164,77 @@ class AuditLogControllerTest {
 
         mockMvc.perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("RESET_STAFF_PASSWORD")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("INTERNAL_EMAIL_VERIFIED")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-action=\"RESET_STAFF_PASSWORD\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-action=\"INTERNAL_EMAIL_VERIFIED\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Xác minh email nội bộ")));
+    }
+
+    @Test
+    @DisplayName("GET /admin/audit-logs displays Vietnamese UI labels while retaining raw filter values and forensic JSON modal hooks")
+    void testListAuditLogs_RendersLocalizedVietnameseLabelsAndPreservesRawFilterValues() throws Exception {
+        AuditLogResponse userEvent = new AuditLogResponse(
+                10L, 2L, "Quản trị viên", "admin@aureliabook.vn",
+                "USER_STATUS_TOGGLE", "users", 5L,
+                "{\"active\":false}", "127.0.0.1", LocalDateTime.of(2026, 11, 13, 9, 30)
+        );
+        AuditLogResponse systemEvent = new AuditLogResponse(
+                11L, null, "Hệ thống / Tự động", null,
+                "VNPAY_TIMEOUT_CANCELLED_RESTOCK", "orders", 99L,
+                null, null, LocalDateTime.of(2026, 11, 13, 9, 45)
+        );
+        Page<AuditLogResponse> mockPage = new PageImpl<>(List.of(userEvent, systemEvent), PageRequest.of(0, 20), 2);
+
+        when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(mockPage);
+        when(auditLogService.getDistinctActions())
+                .thenReturn(List.of("USER_STATUS_TOGGLE", "VNPAY_TIMEOUT_CANCELLED_RESTOCK"));
+        when(auditLogService.getDistinctTargetTables())
+                .thenReturn(List.of("users", "orders"));
+        when(auditLogService.getDistinctActors())
+                .thenReturn(List.of(new ActorOption(2L, "Quản trị viên", "admin@aureliabook.vn")));
+
+        mockMvc.perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"USER_STATUS_TOGGLE\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"users\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-action=\"USER_STATUS_TOGGLE\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-target=\"users\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Thay đổi trạng thái tài khoản")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Hủy đơn VNPay quá hạn &amp; hoàn tồn kho")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Tài khoản người dùng")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Đơn hàng")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Hệ thống / Tự động")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Xem chi tiết")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Nội dung chi tiết (JSON):")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("<title>Nhật ký kiểm toán an ninh hệ thống - AureliaBook</title>")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("- AureliaBook - AureliaBook"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Hành vi (Action)"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("an ninh hệ thống (SCR-DB-18)"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("đột biến"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("RBAC"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Hệ thống / Gateway"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Hệ thống / Ẩn danh"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Xem JSON"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Nội dung Payload JSON:"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("dữ liệu payload"))));
+    }
+
+    @Test
+    @DisplayName("GET /admin/audit-logs renders wide workspace container, page-size selector, and empty JSON modal state without redundant quick filters")
+    void testListAuditLogs_RendersExpandedLayoutAndCalmEmptyPayloadModal() throws Exception {
+        Page<AuditLogResponse> mockPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(auditLogService.searchLogs(any(), any(), any(), any(), any(), any(), any())).thenReturn(mockPage);
+        when(auditLogService.getDistinctActions()).thenReturn(List.of("LOGIN_FAILED"));
+        when(auditLogService.getDistinctTargetTables()).thenReturn(List.of("users", "orders"));
+        when(auditLogService.getDistinctActors()).thenReturn(List.of());
+
+        mockMvc.perform(get("/admin/audit-logs").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("max-w-[1600px]")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"pageSizeFilter\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"modalJsonContainer\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"modalEmptyPayloadState\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-custom-modal=\"true\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Lọc nhanh"))));
     }
 }

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
       th:replace="~{${internalPage == true ? 'layout/internal' : 'layout/base'} :: layout('500 - Lỗi Máy Chủ Nội Bộ | AureliaBook', ~{::#main-content})}">
 <head>
     <title>500 - Lỗi Máy Chủ Nội Bộ</title>
@@ -7,45 +8,47 @@
 <body>
     <div id="main-content" class="min-h-[70vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-md w-full text-center">
-            <!-- Error Icon Badge -->
             <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-rose-500/10 text-rose-600 shadow-sm mb-6">
-                <i class="bi bi-exclamation-octagon-fill text-4xl"></i>
+                <i class="bi bi-exclamation-octagon-fill text-4xl" aria-hidden="true"></i>
             </div>
 
-            <!-- Error Title & Status -->
-            <h1 class="text-4xl font-extrabold text-carbon_black tracking-tight mb-2">500 Server Error</h1>
-            <h2 class="text-xl font-bold text-rose-600 mb-3">Hệ Thống Đang Xử Lý Gián Đoạn</h2>
+            <div class="mb-3">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-rose-500/10 text-rose-600">
+                    Mã lỗi 500
+                </span>
+            </div>
+            <h1 class="font-serif text-3xl sm:text-4xl font-bold text-carbon_black mb-3">Hệ thống đang xử lý gián đoạn</h1>
 
-            <!-- Descriptive Text -->
             <p class="text-sm text-carbon_black/70 mb-6 leading-relaxed">
-                Đã xảy ra sự cố kỹ thuật ngoài ý muốn trong quá trình xử lý yêu cầu. Đội ngũ kỹ sư AureliaBook đã nhận được cảnh báo và đang tích cực khắc phục.
+                Đã xảy ra sự cố kỹ thuật ngoài ý muốn trong quá trình xử lý yêu cầu. Đội ngũ kỹ thuật AureliaBook đã ghi nhận và đang khắc phục.
             </p>
 
-            <!-- Support Information Card -->
             <div class="bg-white rounded-xl border border-dust_grey/50 shadow-sm p-4 mb-6 text-left space-y-3">
                 <div class="flex items-center justify-between text-sm">
                     <span class="text-carbon_black/60 flex items-center gap-2">
-                        <i class="bi bi-telephone-inbound text-blazing_flame"></i>Tổng đài hỗ trợ:
+                        <i class="bi bi-telephone-inbound text-blazing_flame" aria-hidden="true"></i>Tổng đài hỗ trợ:
                     </span>
                     <strong class="font-semibold text-carbon_black">1900 6868 (8:00 - 21:00)</strong>
                 </div>
                 <div class="flex items-center justify-between text-sm border-t border-dust_grey/20 pt-2.5">
                     <span class="text-carbon_black/60 flex items-center gap-2">
-                        <i class="bi bi-envelope text-carbon_black"></i>Email kỹ thuật:
+                        <i class="bi bi-envelope text-carbon_black" aria-hidden="true"></i>Email kỹ thuật:
                     </span>
                     <strong class="font-semibold text-carbon_black text-xs sm:text-sm">support@aureliabook.vn</strong>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex items-center justify-center gap-3">
-                <a th:href="@{/}"
-                   class="inline-flex items-center px-5 py-2.5 rounded-lg text-sm font-medium bg-blazing_flame text-white hover:bg-blazing_flame/90 transition-colors shadow-sm">
-                    <i class="bi bi-house-door mr-2"></i>Về Trang Chủ
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a th:href="@{${internalPage == true ? '/dashboard' : '/'}}"
+                   class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 rounded-lg text-sm font-medium bg-blazing_flame text-white hover:bg-blazing_flame/90 transition-colors shadow-sm">
+                    <i class="bi mr-2"
+                       th:classappend="${internalPage == true} ? ' bi-speedometer2' : ' bi-house-door'"
+                       aria-hidden="true"></i>
+                    <span th:text="${internalPage == true ? 'Quay về bảng điều khiển' : 'Về trang chủ'}">Về trang chủ</span>
                 </a>
-                <button onclick="window.location.reload();"
-                        class="inline-flex items-center px-4 py-2.5 rounded-lg text-sm font-medium border border-dust_grey text-carbon_black hover:bg-alabaster_grey transition-colors">
-                    <i class="bi bi-arrow-clockwise mr-2"></i>Thử Lại
+                <button type="button" onclick="window.location.reload();"
+                        class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium border border-dust_grey text-carbon_black hover:bg-alabaster_grey transition-colors">
+                    <i class="bi bi-arrow-clockwise mr-2" aria-hidden="true"></i>Thử lại
                 </button>
             </div>
         </div>

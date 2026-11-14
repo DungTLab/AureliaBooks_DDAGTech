@@ -106,11 +106,17 @@
                             class="text-sm underline"
                             >Quên mật khẩu?</a>
                     </form>
-                    <p th:if="${!reauthenticated and verificationMethods.isEmpty()}" class="text-sm text-red-700">
+                    <p
+                        th:if="${!reauthenticated and verificationMethods.isEmpty()}"
+                        class="text-sm text-red-700">
                         Tài khoản chưa có phương thức xác minh khả dụng. Vui lòng liên hệ hỗ trợ.
                     </p>
                 </div>
-                <form th:action="@{/profile/contact-change/start}" method="post" data-valid-form class="space-y-4">
+                <form
+                    th:action="@{/profile/contact-change/start}"
+                    method="post"
+                    data-valid-form
+                    class="space-y-4">
                     <h2 class="font-semibold">2. Nhập và xác minh thông tin mới</h2>
                     <input type="hidden" name="type" th:value="${selectedType}" />
                     <fieldset th:disabled="${!reauthenticated}" class="space-y-4 disabled:opacity-50">

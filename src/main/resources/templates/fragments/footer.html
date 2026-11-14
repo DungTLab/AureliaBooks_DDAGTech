@@ -45,7 +45,10 @@
                 </h3>
                 <ul class="space-y-2.5 text-sm text-[#aba398]">
                     <li th:each="category, status : ${navigationCategories}" th:if="${status.index < 6}">
-                        <a th:href="@{/products(categoryId=${category.id})}" th:text="${category.name}" class="hover:text-white">Danh mục</a>
+                        <a
+                            th:href="@{/products(categoryId=${category.id})}"
+                            th:text="${category.name}"
+                            class="hover:text-white">Danh mục</a>
                     </li>
                     <li><a th:href="@{/products}" class="hover:text-white">Tất cả sản phẩm</a></li>
                 </ul>
@@ -58,22 +61,30 @@
                 </h3>
                 <ul class="space-y-2.5 text-sm text-[#aba398]">
                     <li>
-                        <a th:href="@{/policies/returns}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                        <a
+                            th:href="@{/policies/returns}"
+                            class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
                             <i class="bi bi-shield-check text-xs text-blazing_flame"></i>Chính sách đổi trả
                         </a>
                     </li>
                     <li>
-                        <a th:href="@{/policies/shipping}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                        <a
+                            th:href="@{/policies/shipping}"
+                            class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
                             <i class="bi bi-truck text-xs text-blazing_flame"></i>Phương thức vận chuyển toàn quốc
                         </a>
                     </li>
                     <li>
-                        <a th:href="@{/policies/payment}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                        <a
+                            th:href="@{/policies/payment}"
+                            class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
                             <i class="bi bi-credit-card text-xs text-blazing_flame"></i>Hướng dẫn thanh toán VNPay
                         </a>
                     </li>
                     <li>
-                        <a th:href="@{/policies/faq}" class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
+                        <a
+                            th:href="@{/policies/faq}"
+                            class="hover:text-[#ff8a5c] transition-colors flex items-center gap-1.5">
                             <i class="bi bi-patch-question text-xs text-blazing_flame"></i>Câu hỏi thường gặp (FAQ)
                         </a>
                     </li>

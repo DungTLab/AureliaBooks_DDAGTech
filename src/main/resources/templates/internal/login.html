@@ -15,12 +15,26 @@
     <p th:if="${param.logout != null}" role="status" class="text-green-700 mb-5">Bạn đã đăng xuất khỏi hệ thống quản lý.</p>
     <div th:if="${successMessage != null}" role="status" class="rounded-xl bg-green-50 text-green-800 border border-green-200 p-4 mb-5" th:text="${successMessage}"></div>
     <form data-form-validation th:action="@{/internal/login}" method="post" class="space-y-5">
-        <div><label for="internal-username" class="block font-semibold text-sm mb-2">Email tài khoản nội bộ</label>
-            <input id="internal-username" name="username" type="email" required maxlength="100" autocomplete="username" class="w-full border border-dust_grey rounded-xl px-4 py-3"></div>
-        <div><label for="internal-password" class="block font-semibold text-sm mb-2">Mật khẩu</label>
-            <div class="relative" data-password-field><input id="internal-password" name="password" type="password" required autocomplete="current-password" class="w-full border border-dust_grey rounded-xl px-4 py-3 pr-14">
-                <button type="button" data-password-toggle="internal-password" aria-controls="internal-password" aria-label="Hiện mật khẩu" aria-pressed="false" class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 rounded-lg"><i class="bi bi-eye" aria-hidden="true"></i></button></div></div>
-        <button type="submit" class="w-full bg-blazing_flame text-white rounded-xl px-4 py-3 font-semibold">Đăng nhập quản lý</button>
+        <div>
+            <label for="internal-username" class="block font-semibold text-sm mb-2">Email tài khoản nội bộ</label>
+            <input id="internal-username" name="username" type="email" required maxlength="100"
+                   autocomplete="username" class="w-full border border-dust_grey rounded-xl px-4 py-3">
+        </div>
+        <div>
+            <label for="internal-password" class="block font-semibold text-sm mb-2">Mật khẩu</label>
+            <div class="relative" data-password-field>
+                <input id="internal-password" name="password" type="password" required
+                       autocomplete="current-password" class="w-full border border-dust_grey rounded-xl px-4 py-3 pr-14">
+                <button type="button" data-password-toggle="internal-password" aria-controls="internal-password"
+                        aria-label="Hiện mật khẩu" aria-pressed="false"
+                        class="absolute right-1 top-1/2 -translate-y-1/2 h-11 w-11 rounded-lg">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+        <button type="submit" class="w-full bg-blazing_flame text-white rounded-xl px-4 py-3 font-semibold">
+            Đăng nhập quản lý
+        </button>
     </form>
     <div class="mt-6 pt-5 border-t border-dust_grey text-sm text-carbon_black-600 space-y-2">
         <p class="flex items-center justify-between gap-3">

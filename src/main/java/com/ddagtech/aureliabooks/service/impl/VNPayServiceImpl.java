@@ -26,6 +26,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -46,6 +47,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Implementation of {@link VNPayService} for UC11.1 (Pay via VNPay).
@@ -90,7 +92,7 @@ public class VNPayServiceImpl implements VNPayService {
     private EntityManager entityManager;
     private CustomerIdentity customerIdentity;
     private Clock clock = Clock.systemDefaultZone();
-    private final Map<String, String> savedSettledBankCodeByOrder = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, String> savedSettledBankCodeByOrder = new ConcurrentHashMap<>();
 
     @Autowired
     public VNPayServiceImpl(
@@ -489,6 +491,12 @@ public class VNPayServiceImpl implements VNPayService {
     @Override
     @Transactional(readOnly = true)
     public VNPayPaymentResultView evaluateBrowserReturn(Map<String, String> params) {
+        return evaluateBrowserReturn(null, params);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VNPayPaymentResultView evaluateBrowserReturn(Long authenticatedUserId, Map<String, String> params) {
         boolean validSignature = vnPayConfig != null
                 && vnPayConfig.isConfigured()
                 && VNPayUtil.verifySignature(params, vnPayConfig.getHashSecret());
@@ -528,6 +536,10 @@ public class VNPayServiceImpl implements VNPayService {
         Optional<Order> orderOpt = orderRepository.findByVnpayTxnRefOrOrderCode(txnRef);
         if (orderOpt.isEmpty()) {
             orderOpt = orderRepository.findByOrderCode(extractCanonicalOrderCode(txnRef));
+        }
+        // Fail closed after signature verification to prevent cross-customer return URL inspection (IDOR)
+        if (orderOpt.isPresent()) {
+            verifyOrderOwnership(orderOpt.get(), authenticatedUserId);
         }
         String canonicalOrderCode = orderOpt.map(Order::getOrderCode).orElseGet(() -> extractCanonicalOrderCode(txnRef));
         String orderStatus = orderOpt.map(o -> o.getOrderStatus().name()).orElse("PENDING_PAYMENT");
@@ -606,7 +618,7 @@ public class VNPayServiceImpl implements VNPayService {
 
         Object principal = auth.getPrincipal();
         if (customerIdentity != null && (principal instanceof CustomUserDetails
-                || principal instanceof org.springframework.security.oauth2.core.oidc.user.OidcUser)) {
+                || principal instanceof OidcUser)) {
             Long resolvedUserId = customerIdentity.resolve(auth);
             if (!resolvedUserId.equals(owner.getId())) {
                 throw new AppException(ErrorCode.UNAUTHORIZED, "Order does not belong to the authenticated customer.");
@@ -722,7 +734,6 @@ public class VNPayServiceImpl implements VNPayService {
         return trimmed;
     }
 
-
     private VNPayIpnResponse handleSurplusPayment(
             Order order,
             String txnRef,
@@ -760,6 +771,7 @@ public class VNPayServiceImpl implements VNPayService {
         registerSettledBankCodeCommitSync(order);
         return VNPayIpnResponse.of("00", "Confirm Success");
     }
+
     private void registerSettledBankCodeCommitSync(Order order) {
         if (order == null || order.getOrderCode() == null) {
             return;

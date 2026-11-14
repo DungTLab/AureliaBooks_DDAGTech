@@ -2,12 +2,14 @@ package com.ddagtech.aureliabooks.repository;
 
 import com.ddagtech.aureliabooks.entity.GoodsReceiptItem;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.util.List;
-
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
+/**
+ * Spring Data JPA repository for {@link GoodsReceiptItem} entities (UC21, UC22, UC23).
+ */
 public interface GoodsReceiptItemRepository extends JpaRepository<GoodsReceiptItem, Long> {
 
     List<GoodsReceiptItem> findByReceiptId(Long receiptId);
