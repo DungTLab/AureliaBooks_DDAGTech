@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="vi" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout/internal :: layout('Quản Trị Cây Danh Mục | AureliaBook', ~{::#main-content})}">
+      th:replace="~{layout/internal :: layout('Quản lý danh mục sản phẩm | AureliaBook', ~{::#main-content})}">
 <head>
-    <title>Quản Trị Cây Danh Mục</title>
+    <title>Quản lý danh mục sản phẩm</title>
 </head>
 <body>
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -19,9 +19,9 @@
             </div>
             <h1 class="text-2xl font-bold font-serif text-carbon_black flex items-center gap-2.5">
                 <i class="bi bi-diagram-3-fill text-blazing_flame"></i>
-                <span>Quản Trị Cây Danh Mục Sản Phẩm</span>
+                <span>Quản lý danh mục sản phẩm</span>
             </h1>
-            <p class="text-sm text-carbon_black-600 mt-1">Cấu trúc phân cấp đa tầng (Cha - Con) áp dụng cho cả Sách và Văn phòng phẩm</p>
+            <p class="text-sm text-carbon_black-600 mt-1">Sắp xếp danh mục sách và văn phòng phẩm theo cấu trúc cha–con.</p>
         </div>
         <div class="flex items-center gap-2.5">
             <button type="button" onclick="openCategoryModal(null, '', '', '', true)"
@@ -38,12 +38,11 @@
                 <i class="bi bi-diagram-3-fill text-lg"></i>
             </div>
             <div>
-                <h4 class="text-sm font-bold text-carbon_black">Cây Phân Cấp Taxonomy</h4>
-                <p class="text-xs text-carbon_black-500">Hỗ trợ danh mục gốc và danh mục con đa cấp độ, bảo toàn tính toàn vẹn khi xóa</p>
+                <h4 class="text-sm font-bold text-carbon_black">Danh sách danh mục</h4>
             </div>
         </div>
         <div class="text-xs text-carbon_black-600 font-medium">
-            Tổng số: <span class="font-bold text-carbon_black" th:text="${totalCategories}">0</span> danh mục hệ thống
+            Tổng số: <span class="font-bold text-carbon_black" th:text="${totalCategories}">0</span> danh mục
         </div>
     </div>
 
