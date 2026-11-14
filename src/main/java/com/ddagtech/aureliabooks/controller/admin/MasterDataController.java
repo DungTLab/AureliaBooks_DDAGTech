@@ -329,12 +329,16 @@ Page<Author> authorsPage = masterDataService.listAuthors(keyword, pageable);
     // =========================================================================
 
     @GetMapping("/manager/categories")
-    public String categories(Model model) {
+    public String categories(@RequestParam(defaultValue = "1") int page, Model model) {
         List<Category> allCategories = masterDataService.getAllCategoriesWithParent();
-        model.addAttribute("categories", allCategories);
+        var treePage = com.ddagtech.aureliabooks.util.CategoryTreePage.from(allCategories, page);
+        model.addAttribute("categories", treePage.rows());
+        model.addAttribute("rootPage", treePage.roots());
+        model.addAttribute("parentCategories", allCategories);
+        model.addAttribute("totalCategories", allCategories.size());
 
         Map<Long, Long> productCounts = new HashMap<>();
-        for (Category cat : allCategories) {
+        for (Category cat : treePage.rows()) {
             productCounts.put(cat.getId(), masterDataService.countProductsByCategory(cat.getId()));
         }
         model.addAttribute("productCounts", productCounts);

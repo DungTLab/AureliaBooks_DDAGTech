@@ -43,7 +43,7 @@
             </div>
         </div>
         <div class="text-xs text-carbon_black-600 font-medium">
-            Tổng số: <span class="font-bold text-carbon_black" th:text="${categories.size()}">0</span> danh mục hệ thống
+            Tổng số: <span class="font-bold text-carbon_black" th:text="${totalCategories}">0</span> danh mục hệ thống
         </div>
     </div>
 
@@ -142,6 +142,32 @@
         </div>
     </div>
 
+    <!-- Pagination Bar -->
+    <nav th:if="${rootPage.totalPages > 1}" aria-label="Phân trang danh mục gốc"
+         class="px-6 py-4 bg-alabaster_grey/30 border border-dust_grey/60 rounded-lg flex flex-wrap items-center justify-between gap-3">
+        <span class="text-xs text-carbon_black-500"
+              th:text="|Trang ${rootPage.number + 1} / ${rootPage.totalPages} · ${rootPage.totalElements} danh mục gốc|"></span>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <th:block th:each="i : ${#numbers.sequence(0, rootPage.totalPages - 1)}">
+                <th:block th:if="${rootPage.totalPages <= 7
+                                  or i == 0 or i == rootPage.totalPages - 1
+                                  or (i >= rootPage.number - 2 and i <= rootPage.number + 2)}">
+                    <span th:if="${i == rootPage.number}" th:text="${i + 1}" aria-current="page"
+                          class="px-3 py-1.5 border border-blazing_flame bg-blazing_flame text-white rounded-lg text-xs font-semibold"></span>
+                    <a th:unless="${i == rootPage.number}"
+                       th:href="@{/manager/categories(page=${i + 1})}"
+                       th:text="${i + 1}" th:aria-label="|Đến trang ${i + 1}|"
+                       class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey"></a>
+                </th:block>
+                <span th:if="${rootPage.totalPages > 7
+                               and ((i == 1 and rootPage.number > 3)
+                                    or (i == rootPage.totalPages - 2
+                                        and rootPage.number < rootPage.totalPages - 4))}"
+                      class="px-2 text-xs text-carbon_black-500">…</span>
+            </th:block>
+        </div>
+    </nav>
+
     <!-- Modal Form (Create / Edit Category) -->
     <dialog id="categoryModal" class="catalog-dialog p-0 bg-transparent border-0 w-[calc(100%-2rem)] max-w-lg" data-managed-dialog aria-labelledby="categoryModalTitle">
         <div class="bg-white rounded-2xl border border-dust_grey shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-down">
@@ -167,7 +193,7 @@
                     <select id="categoryParentSelect" name="parentId"
                             class="w-full px-3.5 py-2.5 text-sm bg-white border border-dust_grey rounded-xl focus:outline-none focus:ring-2 focus:ring-blazing_flame focus:border-blazing_flame">
                         <option value="">-- Là Danh Mục Gốc (Không có cha) --</option>
-                        <option th:each="c : ${categories}"
+                        <option th:each="c : ${parentCategories}"
                                 th:value="${c.id}"
                                 th:text="${(c.parent != null ? '↳ ' + c.parent.name + ' > ' : '📁 ') + c.name}">
                             Danh mục
