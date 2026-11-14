@@ -200,17 +200,30 @@
                 Trang <span class="font-bold" th:text="${productsPage.number + 1}">1</span> / <span th:text="${productsPage.totalPages}">1</span>
                 (Tổng cộng <span th:text="${productsPage.totalElements}">0</span> sản phẩm)
             </span>
-            <div class="flex gap-1.5">
-                <a th:if="${!productsPage.first}"
-                   th:href="@{/manager/products(page=${productsPage.number - 1}, type=${selectedType}, keyword=${keyword})}"
-                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
-                    Trước
-                </a>
-                <a th:if="${!productsPage.last}"
-                   th:href="@{/manager/products(page=${productsPage.number + 1}, type=${selectedType}, keyword=${keyword})}"
-                   class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
-                    Sau
-                </a>
+            <div class="flex flex-wrap items-center gap-1.5" aria-label="Phân trang sản phẩm">
+                <th:block th:each="i : ${#numbers.sequence(0, productsPage.totalPages - 1)}">
+                    <th:block th:if="${productsPage.totalPages <= 7
+                                      or i == 0
+                                      or i == productsPage.totalPages - 1
+                                      or (i >= productsPage.number - 2 and i <= productsPage.number + 2)}">
+                        <span th:if="${i == productsPage.number}"
+                              th:text="${i + 1}"
+                              aria-current="page"
+                              class="px-3 py-1.5 border border-blazing_flame bg-blazing_flame text-white rounded-lg text-xs font-semibold">
+                        </span>
+                        <a th:unless="${i == productsPage.number}"
+                           th:href="@{/manager/products(page=${i}, size=${productsPage.size}, keyword=${keyword}, type=${selectedType})}"
+                           th:text="${i + 1}"
+                           th:aria-label="|Đến trang ${i + 1}|"
+                           class="px-3 py-1.5 border border-dust_grey bg-white rounded-lg text-xs font-semibold hover:bg-alabaster_grey">
+                        </a>
+                    </th:block>
+                    <span th:if="${productsPage.totalPages > 7
+                                   and ((i == 1 and productsPage.number > 3)
+                                        or (i == productsPage.totalPages - 2
+                                            and productsPage.number < productsPage.totalPages - 4))}"
+                          class="px-2 text-xs text-carbon_black-500">…</span>
+                </th:block>
             </div>
         </div>
     </div>
