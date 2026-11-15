@@ -3,6 +3,7 @@ package com.ddagtech.aureliabooks.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.*;
 import com.ddagtech.aureliabooks.entity.*;
 import com.ddagtech.aureliabooks.exception.AppException;
@@ -275,6 +276,25 @@ class ProfileServiceTest {
                 contains("Thay đổi mật khẩu"),
                 any()
             );
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void rejectsReusingCurrentPasswordWithoutChangingAccountOrSessions() {
+        String originalHash = user.getPasswordHash();
+        PasswordChangeRequest request = new PasswordChangeRequest("OldPass1!", "OldPass1!", "OldPass1!");
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            AppException error = assertThrows(AppException.class, () -> service.changePassword(1L, request, "127.0.0.1"));
+
+            assertEquals(ErrorCode.INVALID_INPUT_DATA, error.getErrorCode());
+            assertEquals("Mật khẩu mới không được trùng với mật khẩu hiện tại", error.getMessage());
+            assertEquals(originalHash, user.getPasswordHash());
+            assertTrue(TransactionSynchronizationManager.getSynchronizations().isEmpty());
+            verify(users, never()).saveAndFlush(any());
+            verifyNoInteractions(auditLogService, sessions);
         } finally {
             TransactionSynchronizationManager.clearSynchronization();
         }

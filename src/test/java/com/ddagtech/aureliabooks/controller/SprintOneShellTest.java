@@ -77,7 +77,10 @@ class SprintOneShellTest {
                 .andExpect(content().string(containsString("Email hoặc số điện thoại")));
         mvc.perform(get("/products/search")).andExpect(status().isOk());
         mvc.perform(get("/products/1")).andExpect(status().isOk());
-        mvc.perform(get("/products")).andExpect(status().isOk());
+        mvc.perform(get("/products")).andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/images/favicon.svg\"")));
+        mvc.perform(get("/images/favicon.svg")).andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("image/svg+xml"));
     }
 
     @Test
