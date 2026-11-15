@@ -257,13 +257,50 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         if (f == null || !matchesPortal(f, internal) || evictIfExpiredInternalGrant(id, f, internal)) {
             return null;
         }
+        Instant now = Instant.now();
         return new View(
                 f.kind,
                 mask(f.target),
-                f.authorized != null && (!internal || Instant.now().isBefore(f.authorized)),
-                Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()),
-                Math.max(0, Duration.between(Instant.now(), f.expires).getSeconds())
+                f.authorized != null && (!internal || now.isBefore(f.authorized)),
+                remainingResendSeconds(f, now),
+                ceilSecondsBetween(now, f.expires)
         );
+    }
+
+    private long remainingResendSeconds(Flow flow, Instant now) {
+        if (flow.authorized != null) {
+            return 0L;
+        }
+        long wait = flow.sending ? 60L : remainingCooldownSeconds(flow.sent, now);
+        Counter targetCounter = limits.get("target:" + flow.target);
+        if (targetCounter != null) {
+            wait = Math.max(wait, remainingCooldownSeconds(targetCounter.lastSent, now));
+            if (targetCounter.count >= 5 && now.isBefore(targetCounter.until)) {
+                wait = Math.max(wait, ceilSecondsBetween(now, targetCounter.until));
+            }
+        }
+        if (flow.owner != null) {
+            Counter ownerCounter = limits.get("owner:" + flow.owner);
+            if (ownerCounter != null && ownerCounter.count >= 5 && now.isBefore(ownerCounter.until)) {
+                wait = Math.max(wait, ceilSecondsBetween(now, ownerCounter.until));
+            }
+        }
+        return wait;
+    }
+
+    private static long remainingCooldownSeconds(Instant lastSent, Instant now) {
+        if (lastSent == null) {
+            return 0L;
+        }
+        long elapsedSeconds = Duration.between(lastSent, now).getSeconds();
+        return elapsedSeconds < 60L ? 60L - Math.max(0L, elapsedSeconds) : 0L;
+    }
+
+    private static long ceilSecondsBetween(Instant start, Instant end) {
+        if (!start.isBefore(end)) {
+            return 0L;
+        }
+        return Math.max(1L, (Duration.between(start, end).toMillis() + 999L) / 1000L);
     }
 
     public void resend(String id, String session, String ip, boolean internal) {
@@ -572,12 +609,11 @@ public class AccountOtpServiceImpl implements AccountOtpService {
             }
         } catch (RuntimeException ex) {
             log.warn(
-                    "Failed to deliver {} OTP via {} to {}: {} - {}",
+                    "Failed to deliver {} OTP via {} to {}: {}",
                     flow.kind,
                     flow.channel,
                     mask(flow.target),
-                    ex.getClass().getSimpleName(),
-                    ex.getMessage()
+                    OtpLogSanitizer.sanitizeFailure(ex, reservation.code(), flow.target, flow.googleEmail)
             );
             rollbackFailedSend(flow, reservation, removeOnFailure);
             throw new IllegalArgumentException("Không gửi được mã. Vui lòng kiểm tra cấu hình email/SMS.");

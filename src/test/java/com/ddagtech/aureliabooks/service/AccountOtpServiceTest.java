@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
@@ -15,9 +18,12 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailSendException;
 
 class AccountOtpServiceTest {
 
@@ -512,6 +518,138 @@ class AccountOtpServiceTest {
         assertThatThrownBy(() -> service.reset(flowId, "session", "NewPass1!", "NewPass1!", "ip", true))
             .hasMessageContaining("Yêu cầu không còn hiệu lực");
         verifyNoInteractions(writer);
+    }
+
+    @Test
+    void deliveryFailureLogsIdentifyErrorAndChannelWithoutLeakingSensitiveData() {
+        Logger otpLogger = (Logger) LoggerFactory.getLogger(AccountOtpServiceImpl.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        otpLogger.addAppender(appender);
+        try {
+            User staff = verifiedStaffAccount();
+            staff.setEmail("secret.staff@aureliabook.vn");
+            when(users.findByIdentifierWithRoles(staff.getEmail())).thenReturn(Optional.of(staff));
+            AtomicReference<String> internalCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                internalCode.set(invocation.getArgument(2));
+                throw new MailSendException(
+                        "Failed messages: smtp://relayuser:relaypass@smtp.internal:587 rejected "
+                                + "<secret.staff@aureliabook.vn> from bounces@aureliabook.vn password=topsecret\r\n"
+                                + "otp=" + internalCode.get()
+                );
+            }).when(delivery).send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+            assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "s-internal", "ip-1"))
+                .hasMessageContaining("Không gửi được mã");
+
+            User customer = account();
+            customer.setEmail("customer.private@example.test");
+            when(users.findByIdentifierWithRoles(customer.getEmail())).thenReturn(Optional.of(customer));
+            AtomicReference<String> customerCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                customerCode.set(invocation.getArgument(2));
+                throw new MailSendException("550 <customer.private@example.test> user unknown code=" + customerCode.get());
+            }).when(delivery).send(eq("EMAIL"), eq(customer.getEmail()), anyString());
+
+            assertThatThrownBy(() -> service.recovery(customer.getEmail(), "EMAIL", "s-reset", "ip-2"))
+                .hasMessageContaining("Không gửi được mã");
+
+            AtomicReference<String> smsCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                smsCode.set(invocation.getArgument(1));
+                throw new IllegalStateException("SMS gateway timeout for 0912345678 token=sms-secret otp=" + smsCode.get());
+            }).when(delivery).sendRegistrationSms(eq("0912345678"), anyString());
+
+            assertThatThrownBy(() -> service.registration(request(), "s-reg", "ip-3"))
+                .hasMessageContaining("Không gửi được mã");
+
+            User linkCustomer = account();
+            linkCustomer.setId(88L);
+            linkCustomer.setEmail("owner.primary@example.test");
+            linkCustomer.setPhone(null);
+            linkCustomer.setPhoneVerified(false);
+            when(users.findByIdentifierWithRoles("owner.primary@example.test")).thenReturn(Optional.of(linkCustomer));
+            String linkFlowId = service.prepareGoogleLink(88L, "sub-88", "owner.primary@example.test", "s-link");
+            AtomicReference<String> googleCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                googleCode.set(invocation.getArgument(2));
+                throw new MailSendException(
+                        "Send failed for owner.primary@example.test Bearer tok123 " + googleCode.get()
+                );
+            }).when(delivery).send(eq("EMAIL"), eq("owner.primary@example.test"), anyString());
+
+            assertThatThrownBy(() -> service.sendGoogleLink(linkFlowId, "s-link", "EMAIL", "ip-4"))
+                .hasMessageContaining("Không gửi được mã");
+
+            List<String> formattedLogs = appender.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
+            assertThat(formattedLogs).hasSize(4);
+
+            assertThat(formattedLogs.get(0))
+                .contains("INTERNAL_RESET", "EMAIL", "s***@aureliabook.vn", "MailSendException")
+                .doesNotContain("secret.staff@aureliabook.vn", "bounces@aureliabook.vn",
+                        "relaypass", "topsecret", "\r", "\n", internalCode.get());
+            assertThat(formattedLogs.get(1))
+                .contains("RESET", "EMAIL", "c***@example.test", "MailSendException")
+                .doesNotContain("customer.private@example.test", customerCode.get());
+            assertThat(formattedLogs.get(2))
+                .contains("REGISTER", "SMS", "IllegalStateException")
+                .doesNotContain("0912345678", "sms-secret", smsCode.get());
+            assertThat(formattedLogs.get(3))
+                .contains("GOOGLE_LINK", "EMAIL", "o***@example.test", "MailSendException")
+                .doesNotContain("owner.primary@example.test", "tok123", googleCode.get());
+        } finally {
+            otpLogger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void viewResendInReflectsDeliveryRollbackAndFiveSendQuotaWindow() throws Exception {
+        User staff = verifiedStaffAccount();
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+
+        AccountOtpService.View initialView = service.view(flowId, "session", true);
+        assertThat(initialView.resendIn()).isBetween(1L, 60L);
+        assertThat(initialView.expiresIn()).isBetween(295L, 300L);
+
+        Object flow = internalMap("flows").get(flowId);
+        Object targetCounter = internalMap("limits").get("target:" + staff.getEmail());
+        Instant priorWindow = Instant.now().minusSeconds(61);
+        setField(flow, "sent", priorWindow);
+        setField(targetCounter, "lastSent", priorWindow);
+
+        doThrow(new MailSendException("temporary smtp failure"))
+            .doAnswer(invocation -> {
+                code = invocation.getArgument(2);
+                return null;
+            })
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        // Attempt #2 fails delivery: cooldown rolls back to 0s so user can retry immediately.
+        assertThatThrownBy(() -> service.resend(flowId, "session", "ip", true))
+            .hasMessageContaining("Không gửi được mã");
+        assertThat(service.view(flowId, "session", true).resendIn()).isZero();
+
+        // Attempts #3 and #4 succeed and enforce the standard 60s resend cooldown.
+        for (int quotaAttempt = 3; quotaAttempt <= 4; quotaAttempt++) {
+            service.resend(flowId, "session", "ip", true);
+            assertThat(service.view(flowId, "session", true).resendIn()).isBetween(1L, 60L);
+            Instant aged = Instant.now().minusSeconds(61);
+            setField(flow, "sent", aged);
+            setField(targetCounter, "lastSent", aged);
+        }
+
+        // Reaching the 5th attempt inside the 15-minute quota keeps resend locked past the 60s cooldown.
+        service.resend(flowId, "session", "ip", true);
+        Instant agedAfterFifth = Instant.now().minusSeconds(61);
+        setField(flow, "sent", agedAfterFifth);
+        setField(targetCounter, "lastSent", agedAfterFifth);
+
+        assertThat(service.view(flowId, "session", true).resendIn()).isGreaterThan(60L);
     }
 
     @SuppressWarnings("unchecked")
