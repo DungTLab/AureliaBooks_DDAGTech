@@ -424,4 +424,112 @@ class AccountOtpServiceTest {
             .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(writer);
     }
+
+    private User verifiedStaffAccount() {
+        User staff = account();
+        staff.setEmail("staff@aureliabook.vn");
+        staff.setRole(Role.builder().roleName("ROLE_SALE_STAFF").build());
+        when(users.findByIdentifierWithRoles(staff.getEmail())).thenReturn(Optional.of(staff));
+        when(users.findById(staff.getId())).thenReturn(Optional.of(staff));
+        when(users.hasCurrentStaffEmailProof(staff)).thenReturn(true);
+        return staff;
+    }
+
+    @Test
+    void internalRecoveryDeliveryFailureRollsBackCooldownAndAllowsRetryWhilePreservingQuota() {
+        User staff = verifiedStaffAccount();
+        doThrow(new IllegalStateException("smtp unreachable"))
+            .doAnswer(invocation -> {
+                code = invocation.getArgument(2);
+                return null;
+            })
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "session", "ip"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageNotContaining("smtp unreachable");
+
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+        assertThat(flowId).isNotBlank();
+        assertThat(service.verify(flowId, "session", code, "ip", true).complete()).isFalse();
+        assertThat(service.view(flowId, "session", true).authorized()).isTrue();
+    }
+
+    @Test
+    void internalRecoveryDeliveryQuotaCapsRepeatedFailuresWithoutCooldownLockout() {
+        User staff = verifiedStaffAccount();
+        doThrow(new IllegalStateException("smtp unreachable"))
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "session", "ip"))
+                .hasMessageContaining("Không gửi được mã");
+        }
+
+        assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "session", "ip"))
+            .hasMessageContaining("Quá nhiều yêu cầu");
+        verify(delivery, times(5)).send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+    }
+
+    @Test
+    void internalResendDeliveryFailureRestoresPreviousOtpAndCooldown() throws Exception {
+        User staff = verifiedStaffAccount();
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+        String firstCode = code;
+        Instant priorWindow = Instant.now().minusSeconds(61);
+
+        Object flow = internalMap("flows").get(flowId);
+        setField(flow, "sent", priorWindow);
+        Object counter = internalMap("limits").get("target:" + staff.getEmail());
+        setField(counter, "lastSent", priorWindow);
+
+        doThrow(new IllegalStateException("smtp timeout"))
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        assertThatThrownBy(() -> service.resend(flowId, "session", "ip", true))
+            .hasMessageContaining("Không gửi được mã");
+        assertThat(readField(counter, "lastSent")).isEqualTo(priorWindow);
+
+        // Previous OTP remains valid until replaced by a successful delivery.
+        assertThat(service.verify(flowId, "session", firstCode, "ip", true).complete()).isFalse();
+        assertThat(service.view(flowId, "session", true).authorized()).isTrue();
+    }
+
+    @Test
+    void expiredInternalRecoveryGrantIsEvictedFromViewAndVerificationFlow() throws Exception {
+        User staff = verifiedStaffAccount();
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+        service.verify(flowId, "session", code, "ip", true);
+
+        Map<String, ?> flows = internalMap("flows");
+        setField(flows.get(flowId), "authorized", Instant.now().minusSeconds(1));
+
+        assertThat(service.view(flowId, "session", true)).isNull();
+        assertThat(flows).doesNotContainKey(flowId);
+        assertThatThrownBy(() -> service.reset(flowId, "session", "NewPass1!", "NewPass1!", "ip", true))
+            .hasMessageContaining("Yêu cầu không còn hiệu lực");
+        verifyNoInteractions(writer);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, ?> internalMap(String fieldName) throws Exception {
+        var field = AccountOtpServiceImpl.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return (Map<String, ?>) field.get(service);
+    }
+
+    private static void setField(Object target, String fieldName, Object value) throws Exception {
+        var field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static Object readField(Object target, String fieldName) throws Exception {
+        var field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(target);
+    }
 }
