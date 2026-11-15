@@ -28,11 +28,22 @@ final class OtpLogSanitizer {
     private static final Pattern SECRET_OR_OTP_PAIR = Pattern.compile(
             "(?i)\\b(?:(?:password|passwd|pwd|secret|token|api[-_]?key|credential(?:s)?|otp|pin|verification[-_]?code)\\s*[:=]\\s*(?:\"[^\"]*\"|'[^']*'|\\S+)|code\\s*[:=]\\s*(?:\"\\d{4,}\"|'\\d{4,}'|\\d{4,}))"
     );
+    private static final String ALLOWLISTED_STATUS_CODE_GROUP =
+            "(40[0-9]|41[0-8]|42[1-689]|431|45[0-5]|50[0-9]|51[01]|52[0-7]|53[045]|55[0-6])";
+    private static final String STATUS_KEY_PATTERN =
+            "(?:(?:smtp|http|status|reply|error)[-_]?(?:status|code|reply)|smtp|http|status|reply|error|code)";
     private static final Pattern PHONE_TOKEN = Pattern.compile(
             "(?<!\\d)(?:\\+\\d{1,3}[\\s.-]?)?\\d(?:[\\s.-]?\\d){8,14}(?!\\d)"
     );
+    private static final Pattern CONTEXTUAL_STATUS_CODE_NO_SPACE = Pattern.compile(
+            "(?i)(^|[\\s(\\[{\",;])(" + STATUS_KEY_PATTERN + ")(?:\")?\\s*:\\s*"
+                    + ALLOWLISTED_STATUS_CODE_GROUP
+                    + "(?=$|[\\s.,;\\])}\"])"
+    );
     private static final Pattern CHECKED_CODE_WITH_CONTEXT = Pattern.compile(
-            "(?i)\\b(?:smtp|http|status|reply|error|code)\\s*[:=]\\s*([45]\\d{2})(?:[\\s-]([245]\\.\\d{1,3}\\.\\d{1,3}))?(?=$|[\\s.,;\\])])"
+            "(?i)(?:^|[\\s(\\[{\",;])" + STATUS_KEY_PATTERN + "(?:\")?\\s*[:=]\\s*"
+                    + ALLOWLISTED_STATUS_CODE_GROUP
+                    + "(?:[\\s-]([245]\\.\\d{1,3}\\.\\d{1,3}))?(?=$|[\\s.,;\\])}\"])"
     );
     private static final Pattern CHECKED_SMTP_ENHANCED_CODE = Pattern.compile(
             "(?:^|\\s|\\(|\\[)(421|429|45[0-5]|50[0-5]|52[13]|53[045]|55[0-6])[\\s-]([245]\\.\\d{1,3}\\.\\d{1,3})(?=$|[\\s.,;\\])])"
@@ -41,7 +52,7 @@ final class OtpLogSanitizer {
             "(?:^|\\s|\\(|\\[)(421|45[0-5]|50[0-5]|52[13]|53[045]|55[0-6])(?=$|[\\s.,;\\])])"
     );
     private static final Pattern STRICT_ALLOWLISTED_CODE = Pattern.compile(
-            "^[45]\\d{2}(?: [245]\\.\\d{1,3}\\.\\d{1,3})?$"
+            "^" + ALLOWLISTED_STATUS_CODE_GROUP + "(?: [245]\\.\\d{1,3}\\.\\d{1,3})?$"
     );
 
     private OtpLogSanitizer() {
@@ -144,14 +155,16 @@ final class OtpLogSanitizer {
         if (rawMessage == null || rawMessage.isBlank()) {
             return null;
         }
-        // Scrub all auth headers, schemes, URLs, emails, host:port pairs, phones, and OTP/secret key=value pairs first.
+        // Scrub credentials, URLs, emails, OTP/secret pairs, and phones first; then preserve spacing on
+        // allowlisted contextual status fields before stripping host:port tokens (e.g., relay.invalid:587).
         String scrubbed = CONTROL_CHARS.matcher(rawMessage).replaceAll(" ");
         scrubbed = AUTH_HEADER_OR_SCHEME.matcher(scrubbed).replaceAll(" ");
         scrubbed = URL_TOKEN.matcher(scrubbed).replaceAll(" ");
         scrubbed = EMAIL_TOKEN.matcher(scrubbed).replaceAll(" ");
-        scrubbed = HOST_PORT_TOKEN.matcher(scrubbed).replaceAll(" ");
         scrubbed = SECRET_OR_OTP_PAIR.matcher(scrubbed).replaceAll(" ");
         scrubbed = PHONE_TOKEN.matcher(scrubbed).replaceAll(" ");
+        scrubbed = normalizeContextualStatusColon(scrubbed);
+        scrubbed = HOST_PORT_TOKEN.matcher(scrubbed).replaceAll(" ");
 
         String match = matchCode(CHECKED_SMTP_ENHANCED_CODE, scrubbed, true);
         if (match == null) {
@@ -164,6 +177,18 @@ final class OtpLogSanitizer {
             return match;
         }
         return null;
+    }
+
+    private static String normalizeContextualStatusColon(String text) {
+        Matcher matcher = CONTEXTUAL_STATUS_CODE_NO_SPACE.matcher(text);
+        StringBuilder normalized = new StringBuilder();
+        while (matcher.find()) {
+            matcher.appendReplacement(normalized, Matcher.quoteReplacement(
+                    matcher.group(1) + matcher.group(2) + ": " + matcher.group(3)
+            ));
+        }
+        matcher.appendTail(normalized);
+        return normalized.toString();
     }
 
     private static String matchCode(Pattern pattern, String text, boolean withOptionalEnhanced) {
