@@ -10,6 +10,7 @@ import com.ddagtech.aureliabooks.entity.Category;
 import com.ddagtech.aureliabooks.entity.Publisher;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.service.MasterDataService;
+import com.ddagtech.aureliabooks.util.CategoryTreePage;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,8 +29,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Controller for back-office Master Taxonomy management (UC17: Authors, UC18: Publishers, UC19: Brands, UC20: Categories).
@@ -333,12 +336,38 @@ Page<Author> authorsPage = masterDataService.listAuthors(keyword, pageable);
     // =========================================================================
 
     @GetMapping("/manager/categories")
-    public String categories(Model model) {
+    public String categories(@RequestParam(defaultValue = "1") int page, Model model) {
         List<Category> allCategories = masterDataService.getAllCategoriesWithParent();
-        model.addAttribute("categories", allCategories);
+        var treePage = CategoryTreePage.from(allCategories, page);
+        model.addAttribute("categories", treePage.rows());
+        Map<Long, Category> categoriesById = new HashMap<>();
+        for (Category category : allCategories) {
+            categoriesById.put(category.getId(), category);
+        }
+        Map<Long, Integer> categoryDepths = new HashMap<>();
+        for (Category category : treePage.rows()) {
+            int depth = 0;
+            Category current = category;
+            Set<Long> visited = new HashSet<>();
+            visited.add(current.getId());
+            // Count available ancestors without looping through malformed category data.
+            while (current.getParent() != null) {
+                Category parent = categoriesById.get(current.getParent().getId());
+                if (parent == null || !visited.add(parent.getId())) {
+                    break;
+                }
+                depth++;
+                current = parent;
+            }
+            categoryDepths.put(category.getId(), depth);
+        }
+        model.addAttribute("categoryDepths", categoryDepths);
+        model.addAttribute("rootPage", treePage.roots());
+        model.addAttribute("parentCategories", allCategories);
+        model.addAttribute("totalCategories", allCategories.size());
 
         Map<Long, Long> productCounts = new HashMap<>();
-        for (Category cat : allCategories) {
+        for (Category cat : treePage.rows()) {
             productCounts.put(cat.getId(), masterDataService.countProductsByCategory(cat.getId()));
         }
         model.addAttribute("productCounts", productCounts);

@@ -158,7 +158,7 @@ mvc.perform(get("/manager/suppliers").with(user("shell-review").roles("MANAGER")
                 .thenReturn(java.util.List.of());
         mvc.perform(get("/manager/categories").with(user("manager-tester").roles("MANAGER")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Quản Trị Cây Danh Mục Sản Phẩm")));
+                .andExpect(content().string(containsString("Quản lý danh mục sản phẩm")));
     }
 
     @Test
