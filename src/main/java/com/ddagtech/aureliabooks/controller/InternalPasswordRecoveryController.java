@@ -144,25 +144,15 @@ public class InternalPasswordRecoveryController {
         if (deadRedirect != null) {
             return deadRedirect;
         }
-        boolean resendSucceeded = false;
         try {
             otp.resend(id, session.getId(), HttpRequestUtil.getClientIp(request), true);
-            resendSucceeded = true;
         } catch (IllegalArgumentException ex) {
-            // Use the same public response for dummy, evicted, failed-delivery, and rate-limited states.
+            // Keep the public response identical for eligible, dummy, evicted, failed, and throttled states.
             log.debug("Internal recovery resend rejected: {}", ex.getMessage());
         }
-        var postView = otp.view(id, session.getId(), true);
-        if (postView != null) {
-            if (postView.expiresIn() <= 0) {
-                clearRecoverySession(session);
-                flash.addFlashAttribute("recoveryMessage", EXPIRED_FLOW_MESSAGE);
-                return START;
-            }
-            syncSessionFromView(session, postView, resendSucceeded);
-        } else {
-            refreshSimulatedResendSession(session);
-        }
+        // Always update public display timers using unified session rules; backend continues to enforce
+        // real OTP validity, TTL, failure limits, and resend throttling independently.
+        applyPublicResendTimers(session);
         flash.addFlashAttribute("recoveryMessage", SENT);
         return VERIFY;
     }
@@ -264,16 +254,7 @@ public class InternalPasswordRecoveryController {
         session.setAttribute(FLOW_SIMULATED_QUOTA_UNTIL, now.plusSeconds(RESEND_QUOTA_WINDOW_SECONDS));
     }
 
-    private static void syncSessionFromView(HttpSession session, AccountOtpService.View view, boolean resendSucceeded) {
-        Instant now = Instant.now();
-        session.setAttribute(FLOW_EXPIRES_AT, now.plusSeconds(Math.max(0L, view.expiresIn())));
-        session.setAttribute(FLOW_RESEND_AT, view.resendIn() > 0 ? now.plusSeconds(view.resendIn()) : now);
-        if (resendSucceeded) {
-            session.setAttribute(FLOW_ATTEMPTS, 0);
-        }
-    }
-
-    private static void refreshSimulatedResendSession(HttpSession session) {
+    private static void applyPublicResendTimers(HttpSession session) {
         Instant now = Instant.now();
         Instant resendAt = (Instant) session.getAttribute(FLOW_RESEND_AT);
         if (resendAt != null && now.isBefore(resendAt)) {

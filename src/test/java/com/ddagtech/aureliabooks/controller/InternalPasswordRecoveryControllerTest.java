@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -19,7 +20,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -58,9 +58,12 @@ import org.springframework.web.servlet.view.InternalResourceViewResolver;
 class InternalPasswordRecoveryControllerTest {
 
     private static final String FLOW = "INTERNAL_RECOVERY_FLOW";
+    private static final String FLOW_AUTHORIZED = "INTERNAL_RECOVERY_AUTHORIZED";
     private static final String FLOW_EXPIRES_AT = "INTERNAL_RECOVERY_EXPIRES_AT";
     private static final String FLOW_RESEND_AT = "INTERNAL_RECOVERY_RESEND_AT";
     private static final String FLOW_ATTEMPTS = "INTERNAL_RECOVERY_ATTEMPTS";
+    private static final String FLOW_SIMULATED_QUOTA_COUNT = "INTERNAL_RECOVERY_SIMULATED_QUOTA_COUNT";
+    private static final String FLOW_SIMULATED_QUOTA_UNTIL = "INTERNAL_RECOVERY_SIMULATED_QUOTA_UNTIL";
     private static final Pattern EXPIRES_ATTR = Pattern.compile("data-expires-seconds=\"(\\d+)\"");
     private static final Pattern RESEND_ATTR = Pattern.compile("data-resend-seconds=\"(\\d+)\"");
     private static final Pattern RESEND_BUTTON_TAG = Pattern.compile("<button[^>]*data-otp-resend=\"true\"[^>]*>");
@@ -262,87 +265,89 @@ class InternalPasswordRecoveryControllerTest {
     }
 
     @Test
-    void resendSyncsTimersButtonStateAndAttemptsAcrossRateLimitFailureSuccessAndQuota() throws Exception {
-        MockHttpSession session = new MockHttpSession();
-        session.setAttribute(FLOW, "real-flow");
-        session.setAttribute(FLOW_EXPIRES_AT, Instant.now().plusSeconds(268));
-        session.setAttribute(FLOW_RESEND_AT, Instant.now().plusSeconds(28));
-        session.setAttribute(FLOW_ATTEMPTS, 2);
+    void unverifiedResendProducesIdenticalPublicResponseAcrossRealSimulatedEvictedFailedAndRateLimitedStates()
+            throws Exception {
+        // Phase 1: Inside cooldown, all 5 unverified states preserve countdown, disabled button, and attempts.
+        Instant baseNow = Instant.now();
+        Instant initialExpires = baseNow.plusSeconds(240);
+        Instant activeCooldown = baseNow.plusSeconds(28);
+        Instant quotaUntil = baseNow.plusSeconds(850);
 
-        // 1. Inside 60s cooldown: rate-limited rejection preserves remaining timers and attempts.
-        doThrow(new IllegalArgumentException("Vui lòng chờ đủ 60 giây."))
-            .when(otp).resend(eq("real-flow"), eq(session.getId()), anyString(), eq(true));
-        when(otp.view("real-flow", session.getId(), true))
-            .thenReturn(new AccountOtpService.View("INTERNAL_RESET", "s***@aureliabook.vn", false, 28, 268));
+        MockHttpSession realSuccess = createUniformSession("real-ok", initialExpires, activeCooldown, 2, 1, quotaUntil);
+        MockHttpSession realFail = createUniformSession("real-fail", initialExpires, activeCooldown, 2, 1, quotaUntil);
+        MockHttpSession realLimit = createUniformSession("real-limit", initialExpires, activeCooldown, 2, 1, quotaUntil);
+        MockHttpSession evicted = createUniformSession("evicted", initialExpires, activeCooldown, 2, 1, quotaUntil);
+        MockHttpSession dummy = createUniformSession("", initialExpires, activeCooldown, 2, 1, quotaUntil);
 
-        mvc.perform(post("/internal/forgot-password/resend").session(session).with(csrf()))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
-            .andExpect(flash().attribute("recoveryMessage", "Nếu email đủ điều kiện khôi phục, bạn sẽ nhận được mã xác thực."));
-        assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(2);
-
-        String cooldownHtml = mvc.perform(get("/internal/forgot-password").param("step", "verify").session(session))
-            .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
-        assertThat(extractSeconds(EXPIRES_ATTR, cooldownHtml)).isBetween(266L, 268L);
-        assertThat(extractSeconds(RESEND_ATTR, cooldownHtml)).isBetween(26L, 28L);
-        assertThat(extractResendButtonTag(cooldownHtml)).contains("disabled=\"disabled\"");
-
-        // 2. Cooldown elapsed, SMTP fails: preserves old remaining expiry (145s) & attempts (2), unlocks resend (0s).
+        doAnswer(inv -> null).when(otp).resend(eq("real-ok"), eq(realSuccess.getId()), anyString(), eq(true));
         doThrow(new IllegalArgumentException("Không gửi được mã. Vui lòng kiểm tra cấu hình email/SMS."))
-            .when(otp).resend(eq("real-flow"), eq(session.getId()), anyString(), eq(true));
-        when(otp.view("real-flow", session.getId(), true))
-            .thenReturn(new AccountOtpService.View("INTERNAL_RESET", "s***@aureliabook.vn", false, 0, 145));
+            .when(otp).resend(eq("real-fail"), eq(realFail.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Vui lòng chờ đủ 60 giây."))
+            .when(otp).resend(eq("real-limit"), eq(realLimit.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
+            .when(otp).resend(eq("evicted"), eq(evicted.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
+            .when(otp).resend(eq(""), eq(dummy.getId()), anyString(), eq(true));
 
-        mvc.perform(post("/internal/forgot-password/resend").session(session).with(csrf()))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
-            .andExpect(flash().attribute("recoveryMessage", "Nếu email đủ điều kiện khôi phục, bạn sẽ nhận được mã xác thực."));
-        assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(2);
+        for (MockHttpSession session : new MockHttpSession[] {realSuccess, realFail, realLimit, evicted, dummy}) {
+            String html = performResendAndVerifyForm(session);
+            assertThat(extractSeconds(EXPIRES_ATTR, html)).isBetween(237L, 240L);
+            assertThat(extractSeconds(RESEND_ATTR, html)).isBetween(25L, 28L);
+            assertThat(extractResendButtonTag(html)).contains("disabled=\"disabled\"");
+            assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(2);
+        }
 
-        String failedHtml = mvc.perform(get("/internal/forgot-password").param("step", "verify").session(session))
-            .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
-        assertThat(extractSeconds(EXPIRES_ATTR, failedHtml)).isBetween(143L, 145L);
-        assertThat(extractSeconds(RESEND_ATTR, failedHtml)).isZero();
-        assertThat(extractResendButtonTag(failedHtml)).doesNotContain("disabled=\"disabled\"");
+        // Phase 2: Cooldown elapsed, all 5 unverified states return identical refreshed public timers (300/60) & reset attempts.
+        Instant expiredCooldown = Instant.now().minusSeconds(1);
+        Instant shorterRemaining = Instant.now().plusSeconds(180);
+        realSuccess = createUniformSession("real-ok-2", shorterRemaining, expiredCooldown, 2, 1, quotaUntil);
+        realFail = createUniformSession("real-fail-2", shorterRemaining, expiredCooldown, 2, 1, quotaUntil);
+        realLimit = createUniformSession("real-limit-2", shorterRemaining, expiredCooldown, 2, 1, quotaUntil);
+        evicted = createUniformSession("evicted-2", shorterRemaining, expiredCooldown, 2, 1, quotaUntil);
+        dummy = createUniformSession("", shorterRemaining, expiredCooldown, 2, 1, quotaUntil);
 
-        // 3. Retry succeeds: resets expiry to 300s, cooldown to 60s, attempts to 0.
-        doAnswer(inv -> null).when(otp).resend(eq("real-flow"), eq(session.getId()), anyString(), eq(true));
-        when(otp.view("real-flow", session.getId(), true))
-            .thenReturn(new AccountOtpService.View("INTERNAL_RESET", "s***@aureliabook.vn", false, 60, 300));
-
-        mvc.perform(post("/internal/forgot-password/resend").session(session).with(csrf()))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
-        assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(0);
-
-        String successHtml = mvc.perform(get("/internal/forgot-password").param("step", "verify").session(session))
-            .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
-        assertThat(extractSeconds(EXPIRES_ATTR, successHtml)).isBetween(298L, 300L);
-        assertThat(extractSeconds(RESEND_ATTR, successHtml)).isBetween(58L, 60L);
-        assertThat(extractResendButtonTag(successHtml)).contains("disabled=\"disabled\"");
-
-        // 4. Quota window exhausted (5 sends/15m): keeps resend button disabled with remaining quota wait.
+        doAnswer(inv -> null).when(otp).resend(eq("real-ok-2"), eq(realSuccess.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Không gửi được mã. Vui lòng kiểm tra cấu hình email/SMS."))
+            .when(otp).resend(eq("real-fail-2"), eq(realFail.getId()), anyString(), eq(true));
         doThrow(new IllegalArgumentException("Quá nhiều yêu cầu. Vui lòng thử lại sau 15 phút."))
-            .when(otp).resend(eq("real-flow"), eq(session.getId()), anyString(), eq(true));
-        when(otp.view("real-flow", session.getId(), true))
-            .thenReturn(new AccountOtpService.View("INTERNAL_RESET", "s***@aureliabook.vn", false, 720, 290));
+            .when(otp).resend(eq("real-limit-2"), eq(realLimit.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
+            .when(otp).resend(eq("evicted-2"), eq(evicted.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
+            .when(otp).resend(eq(""), eq(dummy.getId()), anyString(), eq(true));
 
-        mvc.perform(post("/internal/forgot-password/resend").session(session).with(csrf()))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
+        for (MockHttpSession session : new MockHttpSession[] {realSuccess, realFail, realLimit, evicted, dummy}) {
+            String html = performResendAndVerifyForm(session);
+            assertThat(extractSeconds(EXPIRES_ATTR, html)).isBetween(297L, 300L);
+            assertThat(extractSeconds(RESEND_ATTR, html)).isBetween(57L, 60L);
+            assertThat(extractResendButtonTag(html)).contains("disabled=\"disabled\"");
+            assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(0);
+        }
 
-        String quotaHtml = mvc.perform(get("/internal/forgot-password").param("step", "verify").session(session))
-            .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
-        assertThat(extractSeconds(RESEND_ATTR, quotaHtml)).isBetween(718L, 720L);
-        assertThat(extractResendButtonTag(quotaHtml)).contains("disabled=\"disabled\"");
+        // Phase 3: Public 5-send quota exhausted keeps button locked symmetrically across real-rate-limit, evicted, dummy.
+        Instant quotaLock = Instant.now().plusSeconds(720);
+        realLimit = createUniformSession("real-quota", shorterRemaining, expiredCooldown, 2, 5, quotaLock);
+        evicted = createUniformSession("evicted-quota", shorterRemaining, expiredCooldown, 2, 5, quotaLock);
+        dummy = createUniformSession("", shorterRemaining, expiredCooldown, 2, 5, quotaLock);
+
+        doThrow(new IllegalArgumentException("Quá nhiều yêu cầu. Vui lòng thử lại sau 15 phút."))
+            .when(otp).resend(eq("real-quota"), eq(realLimit.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
+            .when(otp).resend(eq("evicted-quota"), eq(evicted.getId()), anyString(), eq(true));
+        doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
+            .when(otp).resend(eq(""), eq(dummy.getId()), anyString(), eq(true));
+
+        for (MockHttpSession session : new MockHttpSession[] {realLimit, evicted, dummy}) {
+            String html = performResendAndVerifyForm(session);
+            assertThat(extractSeconds(EXPIRES_ATTR, html)).isBetween(177L, 180L);
+            assertThat(extractSeconds(RESEND_ATTR, html)).isBetween(717L, 720L);
+            assertThat(extractResendButtonTag(html)).contains("disabled=\"disabled\"");
+            assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(2);
+        }
     }
 
     @Test
-    void failedResendWithRealOtpServicePreservesOldOtpRemainingTtlAndAttemptsUntilSuccess() throws Exception {
+    void failedResendWithRealOtpServicePreservesOldOtpAndEnforcesBackendExpiryAndAttempts() throws Exception {
         User staff = User.builder()
             .id(42L)
             .email("staff@aureliabook.vn")
@@ -385,7 +390,7 @@ class InternalPasswordRecoveryControllerTest {
                 .setViewResolvers(viewResolver)
                 .build();
 
-            // Start challenge & record 2 failed verify attempts
+            // 1. After 2 wrong attempts & failed resend, public timer stays uniform while backend keeps old OTP + 2 failures.
             MockHttpSession session = (MockHttpSession) realMvc.perform(post("/internal/forgot-password/send")
                     .param("email", staff.getEmail()))
                 .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
@@ -397,45 +402,46 @@ class InternalPasswordRecoveryControllerTest {
                     .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
             }
 
-            // Simulate 120s elapsed: old OTP has ~180s left and cooldown has elapsed.
             String flowId = (String) session.getAttribute(FLOW);
             Object flow = mapField(realOtp, "flows").get(flowId);
             Object counter = mapField(realOtp, "limits").get("target:" + staff.getEmail());
             Instant earlierSent = Instant.now().minusSeconds(120);
-            Instant earlierExpires = earlierSent.plusSeconds(300);
             setDeclaredField(flow, "sent", earlierSent);
-            setDeclaredField(flow, "expires", earlierExpires);
             setDeclaredField(counter, "lastSent", earlierSent);
-            session.setAttribute(FLOW_EXPIRES_AT, earlierExpires);
             session.setAttribute(FLOW_RESEND_AT, earlierSent.plusSeconds(60));
 
-            // Resend fails: remaining expiry (~180s) and attempts (2) stay intact, resend unlocked (0s).
             failNextSend.set(true);
             realMvc.perform(post("/internal/forgot-password/resend").session(session))
                 .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
 
-            assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(2);
             MvcResult afterFailedResend = realMvc.perform(get("/internal/forgot-password")
                     .param("step", "verify").session(session))
                 .andExpect(status().isOk())
-                .andExpect(model().attribute("otpResendSeconds", 0L))
                 .andReturn();
             assertThat((Long) afterFailedResend.getModelAndView().getModel().get("otpExpiresSeconds"))
-                .isBetween(170L, 181L);
+                .isBetween(297L, 300L);
+            assertThat((Long) afterFailedResend.getModelAndView().getModel().get("otpResendSeconds"))
+                .isBetween(57L, 60L);
 
-            // Old OTP still honors remaining attempt limit (3 more wrong codes exhausts 5/5 attempts!).
-            realMvc.perform(post("/internal/forgot-password/verify").session(session).param("code", wrongCode))
+            // Submitting 3 more wrong attempts exhausts the backend's 5-failure ceiling (2 + 3),
+            // so even entering the valid old code afterward is rejected by the backend.
+            for (int i = 0; i < 3; i++) {
+                realMvc.perform(post("/internal/forgot-password/verify").session(session).param("code", wrongCode))
+                    .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
+            }
+            realMvc.perform(post("/internal/forgot-password/verify").session(session).param("code", firstCode))
+                .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
+                .andExpect(flash().attribute("recoveryMessage", "Mã không hợp lệ hoặc đã hết hạn."));
+            assertThat(session.getAttribute(FLOW_AUTHORIZED)).isNull();
+            realMvc.perform(post("/internal/forgot-password/reset").session(session)
+                    .param("password", "StaffNewPass1!").param("confirmation", "StaffNewPass1!"))
                 .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
-            realMvc.perform(post("/internal/forgot-password/verify").session(session).param("code", wrongCode))
-                .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
-            realMvc.perform(post("/internal/forgot-password/verify").session(session).param("code", wrongCode))
-                .andExpect(redirectedUrl("/internal/forgot-password"))
-                .andExpect(flash().attribute("recoveryMessage", containsString("Vui lòng yêu cầu mã mới")));
-            assertThat(session.getAttribute(FLOW)).isNull();
+            verifyNoInteractions(writer);
 
-            // Fresh flow: after failed resend (with < 5 wrong attempts), old OTP still verifies within its old TTL!
-            setDeclaredField(counter, "lastSent", Instant.now().minusSeconds(61));
+            // 2. After failed resend extends public timer, valid old OTP works while still within backend TTL,
+            //    and password reset succeeds when completed in time.
             failNextSend.set(false);
+            setDeclaredField(counter, "lastSent", Instant.now().minusSeconds(61));
             MockHttpSession secondSession = (MockHttpSession) realMvc.perform(post("/internal/forgot-password/send")
                     .param("email", staff.getEmail()))
                 .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
@@ -447,7 +453,6 @@ class InternalPasswordRecoveryControllerTest {
             setDeclaredField(flow2, "sent", oldSent2);
             setDeclaredField(flow2, "expires", oldSent2.plusSeconds(300));
             setDeclaredField(counter, "lastSent", oldSent2);
-            secondSession.setAttribute(FLOW_EXPIRES_AT, oldSent2.plusSeconds(300));
             secondSession.setAttribute(FLOW_RESEND_AT, oldSent2.plusSeconds(60));
 
             failNextSend.set(true);
@@ -461,9 +466,9 @@ class InternalPasswordRecoveryControllerTest {
                     .param("password", "StaffNewPass1!")
                     .param("confirmation", "StaffNewPass1!"))
                 .andExpect(redirectedUrl("/internal/login"));
-            verify(writer).resetStaff(eq(staff.getId()), eq("old-hash"), eq(staff.getEmail()), anyString(), anyString());
+            verify(writer, times(1)).resetStaff(eq(staff.getId()), eq("old-hash"), eq(staff.getEmail()), anyString(), anyString());
 
-            // Expired old OTP cannot be verified after a failed resend either.
+            // 3. Even if public timer was extended after failed resend, backend still rejects an expired old OTP.
             failNextSend.set(false);
             setDeclaredField(counter, "lastSent", Instant.now().minusSeconds(61));
             MockHttpSession thirdSession = (MockHttpSession) realMvc.perform(post("/internal/forgot-password/send")
@@ -473,20 +478,55 @@ class InternalPasswordRecoveryControllerTest {
             String expiredOldCode = sentCode.get();
             String flowId3 = (String) thirdSession.getAttribute(FLOW);
             Object flow3 = mapField(realOtp, "flows").get(flowId3);
-            Instant almostExpiredSent = Instant.now().minusSeconds(299);
-            setDeclaredField(flow3, "sent", almostExpiredSent);
-            setDeclaredField(flow3, "expires", Instant.now().minusSeconds(1));
-            setDeclaredField(counter, "lastSent", almostExpiredSent);
-            thirdSession.setAttribute(FLOW_EXPIRES_AT, Instant.now().minusSeconds(1));
-            thirdSession.setAttribute(FLOW_RESEND_AT, almostExpiredSent.plusSeconds(60));
+            Instant oldSent3 = Instant.now().minusSeconds(120);
+            setDeclaredField(flow3, "sent", oldSent3);
+            setDeclaredField(flow3, "expires", Instant.now().plusSeconds(10));
+            setDeclaredField(counter, "lastSent", oldSent3);
+            thirdSession.setAttribute(FLOW_RESEND_AT, oldSent3.plusSeconds(60));
 
             failNextSend.set(true);
             realMvc.perform(post("/internal/forgot-password/resend").session(thirdSession))
-                .andExpect(redirectedUrl("/internal/forgot-password"))
-                .andExpect(flash().attribute("recoveryMessage", containsString("hết hạn")));
+                .andExpect(redirectedUrl("/internal/forgot-password?step=verify"));
+
+            // Backend OTP now expires while public session timer still appears active.
+            setDeclaredField(flow3, "expires", Instant.now().minusSeconds(1));
+            realMvc.perform(post("/internal/forgot-password/verify").session(thirdSession).param("code", expiredOldCode))
+                .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
+                .andExpect(flash().attribute("recoveryMessage", "Mã không hợp lệ hoặc đã hết hạn."));
+            assertThat(thirdSession.getAttribute(FLOW_AUTHORIZED)).isNull();
             assertThatThrownBy(() -> realOtp.verify(flowId3, thirdSession.getId(), expiredOldCode, "127.0.0.1", true))
                 .hasMessageContaining("hết hạn");
+            verify(writer, times(1)).resetStaff(any(), anyString(), anyString(), anyString(), anyString());
         }
+    }
+
+    private MockHttpSession createUniformSession(
+            String flowId,
+            Instant expiresAt,
+            Instant resendAt,
+            int attempts,
+            int quotaCount,
+            Instant quotaUntil
+    ) {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(FLOW, flowId);
+        session.setAttribute(FLOW_EXPIRES_AT, expiresAt);
+        session.setAttribute(FLOW_RESEND_AT, resendAt);
+        session.setAttribute(FLOW_ATTEMPTS, attempts);
+        session.setAttribute(FLOW_SIMULATED_QUOTA_COUNT, quotaCount);
+        session.setAttribute(FLOW_SIMULATED_QUOTA_UNTIL, quotaUntil);
+        return session;
+    }
+
+    private String performResendAndVerifyForm(MockHttpSession session) throws Exception {
+        mvc.perform(post("/internal/forgot-password/resend").session(session).with(csrf()))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
+            .andExpect(flash().attribute("recoveryMessage",
+                    "Nếu email đủ điều kiện khôi phục, bạn sẽ nhận được mã xác thực."));
+        return mvc.perform(get("/internal/forgot-password").param("step", "verify").session(session))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
     }
 
     private static long extractSeconds(Pattern pattern, String html) {
