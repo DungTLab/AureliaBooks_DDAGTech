@@ -26,6 +26,7 @@
         </ul>
         <p class="workspace-nav-label mt-4">Tài khoản</p>
         <ul>
+            <li sec:authorize="hasAnyRole('ADMIN','MANAGER','SALE_STAFF')"><a th:href="@{/internal/account/email}" th:attr="aria-current=${workspacePath != null and #strings.contains(workspacePath, '/internal/account/email')} ? 'page' : null">Email khôi phục</a></li>
             <li><button type="button" class="w-full text-left px-3 py-2 text-sm text-carbon_black hover:text-blazing_flame hover:bg-dust_grey/20 rounded-lg cursor-pointer bg-transparent border-0 flex items-center gap-2" data-open-modal="internal-password-modal"><i class="bi bi-key" aria-hidden="true"></i> Đổi mật khẩu</button></li>
         </ul>
     </details>

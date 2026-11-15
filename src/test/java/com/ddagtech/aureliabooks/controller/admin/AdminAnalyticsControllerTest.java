@@ -51,7 +51,7 @@ class AdminAnalyticsControllerTest {
 
         mockMvc.perform(get("/manager/analytics/revenue"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("admin/analytics/revenue-report"))
+                .andExpect(view().name("internal/analytics/revenue-report"))
                 .andExpect(model().attributeExists("report"))
                 .andExpect(model().attributeExists("filter"));
     }
@@ -69,7 +69,7 @@ class AdminAnalyticsControllerTest {
 
         mockMvc.perform(get("/admin/analytics/revenue"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("admin/analytics/revenue-report"))
+                .andExpect(view().name("internal/analytics/revenue-report"))
                 .andExpect(model().attributeExists("report"));
     }
 
@@ -207,7 +207,7 @@ class AdminAnalyticsControllerTest {
     @WithMockUser(roles = "MANAGER")
     void managerCanViewEmptyStockReport() throws Exception {
         mockMvc.perform(get("/manager/analytics/stock").param("keyword", "missing"))
-                .andExpect(status().isOk()).andExpect(view().name("admin/analytics/stock-report"))
+                .andExpect(status().isOk()).andExpect(view().name("internal/analytics/stock-report"))
                 .andExpect(model().attributeExists("stockReport"));
     }
 

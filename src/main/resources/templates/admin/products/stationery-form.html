@@ -8,7 +8,8 @@
 <div id="main-content" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <!-- Page Header Card -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
+    <div
+        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div>
             <nav class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-carbon_black-400 mb-1">
                 <a th:href="@{/dashboard}" class="hover:text-blazing_flame transition-colors">Tổng quan</a>
@@ -44,7 +45,7 @@
     <form data-form-validation th:action="@{${isEdit ? '/manager/stationeries/' + stationeryForm.id() + '/edit' : '/manager/stationeries'}}"
           th:object="${stationeryForm}" method="post" class="space-y-6">
 
-        <!-- 1. Thông Tin Chung (Base Product) -->
+        <!-- General product information -->
         <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
             <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
                 <i class="bi bi-box-seam text-blazing_flame"></i>
@@ -148,7 +149,7 @@
             </div>
         </div>
 
-        <!-- 2. Thông Tin Chi Tiết VPP (Stationeries Entity) -->
+        <!-- Stationery details -->
         <div class="bg-white rounded-2xl border border-dust_grey/80 p-6 shadow-sm space-y-4">
             <h2 class="font-serif font-bold text-base text-carbon_black pb-2 border-b border-dust_grey/60 flex items-center gap-2">
                 <i class="bi bi-pencil-fill text-blazing_flame"></i>

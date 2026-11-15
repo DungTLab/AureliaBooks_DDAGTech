@@ -3,13 +3,14 @@ package com.ddagtech.aureliabooks.controller;
 import com.ddagtech.aureliabooks.dto.CheckoutConfirmation;
 import com.ddagtech.aureliabooks.dto.response.CheckoutView;
 import com.ddagtech.aureliabooks.entity.Order;
-import jakarta.servlet.http.HttpSession;
-import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+
+import jakarta.servlet.http.HttpSession;
+import org.springframework.stereotype.Component;
 
 /** Keep up to eight reviews per session; separate tokens prevent browser tabs from overwriting each other. */
 @Component
@@ -18,13 +19,22 @@ public class CheckoutSessionStore {
     private static final int LIMIT = 8;
 
     /** Reuse the token for unchanged selections and issue a new token when review details change. */
-    public CheckoutConfirmation save(HttpSession session, Long owner, CheckoutView view,
-                                     Order.PaymentMethod method, String voucher) {
+    public CheckoutConfirmation save(
+            HttpSession session,
+            Long owner,
+            CheckoutView view,
+            Order.PaymentMethod method,
+            String voucher) {
         return save(session, owner, view, method, voucher, null);
     }
 
-    public CheckoutConfirmation save(HttpSession session, Long owner, CheckoutView view,
-                                     Order.PaymentMethod method, String voucher, String shippingVoucher) {
+    public CheckoutConfirmation save(
+            HttpSession session,
+            Long owner,
+            CheckoutView view,
+            Order.PaymentMethod method,
+            String voucher,
+            String shippingVoucher) {
         // Serialize requests within the same session to prevent competing token lookups and creation.
         synchronized (session) {
             Map<String, CheckoutConfirmation> reviews = reviews(session);
@@ -39,7 +49,9 @@ public class CheckoutSessionStore {
             CheckoutConfirmation review = new CheckoutConfirmation(token, owner, view, method, voucher, shippingVoucher);
             reviews.put(token, review);
             // LinkedHashMap preserves insertion order, allowing the oldest review to be evicted at the limit.
-            while (reviews.size() > LIMIT) reviews.remove(reviews.keySet().iterator().next());
+            while (reviews.size() > LIMIT) {
+                reviews.remove(reviews.keySet().iterator().next());
+            }
             session.setAttribute(KEY, reviews);
             return review;
         }
@@ -54,9 +66,8 @@ public class CheckoutSessionStore {
             CheckoutConfirmation review = reviews(session).get(token);
             if (review != null && owner.equals(review.userId())) {
                 return review;
-            } else {
-                return null;
             }
+            return null;
         }
     }
 
@@ -79,8 +90,7 @@ public class CheckoutSessionStore {
         if (value instanceof Map<?, ?>) {
             Map<String, CheckoutConfirmation> savedReviews = (Map<String, CheckoutConfirmation>) value;
             return new LinkedHashMap<>(savedReviews);
-        } else {
-            return new LinkedHashMap<>();
         }
+        return new LinkedHashMap<>();
     }
 }

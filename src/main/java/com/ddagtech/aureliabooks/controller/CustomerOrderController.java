@@ -2,21 +2,29 @@ package com.ddagtech.aureliabooks.controller;
 
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.CancelOrderRequest;
-import com.ddagtech.aureliabooks.exception.AppException;
-import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.dto.response.OrderTimelineStep;
-import java.util.LinkedHashMap;
+import com.ddagtech.aureliabooks.entity.Order;
+import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
-import com.ddagtech.aureliabooks.service.CustomerOrderService;
 import com.ddagtech.aureliabooks.service.CheckoutPaymentGateway;
-import org.springframework.beans.factory.ObjectProvider;
+import com.ddagtech.aureliabooks.service.CustomerOrderService;
+
+import java.util.LinkedHashMap;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -24,25 +32,27 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequiredArgsConstructor
 @RequestMapping("/orders/my-orders")
 public class CustomerOrderController {
-    private final CustomerOrderService orders;
+    private final CustomerOrderService customerOrderService;
     private final CustomerIdentity identity;
-    private final ObjectProvider<CheckoutPaymentGateway> payments;
+    private final ObjectProvider<CheckoutPaymentGateway> paymentGateways;
 
     @GetMapping
     public String history(Authentication auth, @RequestParam(defaultValue = "0") int page,
                           @RequestParam(required = false) Order.OrderStatus status, Model model) {
-        model.addAttribute("orders", orders.getMyOrders(identity.resolve(auth), page, status));
+        model.addAttribute("orders", customerOrderService.getMyOrders(identity.resolve(auth), page, status));
         model.addAttribute("selectedStatus", status);
         var statuses = new LinkedHashMap<Order.OrderStatus, String>();
-        for (var value : Order.OrderStatus.values()) statuses.put(value, OrderTimelineStep.label(value));
+        for (Order.OrderStatus statusOption : Order.OrderStatus.values()) {
+            statuses.put(statusOption, OrderTimelineStep.label(statusOption));
+        }
         model.addAttribute("statusOptions", statuses);
         return "orders/my-orders";
     }
 
     @GetMapping("/{orderCode}")
     public String detail(Authentication auth, @PathVariable String orderCode, Model model) {
-        model.addAttribute("detail", orders.getMyOrderDetail(identity.resolve(auth), orderCode));
-        CheckoutPaymentGateway gateway = payments.getIfAvailable();
+        model.addAttribute("detail", customerOrderService.getMyOrderDetail(identity.resolve(auth), orderCode));
+        CheckoutPaymentGateway gateway = paymentGateways.getIfAvailable();
         model.addAttribute("onlinePaymentAvailable", gateway != null && gateway.isAvailable());
         return "orders/detail";
     }
@@ -53,12 +63,12 @@ public class CustomerOrderController {
                          RedirectAttributes flash) {
         Long owner = identity.resolve(auth);
         // Check ownership even for an invalid form submission.
-        orders.getMyOrderDetail(owner, orderCode);
+        customerOrderService.getMyOrderDetail(owner, orderCode);
         if (errors.hasErrors()) {
             flash.addFlashAttribute("errorMessage", errors.getFieldErrors().getFirst().getDefaultMessage());
         } else {
             try {
-                orders.cancelMyOrder(owner, orderCode, request);
+                customerOrderService.cancelMyOrder(owner, orderCode, request);
                 flash.addFlashAttribute("successMessage", "Đơn hàng đã được hủy.");
             } catch (AppException exception) {
                 if (exception.getErrorCode() == ErrorCode.ORDER_NOT_FOUND) {

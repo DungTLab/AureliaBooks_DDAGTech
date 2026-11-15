@@ -9,8 +9,16 @@
                       th:data-server-blocked="${checkout.selectedAddressId == null}" class="space-y-2">
                     <input type="hidden" name="shippingAddressId" th:value="${checkout.selectedAddressId}" />
                     <input type="hidden" name="paymentMethod" th:value="${selectedPaymentMethod}" />
-                    <input th:if="${kind == 'product'}" type="hidden" name="shippingVoucherCode" th:value="${appliedShippingVoucherCode}" />
-                    <input th:if="${kind == 'shipping'}" type="hidden" name="voucherCode" th:value="${appliedVoucherCode}" />
+                    <input
+                        th:if="${kind == 'product'}"
+                        type="hidden"
+                        name="shippingVoucherCode"
+                        th:value="${appliedShippingVoucherCode}" />
+                    <input
+                        th:if="${kind == 'shipping'}"
+                        type="hidden"
+                        name="voucherCode"
+                        th:value="${appliedVoucherCode}" />
                     <label th:for="${kind + 'VoucherCode'}" class="block text-sm font-semibold"
                            th:text="${kind == 'product' ? 'Mã giảm tiền hàng' : 'Mã giảm phí vận chuyển'}"></label>
                     <input th:id="${kind + 'VoucherCode'}" th:name="${kind == 'product' ? 'voucherCode' : 'shippingVoucherCode'}"
@@ -18,7 +26,10 @@
                            th:aria-describedby="${kind + 'VoucherError'}"
                            th:value="${kind == 'product' ? voucherCode : shippingVoucherCode}"
                            class="w-full min-w-0 rounded-xl border border-dust_grey px-3 py-2 uppercase" />
-                    <button type="submit" class="checkout-button is-secondary" th:disabled="${checkout.selectedAddressId == null}">Áp dụng</button>
+                    <button
+                        type="submit"
+                        class="checkout-button is-secondary"
+                        th:disabled="${checkout.selectedAddressId == null}">Áp dụng</button>
                 </form>
                 <p th:id="${kind + 'VoucherError'}" class="text-sm text-red-700" role="alert"
                    th:text="${kind == 'product' ? productVoucherError : shippingVoucherError}"></p>

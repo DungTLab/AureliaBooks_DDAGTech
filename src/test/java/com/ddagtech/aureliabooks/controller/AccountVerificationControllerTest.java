@@ -46,12 +46,12 @@ class AccountVerificationControllerTest {
 
     @Test
     void singleVerifiedChannelHasNoSelectorWhileTwoHaveChoice() throws Exception {
-        when(otp.recoveryChannels("0912345678")).thenReturn(List.of("SMS"));
+        when(otp.recoveryChannels(eq("0912345678"), anyString())).thenReturn(List.of("SMS"));
         when(otp.recovery(eq("0912345678"), eq("SMS"), anyString(), anyString())).thenReturn("flow");
         mvc.perform(post("/auth/forgot-password/lookup").with(csrf()).param("identifier", "0912345678")).andExpect(
             redirectedUrl("/auth/verification")
         );
-        when(otp.recoveryChannels("0912345678")).thenReturn(List.of("EMAIL", "SMS"));
+        when(otp.recoveryChannels(eq("0912345678"), anyString())).thenReturn(List.of("EMAIL", "SMS"));
         mvc.perform(post("/auth/forgot-password/lookup").with(csrf()).param("identifier", "0912345678"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("id=\"recoveryChannel\"")));
@@ -61,7 +61,7 @@ class AccountVerificationControllerTest {
     void unknownAccountStaysOnLookupWithErrorAndNoSend() throws Exception {
         var s = new MockHttpSession();
         s.setAttribute("RECOVERY_IDENTIFIER", "previous@example.test");
-        when(otp.recoveryChannels("missing@example.test")).thenThrow(
+        when(otp.recoveryChannels(eq("missing@example.test"), anyString())).thenThrow(
             new IllegalArgumentException("Không tìm thấy tài khoản với email hoặc số điện thoại này.")
         );
         mvc.perform(
@@ -183,7 +183,7 @@ class AccountVerificationControllerTest {
 
     @Test
     void selectedChannelSendsDirectlyEvenWhenBothChannelsExist() throws Exception {
-        when(otp.recoveryChannels("customer@example.test")).thenReturn(List.of("EMAIL", "SMS"));
+        when(otp.recoveryChannels(eq("customer@example.test"), anyString())).thenReturn(List.of("EMAIL", "SMS"));
         when(otp.recovery(eq("customer@example.test"), eq("EMAIL"), anyString(), anyString())).thenReturn("email-flow");
         mvc.perform(
             post("/auth/forgot-password/lookup")
@@ -196,7 +196,7 @@ class AccountVerificationControllerTest {
 
     @Test
     void selectedPhoneSendsOnlyToVerifiedPhone() throws Exception {
-        when(otp.recoveryChannels("0912345678")).thenReturn(List.of("EMAIL", "SMS"));
+        when(otp.recoveryChannels(eq("0912345678"), anyString())).thenReturn(List.of("EMAIL", "SMS"));
         when(otp.recovery(eq("0912345678"), eq("SMS"), anyString(), anyString())).thenReturn("sms-flow");
         mvc.perform(
             post("/auth/forgot-password/lookup").with(csrf()).param("identifier", "0912345678").param("channel", "SMS")
@@ -221,7 +221,7 @@ class AccountVerificationControllerTest {
 
     @Test
     void unverifiedSelectedChannelDoesNotFallBackToOtherContact() throws Exception {
-        when(otp.recoveryChannels("customer@example.test")).thenReturn(List.of("SMS"));
+        when(otp.recoveryChannels(eq("customer@example.test"), anyString())).thenReturn(List.of("SMS"));
         mvc.perform(
             post("/auth/forgot-password/lookup")
                 .with(csrf())

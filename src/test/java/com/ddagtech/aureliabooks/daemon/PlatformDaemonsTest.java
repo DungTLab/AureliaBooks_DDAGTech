@@ -14,12 +14,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.support.CronTrigger;
+import org.springframework.scheduling.support.SimpleTriggerContext;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.web.session.ConcurrentSessionFilter;
 import org.springframework.security.web.session.HttpSessionCreatedEvent;
 
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -100,6 +105,26 @@ class PlatformDaemonsTest {
         List<ProductVectorEntry> personalized = vectorStore.findTopSimilar(centroid, purchasedIds, 5);
         assertThat(personalized).hasSize(1);
         assertThat(personalized.get(0).productId()).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("CRON-02: preloadProductVectors() schedule must explicitly pin Asia/Ho_Chi_Minh timezone")
+    void cron02_PreloadProductVectors_UsesAsiaHoChiMinhTimezone() throws NoSuchMethodException {
+        Scheduled scheduled = RecommendationPreloaderDaemon.class
+                .getMethod("preloadProductVectors")
+                .getAnnotation(Scheduled.class);
+
+        assertThat(scheduled).isNotNull();
+        assertThat(scheduled.cron()).isEqualTo("${app.cron.vector-preload:0 0 2 * * ?}");
+        assertThat(scheduled.zone()).isEqualTo("${app.cron.zone:Asia/Ho_Chi_Minh}");
+
+        CronTrigger vnTrigger = new CronTrigger("0 0 2 * * ?", ZoneId.of("Asia/Ho_Chi_Minh"));
+        Instant nextUtc = vnTrigger.nextExecution(new SimpleTriggerContext(
+                Instant.parse("2026-10-24T18:30:00Z"),
+                Instant.parse("2026-10-24T18:30:00Z"),
+                Instant.parse("2026-10-24T18:30:00Z")
+        ));
+        assertThat(nextUtc).isEqualTo(Instant.parse("2026-10-24T19:00:00Z"));
     }
 
     @Test

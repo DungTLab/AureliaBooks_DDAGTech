@@ -75,7 +75,7 @@
         </form>
     </div>
 
-    <!-- Suppliers Table Card (Tối ưu hóa: ID, Tên công ty, Người liên hệ, SĐT, Email, Hành động) -->
+    <!-- Suppliers Table Card: ID, Company Name, Contact, Phone, Email, Actions -->
     <div class="bg-white border border-dust_grey rounded-2xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-dust_grey text-left text-sm">
@@ -113,7 +113,7 @@
                         <td class="px-6 py-4 font-mono text-xs text-carbon_black-500 font-semibold whitespace-nowrap"
                             th:text="'#' + ${supplier.id}">#1</td>
 
-                        <!-- Tên công ty / Nhà cung cấp -->
+                        <!-- Company / Supplier Name -->
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-2">
                                 <button type="button"
@@ -138,7 +138,7 @@
                             </div>
                         </td>
 
-                        <!-- Người liên hệ -->
+                        <!-- Contact Person -->
                         <td class="px-6 py-4 text-carbon_black-700">
                             <span th:if="${supplier.contactName != null and supplier.contactName != ''}"
                                   th:text="${supplier.contactName}">Nguyễn Văn B</span>
@@ -146,11 +146,11 @@
                                   class="text-xs text-carbon_black-400 italic">Chưa cập nhật</span>
                         </td>
 
-                        <!-- Số điện thoại -->
+                        <!-- Phone Number -->
                         <td class="px-6 py-4 font-mono text-xs text-carbon_black-700 whitespace-nowrap"
                             th:text="${supplier.phone}">0912345678</td>
 
-                        <!-- Email -->
+                        <!-- Email Address -->
                         <td class="px-6 py-4 text-xs text-carbon_black-600">
                             <span th:if="${supplier.email != null and supplier.email != ''}"
                                   th:text="${supplier.email}">ncc@example.com</span>
@@ -158,10 +158,10 @@
                                   class="text-carbon_black-400">-</span>
                         </td>
 
-                        <!-- Hành động: Xem chi tiết & Xóa -->
+                        <!-- Actions: View Details and Delete -->
                         <td class="px-6 py-4 whitespace-nowrap text-right">
                             <div class="inline-flex items-center gap-2">
-                                <!-- Nút Xem Chi Tiết -->
+                                <!-- View Details Button -->
                                 <button type="button"
                                         th:data-id="${supplier.id}"
                                         th:data-name="${supplier.name}"
@@ -179,7 +179,7 @@
                                     <span>Xem</span>
                                 </button>
 
-                                <!-- Nút Xóa -->
+                                <!-- Delete Action Form -->
                                 <form method="post"
                                       th:action="@{/manager/suppliers/{id}/delete(id=${supplier.id})}"
                                       class="inline">
@@ -241,7 +241,7 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- 1. MODAL XEM CHI TIẾT NHÀ CUNG CẤP (Popup đầy đủ thông tin + nút sửa) -->
+    <!-- 1. Supplier Details Modal (Full info view + edit trigger) -->
     <!-- ========================================================================= -->
     <div id="viewSupplierModal"
          class="fixed inset-0 z-50 bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 hidden">
@@ -313,7 +313,7 @@
                         class="px-4 py-2 border border-dust_grey rounded-xl text-sm font-semibold text-carbon_black hover:bg-parchment transition">
                     Đóng
                 </button>
-                <!-- Nút Chuyển Sang Chỉnh Sửa (gồm cả sửa thông tin & trạng thái hoạt động) -->
+                <!-- Trigger Edit Modal from Details View -->
                 <button type="button"
                         id="view_edit_button"
                         onclick="triggerEditFromView()"
@@ -326,7 +326,7 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- 2. MODAL THÊM NHÀ CUNG CẤP MỚI -->
+    <!-- 2. Create Supplier Modal -->
     <!-- ========================================================================= -->
     <div id="createSupplierModal"
          class="fixed inset-0 z-50 bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 hidden">
@@ -425,7 +425,7 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- 3. MODAL CHỈNH SỬA THÔNG TIN NHÀ CUNG CẤP -->
+    <!-- 3. Edit Supplier Modal -->
     <!-- ========================================================================= -->
     <div id="editSupplierModal"
          class="fixed inset-0 z-50 bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4 hidden">

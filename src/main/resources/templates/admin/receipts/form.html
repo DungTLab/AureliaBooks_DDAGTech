@@ -5,6 +5,7 @@
 <head>
     <title th:text="${isEdit ? 'Chỉnh sửa Phiếu Nhập Kho' : 'Lập Phiếu Nhập Kho'} + ' - AureliaBooks'">Lập Phiếu Nhập Kho - AureliaBooks</title>
 </head>
+<body>
 <div id="main-content" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
     <style>
@@ -19,7 +20,7 @@
         }
     </style>
 
-    <!-- Breadcrumb & Header (Giao diện chuẩn thuần chữ, không dùng icon) -->
+    <!-- Breadcrumb & Header -->
     <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm">
         <div class="flex items-center gap-2 text-xs font-semibold text-carbon_black-500 uppercase tracking-wider mb-1">
             <a th:href="@{${baseUri ?: '/staff/receipts'}}" class="hover:text-blazing_flame transition">Quản trị kho</a>
@@ -36,7 +37,7 @@
         </p>
     </div>
 
-    <!-- Form Validation Alert Box (Cảnh báo nghiệp vụ thuần chữ) -->
+    <!-- Form Validation Alert Box -->
     <div id="formValidationError" class="hidden bg-white border border-rose-300 rounded-2xl p-4 shadow-md flex items-start justify-between gap-3 animate-fade-in-down">
         <div class="flex items-start gap-3">
             <span class="px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-700 border border-rose-300 flex-shrink-0 mt-0.5">Lưu ý</span>
@@ -100,7 +101,7 @@
             </div>
         </div>
 
-        <!-- Section 2: Danh mục sản phẩm (Master-Detail: Khung nhập liệu ở trên, Bảng danh sách ở dưới) -->
+        <!-- Section 2: Product Line Items (Master-Detail Layout) -->
         <div class="bg-white border border-dust_grey rounded-2xl p-6 shadow-sm space-y-5">
             <div class="border-b border-dust_grey/60 pb-3">
                 <h2 class="text-lg font-bold text-carbon_black">
@@ -111,7 +112,7 @@
                 </p>
             </div>
 
-            <!-- KHUNG NHẬP LIỆU PHÍA TRÊN (STAGING BOX) -->
+            <!-- Staging Box (Item Entry & Edit) -->
             <div id="stagingCard" class="bg-parchment-50 border border-dust_grey rounded-xl p-5 space-y-4 transition">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
@@ -124,12 +125,12 @@
                     </div>
                 </div>
 
-                <!-- Hidden Index for Inspected / Edited Row (-1 means adding new) -->
+                <!-- Hidden Index for Inspected / Edited Row (-1 indicates new item) -->
                 <input type="hidden" id="stagingActiveIndex" value="-1" />
 
-                <!-- Grid ô nhập thông tin hàng hóa (5 ô: Sản phẩm, Tồn kho, Đơn giá, Số lượng, Thành tiền) -->
+                <!-- Input Grid: Product, Current Stock, Unit Cost, Quantity, Subtotal -->
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-                    <!-- Ô 1: Chọn sản phẩm (Combobox tìm kiếm) -->
+                    <!-- Column 1: Product Selection Combobox -->
                     <div class="md:col-span-4 space-y-1">
                         <label for="stagingProductSearch" class="block text-xs font-bold text-carbon_black">
                             Sản phẩm <span class="text-rose-500">*</span>
@@ -151,27 +152,27 @@
                                     <span id="stagingToggleIcon" class="text-[10px] text-carbon_black-500 select-none leading-none">▼</span>
                                 </button>
                             </div>
-                            <!-- Dropdown Menu nổi lên trên -->
+                            <!-- Combobox Dropdown Menu -->
                             <div id="stagingDropdownMenu"
                                  class="absolute left-0 right-0 top-full mt-1.5 max-h-64 overflow-y-auto bg-white border border-dust_grey rounded-xl shadow-2xl z-[80] hidden divide-y divide-dust_grey/40">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Ô 2: Tồn kho (Label riêng - Read-only) -->
+                    <!-- Column 2: Current Stock (Read-only) -->
                     <div class="md:col-span-2 space-y-1">
                         <label class="block text-xs font-bold text-carbon_black" for="stagingStock">
                             Tồn kho
                         </label>
                         <input type="text"
-                               id="stagingStock"
-                               value="-"
-                               readonly
-                               tabindex="-1"
-                               class="w-full px-3 py-2 bg-parchment-100 border border-dust_grey rounded-lg text-sm font-bold text-carbon_black text-center cursor-default select-none focus:outline-none" />
+                                id="stagingStock"
+                                value="-"
+                                readonly
+                                tabindex="-1"
+                                class="w-full px-3 py-2 bg-parchment-100 border border-dust_grey rounded-lg text-sm font-bold text-carbon_black text-center cursor-default select-none focus:outline-none" />
                     </div>
 
-                    <!-- Ô 3: Đơn giá nhập -->
+                    <!-- Column 3: Inbound Unit Cost -->
                     <div class="md:col-span-2 space-y-1">
                         <label class="block text-xs font-bold text-carbon_black" for="stagingUnitCost">
                             Đơn giá nhập (đ) <span class="text-rose-500">*</span>
@@ -185,7 +186,7 @@
                                class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
                     </div>
 
-                    <!-- Ô 4: Số lượng nhập -->
+                    <!-- Column 4: Inbound Quantity -->
                     <div class="md:col-span-2 space-y-1">
                         <label class="block text-xs font-bold text-carbon_black" for="stagingQuantity">
                             Số lượng <span class="text-rose-500">*</span>
@@ -198,7 +199,7 @@
                                class="quantity-input w-full px-3 py-2 bg-white border border-dust_grey rounded-lg text-sm font-medium text-carbon_black text-right focus:outline-none focus:border-blazing_flame" />
                     </div>
 
-                    <!-- Ô 5: Thành tiền tạm tính -->
+                    <!-- Column 5: Line Subtotal -->
                     <div class="md:col-span-2 space-y-1">
                         <label class="block text-xs font-bold text-carbon_black">
                             Thành tiền (đ)
@@ -210,12 +211,12 @@
                     </div>
                 </div>
 
-                <!-- Cảnh báo hạn mức ngay trong khung nhập liệu nếu có -->
+                <!-- Batch Limit Warning Banner -->
                 <div id="stagingWarningBox" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5 font-medium"></div>
 
-                <!-- Hàng nút bấm hành động của Khung Nhập Liệu -->
+                <!-- Staging Area Action Buttons -->
                 <div class="flex items-center justify-end gap-2 pt-2 border-t border-dust_grey/40">
-                    <!-- 1. Chế độ Thêm mới -->
+                    <!-- 1. Add Mode Button -->
                     <button type="button"
                             id="stagingAddBtn"
                             onclick="addItemFromStaging()"
@@ -223,7 +224,7 @@
                         Thêm vào danh sách
                     </button>
 
-                    <!-- 2. Chế độ Xem chi tiết dòng (Khi bấm nút ba chấm): Hiển thị 2 nút Sửa và Xóa -->
+                    <!-- 2. View Mode (Edit/Delete Actions) -->
                     <div id="stagingViewActions" class="hidden flex items-center gap-2">
                         <button type="button"
                                 id="stagingInspectEditBtn"
@@ -245,7 +246,7 @@
                         </button>
                     </div>
 
-                    <!-- 3. Chế độ Sửa: Chỉ để 2 nút Lưu và Hủy -->
+                    <!-- 3. Edit Mode (Save/Cancel Actions) -->
                     <div id="stagingEditActions" class="hidden flex items-center gap-2">
                         <button type="button"
                                 id="stagingSaveBtn"
@@ -263,7 +264,7 @@
                 </div>
             </div>
 
-            <!-- BẢNG DANH SÁCH SẢN PHẨM PHÍA DƯỚI (CHỦ YẾU ĐỂ XEM - READ-ONLY) -->
+            <!-- Review Table (Read-only list of staged items) -->
             <div class="space-y-2">
                 <div class="flex items-center justify-between text-xs font-bold text-carbon_black-700 uppercase tracking-wider">
                     <span>Danh sách mặt hàng đã thêm</span>
@@ -335,7 +336,7 @@
             </div>
         </div>
 
-        <!-- Form Submission Buttons (Chỉ chữ, không dùng icon) -->
+        <!-- Form Submission Action Buttons -->
         <div class="flex items-center justify-end gap-3 pt-2">
             <a th:href="@{${baseUri ?: '/staff/receipts'}}"
                class="px-5 py-2.5 bg-white border border-dust_grey hover:bg-parchment-200 text-carbon_black font-semibold rounded-xl transition">
@@ -349,7 +350,7 @@
         <p data-form-feedback role="status" class="text-sm text-carbon_black-600">Chọn nhà cung cấp và thêm ít nhất một sản phẩm để lưu.</p>
     </form>
 
-    <!-- Hidden Source Product Options (Nguồn dữ liệu sản phẩm) -->
+    <!-- Hidden Source Product Options -->
     <select id="productOptionsSource" class="hidden" style="display: none;">
         <option value="">-- Chọn sản phẩm --</option>
         <option th:each="p : ${products}"
@@ -412,7 +413,7 @@
     }
 
     // ==========================================
-    // STAGING AREA: COMBOBOX SẢN PHẨM (PHƯƠNG ÁN 1: DYNAMIC CLEAR BUTTON & FULL LIST OPEN)
+    // STAGING AREA: PRODUCT COMBOBOX
     // ==========================================
 
     function updateStagingComboboxIcon() {
@@ -447,7 +448,7 @@
         checkStagingLimit();
         calculateStagingSubtotal();
 
-        // Tự động focus vào ô và mở full danh sách sản phẩm
+        // Focus search input and render full product list
         searchInput.focus();
         renderStagingDropdown('');
     }
@@ -457,7 +458,7 @@
         const selectedPid = document.getElementById('stagingProductId').value;
         const availableProducts = getAvailableProducts();
 
-        // Ẩn sản phẩm đã có trong bảng (trừ sản phẩm của dòng đang chọn)
+        // Hide products already in review table (except the currently inspected/edited item)
         const alreadySelectedIds = getSelectedProductIds(true);
         const candidateProducts = availableProducts.filter(p => !alreadySelectedIds.has(String(p.id)));
 
@@ -515,7 +516,7 @@
         menu.innerHTML = html;
         menu.classList.remove('hidden');
 
-        // Nếu có sản phẩm đang chọn trong danh sách, tự động cuộn đến vị trí của nó
+        // Automatically scroll to currently selected item if present
         if (selectedPid) {
             const selectedEl = menu.querySelector(`[data-product-id="${selectedPid}"]`);
             if (selectedEl) {
@@ -529,7 +530,7 @@
         const p = availableProducts.find(x => String(x.id) === String(productId));
         if (!p) return;
 
-        // Kiểm tra xem sản phẩm đã có dưới bảng chưa
+        // Check if product is already in review table
         const activeIdx = parseInt(document.getElementById('stagingActiveIndex').value, 10);
         const existingIdx = itemsData.findIndex((item, idx) => idx !== activeIdx && String(item.productId) === String(p.id));
 
@@ -546,13 +547,13 @@
         document.getElementById('stagingProductId').value = p.id;
         document.getElementById('stagingProductSearch').value = p.title;
 
-        // Cập nhật icon thành dấu ✕ khi đã chọn sản phẩm
+        // Update clear/toggle icon
         updateStagingComboboxIcon();
 
-        // Cập nhật label riêng Tồn kho (read-only)
+        // Populate stock display (read-only)
         document.getElementById('stagingStock').value = p.stock;
 
-        // Điền đơn giá mặc định nếu ô đơn giá chưa có hoặc đang bằng 0
+        // Populate default unit cost if field is currently empty or zero
         const costInput = document.getElementById('stagingUnitCost');
         if (!costInput.value || parseFloat(costInput.value) <= 0) {
             costInput.value = p.cost;
@@ -564,16 +565,15 @@
     }
 
     function openStagingDropdown(forceFullList = false) {
-        if (stagingMode === 'VIEW') return; // Không mở dropdown khi đang ở chế độ xem chi tiết
+        if (stagingMode === 'VIEW') return;
         const searchInput = document.getElementById('stagingProductSearch');
         const pid = document.getElementById('stagingProductId').value;
 
-        // Nếu sản phẩm đã được chọn (có ID) hoặc được yêu cầu mở toàn bộ:
-        // mở toàn bộ danh sách sản phẩm để người dùng không bị kẹt 1 sản phẩm
+        // If product is already selected or full list forced, show full list without filtering
         const q = (forceFullList || pid) ? '' : (searchInput.value ? searchInput.value.trim() : '');
         renderStagingDropdown(q);
 
-        // Bôi đen chữ nếu đang có sản phẩm để người dùng có thể gõ đè ngay lập tức
+        // Highlight input text for quick replacement
         if (pid && searchInput.value) {
             setTimeout(() => {
                 if (document.activeElement === searchInput) {
@@ -589,7 +589,7 @@
     }
 
     // ==========================================
-    // SANITIZATION VÀ TỰ ĐỘNG ĐIỀN 1/0
+    // SANITIZATION AND DEFAULT FALLBACKS
     // ==========================================
 
     function sanitizeQuantity(elem, isFinal) {
@@ -695,7 +695,7 @@
     }
 
     // ==========================================
-    // CÁC CHẾ ĐỘ CỦA KHUNG NHẬP LIỆU: ADD / VIEW / EDIT
+    // STAGING AREA MODES: ADD / VIEW / EDIT
     // ==========================================
 
     function resetToAddMode() {
@@ -720,11 +720,11 @@
         document.getElementById('stagingSubtotal').textContent = '0 đ';
         document.getElementById('stagingWarningBox').classList.add('hidden');
 
-        // Tiêu đề & badge
+        // Form title and badge
         document.getElementById('stagingFormTitle').textContent = 'Thêm mặt hàng mới';
         document.getElementById('stagingRowBadge').classList.add('hidden');
 
-        // Hiển thị nút Thêm mới, ẩn các cụm nút khác
+        // Show add button and hide view/edit action button groups
         document.getElementById('stagingAddBtn').classList.remove('hidden');
         document.getElementById('stagingViewActions').classList.add('hidden');
         document.getElementById('stagingEditActions').classList.add('hidden');
@@ -742,7 +742,7 @@
         stagingMode = 'VIEW';
         document.getElementById('stagingActiveIndex').value = idx;
 
-        // Điền dữ liệu lên khung trên
+        // Populate staging box with selected row data
         document.getElementById('stagingProductId').value = item.productId;
         document.getElementById('stagingProductSearch').value = item.title;
         document.getElementById('stagingProductSearch').readOnly = true;
@@ -759,14 +759,14 @@
         qtyInput.value = item.quantity;
         qtyInput.readOnly = true;
 
-        // Tiêu đề & badge
+        // Update form title and row badge
         document.getElementById('stagingFormTitle').textContent = 'Thông tin mặt hàng';
         document.getElementById('stagingRowDisplay').textContent = (idx + 1);
         const badge = document.getElementById('stagingRowBadge');
         badge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-parchment-200 text-carbon_black-700 border border-dust_grey';
         badge.classList.remove('hidden');
 
-        // Hiển thị cụm nút VIEW (Sửa & Xóa & Đóng)
+        // Show VIEW actions (Edit, Delete, Close)
         document.getElementById('stagingAddBtn').classList.add('hidden');
         document.getElementById('stagingViewActions').classList.remove('hidden');
         document.getElementById('stagingEditActions').classList.add('hidden');
@@ -779,7 +779,7 @@
         checkStagingLimit();
         calculateStagingSubtotal();
 
-        // Cuộn mượt lên khung nhập liệu
+        // Smooth scroll to staging area
         stagingCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
@@ -789,7 +789,7 @@
 
         stagingMode = 'EDIT';
 
-        // Cho phép sửa các ô
+        // Enable field editing
         document.getElementById('stagingProductSearch').readOnly = false;
         document.getElementById('stagingComboboxToggle').classList.remove('pointer-events-none', 'opacity-40');
         updateStagingComboboxIcon();
@@ -800,13 +800,13 @@
         const qtyInput = document.getElementById('stagingQuantity');
         qtyInput.readOnly = false;
 
-        // Đổi tiêu đề & badge sang trạng thái đang sửa
+        // Update form title and badge
         document.getElementById('stagingFormTitle').textContent = 'Chỉnh sửa mặt hàng';
         const badge = document.getElementById('stagingRowBadge');
         badge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300';
         badge.classList.remove('hidden');
 
-        // Hiển thị chỉ 2 nút: Lưu và Hủy
+        // Show edit actions (Save and Cancel)
         document.getElementById('stagingAddBtn').classList.add('hidden');
         document.getElementById('stagingViewActions').classList.add('hidden');
         document.getElementById('stagingEditActions').classList.remove('hidden');
@@ -841,7 +841,7 @@
         const p = availableProducts.find(x => String(x.id) === String(pid));
         if (!p) return;
 
-        // Cập nhật phần tử trong mảng
+        // Update item in state array
         itemsData[activeIdx] = {
             productId: p.id,
             unitCost: cost,
@@ -891,7 +891,7 @@
         const p = availableProducts.find(x => String(x.id) === String(pid));
         if (!p) return;
 
-        // Kiểm tra trùng sản phẩm
+        // Validate uniqueness of products
         const existingIdx = itemsData.findIndex(item => String(item.productId) === String(pid));
         if (existingIdx >= 0) {
             showErrorBox(
@@ -901,7 +901,7 @@
             return;
         }
 
-        // Thêm vào mảng dữ liệu
+        // Add to itemsData array
         itemsData.push({
             productId: p.id,
             unitCost: cost,
@@ -934,7 +934,7 @@
     }
 
     // ==========================================
-    // RENDER REVIEW TABLE & BINDING CHO SPRING BOOT
+    // RENDER REVIEW TABLE & BINDING FOR SPRING BOOT
     // ==========================================
 
     function renderReviewTable() {
@@ -961,7 +961,7 @@
                     data-index="${idx}"
                     onclick="inspectReviewRow(${idx})"
                     class="review-row hover:bg-parchment-50 transition cursor-pointer ${isSelectedThis ? 'bg-blazing_flame/10 border-l-4 border-blazing_flame' : ''}">
-                    <!-- Hidden inputs phục vụ submit lên Spring Boot GoodsReceiptForm -->
+                    <!-- Hidden inputs for Spring Boot GoodsReceiptForm binding -->
                     <input type="hidden" name="items[${idx}].productId" value="${escapeHtml(item.productId)}" class="row-product-id" />
                     <input type="hidden" name="items[${idx}].unitCost" value="${item.unitCost}" class="row-unit-cost" />
                     <input type="hidden" name="items[${idx}].receivedQuantity" value="${item.quantity}" class="row-quantity" />
@@ -1016,7 +1016,7 @@
     }
 
     // ==========================================
-    // VALIDATION SUBMIT FORM
+    // FORM SUBMISSION VALIDATION
     // ==========================================
 
     function validateAndSubmitReceipt(event) {
@@ -1029,7 +1029,7 @@
 
         const availableProducts = getAvailableProducts();
 
-        // 1. Kiểm tra trùng lặp
+        // 1. Check duplicate items
         const seenPids = new Map();
         for (let i = 0; i < itemsData.length; i++) {
             const item = itemsData[i];
@@ -1046,7 +1046,7 @@
             seenPids.set(pid, i);
         }
 
-        // 2. Kiểm tra hạn mức nhập kho cho hàng tồn = 0
+        // 2. Check batch limits for 0-stock products
         for (let i = 0; i < itemsData.length; i++) {
             const item = itemsData[i];
             const p = availableProducts.find(x => String(x.id) === String(item.productId));
@@ -1088,12 +1088,12 @@
     }
 
     // ==========================================
-    // SỰ KIỆN TOÀN CỤC & INITIALIZATION
+    // GLOBAL EVENTS & INITIALIZATION
     // ==========================================
 
-    // Lắng nghe click đóng mở dropdown combobox
+    // Listen to clicks for combobox dropdown toggle and closing
     document.addEventListener('click', (e) => {
-        // 1. Click vào item trong dropdown
+        // 1. Click on item in dropdown
         const optionItem = e.target.closest('.staging-option-item');
         if (optionItem) {
             const pid = optionItem.getAttribute('data-product-id');
@@ -1101,7 +1101,7 @@
             return;
         }
 
-        // 2. Click toggle button (Xóa nhanh nếu có char / Mở đóng nếu ô rỗng)
+        // 2. Click toggle button (Clear or Open/Close)
         const toggleBtn = e.target.closest('#stagingComboboxToggle');
         if (toggleBtn) {
             if (stagingMode === 'VIEW') return;
@@ -1120,7 +1120,7 @@
             return;
         }
 
-        // 3. Click vào ô tìm kiếm sản phẩm (mở toàn bộ danh sách sản phẩm)
+        // 3. Click search input to open full dropdown
         const searchInput = e.target.closest('#stagingProductSearch');
         if (searchInput) {
             if (stagingMode === 'VIEW') return;
@@ -1128,19 +1128,19 @@
             return;
         }
 
-        // 4. Click ngoài đóng dropdown
+        // 4. Click outside to close dropdown
         if (!e.target.closest('.staging-combobox')) {
             closeStagingDropdown();
         }
     });
 
-    // Lắng nghe gõ tìm kiếm trên ô combobox
+    // Listen to input keystrokes on combobox search
     document.addEventListener('input', (e) => {
         if (e.target.id === 'stagingProductSearch') {
             const pidInput = document.getElementById('stagingProductId');
             const val = e.target.value;
 
-            // Nếu người dùng gõ sửa text khác với tên sản phẩm đã chọn, hủy ID đã chọn
+            // If user types different text than selected product title, reset selected ID
             const availableProducts = getAvailableProducts();
             const currentSelected = availableProducts.find(p => String(p.id) === String(pidInput.value));
             if (!currentSelected || currentSelected.title !== val) {
@@ -1184,7 +1184,7 @@
         }
     }, true);
 
-    // Chặn dấu '-' ngay lập tức khi người dùng bấm phím
+    // Block negative '-' sign immediately upon keydown
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             closeStagingDropdown();
@@ -1200,7 +1200,7 @@
         }
     });
 
-    // Khởi tạo dữ liệu khi tải trang (Load ban đầu từ Thymeleaf nếu có dữ liệu sẵn)
+    // Initialize data on page load
     document.addEventListener('DOMContentLoaded', () => {
         const availableProducts = getAvailableProducts();
         const initialRows = document.querySelectorAll('.review-row');
@@ -1233,7 +1233,7 @@
             }
         });
 
-        // Kiểm tra URL param productId (từ trang Cảnh báo tồn kho chuyển sang)
+        // Check URL param productId (from Stock Alerts navigation)
         const urlParams = new URLSearchParams(window.location.search);
         const paramPid = urlParams.get('productId');
         if (paramPid) {

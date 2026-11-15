@@ -55,7 +55,7 @@ Không dùng bucket lifecycle expiration theo tuổi cho toàn bộ `products/`,
 
 ## Kiểm thử và giới hạn
 
-Regression chạy danh sách test cụ thể, không full suite. Lệnh và số tests thực chạy ghi trong `docs/AureliaBooks_R2_Chat_Context.md`. `scripts/test-r2-mysql.sh` chỉ dùng container QA loopback đã có canonical schema, với credentials ngoài Git; không tự import hay tạo lại container.
+Regression chạy danh sách test cụ thể. [Bản lưu kết quả](../archive/AureliaBooks_R2_Chat_Context.md) ghi lệnh và số test đã chạy. `scripts/test-r2-mysql.sh` dùng container QA loopback đã có canonical schema và thông tin kết nối đặt ngoài Git.
 
 JavaScript tests: `scripts/tests/product-image-upload.test.mjs` export `runTests()` cho Node ESM. Ví dụ trên máy có Node:
 

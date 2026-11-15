@@ -89,6 +89,11 @@ public class MasterDataServiceImpl implements MasterDataService {
         });
     }
 
+    /**
+     * Runs the callback within the configured transaction template.
+     * Author mutations call this inside the synchronized method so commit precedes monitor release.
+     * If no template is supplied, invokes the callback directly without starting a transaction.
+     */
     private <T> T executeInTransaction(TransactionCallback<T> action) {
         if (transactionTemplate != null) {
             return transactionTemplate.execute(action);
@@ -96,6 +101,9 @@ public class MasterDataServiceImpl implements MasterDataService {
         return action.doInTransaction(null);
     }
 
+    /**
+     * Rejects deletion while books still reference the author.
+     */
     @Override
     @Transactional
     public void deleteAuthor(Long authorId) {
@@ -179,6 +187,9 @@ public class MasterDataServiceImpl implements MasterDataService {
         log.info("Updated publisher [id={}, name='{}']", publisherId, trimmedName);
     }
 
+    /**
+     * Rejects deletion while books still reference the publisher.
+     */
     @Override
     @Transactional
     public void deletePublisher(Long publisherId) {
@@ -267,6 +278,9 @@ public class MasterDataServiceImpl implements MasterDataService {
         log.info("Updated brand [id={}, name='{}']", brandId, trimmedName);
     }
 
+    /**
+     * Rejects deletion while stationery products still reference the brand.
+     */
     @Override
     @Transactional
     public void deleteBrand(Long brandId) {
@@ -325,6 +339,11 @@ public class MasterDataServiceImpl implements MasterDataService {
     // UC20: CATEGORIES MANAGEMENT (SCR-M03d)
     // =========================================================================
 
+    /**
+     * Creates a category after checking name uniqueness within its sibling group.
+     * Requests root locks before the parent lock for child creation; lock and integrity conflicts
+     * are translated into a validation error within the transaction.
+     */
     @Override
     @Transactional
     public Long createCategory(CategoryForm form) {
@@ -359,6 +378,11 @@ public class MasterDataServiceImpl implements MasterDataService {
         }
     }
 
+    /**
+     * Renames or reparents a category after checking sibling names and ancestor cycles.
+     * For a non-null parent, requests root locks first, then both category locks in ascending ID order.
+     * Moving to the root instead requests the category lock before root locks.
+     */
     @Override
     @Transactional
     public void updateCategory(Long categoryId, CategoryForm form) {
@@ -446,6 +470,9 @@ public class MasterDataServiceImpl implements MasterDataService {
         }
     }
 
+    /**
+     * Deletes only categories with no child categories and no directly linked products.
+     */
     @Override
     @Transactional
     public void deleteCategory(Long categoryId) {
@@ -464,6 +491,10 @@ public class MasterDataServiceImpl implements MasterDataService {
         log.info("Deleted category [id={}, name='{}']", categoryId, category.getName());
     }
 
+    /**
+     * Returns categories in parent-first traversal order.
+     * Also includes orphaned and otherwise unvisited nodes so legacy tree data remains visible.
+     */
     @Override
     public List<Category> getAllCategoriesWithParent() {
         List<Category> categories = categoryRepository.findAllWithParent();
@@ -483,16 +514,19 @@ public class MasterDataServiceImpl implements MasterDataService {
 
         List<Category> ordered = new ArrayList<>(categories.size());
         Set<Long> visited = new HashSet<>();
+        // List normal root branches first.
         for (Category category : categories) {
             if (category.getParent() == null) {
                 flattenCategoryTree(category, childrenByParent, ordered, visited);
             }
         }
+        // Keep orphaned branches visible when their parent is missing.
         for (Category category : categories) {
             if (category.getParent() != null && !categoryIds.contains(category.getParent().getId())) {
                 flattenCategoryTree(category, childrenByParent, ordered, visited);
             }
         }
+        // Include remaining nodes even if legacy cycles prevented a root traversal.
         for (Category category : categories) {
             if (!visited.contains(category.getId())) {
                 flattenCategoryTree(category, childrenByParent, ordered, visited);
@@ -501,6 +535,10 @@ public class MasterDataServiceImpl implements MasterDataService {
         return ordered;
     }
 
+    /**
+     * Traverses iteratively to avoid recursive stack growth on deep trees.
+     * The shared visited set prevents duplicate output and terminates traversal through cycles.
+     */
     private void flattenCategoryTree(Category root, Map<Long, List<Category>> childrenByParent,
                                      List<Category> result, Set<Long> visited) {
         Deque<Category> pending = new ArrayDeque<>();
@@ -513,6 +551,7 @@ public class MasterDataServiceImpl implements MasterDataService {
             result.add(category);
             List<Category> children = childrenByParent.get(category.getId());
             if (children != null) {
+                // Push in reverse order so the stack preserves the original sibling order.
                 for (int index = children.size() - 1; index >= 0; index--) {
                     pending.push(children.get(index));
                 }

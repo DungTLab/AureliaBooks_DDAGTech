@@ -1,6 +1,5 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.Role;
@@ -9,14 +8,16 @@ import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.mapper.UserMapper;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
 import com.ddagtech.aureliabooks.repository.UserRepository;
-import com.ddagtech.aureliabooks.service.*;
+import com.ddagtech.aureliabooks.security.CustomerIdentity;
+import com.ddagtech.aureliabooks.service.RegistrationService;
 import jakarta.validation.Validator;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Locale;
 
 /** UC05 only; profile/password-change contracts remain separate. */
 @Service

@@ -2,6 +2,7 @@ package com.ddagtech.aureliabooks.mapper;
 
 import com.ddagtech.aureliabooks.dto.response.AuditLogResponse;
 import com.ddagtech.aureliabooks.entity.AuditLog;
+import com.ddagtech.aureliabooks.util.AuditLogLabelFormatter;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,11 +11,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditLogMapper {
 
+    /**
+     * Converts an immutable {@link AuditLog} entity into its read-only {@link AuditLogResponse} DTO.
+     *
+     * @param entity persisted audit log entry (nullable)
+     * @return mapped DTO, or null when entity is null
+     */
     public AuditLogResponse toResponse(AuditLog entity) {
         if (entity == null) {
             return null;
         }
-        String name = entity.getUser() != null ? entity.getUser().getFullName() : "Hệ thống / Gateway";
+        String name = entity.getUser() != null
+                ? entity.getUser().getFullName()
+                : AuditLogLabelFormatter.SYSTEM_OPERATOR_LABEL;
         String email = entity.getUser() != null ? entity.getUser().getEmail() : null;
         Long uid = entity.getUser() != null ? entity.getUser().getId() : null;
 

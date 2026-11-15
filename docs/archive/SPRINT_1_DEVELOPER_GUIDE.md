@@ -102,6 +102,6 @@ Truy cập trình duyệt: `http://localhost:8080` để thấy trang chủ Stor
 ---
 
 ## 4. QUY TẮC BẢO TOÀN KIẾN TRÚC
-* Đọc kỹ file [PACKAGE_DICTIONARY.md](file:///d:/FPTU_document/SE_5/SWP391/Project/PACKAGE_DICTIONARY.md) trước khi tạo file mới.
+* Xem [bản đồ thư mục hiện tại](../../README.md#cấu-trúc-repo) trước khi tạo file mới.
 * Tầng Controller **CHỈ ĐƯỢC PHÉP** gọi Service Interface, không được gọi trực tiếp Repository.
 * Không truyền trực tiếp `Entity` ra ngoài View mà phải bọc qua DTO / ViewModel.

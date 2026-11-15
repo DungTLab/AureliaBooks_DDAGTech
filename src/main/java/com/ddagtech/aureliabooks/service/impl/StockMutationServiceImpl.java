@@ -27,7 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -103,6 +105,7 @@ public class StockMutationServiceImpl implements StockMutationService {
         List<Long> productIds = receivedQtyPerProduct.keySet().stream().sorted().toList();
         List<Product> products = productRepository.findAllByIdInWithLock(productIds);
         Map<Long, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+
         // Atomic multi-line stock mutation & cost update (UC23 / FND-03)
         for (GoodsReceiptItem item : items) {
             Product product = productMap.get(item.getProduct().getId());

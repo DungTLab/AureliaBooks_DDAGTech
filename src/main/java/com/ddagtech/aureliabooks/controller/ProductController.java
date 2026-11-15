@@ -6,19 +6,23 @@ import com.ddagtech.aureliabooks.dto.response.ProductAutoCompleteResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductDetailResponse;
 import com.ddagtech.aureliabooks.dto.response.ProductSummary;
 import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.ProductService;
 import com.ddagtech.aureliabooks.service.RecommendationService;
-import com.ddagtech.aureliabooks.security.CustomerIdentity;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.security.core.Authentication;
 import com.ddagtech.aureliabooks.util.PageableUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -82,10 +86,8 @@ public class ProductController {
         String rawKeyword = filterRequest != null ? filterRequest.keyword() : null;
         boolean isBlankKeyWord = rawKeyword == null || rawKeyword.trim().isBlank();
 
-
-
         Page<ProductSummary> products;
-        if(isBlankKeyWord){
+        if (isBlankKeyWord) {
             products = Page.empty(pageable);
             model.addAttribute("keywordMessage","Vui lòng nhập từ khóa để tìm kiếm sản phẩm");
         } else {

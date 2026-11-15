@@ -52,6 +52,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -63,6 +69,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -1640,6 +1647,94 @@ class VnpayTimeoutCleanerDaemonTest {
         assertThat(recorded).isGreaterThan(0);
         // Ensure that attempts recorded so far were not lost
         assertThat(order.getVnpayPaymentAttempts().size()).isEqualTo(recorded);
+    }
+
+    @Test
+    @DisplayName("REC-03 / REC-07: Concurrent and repeated reconciliation runs serialize under row lock and never restock twice")
+    void cron01_ConcurrentAndRepeatedRunsSerializedByLock_NeverCancelsOrRestocksTwice() throws Exception {
+        VNPayConfig config = new VNPayConfig();
+        config.setExpireMinutes(15);
+
+        VnpayTimeoutCleanerDaemon daemon = new VnpayTimeoutCleanerDaemon(
+                orderRepository,
+                config,
+                reconciliationClient,
+                stockMutationService,
+                orderVoucherReleasePort,
+                auditLogService,
+                objectMapper
+        );
+        LocalDateTime nowTime = LocalDateTime.of(2026, 10, 24, 12, 0, 0);
+        daemon.setClock(Clock.fixed(nowTime.atZone(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC));
+
+        User customer = User.builder().id(12L).build();
+        Order expiredOrder = Order.builder()
+                .id(190L)
+                .user(customer)
+                .orderCode("ORD-EXP-LOCK-190")
+                .paymentMethod(Order.PaymentMethod.VNPAY)
+                .orderStatus(Order.OrderStatus.PENDING_PAYMENT)
+                .paymentStatus(Order.PaymentStatus.UNPAID)
+                .stockDeductedAt(nowTime.minusMinutes(25))
+                .build();
+        expiredOrder.setCreatedAt(nowTime.minusMinutes(25));
+
+        CountDownLatch bothEntered = new CountDownLatch(2);
+        CountDownLatch startRace = new CountDownLatch(1);
+        CountDownLatch firstCommitted = new CountDownLatch(1);
+        AtomicInteger lockOrderIndex = new AtomicInteger(0);
+
+        when(orderRepository.findExpiredPendingPaymentOrders(any())).thenReturn(List.of(expiredOrder));
+        when(orderRepository.findByIdWithLock(190L)).thenAnswer(inv -> {
+            if (lockOrderIndex.getAndIncrement() > 0) {
+                firstCommitted.await(5, TimeUnit.SECONDS);
+            }
+            return Optional.of(expiredOrder);
+        });
+        when(reconciliationClient.reconcileExpiredOrder(expiredOrder))
+                .thenReturn(ReconciliationResult.unpaidOrFailed("Verified unpaid at gateway"));
+        doAnswer(inv -> {
+            expiredOrder.setOrderStatus(Order.OrderStatus.CANCELLED);
+            expiredOrder.setStockRestoredAt(nowTime);
+            expiredOrder.setStockRestoreReason(Order.StockRestoreReason.CANCELLED);
+            return null;
+        }).when(stockMutationService).restoreCancelledOrder(190L, 12L);
+
+        Callable<Integer> cronTask = () -> {
+            bothEntered.countDown();
+            startRace.await(5, TimeUnit.SECONDS);
+            try {
+                return daemon.cleanExpiredPendingPaymentOrders();
+            } finally {
+                firstCommitted.countDown();
+            }
+        };
+
+        int firstResult;
+        int secondResult;
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Integer> f1 = pool.submit(cronTask);
+            Future<Integer> f2 = pool.submit(cronTask);
+            assertThat(bothEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            startRace.countDown();
+            firstResult = f1.get(5, TimeUnit.SECONDS);
+            secondResult = f2.get(5, TimeUnit.SECONDS);
+        }
+        int consecutiveRunResult = daemon.cleanExpiredPendingPaymentOrders();
+
+        assertThat(firstResult + secondResult).isEqualTo(1);
+        assertThat(consecutiveRunResult).isZero();
+        assertThat(expiredOrder.getOrderStatus()).isEqualTo(Order.OrderStatus.CANCELLED);
+        verify(stockMutationService, times(1)).restoreCancelledOrder(190L, 12L);
+        verify(orderVoucherReleasePort, times(1)).releaseOrderVoucherIfPresent(190L);
+        verify(auditLogService, times(1)).record(
+                eq(12L),
+                eq("VNPAY_TIMEOUT_CANCELLED_RESTOCK"),
+                eq("orders"),
+                eq(190L),
+                any(),
+                eq("SYSTEM_CRON_01")
+        );
     }
 
     private VNPayConfig configuredForQueryDr(String apiUrl) {

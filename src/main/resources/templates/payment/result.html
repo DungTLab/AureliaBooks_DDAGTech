@@ -1,66 +1,104 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout('Kết quả thanh toán | AureliaBook', ~{::#main-content})}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" th:href="@{/css/typography.css}">
-    <title>Kết Quả Thanh Toán Đơn Hàng | AureliaBook</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Kết quả thanh toán</title>
 </head>
-<body class="bg-[#e6e8e6] text-[#191919] min-h-screen flex items-center justify-center p-6">
-    <!-- SCR-ST-13: Payment & Order Result Screen -->
-    <main class="bg-white border border-[#ced0ce] rounded-xl shadow-md max-w-lg w-full p-8">
-        <div class="text-center mb-6">
-            <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#e6e8e6] text-[#191919]">
-                SCR-ST-13 • Kết Quả Thanh Toán VNPay
-            </span>
-            <h1 class="text-2xl font-bold mt-3 text-[#191919]"
+<body>
+<section id="main-content" class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+    <div class="bg-white border border-dust_grey rounded-2xl shadow-soft p-6 sm:p-8"
+         th:with="tone=${paymentResult.statusTone}">
+        <div class="text-center space-y-4">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl"
+                 th:classappend="${tone == 'success'} ? ' bg-emerald-50 text-emerald-600' : (${tone == 'failure'} ? ' bg-red-50 text-red-600' : ' bg-amber-50 text-amber-600')">
+                <i class="text-3xl bi"
+                   th:classappend="${tone == 'success'} ? ' bi-check-circle-fill' : (${tone == 'failure'} ? ' bi-x-circle-fill' : ' bi-hourglass-split')"
+                   aria-hidden="true"></i>
+            </div>
+
+            <div>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border"
+                      th:classappend="${tone == 'success'} ? ' bg-emerald-50 text-emerald-700 border-emerald-200' : (${tone == 'failure'} ? ' bg-red-50 text-red-700 border-red-200' : ' bg-amber-50 text-amber-800 border-amber-200')">
+                    <i class="bi bi-shield-check" aria-hidden="true"></i>
+                    Thanh toán VNPay
+                </span>
+            </div>
+
+            <h1 class="font-serif text-2xl sm:text-3xl font-bold text-carbon_black"
                 th:text="${paymentResult.displayTitle}">
-                Kết Quả Thanh Toán
+                Kết quả thanh toán
             </h1>
-            <p class="mt-2 text-sm text-[#191919]/80" th:text="${paymentResult.displayMessage}">
-                Thông báo trạng thái giao dịch.
+            <p class="text-sm sm:text-base text-carbon_black-600 leading-relaxed max-w-lg mx-auto"
+               th:text="${paymentResult.displayMessage}">
+                Thông tin giao dịch đang được xử lý.
             </p>
         </div>
 
-        <div class="border-t border-b border-[#ced0ce] py-4 space-y-3 text-sm">
-            <div class="flex justify-between">
-                <span class="text-[#191919]/70">Mã đơn hàng:</span>
-                <span class="font-semibold text-[#191919]" th:text="${paymentResult.orderCode}">ORD-001</span>
+        <div class="mt-7 bg-parchment/70 border border-dust_grey rounded-xl p-4 sm:p-5 space-y-3 text-sm">
+            <div class="flex items-center justify-between gap-4 pb-3 border-b border-dust_grey/60">
+                <span class="text-carbon_black-500">Mã đơn hàng</span>
+                <span class="font-mono font-bold text-carbon_black"
+                      th:text="${paymentResult.orderCode != null and !#strings.isEmpty(paymentResult.orderCode)} ? ${paymentResult.orderCode} : 'Chưa xác định'">
+                    ORD-000000
+                </span>
             </div>
-            <div class="flex justify-between">
-                <span class="text-[#191919]/70">Số tiền giao dịch:</span>
-                <span class="font-semibold text-[#f15025]"
-                      th:text="${#numbers.formatDecimal(paymentResult.amountVnd, 0, 'COMMA', 0, 'POINT') + ' ₫'}">0 ₫</span>
+
+            <div class="flex items-center justify-between gap-4 pb-3 border-b border-dust_grey/60"
+                 th:if="${paymentResult.amountVnd != null}">
+                <span class="text-carbon_black-500">Số tiền thanh toán</span>
+                <span class="font-bold text-base text-blazing_flame"
+                      th:text="${#numbers.formatDecimal(paymentResult.amountVnd, 0, 'POINT', 0, 'COMMA') + ' đ'}">0 đ</span>
             </div>
-            <div class="flex justify-between">
-                <span class="text-[#191919]/70">Ngân hàng / Cổng:</span>
-                <span class="font-medium text-[#191919]" th:text="${paymentResult.bankCode ?: 'VNPay'}">NCB</span>
+
+            <div class="flex items-center justify-between gap-4 pb-3 border-b border-dust_grey/60"
+                 th:if="${paymentResult.bankCode != null and !#strings.isEmpty(paymentResult.bankCode)}">
+                <span class="text-carbon_black-500">Ngân hàng giao dịch</span>
+                <span class="font-medium text-carbon_black" th:text="${paymentResult.bankCode}">NCB</span>
             </div>
-            <div class="flex justify-between">
-                <span class="text-[#191919]/70">Mã phản hồi VNPay:</span>
-                <span class="font-mono text-[#191919]" th:text="${paymentResult.responseCode}">00</span>
+
+            <div class="flex items-center justify-between gap-4 pb-3 border-b border-dust_grey/60"
+                 th:if="${paymentResult.payDate != null and !#strings.isEmpty(paymentResult.payDate)}">
+                <span class="text-carbon_black-500">Thời gian ghi nhận</span>
+                <span class="font-mono text-xs sm:text-sm text-carbon_black" th:text="${paymentResult.payDate}">20261016</span>
             </div>
-            <div class="flex justify-between">
-                <span class="text-[#191919]/70">Trạng thái đơn hàng:</span>
-                <span class="font-semibold text-[#191919]" th:text="${paymentResult.orderStatus}">PENDING_CONFIRMATION</span>
+
+            <div class="flex items-center justify-between gap-4 pb-3 border-b border-dust_grey/60">
+                <span class="text-carbon_black-500">Trạng thái đơn hàng</span>
+                <span class="font-semibold text-carbon_black"
+                      th:text="${paymentResult.displayOrderStatus}">Chờ xác nhận</span>
             </div>
-            <div class="flex justify-between">
-                <span class="text-[#191919]/70">Trạng thái thanh toán:</span>
-                <span class="font-semibold text-[#191919]" th:text="${paymentResult.paymentStatus}">PAID</span>
+
+            <div class="flex items-center justify-between gap-4">
+                <span class="text-carbon_black-500">Trạng thái thanh toán</span>
+                <span class="font-semibold"
+                      th:classappend="${tone == 'success'} ? ' text-emerald-700' : (${tone == 'failure'} ? ' text-red-700' : ' text-amber-800')"
+                      th:text="${paymentResult.displayPaymentStatus}">Đã thanh toán</span>
             </div>
         </div>
 
-        <div class="mt-6 flex flex-col sm:flex-row gap-3">
-            <a th:href="${paymentResult.orderCode != null and !#strings.isEmpty(paymentResult.orderCode)} ? @{/orders/{code}(code=${paymentResult.orderCode})} : @{/}"
-               class="flex-1 text-center py-2.5 px-4 rounded-lg bg-[#f15025] text-white font-semibold hover:opacity-95 transition">
-                Xem Chi Tiết Đơn Hàng
+        <div class="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a th:if="${paymentResult.orderCode != null and !#strings.isEmpty(paymentResult.orderCode)}"
+               th:href="@{/orders/{code}(code=${paymentResult.orderCode})}"
+               class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blazing_flame hover:bg-blazing_flame-600 text-white text-sm font-semibold shadow-flame transition-colors">
+                <i class="bi bi-receipt" aria-hidden="true"></i>
+                Xem chi tiết đơn hàng
             </a>
+
+            <a th:href="@{/orders/my-orders}"
+               class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-dust_grey bg-white hover:bg-alabaster_grey text-carbon_black text-sm font-semibold transition-colors">
+                <i class="bi bi-clock-history" aria-hidden="true"></i>
+                Lịch sử đơn hàng
+            </a>
+
             <a th:href="@{/}"
-               class="flex-1 text-center py-2.5 px-4 rounded-lg border border-[#ced0ce] bg-white text-[#191919] font-medium hover:bg-[#e6e8e6] transition">
-                Tiếp Tục Mua Sắm
+               class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+               th:classappend="${paymentResult.orderCode == null or #strings.isEmpty(paymentResult.orderCode)} ? ' bg-blazing_flame hover:bg-blazing_flame-600 text-white shadow-flame' : ' border border-dust_grey bg-parchment hover:bg-alabaster_grey text-carbon_black'">
+                <i class="bi bi-house-door" aria-hidden="true"></i>
+                Về trang chủ
             </a>
         </div>
-    </main>
+    </div>
+</section>
 </body>
 </html>

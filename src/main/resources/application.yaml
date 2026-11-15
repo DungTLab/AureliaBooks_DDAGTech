@@ -82,6 +82,7 @@ app:
     access-key-id: ${R2_ACCESS_KEY_ID:}
     secret-access-key: ${R2_SECRET_ACCESS_KEY:}
   cron:
+    zone: ${APP_CRON_ZONE:Asia/Ho_Chi_Minh}
     vnpay-timeout-ms: ${APP_CRON_VNPAY_TIMEOUT_MS:60000}
     vector-preload: ${APP_CRON_VECTOR_PRELOAD:0 0 2 * * ?}
     session-cleanup: ${APP_CRON_SESSION_CLEANUP:0 */30 * * * ?}

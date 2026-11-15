@@ -219,4 +219,5 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     """)
     long countVisibleProductsByMainImageUrl(
             @Param("imageUrl") String imageUrl);
+
 }

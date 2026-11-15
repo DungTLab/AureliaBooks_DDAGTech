@@ -34,7 +34,10 @@
                             <i class="bi bi-funnel-fill text-blazing_flame text-lg"></i>
                             <h2 class="font-serif font-bold text-lg text-carbon_black">Bộ lọc sản phẩm</h2>
                         </div>
-                        <a th:href="@{/products}" class="text-xs font-semibold text-carbon_black-400 hover:text-blazing_flame transition-colors" title="Xóa tất cả bộ lọc">
+                        <a
+                            th:href="@{/products}"
+                            class="text-xs font-semibold text-carbon_black-400 hover:text-blazing_flame transition-colors"
+                            title="Xóa tất cả bộ lọc">
                             Đặt lại
                         </a>
                     </div>
@@ -43,14 +46,18 @@
                     <form th:action="@{/products}" method="get" id="facetFilterForm" class="space-y-6">
                         <!-- Preserve current sort and size parameters -->
                         <input type="hidden" name="sort" th:value="${currentSort}">
-                        <input type="hidden" name="size" th:value="${currentSize != null ? currentSize : (products != null ? products.size : 12)}">
+                        <input
+                            type="hidden"
+                            name="size"
+                            th:value="${currentSize != null ? currentSize : (products != null ? products.size : 12)}">
                         <input type="hidden" name="keyword"
                                th:if="${filter != null and filter.keyword() != null and !filter.keyword().isBlank()}"
                                th:value="${filter.keyword()}">
 
                         <!-- Facet 1: Product Classification (Books vs. Stationery) per BR-02-01 -->
                         <div>
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
                                 <span>Loại sản phẩm</span>
                                 <i class="bi bi-grid-fill text-xs"></i>
                             </h3>
@@ -83,7 +90,8 @@
 
                         <!-- Facet 2: Category Hierarchy Tree -->
                         <div>
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
                                 <span>Lọc theo danh mục</span>
                                 <i class="bi bi-folder2-open text-xs"></i>
                             </h3>
@@ -123,7 +131,8 @@
                         <!-- Facet 3: Book Specific Authors (per UC01 / Fahasa Style) -->
                         <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'BOOK'}">
                             <hr class="border-dust_grey/60 mb-5">
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
                                 <span>Tác Giả</span>
                                 <i class="bi bi-pen-fill text-xs"></i>
                             </h3>
@@ -162,7 +171,8 @@
                         <!-- Facet 4: Book Specific Publishers (per UC01 / Fahasa Style) -->
                         <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'BOOK'}">
                             <hr class="border-dust_grey/60 mb-5">
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
                                 <span>Nhà Xuất Bản</span>
                                 <i class="bi bi-building text-xs"></i>
                             </h3>
@@ -201,7 +211,8 @@
                         <!-- Facet 5: Stationery Brands (per UC01 / Fahasa Style) -->
                         <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'STATIONERY'}">
                             <hr class="border-dust_grey/60 mb-5">
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
                                 <span>Thương Hiệu</span>
                                 <i class="bi bi-award-fill text-xs"></i>
                             </h3>
@@ -307,27 +318,31 @@
                         <!-- Facet 4: Book Specific Filter (Cover Type & Textbook) per BR-02-03 -->
                         <div th:if="${filter == null or filter.productType() == null or filter.productType()?.name() == 'BOOK'}">
                             <hr class="border-dust_grey/60 mb-6">
-                            <h3 class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
+                            <h3
+                                class="text-xs font-bold uppercase tracking-wider text-carbon_black-500 mb-3 flex items-center justify-between">
                                 <span>Quy Cách Sách</span>
                                 <i class="bi bi-book-half text-xs"></i>
                             </h3>
                             <!-- Cover Type Selector -->
                             <div class="space-y-1.5 mb-3">
-                                <label class="flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer text-carbon_black hover:bg-parchment-100 transition-colors">
+                                <label
+                                    class="flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer text-carbon_black hover:bg-parchment-100 transition-colors">
                                     <input type="radio" name="coverType" value=""
                                            th:checked="${filter == null or filter.coverType() == null}"
                                            onchange="this.form.requestSubmit()"
                                            class="text-blazing_flame focus:ring-blazing_flame h-3.5 w-3.5 border-dust_grey">
                                     <span>Tất cả loại bìa</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer text-carbon_black hover:bg-parchment-100 transition-colors">
+                                <label
+                                    class="flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer text-carbon_black hover:bg-parchment-100 transition-colors">
                                     <input type="radio" name="coverType" value="PAPERBACK"
                                            th:checked="${filter != null and filter.coverType()?.name() == 'PAPERBACK'}"
                                            onchange="this.form.requestSubmit()"
                                            class="text-blazing_flame focus:ring-blazing_flame h-3.5 w-3.5 border-dust_grey">
                                     <span>Bìa mềm (Paperback)</span>
                                 </label>
-                                <label class="flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer text-carbon_black hover:bg-parchment-100 transition-colors">
+                                <label
+                                    class="flex items-center gap-2 p-1.5 rounded-lg text-xs cursor-pointer text-carbon_black hover:bg-parchment-100 transition-colors">
                                     <input type="radio" name="coverType" value="HARDCOVER"
                                            th:checked="${filter != null and filter.coverType()?.name() == 'HARDCOVER'}"
                                            onchange="this.form.requestSubmit()"
@@ -377,7 +392,8 @@
             <div class="w-full lg:w-3/4 flex-grow">
 
                 <!-- Control Bar: Total Count, Page Size & Sort Select -->
-                <div class="bg-white rounded-2xl border border-dust_grey p-4 mb-6 shadow-soft flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div
+                    class="bg-white rounded-2xl border border-dust_grey p-4 mb-6 shadow-soft flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h1 class="font-serif font-bold text-xl text-carbon_black"
                             th:text="${filter != null and filter.keyword() != null and !filter.keyword().isBlank()
@@ -433,7 +449,7 @@
                         <a th:href="@{'/products/' + ${product.id}}" class="relative block overflow-hidden bg-parchment-100 aspect-[3/4]">
                             <!-- Product Type & Book Series Badge Tags (Top-Left) -->
                             <div class="absolute top-2 left-2 flex flex-col gap-1 z-10">
-                                <!-- Type Badge: Sách vs. VPP -->
+                                <!-- Product type badge -->
                                 <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider text-white shadow-sm inline-block"
                                       th:classappend="${product.productType != null and product.productType.name() == 'STATIONERY'} ? 'bg-amber-600' : 'bg-carbon_black'"
                                       th:text="${product.productType != null and product.productType.name() == 'STATIONERY'} ? 'VPP' : 'Sách'">
@@ -503,7 +519,8 @@
                 <!-- Empty State (No Products Found) -->
                 <div th:if="${products == null or products.isEmpty()}"
                      class="bg-white rounded-2xl border border-dust_grey p-12 text-center shadow-soft">
-                    <div class="w-16 h-16 rounded-full bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-3xl mb-4">
+                    <div
+                        class="w-16 h-16 rounded-full bg-parchment-200 text-carbon_black-400 mx-auto flex items-center justify-center text-3xl mb-4">
                         <i class="bi bi-inbox"></i>
                     </div>
                     <h3 class="font-serif font-bold text-lg text-carbon_black"

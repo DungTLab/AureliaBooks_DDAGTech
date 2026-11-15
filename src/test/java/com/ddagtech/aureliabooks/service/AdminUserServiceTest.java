@@ -33,6 +33,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Date;
 import java.util.List;
@@ -190,7 +192,7 @@ class AdminUserServiceTest {
 
         assertThat(customer.getIsActive()).isFalse();
         verify(userRepository).save(customer);
-        verify(auditLogService).record(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(customerId), anyString(), eq("10.0.0.1"));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(customerId), anyString(), eq("10.0.0.1"));
     }
 
     @Test
@@ -237,22 +239,26 @@ class AdminUserServiceTest {
         assertThat(captured.getAuthProvider()).isEqualTo(User.AuthProvider.LOCAL);
         assertThat(captured.getIsActive()).isTrue();
         assertThat(captured.getRole().getRoleName()).isEqualTo("ROLE_MANAGER");
-        assertThat(captured.isEmailVerified()).isTrue();
-        assertThat(captured.isPhoneVerified()).isTrue();
+        assertThat(captured.isEmailVerified()).isFalse();
+        assertThat(captured.isPhoneVerified()).isFalse();
 
         ArgumentCaptor<org.springframework.mail.SimpleMailMessage> mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
         verify(mailSender).send(mailCaptor.capture());
         org.springframework.mail.SimpleMailMessage sentMail = mailCaptor.getValue();
         assertThat(sentMail.getTo()).containsExactly("manager@aureliabook.vn");
         assertThat(sentMail.getSubject()).isEqualTo(OtpMailContent.STAFF_ACCOUNT_CREATED_SUBJECT);
+        assertThat(sentMail.getText()).contains("/internal/account/email").contains("/internal/forgot-password");
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), jsonCaptor.capture(), eq(clientIp));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_CREATE"), eq("users"), eq(100L), jsonCaptor.capture(), eq(clientIp));
         JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
         assertThat(root.get("action").asText()).isEqualTo("USER_CREATE");
         assertThat(root.get("created_user_id").asLong()).isEqualTo(100L);
         assertThat(root.get("email").asText()).isEqualTo("manager@aureliabook.vn");
         assertThat(root.get("role").asText()).isEqualTo("ROLE_MANAGER");
+        assertThat(root.get("email_verified").asBoolean()).isFalse();
+        assertThat(root.get("phone_verified").asBoolean()).isFalse();
+        assertThat(jsonCaptor.getValue().toLowerCase()).doesNotContain("password", "hash", "token");
     }
 
     @Test
@@ -404,7 +410,7 @@ class AdminUserServiceTest {
         verify(userRepository).save(targetUser);
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_STATUS_TOGGLE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
         JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
         assertThat(root.get("action").asText()).isEqualTo("USER_STATUS_TOGGLE");
         assertThat(root.get("before").get("active").asBoolean()).isTrue();
@@ -563,7 +569,7 @@ class AdminUserServiceTest {
         verify(userRepository).save(staffUser);
 
         ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(eq(adminId), eq("USER_ROLE_UPDATE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
+        verify(auditLogService).recordRequired(eq(adminId), eq("USER_ROLE_UPDATE"), eq("users"), eq(targetUserId), jsonCaptor.capture(), eq(clientIp));
         JsonNode root = objectMapper.readTree(jsonCaptor.getValue());
         assertThat(root.get("action").asText()).isEqualTo("USER_ROLE_UPDATE");
         assertThat(root.get("before").get("role").asText()).isEqualTo("ROLE_SALE_STAFF");
@@ -792,152 +798,8 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("resetStaffPassword() should generate random temp password, hash it, unlock cooldown, expire sessions and write clean audit log")
-    void testResetStaffPassword_Success() {
-        Long adminId = 1L;
-        Long targetStaffId = 20L;
-        User targetStaff = User.builder()
-                .id(targetStaffId)
-                .email("staff20@aureliabook.vn")
-                .fullName("Staff Twenty")
-                .role(staffRole)
-                .passwordHash("oldHash123")
-                .isActive(true)
-                .build();
-
-        when(userRepository.findById(targetStaffId)).thenReturn(Optional.of(targetStaff));
-        when(passwordEncoder.encode(anyString())).thenReturn("newHashedTempPassword");
-
-        adminUserService.resetStaffPassword(adminId, targetStaffId, "192.168.1.100");
-
-        assertThat(targetStaff.getPasswordHash()).isEqualTo("newHashedTempPassword");
-        ArgumentCaptor<org.springframework.mail.SimpleMailMessage> mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
-        verify(mailSender).send(mailCaptor.capture());
-        org.springframework.mail.SimpleMailMessage sentMail = mailCaptor.getValue();
-        assertThat(sentMail.getTo()).containsExactly("staff20@aureliabook.vn");
-        assertThat(sentMail.getFrom()).isEqualTo("no-reply@aureliabook.local");
-        assertThat(sentMail.getSubject()).isEqualTo(OtpMailContent.STAFF_PASSWORD_RESET_SUBJECT);
-        verify(userRepository).save(targetStaff);
-        verify(loginAttemptService).resetAttempts(targetStaffId);
-
-        ArgumentCaptor<String> auditDetailsCaptor = ArgumentCaptor.forClass(String.class);
-        verify(auditLogService).record(
-                eq(adminId),
-                eq("RESET_STAFF_PASSWORD"),
-                eq("users"),
-                eq(targetStaffId),
-                auditDetailsCaptor.capture(),
-                eq("192.168.1.100")
-        );
-
-        String capturedDetails = auditDetailsCaptor.getValue();
-        assertThat(capturedDetails).contains("RESET_STAFF_PASSWORD");
-        assertThat(capturedDetails).contains("staff20@aureliabook.vn");
-        assertThat(capturedDetails).doesNotContain("oldHash123");
-        assertThat(capturedDetails).doesNotContain("newHashedTempPassword");
-    }
-
-    @Test
-    @DisplayName("resetStaffPassword() must throw CANNOT_RESET_CUSTOMER_PASSWORD when target is CUSTOMER")
-    void testResetStaffPassword_RejectsCustomerTarget() {
-        Long adminId = 1L;
-        Long customerId = 50L;
-        User customerUser = User.builder()
-                .id(customerId)
-                .email("customer@gmail.com")
-                .fullName("Customer User")
-                .role(customerRole)
-                .passwordHash("customerHash")
-                .isActive(true)
-                .build();
-
-        when(userRepository.findById(customerId)).thenReturn(Optional.of(customerUser));
-
-        assertThatThrownBy(() -> adminUserService.resetStaffPassword(adminId, customerId, "10.0.0.1"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_RESET_CUSTOMER_PASSWORD);
-
-        verify(userRepository, never()).save(any());
-        verify(passwordEncoder, never()).encode(any());
-        verifyNoInteractions(loginAttemptService);
-        verifyNoInteractions(auditLogService);
-    }
-
-    @Test
-    @DisplayName("resetStaffPassword() must throw USER_NOT_EXISTED when target user not found")
-    void testResetStaffPassword_UserNotFound() {
-        when(userRepository.findById(999L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> adminUserService.resetStaffPassword(1L, 999L, "10.0.0.1"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_EXISTED);
-    }
-
-    @Test
-    @DisplayName("resetStaffPassword() should throw EMAIL_DELIVERY_FAILED and not revoke sessions or clear cooldown when mail dispatch fails")
-    void testResetStaffPassword_MailFailure_ThrowsExceptionAndRollsBack() {
-        Long adminId = 1L;
-        Long targetStaffId = 20L;
-        User targetStaff = User.builder()
-                .id(targetStaffId)
-                .email("staff20@aureliabook.vn")
-                .fullName("Staff Twenty")
-                .role(staffRole)
-                .passwordHash("oldHash123")
-                .isActive(true)
-                .build();
-
-        when(userRepository.findById(targetStaffId)).thenReturn(Optional.of(targetStaff));
-        when(passwordEncoder.encode(anyString())).thenReturn("newHashedTempPassword");
-        doThrow(new org.springframework.mail.MailSendException("SMTP connection timeout"))
-                .when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
-
-        assertThatThrownBy(() -> adminUserService.resetStaffPassword(adminId, targetStaffId, "192.168.1.100"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_DELIVERY_FAILED);
-
-        verifyNoInteractions(loginAttemptService);
-        verify(sessionRegistry, never()).getAllPrincipals();
-        verifyNoInteractions(auditLogService);
-    }
-
-    @Test
-    @DisplayName("create() should throw EMAIL_DELIVERY_FAILED and not record audit when mail dispatch fails")
-    void testCreateStaff_MailFailure_ThrowsExceptionAndRollsBack() {
-        Long adminId = 1L;
-        UserCreateRequest request = new UserCreateRequest(
-                "manager_fail@aureliabook.vn",
-                "Tran Fail",
-                "0912345678",
-                2L
-        );
-
-        when(userRepository.existsByEmail("manager_fail@aureliabook.vn")).thenReturn(false);
-        when(userRepository.existsByPhone("0912345678")).thenReturn(false);
-        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
-        when(passwordEncoder.encode(anyString())).thenReturn("$2a$12$hashedPassword");
-
-        User savedUser = User.builder()
-                .id(105L)
-                .email("manager_fail@aureliabook.vn")
-                .fullName("Tran Fail")
-                .role(managerRole)
-                .build();
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
-
-        doThrow(new org.springframework.mail.MailSendException("SMTP connection refused"))
-                .when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
-
-        assertThatThrownBy(() -> adminUserService.create(adminId, request, "192.168.1.100"))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_DELIVERY_FAILED);
-
-        verifyNoInteractions(auditLogService);
-    }
-
-    @Test
-    @DisplayName("resetStaffPassword() should use custom configured mailFrom address when specified")
-    void testResetStaffPassword_UsesConfiguredMailFrom() {
+    @DisplayName("create() should use custom configured mailFrom address when specified")
+    void testCreateStaff_UsesConfiguredMailFrom() {
         String customFrom = "custom-auth@aureliabook.vn";
         AdminUserServiceImpl customMailService = new AdminUserServiceImpl(
                 userRepository,
@@ -953,20 +815,25 @@ class AdminUserServiceTest {
         );
 
         Long adminId = 1L;
-        Long targetStaffId = 20L;
-        User targetStaff = User.builder()
-                .id(targetStaffId)
-                .email("staff20@aureliabook.vn")
-                .fullName("Staff Twenty")
-                .role(staffRole)
-                .passwordHash("oldHash123")
-                .isActive(true)
-                .build();
+        com.ddagtech.aureliabooks.dto.request.UserCreateRequest request =
+                new com.ddagtech.aureliabooks.dto.request.UserCreateRequest(
+                        "custom.staff@aureliabook.vn",
+                        "Staff Custom",
+                        "0912345678",
+                        3L
+                );
 
-        when(userRepository.findById(targetStaffId)).thenReturn(Optional.of(targetStaff));
-        when(passwordEncoder.encode(anyString())).thenReturn("newHashedTempPassword");
+        when(userRepository.existsByEmail("custom.staff@aureliabook.vn")).thenReturn(false);
+        when(userRepository.existsByPhone("0912345678")).thenReturn(false);
+        when(roleRepository.findById(3L)).thenReturn(Optional.of(staffRole));
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$12$hashed");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setId(109L);
+            return u;
+        });
 
-        customMailService.resetStaffPassword(adminId, targetStaffId, "192.168.1.100");
+        customMailService.create(adminId, request, "192.168.1.100");
 
         ArgumentCaptor<org.springframework.mail.SimpleMailMessage> mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
         verify(mailSender).send(mailCaptor.capture());
@@ -974,16 +841,221 @@ class AdminUserServiceTest {
     }
 
     @Test
-    @DisplayName("resetStaffPassword() should reject self-reset attempt by administrator")
-    void testResetStaffPassword_ThrowsWhenSelfReset() {
-        Long adminId = 1L;
+    void createSendsOnlyAfterCommitAndReportsUnconfirmedDeliveryAfterRetry() {
+        stubStaffCreation();
+        doThrow(new org.springframework.mail.MailSendException("SMTP connection refused"))
+                .when(mailSender).send(any(org.springframework.mail.SimpleMailMessage.class));
 
-        assertThatThrownBy(() -> adminUserService.resetStaffPassword(adminId, adminId, "127.0.0.1"))
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThat(adminUserService.create(1L, newStaffRequest(), "192.168.1.100")).isEqualTo(105L);
+            verify(auditLogService).recordRequired(eq(1L), eq("USER_CREATE"), eq("users"), eq(105L),
+                    anyString(), eq("192.168.1.100"));
+            verifyNoInteractions(mailSender);
+
+            assertThatThrownBy(() -> TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_DELIVERY_FAILED)
+                    .hasMessageContaining("đã được tạo");
+            var mailCaptor = ArgumentCaptor.forClass(org.springframework.mail.SimpleMailMessage.class);
+            verify(mailSender, times(2)).send(mailCaptor.capture());
+            assertThat(mailCaptor.getAllValues().getFirst().getText())
+                    .isEqualTo(mailCaptor.getAllValues().getLast().getText());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void createDoesNotSendWhenTransactionRollsBack() {
+        stubStaffCreation();
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            adminUserService.create(1L, newStaffRequest(), "192.168.1.100");
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+            verifyNoInteractions(mailSender);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void auditFailurePreventsProvisioningMail() {
+        stubStaffCreation();
+        doThrow(new IllegalStateException("Audit write failed"))
+                .when(auditLogService).recordRequired(eq(1L), eq("USER_CREATE"), anyString(),
+                        eq(105L), anyString(), anyString());
+
+        assertThatThrownBy(() -> adminUserService.create(1L, newStaffRequest(), "192.168.1.100"))
+                .isInstanceOf(IllegalStateException.class).hasMessage("Audit write failed");
+        verifyNoInteractions(mailSender);
+    }
+
+    @Test
+    void createFailsBeforePersistenceWhenMailSenderIsUnavailable() {
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        when(mailSenderProvider.getIfAvailable()).thenReturn(null);
+
+        assertThatThrownBy(() -> adminUserService.create(1L, newStaffRequest(), "192.168.1.100"))
                 .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_RESET_SELF_PASSWORD);
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNCATEGORIZED_EXCEPTION);
+        verify(userRepository, never()).save(any(User.class));
+        verifyNoInteractions(auditLogService, mailSender);
+    }
 
-        verify(userRepository, never()).save(any());
-        verify(mailSender, never()).send(any(org.springframework.mail.SimpleMailMessage.class));
-        verify(sessionRegistry, never()).getAllPrincipals();
+    private UserCreateRequest newStaffRequest() {
+        return new UserCreateRequest("manager_fail@aureliabook.vn", "Tran Fail", "0912345678", 2L);
+    }
+
+    private void stubStaffCreation() {
+        when(roleRepository.findById(2L)).thenReturn(Optional.of(managerRole));
+        when(passwordEncoder.encode(anyString())).thenReturn("$2a$12$hashedPassword");
+        when(userRepository.save(any(User.class))).thenReturn(User.builder()
+                .id(105L)
+                .email("manager_fail@aureliabook.vn")
+                .fullName("Tran Fail")
+                .role(managerRole)
+                .build());
+    }
+
+    @Test
+    @DisplayName("updateStaffContact() updates phone and unverified email without mutating passwordHash, invalidates sessions on email change, and audits cleanly")
+    void testUpdateStaffContact_Success_ResetsVerifiedFlagsAndPreservesPassword() {
+        Long adminId = 1L;
+        Long targetId = 20L;
+        User staff = User.builder()
+                .id(targetId)
+                .email("old.staff@aureliabook.vn")
+                .phone("0901111111")
+                .passwordHash("$2a$12$untouchedSecret")
+                .role(staffRole)
+                .isActive(true)
+                .emailVerified(true)
+                .phoneVerified(true)
+                .build();
+
+        com.ddagtech.aureliabooks.security.CustomUserDetails principal = new com.ddagtech.aureliabooks.security.CustomUserDetails(staff);
+        org.springframework.security.core.session.SessionInformation activeSession = org.mockito.Mockito.mock(org.springframework.security.core.session.SessionInformation.class);
+
+        when(userRepository.findOwnerForUpdate(targetId)).thenReturn(Optional.of(staff));
+        when(userRepository.existsByEmail("new.staff@aureliabook.vn")).thenReturn(false);
+        when(userRepository.existsByPhone("0912345678")).thenReturn(false);
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(sessionRegistry.getAllPrincipals()).thenReturn(List.of(principal));
+        when(sessionRegistry.getAllSessions(principal, false)).thenReturn(List.of(activeSession));
+
+        var request = new com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest(
+                " New.Staff@AureliaBook.VN ",
+                "+84912345678",
+                true,
+                "Lost previous inbox"
+        );
+
+        adminUserService.updateStaffContact(adminId, targetId, request, "10.0.0.8");
+
+        assertThat(staff.getEmail()).isEqualTo("new.staff@aureliabook.vn");
+        assertThat(staff.getPhone()).isEqualTo("0912345678");
+        assertThat(staff.isEmailVerified()).isFalse();
+        assertThat(staff.isPhoneVerified()).isFalse();
+        assertThat(staff.getPasswordHash()).isEqualTo("$2a$12$untouchedSecret");
+        verify(activeSession).expireNow();
+        verify(passwordEncoder, never()).encode(anyString());
+
+        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogService).recordRequired(eq(adminId), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(targetId), jsonCaptor.capture(), eq("10.0.0.8"));
+        assertThat(jsonCaptor.getValue()).contains("\"identity_confirmed\":true", "\"email_verified\":false", "\"phone_verified\":false");
+        assertThat(jsonCaptor.getValue().toLowerCase()).doesNotContain("password", "otp", "token", "hash");
+    }
+
+    @Test
+    @DisplayName("updateStaffContact() rejects self-edit, CUSTOMER target, inactive staff, missing identity confirmation, and duplicate email/phone")
+    void testUpdateStaffContact_EnforcesAllGuards() {
+        var req = new com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest("a@aureliabook.vn", "0912345678", true, null);
+
+        assertThatThrownBy(() -> adminUserService.updateStaffContact(1L, 1L, req, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+
+        User customer = User.builder().id(50L).role(customerRole).isActive(true).email("c@example.com").build();
+        when(userRepository.findOwnerForUpdate(50L)).thenReturn(Optional.of(customer));
+        assertThatThrownBy(() -> adminUserService.updateStaffContact(1L, 50L, req, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+
+        User lockedStaff = User.builder().id(21L).role(staffRole).isActive(false).email("s21@aureliabook.vn").build();
+        when(userRepository.findOwnerForUpdate(21L)).thenReturn(Optional.of(lockedStaff));
+        assertThatThrownBy(() -> adminUserService.updateStaffContact(1L, 21L, req, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCOUNT_LOCKED);
+
+        User activeStaff = User.builder().id(22L).role(staffRole).isActive(true).email("s22@aureliabook.vn").build();
+        when(userRepository.findOwnerForUpdate(22L)).thenReturn(Optional.of(activeStaff));
+        var unconfirmed = new com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest("x@aureliabook.vn", null, false, null);
+        assertThatThrownBy(() -> adminUserService.updateStaffContact(1L, 22L, unconfirmed, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_DATA);
+
+        when(userRepository.existsByEmail("dup@aureliabook.vn")).thenReturn(true);
+        var duplicate = new com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest("dup@aureliabook.vn", null, true, null);
+        assertThatThrownBy(() -> adminUserService.updateStaffContact(1L, 22L, duplicate, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_EXISTED);
+    }
+
+    @Test
+    @DisplayName("revokeEmailVerification() resets emailVerified to false for internal staff and writes clean audit log")
+    void testRevokeEmailVerification_SuccessAndGuards() {
+        User staff = User.builder().id(20L).role(staffRole).isActive(true).email("s@aureliabook.vn").emailVerified(true).build();
+        when(userRepository.findOwnerForUpdate(20L)).thenReturn(Optional.of(staff));
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        adminUserService.revokeEmailVerification(1L, 20L, "127.0.0.1");
+
+        assertThat(staff.isEmailVerified()).isFalse();
+        verify(auditLogService).recordRequired(eq(1L), eq("ADMIN_STAFF_EMAIL_REVOKED"), eq("users"), eq(20L), contains("\"email_verified\":false"), eq("127.0.0.1"));
+
+        assertThatThrownBy(() -> adminUserService.revokeEmailVerification(1L, 1L, "127.0.0.1"))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("updateStaffContact() with phone-only change never emits email_verified:true proof in audit details")
+    void testUpdateStaffContact_PhoneOnlyUpdate_DoesNotAuditEmailVerifiedTrue() {
+        Long adminId = 1L;
+        Long targetId = 20L;
+        User staff = User.builder()
+                .id(targetId)
+                .email("legacy.staff@aureliabook.vn")
+                .phone("0901111111")
+                .passwordHash("$2a$12$untouchedSecret")
+                .role(staffRole)
+                .isActive(true)
+                .emailVerified(true)
+                .phoneVerified(false)
+                .build();
+
+        when(userRepository.findOwnerForUpdate(targetId)).thenReturn(Optional.of(staff));
+        when(userRepository.existsByPhone("0988776655")).thenReturn(false);
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var phoneOnlyRequest = new com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest(
+                null,
+                "0988776655",
+                true,
+                "Staff updated mobile number"
+        );
+
+        adminUserService.updateStaffContact(adminId, targetId, phoneOnlyRequest, "10.0.0.9");
+
+        assertThat(staff.getPhone()).isEqualTo("0988776655");
+        assertThat(staff.isPhoneVerified()).isFalse();
+        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(auditLogService).recordRequired(eq(adminId), eq("ADMIN_STAFF_CONTACT_UPDATED"), eq("users"), eq(targetId), jsonCaptor.capture(), eq("10.0.0.9"));
+        assertThat(jsonCaptor.getValue())
+                .contains("\"email_changed\":false", "\"email_verification_reset\":false", "\"phone_changed\":true", "\"phone_verified\":false")
+                .doesNotContain("\"email_verified\":true");
     }
 }

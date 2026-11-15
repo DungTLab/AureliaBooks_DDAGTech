@@ -3,10 +3,22 @@ package com.ddagtech.aureliabooks.service.impl;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.BookForm;
 import com.ddagtech.aureliabooks.dto.request.StationeryForm;
-import com.ddagtech.aureliabooks.entity.*;
+import com.ddagtech.aureliabooks.entity.Author;
+import com.ddagtech.aureliabooks.entity.Book;
+import com.ddagtech.aureliabooks.entity.Brand;
+import com.ddagtech.aureliabooks.entity.Category;
+import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.entity.Publisher;
+import com.ddagtech.aureliabooks.entity.Stationery;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.mapper.ProductMapper;
-import com.ddagtech.aureliabooks.repository.*;
+import com.ddagtech.aureliabooks.repository.AuthorRepository;
+import com.ddagtech.aureliabooks.repository.BookRepository;
+import com.ddagtech.aureliabooks.repository.BrandRepository;
+import com.ddagtech.aureliabooks.repository.CategoryRepository;
+import com.ddagtech.aureliabooks.repository.ProductRepository;
+import com.ddagtech.aureliabooks.repository.PublisherRepository;
+import com.ddagtech.aureliabooks.repository.StationeryRepository;
 import com.ddagtech.aureliabooks.service.AdminProductService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,9 +55,15 @@ public class AdminProductServiceImpl implements AdminProductService {
     // UC15: BOOK MANAGEMENT
     // =========================================================================
 
+    /**
+     * Creates the base product and book details in one transaction with initial stock set to zero.
+     * The caller must provide a validated form; referenced category, publisher, and authors must exist.
+     * The image reference is checked before any catalog data is saved.
+     */
     @Override
     @Transactional
     public Long createBook(BookForm form) {
+        // Reject image references that cannot be attached to a new product.
         imageReferences.validateForSave(form.mainImageUrl(), null);
         String barcode = form.barcode().trim();
         String isbn = form.isbn().trim();
@@ -66,6 +84,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         Set<Author> authors = new HashSet<>();
         if (form.authorIds() != null && !form.authorIds().isEmpty()) {
             authors.addAll(authorRepository.findAllById(form.authorIds()));
+            // findAllById silently omits missing IDs, so verify every selected author exists.
             if (authors.size() != form.authorIds().size()) {
                 throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Một hoặc nhiều tác giả được chọn không tồn tại trong hệ thống.");
             }
@@ -99,6 +118,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         return savedProduct.getId();
     }
 
+    /**
+     * Updates product and book details together while preserving the current stock quantity.
+     * The caller must provide a validated form; barcode and ISBN checks exclude this product.
+     */
     @Override
     @Transactional
     public void updateBook(Long productId, BookForm form) {
@@ -106,6 +129,7 @@ public class AdminProductServiceImpl implements AdminProductService {
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sách với ID: " + productId));
 
         Product product = book.getProduct();
+        // Check the new reference against the existing image before saving the form.
         imageReferences.validateForSave(form.mainImageUrl(), product.getMainImageUrl());
         String barcode = form.barcode().trim();
         String isbn = form.isbn().trim();
@@ -126,6 +150,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         Set<Author> authors = new HashSet<>();
         if (form.authorIds() != null && !form.authorIds().isEmpty()) {
             authors.addAll(authorRepository.findAllById(form.authorIds()));
+            // findAllById silently omits missing IDs, so verify every selected author exists.
             if (authors.size() != form.authorIds().size()) {
                 throw new AppException(ErrorCode.INVALID_INPUT_DATA, "Một hoặc nhiều tác giả được chọn không tồn tại trong hệ thống.");
             }
@@ -192,9 +217,14 @@ public class AdminProductServiceImpl implements AdminProductService {
     // UC16: STATIONERY MANAGEMENT
     // =========================================================================
 
+    /**
+     * Creates the base product and stationery details in one transaction with zero initial stock.
+     * The caller must provide a validated form with an existing category and brand.
+     */
     @Override
     @Transactional
     public Long createStationery(StationeryForm form) {
+        // Reject image references that cannot be attached to a new product.
         imageReferences.validateForSave(form.mainImageUrl(), null);
         String barcode = form.barcode().trim();
         if (productRepository.existsByBarcodeIgnoreCase(barcode)) {
@@ -225,6 +255,10 @@ public class AdminProductServiceImpl implements AdminProductService {
         return savedProduct.getId();
     }
 
+    /**
+     * Updates product and stationery details together without changing stock quantity.
+     * The caller must provide a validated form; the image reference is checked before saving.
+     */
     @Override
     @Transactional
     public void updateStationery(Long productId, StationeryForm form) {
@@ -232,6 +266,7 @@ public class AdminProductServiceImpl implements AdminProductService {
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy văn phòng phẩm với ID: " + productId));
 
         Product product = stationery.getProduct();
+        // Check the new reference against the existing image before saving the form.
         imageReferences.validateForSave(form.mainImageUrl(), product.getMainImageUrl());
         String barcode = form.barcode().trim();
 
@@ -285,6 +320,9 @@ public class AdminProductServiceImpl implements AdminProductService {
     // GENERAL CATALOG WORKFLOWS
     // =========================================================================
 
+    /**
+     * Hides the product from active storefront queries without deleting its related records.
+     */
     @Override
     @Transactional
     public void deactivate(Long productId) {

@@ -55,10 +55,22 @@ public interface VNPayService {
 
     /**
      * Evaluates the synchronous browser Return URL query parameters to build a read-only view model
-     * for SCR-ST-13 (Payment & Order Result). Never mutates order, payment, or inventory state.
+     * for the payment result screen. Never mutates order, payment, or inventory state.
      *
      * @param params query parameters forwarded by the customer's browser
-     * @return read-only view model for SCR-ST-13
+     * @return read-only view model for the payment result screen
      */
     VNPayPaymentResultView evaluateBrowserReturn(Map<String, String> params);
+
+    /**
+     * Evaluates the synchronous browser Return URL query parameters for the specified authenticated customer,
+     * failing closed if the signature is valid but the order belongs to another account.
+     *
+     * @param authenticatedUserId authenticated customer's user ID
+     * @param params              query parameters forwarded by the customer's browser
+     * @return read-only view model for the payment result screen
+     */
+    default VNPayPaymentResultView evaluateBrowserReturn(Long authenticatedUserId, Map<String, String> params) {
+        return evaluateBrowserReturn(params);
+    }
 }

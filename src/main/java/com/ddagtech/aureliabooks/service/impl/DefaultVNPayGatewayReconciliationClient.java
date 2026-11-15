@@ -335,6 +335,7 @@ public class DefaultVNPayGatewayReconciliationClient implements VNPayGatewayReco
                 ? ex.getMessage()
                 : ex.getClass().getSimpleName();
     }
+
     private static boolean isValidVnpayTimestamp(String timestamp) {
         if (timestamp == null || timestamp.length() != 14) {
             return false;

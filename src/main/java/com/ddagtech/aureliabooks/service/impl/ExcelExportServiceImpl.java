@@ -1,11 +1,26 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-import com.ddagtech.aureliabooks.dto.analytics.*;
+import com.ddagtech.aureliabooks.dto.analytics.DailyRevenueDto;
+import com.ddagtech.aureliabooks.dto.analytics.PaymentBreakdownDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueAnalyticsReportDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueFilterRequest;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueOrderSummaryDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueSummaryKpiDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementFilterRequest;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementReportItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockValuationItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.TopProductSaleDto;
 import com.ddagtech.aureliabooks.entity.Order;
 import com.ddagtech.aureliabooks.service.ExcelExportService;
 import com.ddagtech.aureliabooks.util.ExcelExportUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -19,8 +34,12 @@ import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
 
+/**
+ * Implementation of ExcelExportService producing formatted POI workbooks for revenue and inventory.
+ */
 @Slf4j
 @Service
 public class ExcelExportServiceImpl implements ExcelExportService {
@@ -141,7 +160,7 @@ public class ExcelExportServiceImpl implements ExcelExportService {
 
         sheet.createRow(2).setHeightInPoints(8);
 
-        // Section I: Chỉ số chủ chốt
+        // Section I: Key performance indicators
         Row rSec1 = sheet.createRow(3);
         rSec1.setHeightInPoints(22);
         Cell cSec1 = rSec1.createCell(0);
@@ -207,7 +226,7 @@ public class ExcelExportServiceImpl implements ExcelExportService {
             kpiRowIdx++;
         }
 
-        // Section II: Bảng Doanh thu theo ngày
+        // Section II: Daily revenue table
         int dailyStartRow = 12;
         Row rDailySec = sheet.createRow(dailyStartRow);
         rDailySec.setHeightInPoints(22);
@@ -552,91 +571,91 @@ public class ExcelExportServiceImpl implements ExcelExportService {
                 Row row = sheet.createRow(rowIdx++);
                 row.setHeightInPoints(22);
 
-                // Col 0: STT
+                // Col 0: Sequence number
                 Cell cStt = row.createCell(0);
                 cStt.setCellValue(stt++);
                 cStt.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                // Col 1: Tên sản phẩm
+                // Col 1: Product title
                 Cell cTitle = row.createCell(1);
                 cTitle.setCellValue(item.getTitle() != null ? item.getTitle() : "");
                 cTitle.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
 
-                // Col 2: Phân loại
+                // Col 2: Classification
                 Cell cType = row.createCell(2);
                 cType.setCellValue(item.getProductTypeLabel());
                 cType.setCellStyle(isZebra ? textCenterZebra : textCenterWhite);
 
-                // Col 3: Danh mục
+                // Col 3: Category
                 Cell cCategory = row.createCell(3);
                 cCategory.setCellValue(item.getCategoryName() != null ? item.getCategoryName() : "");
                 cCategory.setCellStyle(isZebra ? textLeftZebra : textLeftWhite);
 
-                // Col 4: Giá nhập / SP (VND)
+                // Col 4: Unit cost / product (VND)
                 double cost = item.getOriginalCost() != null ? item.getOriginalCost().doubleValue() : 0.0;
                 Cell cCost = row.createCell(4);
                 cCost.setCellValue(cost);
                 cCost.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
-                // Col 5: Giá bán / SP (VND)
+                // Col 5: Selling price / product (VND)
                 double price = item.getPrice() != null ? item.getPrice().doubleValue() : 0.0;
                 Cell cPrice = row.createCell(5);
                 cPrice.setCellValue(price);
                 cPrice.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
-                // Col 6: Tồn đầu kỳ (SP)
+                // Col 6: Opening stock (units)
                 sumOpening += item.getOpeningStock();
                 Cell cOpen = row.createCell(6);
                 cOpen.setCellValue(item.getOpeningStock());
                 cOpen.setCellStyle(isZebra ? integerZebra : integerWhite);
 
-                // Col 7: Nhập hàng (SP)
+                // Col 7: Inbound receipt (units)
                 sumImport += item.getImportQty();
                 Cell cImp = row.createCell(7);
                 cImp.setCellValue(item.getImportQty());
                 cImp.setCellStyle(isZebra ? integerZebra : integerWhite);
 
-                // Col 8: Xuất hàng (SP)
+                // Col 8: Outbound sales (units)
                 sumDeduct += item.getOrderDeductQty();
                 Cell cDed = row.createCell(8);
                 cDed.setCellValue(item.getOrderDeductQty());
                 cDed.setCellStyle(isZebra ? integerZebra : integerWhite);
 
-                // Col 9: Hoàn hàng (SP) = Hủy hoàn + Trả hoàn
+                // Col 9: Restocked items (units) = Cancel restore + Return restore
                 int totalReturn = item.getCancelRestoreQty() + item.getReturnRestoreQty();
                 sumReturn += totalReturn;
                 Cell cRet = row.createCell(9);
                 cRet.setCellValue(totalReturn);
                 cRet.setCellStyle(isZebra ? integerZebra : integerWhite);
 
-                // Col 10: Tồn cuối kỳ (SP)
+                // Col 10: Closing stock (units)
                 sumClosing += item.getClosingStock();
                 Cell cClose = row.createCell(10);
                 cClose.setCellValue(item.getClosingStock());
                 cClose.setCellStyle(isZebra ? integerZebraBold : integerWhiteBold);
 
-                // Col 11: Tiền vốn tồn đầu (VND)
+                // Col 11: Opening cost value (VND)
                 BigDecimal openVal = item.getOpeningCostValue() != null ? item.getOpeningCostValue() : BigDecimal.ZERO;
                 sumOpeningVal = sumOpeningVal.add(openVal);
                 Cell cOpenVal = row.createCell(11);
                 cOpenVal.setCellValue(openVal.doubleValue());
                 cOpenVal.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
-                // Col 12: Tiền vốn tồn cuối (VND)
+                // Col 12: Closing cost value (VND)
                 BigDecimal closeVal = item.getClosingCostValue() != null ? item.getClosingCostValue() : BigDecimal.ZERO;
                 sumClosingVal = sumClosingVal.add(closeVal);
                 Cell cCloseVal = row.createCell(12);
                 cCloseVal.setCellValue(closeVal.doubleValue());
                 cCloseVal.setCellStyle(isZebra ? currencyZebraBold : currencyWhiteBold);
 
-                // Col 13: Tiền bán tồn cuối (VND)
+                // Col 13: Closing retail value (VND)
                 BigDecimal retailVal = item.getClosingRetailValue() != null ? item.getClosingRetailValue() : BigDecimal.valueOf(item.getClosingStock() * price);
                 sumRetailVal = sumRetailVal.add(retailVal);
                 Cell cRetailVal = row.createCell(13);
                 cRetailVal.setCellValue(retailVal.doubleValue());
                 cRetailVal.setCellStyle(isZebra ? currencyZebra : currencyWhite);
 
-                // Col 14: Tình trạng tồn
+                // Col 14: Stock status
                 String status;
                 if (!Boolean.TRUE.equals(item.getIsActive())) {
                     status = "Ngừng kinh doanh";

@@ -4,13 +4,20 @@ import com.ddagtech.aureliabooks.security.AuthenticatedSessionUpdater;
 import com.ddagtech.aureliabooks.security.CustomerIdentity;
 import com.ddagtech.aureliabooks.service.ContactChangeService;
 import com.ddagtech.aureliabooks.util.HttpRequestUtil;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.time.Instant;
 
 @Controller
 @RequiredArgsConstructor
@@ -82,7 +89,7 @@ public class ContactChangeController {
             var session = request.getSession();
             session.setAttribute("CONTACT_REAUTH_OWNER", owner);
             session.setAttribute("CONTACT_REAUTH_TYPE", selectedType);
-            session.setAttribute("CONTACT_REAUTH_UNTIL", java.time.Instant.now().plusSeconds(300));
+            session.setAttribute("CONTACT_REAUTH_UNTIL", Instant.now().plusSeconds(300));
         } catch (org.springframework.security.core.AuthenticationException | IllegalArgumentException ex) {
             flash.addFlashAttribute("contactMessage", ex.getMessage());
         }
@@ -93,8 +100,8 @@ public class ContactChangeController {
         return (
             owner.equals(session.getAttribute("CONTACT_REAUTH_OWNER")) &&
             type.equals(session.getAttribute("CONTACT_REAUTH_TYPE")) &&
-            session.getAttribute("CONTACT_REAUTH_UNTIL") instanceof java.time.Instant expires &&
-            java.time.Instant.now().isBefore(expires)
+            session.getAttribute("CONTACT_REAUTH_UNTIL") instanceof Instant expires &&
+            Instant.now().isBefore(expires)
         );
     }
 
@@ -154,7 +161,7 @@ public class ContactChangeController {
             var session = request.getSession();
             session.setAttribute("CONTACT_REAUTH_OWNER", owner);
             session.setAttribute("CONTACT_REAUTH_TYPE", flow.type());
-            session.setAttribute("CONTACT_REAUTH_UNTIL", java.time.Instant.now().plusSeconds(300));
+            session.setAttribute("CONTACT_REAUTH_UNTIL", Instant.now().plusSeconds(300));
             return "PASSWORD_SETUP".equals(flow.type())
                 ? "redirect:/profile/password/setup"
                 : "redirect:/profile/contact-change?type=" + flow.type();

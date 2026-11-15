@@ -13,6 +13,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -24,6 +26,13 @@ import java.util.stream.Collectors;
 public class CustomErrorController implements ErrorController {
 
     private static final String ERROR_PATH = "/error";
+
+    private static final Map<String, String> ROLE_LABELS = Map.of(
+            "ROLE_ADMIN", "Quản trị viên",
+            "ROLE_MANAGER", "Quản lý",
+            "ROLE_SALE_STAFF", "Nhân viên bán hàng",
+            "ROLE_CUSTOMER", "Khách hàng"
+    );
 
     /**
      * Renders the 403 Forbidden Access Denied view.
@@ -37,10 +46,7 @@ public class CustomErrorController implements ErrorController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
             model.addAttribute("username", auth.getName());
-            String roles = auth.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .collect(Collectors.joining(", "));
-            model.addAttribute("roles", roles);
+            model.addAttribute("roles", formatRoleLabels(auth.getAuthorities()));
         } else {
             model.addAttribute("username", "Khách vãng lai");
             model.addAttribute("roles", "Chưa xác thực");
@@ -51,8 +57,20 @@ public class CustomErrorController implements ErrorController {
             model.addAttribute("errorMessage", errorMessage.toString());
         }
 
-        model.addAttribute("title", "403 - Quyền Bị Từ Chối | AureliaBook");
+        model.addAttribute("title", "403 - Truy cập bị từ chối | AureliaBook");
         return "error/403";
+    }
+
+    private String formatRoleLabels(Collection<? extends GrantedAuthority> authorities) {
+        if (authorities == null || authorities.isEmpty()) {
+            return "Chưa xác thực";
+        }
+        String formatted = authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(role -> ROLE_LABELS.getOrDefault(role, role))
+                .distinct()
+                .collect(Collectors.joining(", "));
+        return formatted.isBlank() ? "Chưa xác thực" : formatted;
     }
 
     /**

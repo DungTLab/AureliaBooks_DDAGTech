@@ -1,6 +1,15 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-import com.ddagtech.aureliabooks.dto.analytics.*;
+import com.ddagtech.aureliabooks.dto.analytics.DailyRevenueDto;
+import com.ddagtech.aureliabooks.dto.analytics.PaymentBreakdownDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueAnalyticsReportDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueFilterRequest;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueOrderSummaryDto;
+import com.ddagtech.aureliabooks.dto.analytics.RevenueSummaryKpiDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementFilterRequest;
+import com.ddagtech.aureliabooks.dto.analytics.StockMovementReportItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.StockValuationItemDto;
+import com.ddagtech.aureliabooks.dto.analytics.TopProductSaleDto;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.repository.AnalyticsRepository;
 import com.ddagtech.aureliabooks.service.AnalyticsService;
@@ -14,10 +23,17 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Implementation of AnalyticsService managing revenue metrics, time-series zero-filling, and stock valuation.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

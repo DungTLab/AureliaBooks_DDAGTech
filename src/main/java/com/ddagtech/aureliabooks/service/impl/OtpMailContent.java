@@ -1,11 +1,10 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-/** Transactional mail content shared by real email, staff reset, and the phone demo transport. */
+/** Transactional mail content shared by real email, internal provisioning, and the phone demo transport. */
 public final class OtpMailContent {
 
     public static final String SUBJECT = "AureliaBook - Mã xác thực của bạn";
     public static final String SMS_DEMO_SUBJECT = "[SMS DEMO] " + SUBJECT;
-    public static final String STAFF_PASSWORD_RESET_SUBJECT = "[AureliaBook] Cấp lại mật khẩu tài khoản nội bộ";
     public static final String STAFF_ACCOUNT_CREATED_SUBJECT = "[AureliaBook] Thông tin tài khoản nội bộ và mật khẩu khởi tạo";
 
     private OtpMailContent() {}
@@ -39,28 +38,21 @@ public final class OtpMailContent {
                 + "\nThông tin bản demo: yêu cầu cho số " + maskedPhone + ". Không xác minh quyền sở hữu SĐT thật.\n";
     }
 
-    public static String staffPasswordResetBody(String fullName, String temporaryPassword) {
-        return """
-        Xin chào %s,
-
-        Quản trị viên đã cấp lại mật khẩu tạm thời cho tài khoản nội bộ của bạn.
-        Mật khẩu tạm thời: %s
-
-        Vui lòng đăng nhập tại cổng nội bộ (/internal/login) và đổi sang mật khẩu mới ngay lập tức.
-
-        Trân trọng,
-        AureliaBook Security Team
-        """.formatted(fullName != null ? fullName : "bạn", temporaryPassword);
-    }
-
     public static String staffAccountCreatedBody(String fullName, String temporaryPassword) {
         return """
         Xin chào %s,
 
-        Tài khoản nội bộ của bạn tại AureliaBook đã được khởi tạo thành công bởi Quản trị viên.
-        Mật khẩu khởi tạo: %s
+        Tài khoản nội bộ của bạn tại AureliaBook đã được khởi tạo bởi Quản trị viên.
+        Mật khẩu khởi tạo ban đầu: %s
 
-        Vui lòng đăng nhập tại cổng nội bộ (/internal/login) và đổi sang mật khẩu mới ngay trong lần truy cập đầu tiên để đảm bảo an toàn thông tin.
+        Để đảm bảo an toàn và chủ động khôi phục quyền truy cập sau này, vui lòng thực hiện đầy đủ 3 bước sau:
+        1. Đăng nhập tại cổng nội bộ (/internal/login).
+        2. Đổi sang mật khẩu mới ngay trong lần truy cập đầu tiên.
+        3. Vào mục Email khôi phục (/internal/account/email) để xác minh email công việc qua mã OTP 6 số.
+
+        Lưu ý: Hệ thống chỉ cấp mật khẩu khởi tạo một lần duy nhất lúc tạo tài khoản; Quản trị viên không cấp lại mật khẩu sau này.
+        Sau khi xác minh email công việc, bạn có thể tự đặt lại mật khẩu khi cần tại /internal/forgot-password.
+        Nếu mất quyền truy cập email khôi phục, vui lòng liên hệ Quản trị viên để được hỗ trợ xác minh danh tính và cập nhật liên hệ.
 
         Trân trọng,
         AureliaBook Security Team

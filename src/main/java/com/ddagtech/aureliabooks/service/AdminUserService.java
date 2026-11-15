@@ -1,12 +1,19 @@
 package com.ddagtech.aureliabooks.service;
 
-import com.ddagtech.aureliabooks.dto.request.*;
-import com.ddagtech.aureliabooks.dto.response.*;
-import org.springframework.data.domain.*;
+import com.ddagtech.aureliabooks.dto.request.StaffContactUpdateRequest;
+import com.ddagtech.aureliabooks.dto.request.UserCreateRequest;
+import com.ddagtech.aureliabooks.dto.response.RoleOption;
+import com.ddagtech.aureliabooks.dto.response.UserSummary;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-/** UC28. Owner: Trần Huỳnh Giác. Sprint 1 scaffold; business implementation pending. */
+import java.util.List;
+
+/**
+ * Service contract managing internal back-office staff accounts and RBAC role assignments (UC28).
+ */
 public interface AdminUserService {
-    java.util.List<RoleOption> listAssignableRoles();
+    List<RoleOption> listAssignableRoles();
 
     default Page<UserSummary> list(String roleName, Pageable pageable) {
         return list(roleName, null, null, pageable);
@@ -32,10 +39,22 @@ public interface AdminUserService {
 
     void setActive(Long adminId, Long userId, boolean active, String ipAddress);
 
-    default void resetStaffPassword(Long adminId, Long targetUserId) {
-        resetStaffPassword(adminId, targetUserId, null);
+    default void updateStaffContact(Long adminId, Long targetUserId, StaffContactUpdateRequest request) {
+        updateStaffContact(adminId, targetUserId, request, null);
     }
 
-    void resetStaffPassword(Long adminId, Long targetUserId, String ipAddress);
+    /**
+     * Updates an internal staff member's phone and/or unverified email after identity verification (UC28 GIAC-02).
+     */
+    void updateStaffContact(Long adminId, Long targetUserId, StaffContactUpdateRequest request, String ipAddress);
+
+    default void revokeEmailVerification(Long adminId, Long targetUserId) {
+        revokeEmailVerification(adminId, targetUserId, null);
+    }
+
+    /**
+     * Revokes email verification status on another internal staff account (UC28 GIAC-02).
+     */
+    void revokeEmailVerification(Long adminId, Long targetUserId, String ipAddress);
 }
 

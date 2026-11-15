@@ -4,7 +4,11 @@ import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptForm;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptItemForm;
 import com.ddagtech.aureliabooks.dto.request.QuickCreateProductRequest;
-import com.ddagtech.aureliabooks.dto.response.*;
+import com.ddagtech.aureliabooks.dto.response.GoodsReceiptDetailDto;
+import com.ddagtech.aureliabooks.dto.response.ProductStockAlertDto;
+import com.ddagtech.aureliabooks.dto.response.QuickProductResponse;
+import com.ddagtech.aureliabooks.dto.response.ReceiptSummary;
+import com.ddagtech.aureliabooks.dto.response.StockMetricSummary;
 import com.ddagtech.aureliabooks.entity.GoodsReceipt;
 import com.ddagtech.aureliabooks.entity.Product;
 import com.ddagtech.aureliabooks.exception.AppException;
@@ -13,6 +17,7 @@ import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.SupplierRepository;
 import com.ddagtech.aureliabooks.security.CustomUserDetails;
 import com.ddagtech.aureliabooks.service.GoodsReceiptService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,14 +30,23 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Controller managing Goods Receipts (UC22 Draft, UC23 Finalize) and Stock Alerts (UC21).
@@ -40,8 +54,6 @@ import java.util.Map;
  *  - /staff/receipts/** -> Sale Staff, Manager, Admin
  *  - /manager/receipts/** -> Manager, Admin
  *  - /manager/stock/alerts & /staff/stock/alerts -> Sale Staff, Manager, Admin
- *
- * Owner: Nguyễn Trần Đức Anh.
  */
 @Slf4j
 @Controller
@@ -75,9 +87,13 @@ public class AdminReceiptController {
 
         if (!model.containsAttribute("receiptForm")) {
             List<Long> targetIds = new ArrayList<>();
-            if (productIds != null) targetIds.addAll(productIds);
-            if (productIdsPlural != null) targetIds.addAll(productIdsPlural);
-            targetIds = new ArrayList<>(new java.util.LinkedHashSet<>(targetIds));
+            if (productIds != null) {
+                targetIds.addAll(productIds);
+            }
+            if (productIdsPlural != null) {
+                targetIds.addAll(productIdsPlural);
+            }
+            targetIds = new ArrayList<>(new LinkedHashSet<>(targetIds));
 
             List<GoodsReceiptItemForm> initialItems = new ArrayList<>();
             if (!targetIds.isEmpty()) {
@@ -236,7 +252,7 @@ public class AdminReceiptController {
     @GetMapping({"/manager/receipts", "/staff/receipts"})
     @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String listReceipts(
-            jakarta.servlet.http.HttpServletRequest request,
+            HttpServletRequest request,
             @RequestParam(required = false) GoodsReceipt.Status status,
             @RequestParam(required = false) Long supplierId,
             @RequestParam(defaultValue = "0") int page,
@@ -310,7 +326,7 @@ public class AdminReceiptController {
     @GetMapping({"/manager/stock/alerts", "/staff/stock/alerts", "/inventory/stock/alerts"})
     @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public String stockAlerts(
-            jakarta.servlet.http.HttpServletRequest request,
+            HttpServletRequest request,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Product.ProductType productType,
@@ -378,16 +394,16 @@ public class AdminReceiptController {
         products.sort(Comparator
                 .comparingInt((Product p) -> {
                     int stock = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
-                    if (stock == 0) return 0;      // Ưu tiên 1: Đã hết hàng
-                    if (stock <= 10) return 1;     // Ưu tiên 2: Sắp hết hàng (tồn thấp 1-10)
-                    return 2;                      // Ưu tiên 3: Tồn kho an toàn (> 10)
+                    if (stock == 0) return 0;      // Priority 1: Out of stock
+                    if (stock <= 10) return 1;     // Priority 2: Low stock (1-10)
+                    return 2;                      // Priority 3: Safe stock (> 10)
                 })
                 .thenComparing(p -> p.getTitle() != null ? p.getTitle().toLowerCase() : "")
         );
         model.addAttribute("products", products);
         model.addAttribute("categories", categoryRepository.findByIsActiveTrueOrderByNameAsc());
-        java.util.Set<Long> textbookIds = goodsReceiptService.getTextbookProductIds();
-        model.addAttribute("textbookIds", textbookIds != null ? textbookIds : java.util.Collections.emptySet());
+        Set<Long> textbookIds = goodsReceiptService.getTextbookProductIds();
+        model.addAttribute("textbookIds", textbookIds != null ? textbookIds : Collections.emptySet());
     }
 
     private boolean isManagerOrAdmin(CustomUserDetails user) {
