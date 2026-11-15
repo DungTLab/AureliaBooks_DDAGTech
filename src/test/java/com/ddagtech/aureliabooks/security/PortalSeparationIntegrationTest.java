@@ -271,5 +271,24 @@ class PortalSeparationIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertThat(html).contains("/js/profile-forms.js", "data-password-change", "data-valid-form");
+        assertThat(html).contains("/admin/users", "/admin/audit-logs", "/internal/account/email");
+        assertThat(html).doesNotContain(
+                "/manager/analytics/revenue",
+                "/manager/analytics/stock",
+                "/manager/stock/history",
+                "Đơn hàng &amp; Kho vận"
+        );
+
+        String managerHtml = mvc.perform(get("/dashboard").with(user("manager").roles("MANAGER")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(managerHtml).contains(
+                "/manager/analytics/revenue",
+                "/manager/analytics/stock",
+                "/manager/stock/history",
+                "Đơn hàng &amp; Kho vận",
+                "Thống kê &amp; Báo cáo"
+        );
+        assertThat(managerHtml).doesNotContain("/admin/users", "/admin/audit-logs", "Quản trị Hệ thống &amp; Bảo mật");
     }
 }

@@ -25,7 +25,7 @@
             </p>
         </div>
         <div class="flex items-center gap-3">
-            <a sec:authorize="hasAnyRole('ADMIN', 'MANAGER')"
+            <a sec:authorize="hasRole('MANAGER')"
                id="exportStockExcelBtn"
                th:href="@{/manager/analytics/export/stock(startDate=${filter.startDate}, endDate=${filter.endDate}, keyword=${filter.keyword}, preset=${filter.startDate == null and filter.endDate == null ? 'all' : null})}"
                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-dust_grey hover:border-emerald-600 hover:text-emerald-700 text-carbon_black font-semibold text-sm rounded-xl shadow-sm transition">

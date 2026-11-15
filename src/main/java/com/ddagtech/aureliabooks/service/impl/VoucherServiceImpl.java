@@ -295,7 +295,7 @@ public class VoucherServiceImpl implements VoucherService {
     private User requireManager(Long id) {
         User user = account(id);
         if (!Boolean.TRUE.equals(user.getIsActive()) || user.getRole() == null
-                || !Set.of("ROLE_ADMIN", "ROLE_MANAGER").contains(user.getRole().getRoleName())) {
+                || !Set.of("ROLE_MANAGER").contains(user.getRole().getRoleName())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
         return user;
