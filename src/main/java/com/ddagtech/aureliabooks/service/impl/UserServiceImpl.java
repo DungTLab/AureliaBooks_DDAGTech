@@ -90,6 +90,12 @@ public class UserServiceImpl implements UserService {
                 ErrorCode.PASSWORD_NOT_MATCH
             );
         }
+        if (passwords.matches(request.newPassword(), u.getPasswordHash())) {
+            throw new AppException(
+                ErrorCode.INVALID_INPUT_DATA,
+                "Mật khẩu mới không được trùng với mật khẩu hiện tại"
+            );
+        }
         u.setPasswordHash(passwords.encode(request.newPassword()));
         users.saveAndFlush(u);
         auditLogService.record(
