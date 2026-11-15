@@ -14,6 +14,8 @@ RUN --mount=type=cache,target=/root/.m2 \
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre
 
+ENV TZ=Asia/Ho_Chi_Minh
+
 WORKDIR /app
 
 RUN groupadd --system appgroup \
@@ -25,4 +27,4 @@ USER appuser
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-Duser.timezone=Asia/Ho_Chi_Minh", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
