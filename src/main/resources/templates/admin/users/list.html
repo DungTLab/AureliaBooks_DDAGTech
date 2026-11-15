@@ -207,7 +207,7 @@
                         <!-- Authenticated Admin cannot demote self -->
                         <span th:if="${user.roleName != 'ROLE_CUSTOMER' and #authentication.principal.id == user.id and user.roleName == 'ROLE_ADMIN'}"
                               class="text-xs text-carbon_black-400 italic"
-                              title="Không thể tự thu hồi quyền Admin của chính mình">
+                              title="Không thể tự thu hồi quyền Quản trị viên của chính mình">
                                 Không thể đổi
                             </span>
 

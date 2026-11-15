@@ -299,6 +299,12 @@ class PortalSeparationIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         assertThat(html).contains("/js/profile-forms.js", "data-password-change", "data-valid-form");
         assertThat(html).contains("/admin/users", "/admin/audit-logs", "/internal/account/email");
+        assertThat(html).contains(
+                "Quản trị viên",
+                "Phân quyền vai trò nội bộ (Quản trị viên, Quản lý, Nhân viên bán hàng) và bảo vệ an toàn phiên.",
+                "Tra cứu nhật ký an ninh, biến động chứng từ và thao tác hệ thống chỉ ghi bổ sung, không sửa xóa."
+        );
+        assertThat(html).doesNotContain("(ADMIN)", "ADMIN, MANAGER, SALE_STAFF", "append-only");
         assertThat(html).doesNotContain(
                 "/manager/analytics/revenue",
                 "/manager/analytics/stock",
@@ -314,8 +320,25 @@ class PortalSeparationIntegrationTest {
                 "/manager/analytics/stock",
                 "/manager/stock/history",
                 "Đơn hàng &amp; Kho vận",
-                "Thống kê &amp; Báo cáo"
+                "Thống kê &amp; Báo cáo",
+                "Quản lý vận hành",
+                "Giám sát số lượng tồn kho khả dụng, cảnh báo hết hàng và tồn kho thấp.",
+                "Tạo phiếu nhập kho dự thảo từ nhà cung cấp theo chứng từ hàng về."
         );
-        assertThat(managerHtml).doesNotContain("/admin/users", "/admin/audit-logs", "Quản trị Hệ thống &amp; Bảo mật");
+        assertThat(managerHtml).doesNotContain(
+                "/admin/users",
+                "/admin/audit-logs",
+                "Quản trị Hệ thống &amp; Bảo mật",
+                "(MANAGER)",
+                "(ATP)",
+                "(DRAFT)",
+                "Barcode"
+        );
+
+        String staffHtml = mvc.perform(get("/dashboard").with(user("staff").roles("SALE_STAFF")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(staffHtml).contains("Nhân viên bán hàng");
+        assertThat(staffHtml).doesNotContain("(SALE_STAFF)", "(ATP)", "(DRAFT)");
     }
 }

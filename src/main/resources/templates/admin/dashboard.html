@@ -29,15 +29,15 @@
             <span class="text-xs font-semibold text-carbon_black-500 uppercase">Vai trò:</span>
             <span sec:authorize="hasRole('ADMIN')"
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                <i class="bi bi-shield-lock-fill"></i> Quản trị viên (ADMIN)
+                <i class="bi bi-shield-lock-fill"></i> Quản trị viên
             </span>
             <span sec:authorize="hasRole('MANAGER')"
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                <i class="bi bi-briefcase-fill"></i> Quản lý vận hành (MANAGER)
+                <i class="bi bi-briefcase-fill"></i> Quản lý vận hành
             </span>
             <span sec:authorize="hasRole('SALE_STAFF')"
                   class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                <i class="bi bi-person-badge-fill"></i> Nhân viên bán hàng (SALE_STAFF)
+                <i class="bi bi-person-badge-fill"></i> Nhân viên bán hàng
             </span>
         </div>
     </div>
@@ -75,7 +75,7 @@
                         <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý kho</h3>
                         <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
                     </div>
-                    <p class="text-xs text-carbon_black-500 mt-1">Giám sát số lượng tồn kho khả dụng (ATP), cảnh báo hết hàng và tồn kho thấp.</p>
+                    <p class="text-xs text-carbon_black-500 mt-1">Giám sát số lượng tồn kho khả dụng, cảnh báo hết hàng và tồn kho thấp.</p>
                 </div>
             </a>
 
@@ -90,7 +90,7 @@
                         <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Nhập kho</h3>
                         <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
                     </div>
-                    <p class="text-xs text-carbon_black-500 mt-1">Tạo phiếu nhập kho dự thảo (DRAFT) từ nhà cung cấp theo chứng từ hàng về.</p>
+                    <p class="text-xs text-carbon_black-500 mt-1">Tạo phiếu nhập kho dự thảo từ nhà cung cấp theo chứng từ hàng về.</p>
                 </div>
             </a>
 
@@ -144,7 +144,7 @@
                         <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý sản phẩm</h3>
                         <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
                     </div>
-                    <p class="text-xs text-carbon_black-500 mt-1">Danh mục Sách &amp; Văn phòng phẩm, giá niêm yết, mã ISBN và mã vạch Barcode.</p>
+                    <p class="text-xs text-carbon_black-500 mt-1">Danh mục Sách &amp; Văn phòng phẩm, giá niêm yết, mã ISBN và mã vạch sản phẩm.</p>
                 </div>
             </a>
 
@@ -295,7 +295,7 @@
                         <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Quản lý tài khoản</h3>
                         <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
                     </div>
-                    <p class="text-xs text-carbon_black-500 mt-1">Phân quyền vai trò nội bộ (ADMIN, MANAGER, SALE_STAFF) và bảo vệ an toàn phiên.</p>
+                    <p class="text-xs text-carbon_black-500 mt-1">Phân quyền vai trò nội bộ (Quản trị viên, Quản lý, Nhân viên bán hàng) và bảo vệ an toàn phiên.</p>
                 </div>
             </a>
 
@@ -310,7 +310,7 @@
                         <h3 class="font-bold text-carbon_black group-hover:text-blazing_flame transition-colors">Nhật ký kiểm toán</h3>
                         <i class="bi bi-arrow-right text-dust_grey group-hover:text-blazing_flame group-hover:translate-x-1 transition-all"></i>
                     </div>
-                    <p class="text-xs text-carbon_black-500 mt-1">Tra cứu nhật ký an ninh, biến động chứng từ và thao tác hệ thống append-only.</p>
+                    <p class="text-xs text-carbon_black-500 mt-1">Tra cứu nhật ký an ninh, biến động chứng từ và thao tác hệ thống chỉ ghi bổ sung, không sửa xóa.</p>
                 </div>
             </a>
         </div>
