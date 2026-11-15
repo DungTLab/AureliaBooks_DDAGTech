@@ -220,7 +220,7 @@
     <!-- Modal 1: Receipt Detail View Modal                                        -->
     <!-- ========================================================================= -->
     <div id="receiptDetailModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white border border-dust_grey rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden animate-fade-in-down" onclick="event.stopPropagation()">
+        <div class="bg-white border border-dust_grey rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden animate-fade-in-down">
             <div class="flex items-center justify-between p-5 bg-parchment-100 border-b border-dust_grey">
                 <h3 class="text-lg font-bold text-carbon_black flex items-center gap-2">
                     <i class="bi bi-receipt text-blazing_flame"></i>
@@ -301,7 +301,7 @@
     <!-- Modal 2: Finalize Receipt Confirmation Modal                              -->
     <!-- ========================================================================= -->
     <div id="finalizeModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white border border-dust_grey rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-4 animate-fade-in-down" onclick="event.stopPropagation()">
+        <div class="bg-white border border-dust_grey rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-4 animate-fade-in-down">
             <div class="flex items-center gap-3 text-emerald-600">
                 <i class="bi bi-check-circle-fill text-3xl"></i>
                 <h3 class="text-lg font-bold text-carbon_black">Xác nhận duyệt nhập kho</h3>
@@ -336,7 +336,7 @@
     <!-- Modal 3: Delete Draft Receipt Confirmation Modal                          -->
     <!-- ========================================================================= -->
     <div id="deleteModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-carbon_black/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white border border-dust_grey rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-4 animate-fade-in-down" onclick="event.stopPropagation()">
+        <div class="bg-white border border-dust_grey rounded-2xl max-w-md w-full shadow-2xl p-6 space-y-4 animate-fade-in-down">
             <div class="flex items-center gap-3 text-rose-600">
                 <i class="bi bi-exclamation-triangle-fill text-3xl"></i>
                 <h3 class="text-lg font-bold text-carbon_black">Xác nhận xóa phiếu nháp</h3>
@@ -386,6 +386,13 @@
                     closeModal(modalId);
                 }
             });
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                ['receiptDetailModal', 'finalizeModal', 'deleteModal'].forEach(closeModal);
+            }
         });
 
         function openFinalizeModal(id, code) {
