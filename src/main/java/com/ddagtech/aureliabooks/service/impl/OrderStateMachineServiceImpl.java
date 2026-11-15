@@ -434,7 +434,7 @@ public class OrderStateMachineServiceImpl implements OrderStateMachineService {
         if (!Boolean.TRUE.equals(staff.getIsActive())) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
-        if (staff.getRole() == null || !Set.of("ROLE_SALE_STAFF", "ROLE_MANAGER", "ROLE_ADMIN").contains(staff.getRole().getRoleName())) {
+        if (staff.getRole() == null || !Set.of("ROLE_SALE_STAFF", "ROLE_MANAGER").contains(staff.getRole().getRoleName())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
         return staff;

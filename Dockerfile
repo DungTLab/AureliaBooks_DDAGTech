@@ -14,6 +14,8 @@ RUN --mount=type=cache,target=/root/.m2 \
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre
 
+ENV TZ=Asia/Ho_Chi_Minh
+
 WORKDIR /app
 
 RUN groupadd --system appgroup \

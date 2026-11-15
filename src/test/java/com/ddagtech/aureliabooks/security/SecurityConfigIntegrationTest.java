@@ -342,12 +342,84 @@ class SecurityConfigIntegrationTest {
     }
 
     @Test
-    @DisplayName("RBAC: Authenticated ADMIN passes security filter on GET /api/receipts/1 for UC25 stock history audit")
-    void testRbacAuthorized_AdminAccessingReceiptDetailApi() throws Exception {
+    @DisplayName("RBAC: Authenticated ADMIN accessing GET /api/receipts/1 is rejected with 403 Forbidden (Option A1)")
+    void testRbacForbidden_AdminAccessingReceiptDetailApi_Returns403Json() throws Exception {
         mockMvc
-            .perform(get("/api/receipts/1").with(user("admin").roles("ADMIN")))
-            .andExpect(status().isNotFound())
-            .andExpect(jsonPath("$.code").value(3001));
+            .perform(
+                get("/api/receipts/1")
+                    .with(user("admin").roles("ADMIN"))
+                    .header("Accept", "application/json")
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(1002));
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated ADMIN accessing analytics, stock history, order API, or inventory alerts is rejected (Option A1)")
+    void testRbacForbidden_AdminAccessingManagerAndInventoryRoutes() throws Exception {
+        for (String htmlRoute : new String[]{
+            "/manager/analytics",
+            "/manager/analytics/revenue",
+            "/admin/analytics",
+            "/admin/analytics/revenue",
+            "/admin/analytics/stock",
+            "/manager/stock/history",
+            "/inventory/stock/alerts"
+        }) {
+            mockMvc
+                .perform(get(htmlRoute).with(user("admin").roles("ADMIN")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
+        }
+
+        mockMvc
+            .perform(
+                get("/api/orders/1")
+                    .with(user("admin").roles("ADMIN"))
+                    .header("Accept", "application/json")
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(1002));
+    }
+
+    @Test
+    @DisplayName("RBAC: Legacy /admin/analytics routes admit MANAGER and reject unauthenticated, SALE_STAFF, and CUSTOMER")
+    void testRbac_LegacyAdminAnalyticsRoutes_AllowManagerAndRejectOthers() throws Exception {
+        for (String route : new String[]{"/admin/analytics", "/admin/analytics/revenue", "/manager/analytics", "/manager/analytics/revenue"}) {
+            mockMvc
+                .perform(get(route))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/internal/login"));
+
+            mockMvc
+                .perform(get(route).with(user("manager").roles("MANAGER")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/404"));
+
+            mockMvc
+                .perform(get(route).with(user("staff").roles("SALE_STAFF")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
+
+            mockMvc
+                .perform(get(route).with(user("customer").roles("CUSTOMER")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/error/403"));
+        }
+    }
+
+    @Test
+    @DisplayName("RBAC: Authenticated SALE_STAFF attempting POST /api/products/quick-create returns 403 Forbidden (S2)")
+    void testRbacForbidden_StaffQuickCreateProduct_Returns403Json() throws Exception {
+        mockMvc
+            .perform(
+                post("/api/products/quick-create")
+                    .with(csrf())
+                    .with(user("staff").roles("SALE_STAFF"))
+                    .header("Accept", "application/json")
+            )
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(1002));
     }
 
     @Test

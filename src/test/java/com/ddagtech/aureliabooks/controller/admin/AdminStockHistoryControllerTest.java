@@ -62,15 +62,13 @@ class AdminStockHistoryControllerTest {
         }
 
         @Test
-        @DisplayName("GET /manager/stock/history as ADMIN returns 200 OK")
-        void list_asAdmin_returns200() throws Exception {
-            when(inventoryHistoryService.getInventoryHistory(any(), any()))
-                    .thenReturn(Page.empty());
-
+        @DisplayName("GET /manager/stock/history as ADMIN returns 403 Forbidden (Option A1)")
+        void list_asAdmin_returns403() throws Exception {
             mockMvc.perform(get("/manager/stock/history")
                             .with(user("admin").roles("ADMIN")))
-                    .andExpect(status().isOk())
-                    .andExpect(view().name("admin/stock/history"));
+                    .andExpect(status().isForbidden());
+
+            verifyNoInteractions(inventoryHistoryService);
         }
 
         @Test
@@ -237,6 +235,16 @@ class AdminStockHistoryControllerTest {
                     .andExpect(status().isNotFound());
 
             verify(inventoryHistoryService).getOrderDetail(999L);
+        }
+
+        @Test
+        @DisplayName("GET /api/orders/{id} as ADMIN returns 403 Forbidden (Option A1)")
+        void getOrderApi_asAdmin_returns403() throws Exception {
+            mockMvc.perform(get("/api/orders/10")
+                            .with(user("admin").roles("ADMIN")))
+                    .andExpect(status().isForbidden());
+
+            verifyNoInteractions(inventoryHistoryService);
         }
     }
 }

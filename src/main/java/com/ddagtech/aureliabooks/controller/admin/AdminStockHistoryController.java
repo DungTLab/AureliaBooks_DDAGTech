@@ -50,7 +50,7 @@ public class AdminStockHistoryController {
      * @return view template name "admin/stock/history"
      */
     @GetMapping({"/manager/stock/history", "/manager/inventory/history"})
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN')")
+    @PreAuthorize("hasRole('MANAGER')")
     public String list(
             @ModelAttribute("filter") InventoryHistoryFilterRequest filter,
             BindingResult bindingResult,
@@ -108,7 +108,7 @@ public class AdminStockHistoryController {
      */
     @GetMapping({"/api/orders/{id}", "/manager/orders/api/{id}"})
     @ResponseBody
-    @PreAuthorize("hasAnyRole('MANAGER', 'ADMIN', 'SALE_STAFF')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'SALE_STAFF')")
     public ResponseEntity<OrderDetailModalDto> getOrderApi(@PathVariable Long id) {
         return inventoryHistoryService.getOrderDetail(id)
                 .map(ResponseEntity::ok)

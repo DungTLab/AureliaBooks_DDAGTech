@@ -149,6 +149,12 @@ class VoucherServiceTest {
     void customerCannotManageAndInactiveCustomerCannotPreview() {
         assertThatThrownBy(() -> service.create(1L, form(), "ip"))
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+        User admin = User.builder().id(2L).role(Role.builder().roleName("ROLE_ADMIN").build()).isActive(true).build();
+        when(users.findById(2L)).thenReturn(Optional.of(admin));
+        assertThatThrownBy(() -> service.create(2L, form(), "ip"))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+        assertThatThrownBy(() -> service.setActive(2L, 10L, false, "ip"))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
         customer.setIsActive(false);
         assertThatThrownBy(() -> service.preview(1L, "SALE10", BigDecimal.TEN, BigDecimal.ZERO))
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCOUNT_LOCKED);
