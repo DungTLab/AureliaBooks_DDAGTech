@@ -67,6 +67,10 @@ class InternalPasswordRecoveryControllerTest {
     private static final Pattern EXPIRES_ATTR = Pattern.compile("data-expires-seconds=\"(\\d+)\"");
     private static final Pattern RESEND_ATTR = Pattern.compile("data-resend-seconds=\"(\\d+)\"");
     private static final Pattern RESEND_BUTTON_TAG = Pattern.compile("<button[^>]*data-otp-resend=\"true\"[^>]*>");
+    private static final Pattern CSRF_INPUT = Pattern.compile("(<input[^>]*name=\"_csrf\"[^>]*value=\")[^\"]*(\"[^>]*>)");
+    private static final Pattern CSRF_META = Pattern.compile("(<meta[^>]*name=\"_csrf\"[^>]*content=\")[^\"]*(\"[^>]*>)");
+    private static final Pattern TIMER_VALUE = Pattern.compile("(data-(?:expires|resend)-seconds=\")\\d+(\")");
+    private static final Pattern TIMER_NODE = Pattern.compile("(data-otp-(?:expiry|resend-seconds)[^>]*>)\\d+(<)");
 
     @Autowired
     MockMvc mvc;
@@ -289,12 +293,20 @@ class InternalPasswordRecoveryControllerTest {
         doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
             .when(otp).resend(eq(""), eq(dummy.getId()), anyString(), eq(true));
 
+        String phase1Template = null;
         for (MockHttpSession session : new MockHttpSession[] {realSuccess, realFail, realLimit, evicted, dummy}) {
             String html = performResendAndVerifyForm(session);
+            assertSessionWindowCopy(html);
             assertThat(extractSeconds(EXPIRES_ATTR, html)).isBetween(237L, 240L);
             assertThat(extractSeconds(RESEND_ATTR, html)).isBetween(25L, 28L);
             assertThat(extractResendButtonTag(html)).contains("disabled=\"disabled\"");
             assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(2);
+            String normalized = normalizePerSessionNoise(html);
+            if (phase1Template == null) {
+                phase1Template = normalized;
+            } else {
+                assertThat(normalized).isEqualTo(phase1Template);
+            }
         }
 
         // Phase 2: Cooldown elapsed, all 5 unverified states return identical refreshed public timers (300/60) & reset attempts.
@@ -316,12 +328,20 @@ class InternalPasswordRecoveryControllerTest {
         doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
             .when(otp).resend(eq(""), eq(dummy.getId()), anyString(), eq(true));
 
+        String phase2Template = null;
         for (MockHttpSession session : new MockHttpSession[] {realSuccess, realFail, realLimit, evicted, dummy}) {
             String html = performResendAndVerifyForm(session);
+            assertSessionWindowCopy(html);
             assertThat(extractSeconds(EXPIRES_ATTR, html)).isBetween(297L, 300L);
             assertThat(extractSeconds(RESEND_ATTR, html)).isBetween(57L, 60L);
             assertThat(extractResendButtonTag(html)).contains("disabled=\"disabled\"");
             assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(0);
+            String normalized = normalizePerSessionNoise(html);
+            if (phase2Template == null) {
+                phase2Template = normalized;
+            } else {
+                assertThat(normalized).isEqualTo(phase2Template);
+            }
         }
 
         // Phase 3: Public 5-send quota exhausted keeps button locked symmetrically across real-rate-limit, evicted, dummy.
@@ -337,12 +357,20 @@ class InternalPasswordRecoveryControllerTest {
         doThrow(new IllegalArgumentException("Yêu cầu không còn hiệu lực."))
             .when(otp).resend(eq(""), eq(dummy.getId()), anyString(), eq(true));
 
+        String phase3Template = null;
         for (MockHttpSession session : new MockHttpSession[] {realLimit, evicted, dummy}) {
             String html = performResendAndVerifyForm(session);
+            assertSessionWindowCopy(html);
             assertThat(extractSeconds(EXPIRES_ATTR, html)).isBetween(177L, 180L);
             assertThat(extractSeconds(RESEND_ATTR, html)).isBetween(717L, 720L);
             assertThat(extractResendButtonTag(html)).contains("disabled=\"disabled\"");
             assertThat(session.getAttribute(FLOW_ATTEMPTS)).isEqualTo(2);
+            String normalized = normalizePerSessionNoise(html);
+            if (phase3Template == null) {
+                phase3Template = normalized;
+            } else {
+                assertThat(normalized).isEqualTo(phase3Template);
+            }
         }
     }
 
@@ -490,6 +518,15 @@ class InternalPasswordRecoveryControllerTest {
 
             // Backend OTP now expires while public session timer still appears active.
             setDeclaredField(flow3, "expires", Instant.now().minusSeconds(1));
+            String renderedVerifyHtml = mvc.perform(get("/internal/forgot-password")
+                    .param("step", "verify").session(thirdSession))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+            assertSessionWindowCopy(renderedVerifyHtml);
+            assertThat(extractSeconds(EXPIRES_ATTR, renderedVerifyHtml)).isBetween(297L, 300L);
+            assertThat(extractSeconds(RESEND_ATTR, renderedVerifyHtml)).isBetween(57L, 60L);
+            assertThat(extractResendButtonTag(renderedVerifyHtml)).contains("disabled=\"disabled\"");
+
             realMvc.perform(post("/internal/forgot-password/verify").session(thirdSession).param("code", expiredOldCode))
                 .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
                 .andExpect(flash().attribute("recoveryMessage", "Mã không hợp lệ hoặc đã hết hạn."));
@@ -498,6 +535,22 @@ class InternalPasswordRecoveryControllerTest {
                 .hasMessageContaining("hết hạn");
             verify(writer, times(1)).resetStaff(any(), anyString(), anyString(), anyString(), anyString());
         }
+    }
+
+    private static void assertSessionWindowCopy(String html) {
+        assertThat(html)
+            .contains("Thời gian còn lại của phiên nhập mã")
+            .contains("Gửi lại mã")
+            .contains("Yêu cầu mã mới hoặc dùng email khác")
+            .contains("href=\"/internal/forgot-password\"")
+            .doesNotContain("Mã có hiệu lực");
+    }
+
+    private static String normalizePerSessionNoise(String html) {
+        String scrubbed = CSRF_INPUT.matcher(html).replaceAll("$1CSRF$2");
+        scrubbed = CSRF_META.matcher(scrubbed).replaceAll("$1CSRF$2");
+        scrubbed = TIMER_VALUE.matcher(scrubbed).replaceAll("$1000$2");
+        return TIMER_NODE.matcher(scrubbed).replaceAll("$1000$2");
     }
 
     private MockHttpSession createUniformSession(
