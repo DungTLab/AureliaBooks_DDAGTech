@@ -143,7 +143,7 @@ public class SecurityConfig {
                         "/internal/forgot-password/verify", "/internal/forgot-password/resend",
                         "/internal/forgot-password/reset").anonymous()
                 .requestMatchers("/admin/users", "/admin/users/**", "/admin/audit-logs", "/admin/audit-logs/**").hasRole("ADMIN")
-                .requestMatchers("/admin/analytics/**", "/manager/analytics/**").hasRole("MANAGER")
+                .requestMatchers("/admin/analytics", "/admin/analytics/**", "/manager/analytics", "/manager/analytics/**").hasRole("MANAGER")
                 .requestMatchers("/manager/stock/history", "/manager/inventory/history").hasRole("MANAGER")
                 .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                 .requestMatchers("/manager/receipts/*/finalize").hasRole("MANAGER")

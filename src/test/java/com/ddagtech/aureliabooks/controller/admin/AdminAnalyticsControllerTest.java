@@ -60,35 +60,72 @@ class AdminAnalyticsControllerTest {
     @WithMockUser(username = "admin@aureliabook.vn", roles = {"ADMIN"})
     @DisplayName("ROLE_ADMIN is blocked from revenue and stock analytics routes (Option A1 — HTTP 403 Forbidden)")
     void admin_isForbiddenFromAnalytics() throws Exception {
-        mockMvc.perform(get("/manager/analytics/revenue"))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(get("/manager/analytics/stock"))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/analytics/revenue"))
-                .andExpect(status().isForbidden());
+        for (String route : List.of(
+                "/manager/analytics",
+                "/manager/analytics/revenue",
+                "/manager/analytics/stock",
+                "/admin/analytics",
+                "/admin/analytics/revenue",
+                "/admin/analytics/stock",
+                "/admin/analytics/api/revenue-data"
+        )) {
+            mockMvc.perform(get(route))
+                    .andExpect(status().isForbidden());
+        }
     }
 
     @Test
     @WithMockUser(username = "staff@aureliabook.vn", roles = {"SALE_STAFF"})
-    @DisplayName("ROLE_SALE_STAFF is blocked from revenue analytics (HTTP 403 Forbidden)")
+    @DisplayName("ROLE_SALE_STAFF is blocked from canonical and legacy analytics routes (HTTP 403 Forbidden)")
     void saleStaff_isForbidden() throws Exception {
-        mockMvc.perform(get("/manager/analytics/revenue"))
-                .andExpect(status().isForbidden());
+        for (String route : List.of(
+                "/manager/analytics/revenue",
+                "/admin/analytics",
+                "/admin/analytics/revenue",
+                "/admin/analytics/stock",
+                "/admin/analytics/export/revenue",
+                "/admin/analytics/export/stock",
+                "/admin/analytics/export/stock-valuation",
+                "/admin/analytics/api/revenue-data"
+        )) {
+            mockMvc.perform(get(route))
+                    .andExpect(status().isForbidden());
+        }
     }
 
     @Test
     @WithMockUser(username = "customer@aureliabook.vn", roles = {"CUSTOMER"})
-    @DisplayName("ROLE_CUSTOMER is blocked from revenue analytics (HTTP 403 Forbidden)")
+    @DisplayName("ROLE_CUSTOMER is blocked from canonical and legacy analytics routes (HTTP 403 Forbidden)")
     void customer_isForbidden() throws Exception {
-        mockMvc.perform(get("/manager/analytics/revenue"))
-                .andExpect(status().isForbidden());
+        for (String route : List.of(
+                "/manager/analytics/revenue",
+                "/admin/analytics",
+                "/admin/analytics/revenue",
+                "/admin/analytics/stock",
+                "/admin/analytics/export/revenue",
+                "/admin/analytics/export/stock",
+                "/admin/analytics/export/stock-valuation",
+                "/admin/analytics/api/revenue-data"
+        )) {
+            mockMvc.perform(get(route))
+                    .andExpect(status().isForbidden());
+        }
     }
 
     @Test
-    @DisplayName("Anonymous user is redirected to login (HTTP 302)")
+    @DisplayName("Anonymous user is redirected to login on canonical and legacy analytics routes (HTTP 302)")
     void anonymous_isRedirectedToLogin() throws Exception {
-        mockMvc.perform(get("/manager/analytics/revenue"))
-                .andExpect(status().is3xxRedirection());
+        for (String route : List.of(
+                "/manager/analytics",
+                "/manager/analytics/revenue",
+                "/admin/analytics",
+                "/admin/analytics/revenue",
+                "/admin/analytics/stock",
+                "/admin/analytics/export/revenue"
+        )) {
+            mockMvc.perform(get(route))
+                    .andExpect(status().is3xxRedirection());
+        }
     }
 
     @Test
@@ -230,5 +267,102 @@ class AdminAnalyticsControllerTest {
                 .andExpect(status().isOk());
 
         verify(excelExportService).exportPeriodStockReport(any(), argThat(list -> list.size() == 1 && list.get(0).getCategoryName().equals("Sách")), any(), any());
+    }
+
+    @Test
+    @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("ROLE_MANAGER can access legacy /admin/analytics revenue routes with query parameters preserved")
+    void manager_canAccessLegacyAdminRevenueRoutes() throws Exception {
+        RevenueAnalyticsReportDto mockReport = RevenueAnalyticsReportDto.builder()
+                .filter(RevenueFilterRequest.builder().preset("last7days").granularity("MONTH").build())
+                .kpi(RevenueSummaryKpiDto.builder().totalOrders(3).grossRevenue(BigDecimal.valueOf(900000)).build())
+                .build();
+        when(analyticsService.getRevenueReport(any())).thenReturn(mockReport);
+
+        for (String route : List.of("/admin/analytics", "/admin/analytics/")) {
+            mockMvc.perform(get(route))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("internal/analytics/revenue-report"))
+                    .andExpect(model().attributeExists("report", "filter"));
+        }
+
+        mockMvc.perform(get("/admin/analytics/revenue")
+                        .param("preset", "last7days")
+                        .param("granularity", "MONTH")
+                        .param("startDate", "2026-10-01")
+                        .param("endDate", "2026-10-07"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("internal/analytics/revenue-report"))
+                .andExpect(model().attributeExists("report", "filter"));
+
+        verify(analyticsService).getRevenueReport(argThat(filter ->
+                "last7days".equals(filter.getPreset())
+                        && "MONTH".equals(filter.getGranularity())
+                        && java.time.LocalDate.of(2026, 10, 1).equals(filter.getStartDate())
+                        && java.time.LocalDate.of(2026, 10, 7).equals(filter.getEndDate())));
+    }
+
+    @Test
+    @WithMockUser(username = "manager@aureliabook.vn", roles = {"MANAGER"})
+    @DisplayName("ROLE_MANAGER can access legacy /admin/analytics stock report, exports, and revenue API")
+    void manager_canAccessLegacyAdminStockExportsAndApi() throws Exception {
+        RevenueAnalyticsReportDto mockReport = RevenueAnalyticsReportDto.builder()
+                .filter(new RevenueFilterRequest())
+                .kpi(RevenueSummaryKpiDto.builder().totalOrders(8).build())
+                .build();
+        when(analyticsService.getRevenueReport(any())).thenReturn(mockReport);
+        when(analyticsService.getPeriodStockMovementReport(any())).thenReturn(Collections.emptyList());
+        when(analyticsService.getStockValuationReport()).thenReturn(Collections.emptyList());
+        doNothing().when(excelExportService).exportRevenueExcel(any(), any(OutputStream.class));
+        doNothing().when(excelExportService).exportPeriodStockReport(any(), any(), any(), any(OutputStream.class));
+        doNothing().when(excelExportService).exportStockValuationExcel(any(), any(OutputStream.class));
+
+        mockMvc.perform(get("/admin/analytics/stock")
+                        .param("startDate", "2026-10-01")
+                        .param("endDate", "2026-10-15")
+                        .param("keyword", "Java")
+                        .param("category", "Sách")
+                        .param("productType", "BOOK"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("internal/analytics/stock-report"))
+                .andExpect(model().attributeExists("stockReport"));
+
+        verify(analyticsService).getPeriodStockMovementReport(argThat(filter ->
+                java.time.LocalDate.of(2026, 10, 1).equals(filter.getStartDate())
+                        && java.time.LocalDate.of(2026, 10, 15).equals(filter.getEndDate())));
+
+        mockMvc.perform(get("/admin/analytics/export/revenue").param("preset", "thismonth"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().exists("Content-Disposition"));
+
+        mockMvc.perform(get("/admin/analytics/export/stock").param("category", "Sách"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().exists("Content-Disposition"));
+
+        mockMvc.perform(get("/admin/analytics/export/stock-valuation"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .andExpect(header().exists("Content-Disposition"));
+
+        mockMvc.perform(get("/admin/analytics/api/revenue-data").param("preset", "last7days"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.kpi.totalOrders").value(8));
+    }
+
+    @Test
+    @WithMockUser(username = "admin@aureliabook.vn", roles = {"ADMIN"})
+    @DisplayName("ROLE_ADMIN remains blocked from exporting analytics reports on legacy /admin/analytics paths")
+    void exportAnalytics_admin_legacyRoutes_forbidden() throws Exception {
+        for (String route : List.of(
+                "/admin/analytics/export/revenue",
+                "/admin/analytics/export/stock",
+                "/admin/analytics/export/stock-valuation"
+        )) {
+            mockMvc.perform(get(route))
+                    .andExpect(status().isForbidden());
+        }
     }
 }

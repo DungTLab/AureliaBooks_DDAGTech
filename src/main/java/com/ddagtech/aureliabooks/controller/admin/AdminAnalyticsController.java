@@ -28,11 +28,12 @@ import java.util.List;
 
 /**
  * Controller managing executive analytics dashboards and Excel exports (UC26, UC27).
- * Protected under Spring Security exclusively for the MANAGER role.
+ * Supports canonical {@code /manager/analytics} routes and legacy {@code /admin/analytics}
+ * compatibility routes exclusively for the {@code MANAGER} role.
  */
 @Slf4j
 @Controller
-@RequestMapping("/manager/analytics")
+@RequestMapping({"/manager/analytics", "/admin/analytics"})
 @PreAuthorize("hasRole('MANAGER')")
 @RequiredArgsConstructor
 public class AdminAnalyticsController {
