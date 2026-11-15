@@ -66,7 +66,8 @@
                     <tr th:each="cat : ${categories}" class="hover:bg-parchment-50 transition-colors">
                         <td class="px-6 py-4 font-mono text-xs text-carbon_black-400" th:text="${cat.id}">1</td>
                         <td class="px-6 py-4">
-                            <div class="flex items-center gap-2" th:classappend="${cat.parent != null ? 'pl-6' : ''}">
+                            <div class="flex items-center gap-2"
+                                 th:style="|padding-left: ${categoryDepths[cat.id] * 24}px;|">
                                 <i th:if="${cat.parent == null}" class="bi bi-folder-fill text-amber-500 text-base"></i>
                                 <i th:if="${cat.parent != null}" class="bi bi-arrow-return-right text-carbon_black-400 text-sm"></i>
                                 <span class="font-bold text-carbon_black text-sm" th:text="${cat.name}">Sách Trong Nước</span>

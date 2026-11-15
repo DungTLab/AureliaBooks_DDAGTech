@@ -306,4 +306,22 @@ class MasterDataControllerTest {
                 .andExpect(content().string(containsString("Retain this biography")))
                 .andExpect(content().string(containsString("data-open=\"true\"")));
     }
+
+    @Test
+    @WithMockUser(roles = "MANAGER")
+    void categoriesRenderIndentationForEachHierarchyLevel() throws Exception {
+        Category root = Category.builder().id(10L).name("Root category").isActive(true).build();
+        Category child = Category.builder().id(11L).name("Child category").parent(root).isActive(true).build();
+        Category grandchild = Category.builder().id(12L).name("Grandchild category").parent(child).isActive(true).build();
+        when(masterDataService.getAllCategoriesWithParent()).thenReturn(List.of(root, child, grandchild));
+
+        String html = mockMvc.perform(get("/manager/categories"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("categoryDepths", java.util.Map.of(10L, 0, 11L, 1, 12L, 2)))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).containsPattern("(?s)<tr\\b[^>]*>(?:(?!</tr>).)*padding-left: 0px;(?:(?!</tr>).)*>Root category</span>");
+        assertThat(html).containsPattern("(?s)<tr\\b[^>]*>(?:(?!</tr>).)*padding-left: 24px;(?:(?!</tr>).)*>Child category</span>");
+        assertThat(html).containsPattern("(?s)<tr\\b[^>]*>(?:(?!</tr>).)*padding-left: 48px;(?:(?!</tr>).)*>Grandchild category</span>");
+    }
 }
