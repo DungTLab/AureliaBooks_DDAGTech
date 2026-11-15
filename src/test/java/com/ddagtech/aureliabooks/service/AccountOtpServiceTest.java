@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.ddagtech.aureliabooks.dto.request.RegisterRequest;
 import com.ddagtech.aureliabooks.entity.Role;
 import com.ddagtech.aureliabooks.entity.User;
@@ -15,9 +18,12 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailSendException;
 
 class AccountOtpServiceTest {
 
@@ -423,5 +429,254 @@ class AccountOtpServiceTest {
         assertThatThrownBy(() -> service.reset(id, "session", "NewPass1!", "NewPass1!", "ip"))
             .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(writer);
+    }
+
+    private User verifiedStaffAccount() {
+        User staff = account();
+        staff.setEmail("staff@aureliabook.vn");
+        staff.setRole(Role.builder().roleName("ROLE_SALE_STAFF").build());
+        when(users.findByIdentifierWithRoles(staff.getEmail())).thenReturn(Optional.of(staff));
+        when(users.findById(staff.getId())).thenReturn(Optional.of(staff));
+        when(users.hasCurrentStaffEmailProof(staff)).thenReturn(true);
+        return staff;
+    }
+
+    @Test
+    void internalRecoveryDeliveryFailureRollsBackCooldownAndAllowsRetryWhilePreservingQuota() {
+        User staff = verifiedStaffAccount();
+        doThrow(new IllegalStateException("smtp unreachable"))
+            .doAnswer(invocation -> {
+                code = invocation.getArgument(2);
+                return null;
+            })
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "session", "ip"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageNotContaining("smtp unreachable");
+
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+        assertThat(flowId).isNotBlank();
+        assertThat(service.verify(flowId, "session", code, "ip", true).complete()).isFalse();
+        assertThat(service.view(flowId, "session", true).authorized()).isTrue();
+    }
+
+    @Test
+    void internalRecoveryDeliveryQuotaCapsRepeatedFailuresWithoutCooldownLockout() {
+        User staff = verifiedStaffAccount();
+        doThrow(new IllegalStateException("smtp unreachable"))
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "session", "ip"))
+                .hasMessageContaining("Không gửi được mã");
+        }
+
+        assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "session", "ip"))
+            .hasMessageContaining("Quá nhiều yêu cầu");
+        verify(delivery, times(5)).send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+    }
+
+    @Test
+    void internalResendDeliveryFailureRestoresPreviousOtpAndCooldown() throws Exception {
+        User staff = verifiedStaffAccount();
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+        String firstCode = code;
+        Instant priorWindow = Instant.now().minusSeconds(61);
+
+        Object flow = internalMap("flows").get(flowId);
+        setField(flow, "sent", priorWindow);
+        Object counter = internalMap("limits").get("target:" + staff.getEmail());
+        setField(counter, "lastSent", priorWindow);
+
+        doThrow(new IllegalStateException("smtp timeout"))
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        assertThatThrownBy(() -> service.resend(flowId, "session", "ip", true))
+            .hasMessageContaining("Không gửi được mã");
+        assertThat(readField(counter, "lastSent")).isEqualTo(priorWindow);
+
+        // Previous OTP remains valid until replaced by a successful delivery.
+        assertThat(service.verify(flowId, "session", firstCode, "ip", true).complete()).isFalse();
+        assertThat(service.view(flowId, "session", true).authorized()).isTrue();
+    }
+
+    @Test
+    void expiredInternalRecoveryGrantIsEvictedFromViewAndVerificationFlow() throws Exception {
+        User staff = verifiedStaffAccount();
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+        service.verify(flowId, "session", code, "ip", true);
+
+        Map<String, ?> flows = internalMap("flows");
+        setField(flows.get(flowId), "authorized", Instant.now().minusSeconds(1));
+
+        assertThat(service.view(flowId, "session", true)).isNull();
+        assertThat(flows).doesNotContainKey(flowId);
+        assertThatThrownBy(() -> service.reset(flowId, "session", "NewPass1!", "NewPass1!", "ip", true))
+            .hasMessageContaining("Yêu cầu không còn hiệu lực");
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    void deliveryFailureLogsIdentifyErrorAndChannelWithoutLeakingSensitiveData() {
+        Logger otpLogger = (Logger) LoggerFactory.getLogger(AccountOtpServiceImpl.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        otpLogger.addAppender(appender);
+        try {
+            User staff = verifiedStaffAccount();
+            staff.setEmail("secret.staff@aureliabook.vn");
+            when(users.findByIdentifierWithRoles(staff.getEmail())).thenReturn(Optional.of(staff));
+            AtomicReference<String> internalCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                internalCode.set(invocation.getArgument(2));
+                throw new MailSendException(
+                        "Failed messages: smtp://relayuser:relaypass@smtp.internal:587 rejected "
+                                + "<secret.staff@aureliabook.vn> from bounces@aureliabook.vn "
+                                + "Authorization: Bearer header-secret-tok123 password=topsecret\r\n"
+                                + "otp=" + internalCode.get() + " 550 5.1.1"
+                );
+            }).when(delivery).send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+            assertThatThrownBy(() -> service.internalRecovery(staff.getEmail(), "s-internal", "ip-1"))
+                .hasMessageContaining("Không gửi được mã");
+
+            User customer = account();
+            customer.setEmail("customer.private@example.test");
+            when(users.findByIdentifierWithRoles(customer.getEmail())).thenReturn(Optional.of(customer));
+            AtomicReference<String> customerCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                customerCode.set(invocation.getArgument(2));
+                throw new MailSendException("550 <customer.private@example.test> user unknown code=" + customerCode.get());
+            }).when(delivery).send(eq("EMAIL"), eq(customer.getEmail()), anyString());
+
+            assertThatThrownBy(() -> service.recovery(customer.getEmail(), "EMAIL", "s-reset", "ip-2"))
+                .hasMessageContaining("Không gửi được mã");
+
+            AtomicReference<String> smsCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                smsCode.set(invocation.getArgument(1));
+                throw new IllegalStateException(
+                        "SMS gateway timeout for 0912345678 Authorization: Bearer sms-bearer-tok456 "
+                                + "token=sms-secret otp=" + smsCode.get()
+                );
+            }).when(delivery).sendRegistrationSms(eq("0912345678"), anyString());
+
+            assertThatThrownBy(() -> service.registration(request(), "s-reg", "ip-3"))
+                .hasMessageContaining("Không gửi được mã");
+
+            User linkCustomer = account();
+            linkCustomer.setId(88L);
+            linkCustomer.setEmail("owner.primary@example.test");
+            linkCustomer.setPhone(null);
+            linkCustomer.setPhoneVerified(false);
+            when(users.findByIdentifierWithRoles("owner.primary@example.test")).thenReturn(Optional.of(linkCustomer));
+            String linkFlowId = service.prepareGoogleLink(88L, "sub-88", "owner.primary@example.test", "s-link");
+            AtomicReference<String> googleCode = new AtomicReference<>();
+            doAnswer(invocation -> {
+                googleCode.set(invocation.getArgument(2));
+                throw new MailSendException(
+                        "Send failed for owner.primary@example.test Authorization: Bearer tok123 "
+                                + "Bearer nested789 Basic dXNlcjpwYXNz " + googleCode.get()
+                );
+            }).when(delivery).send(eq("EMAIL"), eq("owner.primary@example.test"), anyString());
+
+            assertThatThrownBy(() -> service.sendGoogleLink(linkFlowId, "s-link", "EMAIL", "ip-4"))
+                .hasMessageContaining("Không gửi được mã");
+
+            List<String> formattedLogs = appender.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
+            assertThat(formattedLogs).hasSize(4);
+
+            assertThat(formattedLogs.get(0))
+                .isEqualTo("Failed to deliver INTERNAL_RESET OTP via EMAIL to s***@aureliabook.vn: MailSendException (code=550 5.1.1)")
+                .doesNotContain("Failed messages", "rejected", "smtp.internal",
+                        "secret.staff@aureliabook.vn", "bounces@aureliabook.vn",
+                        "Authorization", "Bearer", "header-secret-tok123",
+                        "relaypass", "topsecret", "\r", "\n", internalCode.get());
+            assertThat(formattedLogs.get(1))
+                .isEqualTo("Failed to deliver RESET OTP via EMAIL to c***@example.test: MailSendException (code=550)")
+                .doesNotContain("customer.private@example.test", "user unknown", customerCode.get());
+            assertThat(formattedLogs.get(2))
+                .isEqualTo("Failed to deliver REGISTER OTP via SMS to ******5678: IllegalStateException")
+                .doesNotContain("SMS gateway timeout", "0912345678",
+                        "Authorization", "Bearer", "sms-bearer-tok456", "sms-secret", smsCode.get());
+            assertThat(formattedLogs.get(3))
+                .isEqualTo("Failed to deliver GOOGLE_LINK OTP via EMAIL to o***@example.test: MailSendException")
+                .doesNotContain("Send failed", "owner.primary@example.test",
+                        "Authorization", "Bearer", "tok123", "nested789", "Basic", "dXNlcjpwYXNz", googleCode.get());
+        } finally {
+            otpLogger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void viewResendInReflectsDeliveryRollbackAndFiveSendQuotaWindow() throws Exception {
+        User staff = verifiedStaffAccount();
+        String flowId = service.internalRecovery(staff.getEmail(), "session", "ip");
+
+        AccountOtpService.View initialView = service.view(flowId, "session", true);
+        assertThat(initialView.resendIn()).isBetween(1L, 60L);
+        assertThat(initialView.expiresIn()).isBetween(295L, 300L);
+
+        Object flow = internalMap("flows").get(flowId);
+        Object targetCounter = internalMap("limits").get("target:" + staff.getEmail());
+        Instant priorWindow = Instant.now().minusSeconds(61);
+        setField(flow, "sent", priorWindow);
+        setField(targetCounter, "lastSent", priorWindow);
+
+        doThrow(new MailSendException("temporary smtp failure"))
+            .doAnswer(invocation -> {
+                code = invocation.getArgument(2);
+                return null;
+            })
+            .when(delivery)
+            .send(eq("EMAIL"), eq(staff.getEmail()), anyString());
+
+        // Attempt #2 fails delivery: cooldown rolls back to 0s so user can retry immediately.
+        assertThatThrownBy(() -> service.resend(flowId, "session", "ip", true))
+            .hasMessageContaining("Không gửi được mã");
+        assertThat(service.view(flowId, "session", true).resendIn()).isZero();
+
+        // Attempts #3 and #4 succeed and enforce the standard 60s resend cooldown.
+        for (int quotaAttempt = 3; quotaAttempt <= 4; quotaAttempt++) {
+            service.resend(flowId, "session", "ip", true);
+            assertThat(service.view(flowId, "session", true).resendIn()).isBetween(1L, 60L);
+            Instant aged = Instant.now().minusSeconds(61);
+            setField(flow, "sent", aged);
+            setField(targetCounter, "lastSent", aged);
+        }
+
+        // Reaching the 5th attempt inside the 15-minute quota keeps resend locked past the 60s cooldown.
+        service.resend(flowId, "session", "ip", true);
+        Instant agedAfterFifth = Instant.now().minusSeconds(61);
+        setField(flow, "sent", agedAfterFifth);
+        setField(targetCounter, "lastSent", agedAfterFifth);
+
+        assertThat(service.view(flowId, "session", true).resendIn()).isGreaterThan(60L);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, ?> internalMap(String fieldName) throws Exception {
+        var field = AccountOtpServiceImpl.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return (Map<String, ?>) field.get(service);
+    }
+
+    private static void setField(Object target, String fieldName, Object value) throws Exception {
+        var field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static Object readField(Object target, String fieldName) throws Exception {
+        var field = target.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(target);
     }
 }

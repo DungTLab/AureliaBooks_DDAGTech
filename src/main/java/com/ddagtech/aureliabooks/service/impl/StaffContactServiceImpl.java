@@ -280,7 +280,11 @@ public class StaffContactServiceImpl implements StaffContactService {
                     pending.replace(staffId, placeholder, rollbackTarget);
                 }
             }
-            log.warn("Failed to deliver staff verification OTP to target user {}: {}", staffId, ex.getMessage());
+            log.warn(
+                    "Failed to deliver staff verification OTP via EMAIL to target user {}: {}",
+                    staffId,
+                    OtpLogSanitizer.summarizeFailure(ex)
+            );
             throw new AppException(ErrorCode.OTP_DELIVERY_FAILED);
         }
 

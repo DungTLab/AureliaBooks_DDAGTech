@@ -1,5 +1,8 @@
 package com.ddagtech.aureliabooks.service;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.ddagtech.aureliabooks.constant.ErrorCode;
 import com.ddagtech.aureliabooks.dto.response.AdminStaffEmailChallengeView;
 import com.ddagtech.aureliabooks.entity.Role;
@@ -27,6 +30,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailSendException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -355,6 +360,43 @@ class StaffContactServiceTest {
             releaseDelivery.countDown();
             assertThat(first.get(5, TimeUnit.SECONDS).targetUserId()).isEqualTo(10L);
             assertThat(service.findSelfEmailChallenge(10L, "sess-1")).isPresent();
+        }
+    }
+
+    @Test
+    @DisplayName("Self verification failure logs sanitized error type and channel without raw email or credentials")
+    void selfVerificationFailureLogsSanitizedChannelAndErrorWithoutRawEmailOrCredentials() {
+        Logger staffLogger = (Logger) LoggerFactory.getLogger(StaffContactServiceImpl.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        staffLogger.addAppender(appender);
+        try {
+            when(users.existsByEmail("smtp-fail@aureliabook.vn")).thenReturn(false);
+            AtomicReference<String> sentCode = new AtomicReference<>();
+            doAnswer(inv -> {
+                sentCode.set(inv.getArgument(2));
+                throw new MailSendException(
+                        "Failed messages: Authorization: Bearer header-tok-999 550 5.1.1 "
+                                + "<smtp-fail@aureliabook.vn> rejected via auth@relay.internal password=mailpass otp="
+                                + sentCode.get()
+                );
+            }).when(delivery).send(eq("EMAIL"), eq("smtp-fail@aureliabook.vn"), anyString());
+
+            assertThatThrownBy(() ->
+                    service.startSelfEmailVerification(10L, "s-log", "smtp-fail@aureliabook.vn", "127.0.0.1"))
+                    .isInstanceOf(AppException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OTP_DELIVERY_FAILED);
+
+            assertThat(appender.list).hasSize(1);
+            assertThat(appender.list.getFirst().getFormattedMessage())
+                    .isEqualTo("Failed to deliver staff verification OTP via EMAIL to target user 10: "
+                            + "MailSendException (code=550 5.1.1)")
+                    .doesNotContain("smtp-fail@aureliabook.vn", "auth@relay.internal",
+                            "Authorization", "Bearer", "header-tok-999",
+                            "Failed messages", "rejected", "mailpass", sentCode.get());
+        } finally {
+            staffLogger.detachAppender(appender);
+            appender.stop();
         }
     }
 }

@@ -95,9 +95,13 @@ class PortalSeparationIntegrationTest {
         verify(otp).verify(eq("staff-flow"), eq(session.getId()), eq("123456"), anyString(), eq(true));
         when(otp.view("staff-flow", session.getId(), true))
             .thenReturn(new AccountOtpService.View("INTERNAL_RESET", "", true, 0));
-        mvc.perform(get("/internal/forgot-password?step=verify").session(session))
+        String resetHtml = mvc.perform(get("/internal/forgot-password?step=verify").session(session))
             .andExpect(status().isOk())
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/internal/forgot-password/reset\"")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/internal/forgot-password/reset\"")))
+            .andReturn().getResponse().getContentAsString();
+        assertThat(resetHtml)
+            .contains("data-password-field", "data-password-toggle", "data-valid-form", "data-password-change")
+            .doesNotContain("id=\"internal-password-modal\"");
         mvc.perform(post("/internal/forgot-password/reset").session(session).with(csrf())
                 .param("password", "NewPassword123!").param("confirmation", "NewPassword123!"))
             .andExpect(redirectedUrl("/internal/login"));
@@ -114,10 +118,33 @@ class PortalSeparationIntegrationTest {
             .andExpect(flash().attribute("recoveryMessage",
                 "Nếu email đủ điều kiện khôi phục, bạn sẽ nhận được mã xác thực.")).andReturn();
         var session = (org.springframework.mock.web.MockHttpSession) sent.getRequest().getSession(false);
-        mvc.perform(get("/internal/forgot-password?step=verify").session(session))
+        String html = mvc.perform(get("/internal/forgot-password?step=verify").session(session))
             .andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/internal/forgot-password/verify\"")))
-            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("unknown@example.test"))));
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("unknown@example.test"))))
+            .andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("data-otp-timer", "data-otp-code-form=\"true\"", "data-otp-resend=\"true\"", "/js/otp-countdown.js");
+    }
+
+    @Test
+    void recoveryOtpStepMatchesCountdownContractAndRejectsDirectVerifyWithoutFlow() throws Exception {
+        mvc.perform(get("/internal/forgot-password?step=verify"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/internal/forgot-password"));
+
+        when(otp.internalRecovery(eq("staff@example.test"), anyString(), anyString())).thenReturn("staff-flow");
+        var sent = mvc.perform(post("/internal/forgot-password/send").with(csrf())
+                .param("email", "staff@example.test"))
+            .andExpect(redirectedUrl("/internal/forgot-password?step=verify"))
+            .andReturn();
+        var session = (org.springframework.mock.web.MockHttpSession) sent.getRequest().getSession(false);
+        when(otp.view("staff-flow", session.getId(), true))
+            .thenReturn(new AccountOtpService.View("INTERNAL_RESET", "s***@example.test", false, 59, 299));
+
+        String html = mvc.perform(get("/internal/forgot-password?step=verify").session(session))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("data-otp-timer", "/js/otp-countdown.js", "data-otp-resend=\"true\"");
     }
 
     @Test
@@ -272,6 +299,12 @@ class PortalSeparationIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         assertThat(html).contains("/js/profile-forms.js", "data-password-change", "data-valid-form");
         assertThat(html).contains("/admin/users", "/admin/audit-logs", "/internal/account/email");
+        assertThat(html).contains(
+                "Quản trị viên",
+                "Phân quyền vai trò nội bộ (Quản trị viên, Quản lý, Nhân viên bán hàng) và bảo vệ an toàn phiên.",
+                "Tra cứu nhật ký an ninh, biến động chứng từ và thao tác hệ thống chỉ ghi bổ sung, không sửa xóa."
+        );
+        assertThat(html).doesNotContain("(ADMIN)", "ADMIN, MANAGER, SALE_STAFF", "append-only");
         assertThat(html).doesNotContain(
                 "/manager/analytics/revenue",
                 "/manager/analytics/stock",
@@ -287,8 +320,25 @@ class PortalSeparationIntegrationTest {
                 "/manager/analytics/stock",
                 "/manager/stock/history",
                 "Đơn hàng &amp; Kho vận",
-                "Thống kê &amp; Báo cáo"
+                "Thống kê &amp; Báo cáo",
+                "Quản lý vận hành",
+                "Giám sát số lượng tồn kho khả dụng, cảnh báo hết hàng và tồn kho thấp.",
+                "Tạo phiếu nhập kho dự thảo từ nhà cung cấp theo chứng từ hàng về."
         );
-        assertThat(managerHtml).doesNotContain("/admin/users", "/admin/audit-logs", "Quản trị Hệ thống &amp; Bảo mật");
+        assertThat(managerHtml).doesNotContain(
+                "/admin/users",
+                "/admin/audit-logs",
+                "Quản trị Hệ thống &amp; Bảo mật",
+                "(MANAGER)",
+                "(ATP)",
+                "(DRAFT)",
+                "Barcode"
+        );
+
+        String staffHtml = mvc.perform(get("/dashboard").with(user("staff").roles("SALE_STAFF")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(staffHtml).contains("Nhân viên bán hàng");
+        assertThat(staffHtml).doesNotContain("(SALE_STAFF)", "(ATP)", "(DRAFT)");
     }
 }

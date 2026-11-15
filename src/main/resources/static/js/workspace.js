@@ -8,9 +8,11 @@
         desktop.addEventListener("change", sync);
     }
 
-    const pwdForm = document.querySelector("form[data-password-change]");
     const modal = document.getElementById("internal-password-modal");
+    // Scope AJAX submission strictly to the authenticated modal so SSR reset forms keep native POST/redirect behavior.
+    const pwdForm = modal ? modal.querySelector("form[data-ajax-submit][data-password-change]") : null;
     const submitBtn = pwdForm ? pwdForm.querySelector('button[type="submit"]') : null;
+    const defaultSubmitLabel = submitBtn ? submitBtn.textContent.trim() : "";
     const errBox = modal ? modal.querySelector("[data-modal-error]") : null;
     const errText = modal ? modal.querySelector("[data-modal-error-text]") : null;
     let inFlight = false;
@@ -25,7 +27,7 @@
         }
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.textContent = "Lưu thay đổi";
+            submitBtn.textContent = defaultSubmitLabel || "Lưu thay đổi";
         }
         if (modal) {
             modal.querySelectorAll("[data-close-modal]").forEach((btn) => {
@@ -138,6 +140,7 @@
             try {
                 const response = await fetch(pwdForm.action, {
                     method: "POST",
+                    credentials: "same-origin",
                     headers: {
                         "Accept": "application/json",
                         "X-Requested-With": "XMLHttpRequest"

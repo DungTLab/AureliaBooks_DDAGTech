@@ -12,6 +12,7 @@ import com.ddagtech.aureliabooks.service.AccountSecurityService;
 import com.ddagtech.aureliabooks.service.ContactOtpDelivery;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +36,7 @@ import javax.crypto.spec.SecretKeySpec;
  * Session-bound OTP challenges for registration, recovery and Google linking.
  * Pending challenges and rate limits expire in memory and are lost on restart.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AccountOtpServiceImpl implements AccountOtpService {
@@ -218,18 +220,31 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         return installAndSend(f, session, ip);
     }
 
+    private record SendReservation(
+            String code,
+            String targetKey,
+            Instant reservedLastSent,
+            Instant previousLastSent,
+            String previousChannel,
+            String previousTarget,
+            byte[] previousMac,
+            Instant previousSent,
+            Instant previousExpires,
+            int previousFailures
+    ) {}
+
     private String installAndSend(Flow flow, String session, String ip) {
-        String code;
+        SendReservation reservation;
         synchronized (this) {
             install(flow, session);
             try {
-                code = reserveSend(flow, flow.channel, flow.target, ip);
+                reservation = reserveSend(flow, flow.channel, flow.target, ip);
             } catch (RuntimeException ex) {
                 flows.remove(flow.id);
                 throw ex;
             }
         }
-        sendReservedCode(flow, code, true);
+        sendReservedCode(flow, reservation, true);
         return flow.id;
     }
 
@@ -239,20 +254,58 @@ public class AccountOtpServiceImpl implements AccountOtpService {
 
     public synchronized View view(String id, String session, boolean internal) {
         var f = bound(id, session);
-        return f == null || !matchesPortal(f, internal)
-            ? null
-            : new View(
-                  f.kind,
-                  mask(f.target),
-                  f.authorized != null && (!internal || Instant.now().isBefore(f.authorized)),
-                  Math.max(0, 60 - Duration.between(f.sent, Instant.now()).getSeconds()),
-                  Math.max(0, Duration.between(Instant.now(), f.expires).getSeconds())
-              );
+        if (f == null || !matchesPortal(f, internal) || evictIfExpiredInternalGrant(id, f, internal)) {
+            return null;
+        }
+        Instant now = Instant.now();
+        return new View(
+                f.kind,
+                mask(f.target),
+                f.authorized != null && (!internal || now.isBefore(f.authorized)),
+                remainingResendSeconds(f, now),
+                ceilSecondsBetween(now, f.expires)
+        );
+    }
+
+    private long remainingResendSeconds(Flow flow, Instant now) {
+        if (flow.authorized != null) {
+            return 0L;
+        }
+        long wait = flow.sending ? 60L : remainingCooldownSeconds(flow.sent, now);
+        Counter targetCounter = limits.get("target:" + flow.target);
+        if (targetCounter != null) {
+            wait = Math.max(wait, remainingCooldownSeconds(targetCounter.lastSent, now));
+            if (targetCounter.count >= 5 && now.isBefore(targetCounter.until)) {
+                wait = Math.max(wait, ceilSecondsBetween(now, targetCounter.until));
+            }
+        }
+        if (flow.owner != null) {
+            Counter ownerCounter = limits.get("owner:" + flow.owner);
+            if (ownerCounter != null && ownerCounter.count >= 5 && now.isBefore(ownerCounter.until)) {
+                wait = Math.max(wait, ceilSecondsBetween(now, ownerCounter.until));
+            }
+        }
+        return wait;
+    }
+
+    private static long remainingCooldownSeconds(Instant lastSent, Instant now) {
+        if (lastSent == null) {
+            return 0L;
+        }
+        long elapsedSeconds = Duration.between(lastSent, now).getSeconds();
+        return elapsedSeconds < 60L ? 60L - Math.max(0L, elapsedSeconds) : 0L;
+    }
+
+    private static long ceilSecondsBetween(Instant start, Instant end) {
+        if (!start.isBefore(end)) {
+            return 0L;
+        }
+        return Math.max(1L, (Duration.between(start, end).toMillis() + 999L) / 1000L);
     }
 
     public void resend(String id, String session, String ip, boolean internal) {
         Flow flow;
-        String code;
+        SendReservation reservation;
         synchronized (this) {
             flow = verificationFlow(id, session, internal);
             requireResendAvailable(flow);
@@ -260,9 +313,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
             if (!"REGISTER".equals(flow.kind)) {
                 requireCurrentRecoveryAccount(flow);
             }
-            code = reserveSend(flow, flow.channel, flow.target, ip);
+            reservation = reserveSend(flow, flow.channel, flow.target, ip);
         }
-        sendReservedCode(flow, code, false);
+        sendReservedCode(flow, reservation, false);
     }
 
     private void requireResendAvailable(Flow flow) {
@@ -361,7 +414,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
     @Override
     public void sendGoogleLink(String id, String session, String channel, String ip) {
         Flow flow;
-        String code;
+        SendReservation reservation;
         synchronized (this) {
             flow = googleFlow(id, session);
             requireResendAvailable(flow);
@@ -373,9 +426,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
                 throw new IllegalArgumentException("Vui lòng chọn email hoặc số điện thoại đã xác minh.");
             }
             String target = "EMAIL".equals(selected) ? user.getEmail() : user.getPhone();
-            code = reserveSend(flow, selected, target, ip);
+            reservation = reserveSend(flow, selected, target, ip);
         }
-        sendReservedCode(flow, code, false);
+        sendReservedCode(flow, reservation, false);
     }
 
     @Override
@@ -451,7 +504,18 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         if (!matchesPortal(flow, internal)) {
             throw new IllegalArgumentException("Yêu cầu xác minh không hợp lệ.");
         }
+        if (evictIfExpiredInternalGrant(id, flow, internal)) {
+            throw new IllegalArgumentException("Yêu cầu không còn hiệu lực.");
+        }
         return flow;
+    }
+
+    private boolean evictIfExpiredInternalGrant(String id, Flow flow, boolean internal) {
+        if (!internal || flow.authorized == null || Instant.now().isBefore(flow.authorized)) {
+            return false;
+        }
+        flows.remove(id);
+        return true;
     }
 
     private static boolean matchesPortal(Flow flow, boolean internal) {
@@ -477,7 +541,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         flows.put(f.id, f);
     }
 
-    private String reserveSend(Flow flow, String channel, String target, String ip) {
+    private SendReservation reserveSend(Flow flow, String channel, String target, String ip) {
         String targetKey = "target:" + target;
         // Share the cooldown across sessions so restarting the form cannot bypass it.
         var previousSend = limits.get(targetKey);
@@ -491,49 +555,93 @@ public class AccountOtpServiceImpl implements AccountOtpService {
         quota(targetKey, 5);
         quota("ip:" + ip, 20);
         if (flow.owner != null) quota("owner:" + flow.owner, 5);
-        limits.get(targetKey).lastSent = Instant.now();
 
+        Counter targetCounter = limits.get(targetKey);
+        Instant previousLastSent = targetCounter.lastSent;
+        Instant reservedAt = Instant.now();
+        targetCounter.lastSent = reservedAt;
+
+        String previousChannel = flow.channel;
+        String previousTarget = flow.target;
         flow.channel = channel;
         flow.target = target;
-        String code;
-        byte[] previous = flow.mac;
-        do {
-            code = String.format(Locale.ROOT, "%06d", random.nextInt(1000000));
-        } while (previous != null && MessageDigest.isEqual(previous, protect(flow, code)));
+
+        var reservation = new SendReservation(
+                generateOtpCode(flow),
+                targetKey,
+                reservedAt,
+                previousLastSent,
+                previousChannel,
+                previousTarget,
+                flow.mac,
+                flow.sent,
+                flow.expires,
+                flow.failures
+        );
+
         flow.mac = null;
-        flow.sent = Instant.now();
-        flow.expires = flow.sent.plusSeconds(300);
+        flow.sent = reservedAt;
+        flow.expires = reservedAt.plusSeconds(300);
         if (flow.googleProofExpires != null && flow.expires.isAfter(flow.googleProofExpires)) {
             flow.expires = flow.googleProofExpires;
         }
         flow.failures = 0;
         flow.sending = true;
+        return reservation;
+    }
+
+    private String generateOtpCode(Flow flow) {
+        byte[] previous = flow.mac;
+        String code;
+        do {
+            code = String.format(Locale.ROOT, "%06d", random.nextInt(1000000));
+        } while (previous != null && MessageDigest.isEqual(previous, protect(flow, code)));
         return code;
     }
 
-    private void sendReservedCode(Flow flow, String code, boolean removeOnFailure) {
+    private void sendReservedCode(Flow flow, SendReservation reservation, boolean removeOnFailure) {
         try {
             // A stalled provider must not hold the monitor used by other OTP flows.
             if ("REGISTER".equals(flow.kind)) {
-                delivery.sendRegistrationSms(flow.target, code);
+                delivery.sendRegistrationSms(flow.target, reservation.code());
             } else {
-                delivery.send(flow.channel, flow.target, code);
+                delivery.send(flow.channel, flow.target, reservation.code());
             }
         } catch (RuntimeException ex) {
-            synchronized (this) {
-                flow.sending = false;
-                if (removeOnFailure) {
-                    flows.remove(flow.id);
-                }
-            }
+            log.warn(
+                    "Failed to deliver {} OTP via {} to {}: {}",
+                    flow.kind,
+                    flow.channel,
+                    mask(flow.target),
+                    OtpLogSanitizer.summarizeFailure(ex)
+            );
+            rollbackFailedSend(flow, reservation, removeOnFailure);
             throw new IllegalArgumentException("Không gửi được mã. Vui lòng kiểm tra cấu hình email/SMS.");
         }
 
         synchronized (this) {
-            flow.mac = protect(flow, code);
+            flow.mac = protect(flow, reservation.code());
             flow.sending = false;
             flows.values().removeIf(other -> replaces(flow, flow.target, other));
         }
+    }
+
+    private synchronized void rollbackFailedSend(Flow flow, SendReservation reservation, boolean removeOnFailure) {
+        flow.sending = false;
+        Counter counter = limits.get(reservation.targetKey());
+        if (counter != null && Objects.equals(counter.lastSent, reservation.reservedLastSent())) {
+            counter.lastSent = reservation.previousLastSent();
+        }
+        if (removeOnFailure) {
+            flows.remove(flow.id);
+            return;
+        }
+        flow.channel = reservation.previousChannel();
+        flow.target = reservation.previousTarget();
+        flow.mac = reservation.previousMac();
+        flow.sent = reservation.previousSent();
+        flow.expires = reservation.previousExpires();
+        flow.failures = reservation.previousFailures();
     }
 
     private boolean hasOtherSendingFlow(Flow flow, String target) {
@@ -586,6 +694,9 @@ public class AccountOtpServiceImpl implements AccountOtpService {
     }
 
     private static String mask(String value) {
+        if (value == null || value.isBlank()) {
+            return "***";
+        }
         int at = value.indexOf('@');
         return at > 0
             ? value.charAt(0) + "***" + value.substring(at)
