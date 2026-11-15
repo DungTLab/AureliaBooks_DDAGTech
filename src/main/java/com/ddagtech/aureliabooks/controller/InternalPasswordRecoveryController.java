@@ -30,10 +30,14 @@ public class InternalPasswordRecoveryController {
     private static final String FLOW_EXPIRES_AT = "INTERNAL_RECOVERY_EXPIRES_AT";
     private static final String FLOW_RESEND_AT = "INTERNAL_RECOVERY_RESEND_AT";
     private static final String FLOW_ATTEMPTS = "INTERNAL_RECOVERY_ATTEMPTS";
+    private static final String FLOW_SIMULATED_QUOTA_COUNT = "INTERNAL_RECOVERY_SIMULATED_QUOTA_COUNT";
+    private static final String FLOW_SIMULATED_QUOTA_UNTIL = "INTERNAL_RECOVERY_SIMULATED_QUOTA_UNTIL";
 
     private static final int MAX_VERIFY_ATTEMPTS = 5;
+    private static final int MAX_SENDS_PER_WINDOW = 5;
     private static final long OTP_TTL_SECONDS = 300;
     private static final long RESEND_COOLDOWN_SECONDS = 60;
+    private static final long RESEND_QUOTA_WINDOW_SECONDS = 900;
 
     private static final String START = "redirect:/internal/forgot-password";
     private static final String VERIFY = START + "?step=verify";
@@ -70,28 +74,35 @@ public class InternalPasswordRecoveryController {
             return START;
         }
 
-        var flow = otp.view(id, session.getId(), true);
-        boolean nonBlankFlowMissing = !id.isBlank() && flow == null;
+        boolean authorizedSession = isAuthorizedSession(session);
+        if (authorizedSession) {
+            var flow = otp.view(id, session.getId(), true);
+            if (flow == null || !flow.authorized()) {
+                log.debug("Restarting expired internal recovery reset grant");
+                clearRecoverySession(session);
+                preserveOrFlash(model, flash, EXPIRED_FLOW_MESSAGE);
+                return START;
+            }
+            model.addAttribute("showCode", true);
+            model.addAttribute("authorized", true);
+            return "internal/forgot-password";
+        }
+
         boolean exhausted = attemptsOf(session) >= MAX_VERIFY_ATTEMPTS;
-        boolean expiredResetGrant = isAuthorizedSession(session) && (flow == null || !flow.authorized());
-        if (nonBlankFlowMissing || exhausted || expiredResetGrant) {
-            log.debug("Restarting dead internal recovery session (blankId={}, flowPresent={}, exhausted={})",
-                    id.isBlank(), flow != null, exhausted);
+        boolean expired = isUnverifiedSessionExpired(session);
+        if (exhausted || expired) {
+            log.debug("Restarting dead unverified internal recovery session (exhausted={}, expired={})",
+                    exhausted, expired);
             clearRecoverySession(session);
             preserveOrFlash(model, flash, exhausted ? MAX_ATTEMPTS_MESSAGE : EXPIRED_FLOW_MESSAGE);
             return START;
         }
 
-        boolean authorized = flow != null && flow.authorized();
         model.addAttribute("showCode", true);
-        model.addAttribute("authorized", authorized);
-        if (!authorized) {
-            // Compute countdown timers strictly from session timestamps to avoid eligible/ineligible timing leaks.
-            model.addAttribute("otpExpiresSeconds", remainingSeconds(session, FLOW_EXPIRES_AT,
-                    flow != null ? flow.expiresIn() : OTP_TTL_SECONDS));
-            model.addAttribute("otpResendSeconds", remainingSeconds(session, FLOW_RESEND_AT,
-                    flow != null ? flow.resendIn() : 0L));
-        }
+        model.addAttribute("authorized", false);
+        // Derive unverified timers strictly from session state so evicted and dummy flows look identical.
+        model.addAttribute("otpExpiresSeconds", remainingSeconds(session, FLOW_EXPIRES_AT, OTP_TTL_SECONDS));
+        model.addAttribute("otpResendSeconds", remainingSeconds(session, FLOW_RESEND_AT, 0L));
         return "internal/forgot-password";
     }
 
@@ -129,13 +140,29 @@ public class InternalPasswordRecoveryController {
             flash.addFlashAttribute("recoveryMessage", EXPIRED_FLOW_MESSAGE);
             return START;
         }
+        String deadRedirect = rejectIfUnverifiedDead(session, flash);
+        if (deadRedirect != null) {
+            return deadRedirect;
+        }
+        boolean resendSucceeded = false;
         try {
             otp.resend(id, session.getId(), HttpRequestUtil.getClientIp(request), true);
+            resendSucceeded = true;
         } catch (IllegalArgumentException ex) {
-            // Use the same response for missing flows and rate limits.
+            // Use the same public response for dummy, evicted, failed-delivery, and rate-limited states.
             log.debug("Internal recovery resend rejected: {}", ex.getMessage());
         }
-        refreshResendSession(session);
+        var postView = otp.view(id, session.getId(), true);
+        if (postView != null) {
+            if (postView.expiresIn() <= 0) {
+                clearRecoverySession(session);
+                flash.addFlashAttribute("recoveryMessage", EXPIRED_FLOW_MESSAGE);
+                return START;
+            }
+            syncSessionFromView(session, postView, resendSucceeded);
+        } else {
+            refreshSimulatedResendSession(session);
+        }
         flash.addFlashAttribute("recoveryMessage", SENT);
         return VERIFY;
     }
@@ -157,6 +184,10 @@ public class InternalPasswordRecoveryController {
             clearRecoverySession(session);
             flash.addFlashAttribute("recoveryMessage", EXPIRED_FLOW_MESSAGE);
             return START;
+        }
+        String deadRedirect = rejectIfUnverifiedDead(session, flash);
+        if (deadRedirect != null) {
+            return deadRedirect;
         }
         try {
             var result = otp.verify(id, session.getId(), code == null ? "" : code.strip(),
@@ -191,15 +222,19 @@ public class InternalPasswordRecoveryController {
             flash.addFlashAttribute("recoveryMessage", EXPIRED_FLOW_MESSAGE);
             return START;
         }
-        var flow = otp.view(id, session.getId(), true);
-        if (flow == null || !flow.authorized()) {
-            if (isAuthorizedSession(session) || !id.isBlank()) {
-                clearRecoverySession(session);
-                flash.addFlashAttribute("recoveryMessage", EXPIRED_FLOW_MESSAGE);
-                return START;
+        if (!isAuthorizedSession(session)) {
+            String deadRedirect = rejectIfUnverifiedDead(session, flash);
+            if (deadRedirect != null) {
+                return deadRedirect;
             }
             flash.addFlashAttribute("recoveryMessage", VERIFY_FIRST);
             return VERIFY;
+        }
+        var flow = otp.view(id, session.getId(), true);
+        if (flow == null || !flow.authorized()) {
+            clearRecoverySession(session);
+            flash.addFlashAttribute("recoveryMessage", EXPIRED_FLOW_MESSAGE);
+            return START;
         }
         try {
             otp.reset(id, session.getId(), password, confirmation, HttpRequestUtil.getClientIp(request), true);
@@ -225,16 +260,71 @@ public class InternalPasswordRecoveryController {
         session.setAttribute(FLOW_EXPIRES_AT, now.plusSeconds(OTP_TTL_SECONDS));
         session.setAttribute(FLOW_RESEND_AT, now.plusSeconds(RESEND_COOLDOWN_SECONDS));
         session.setAttribute(FLOW_ATTEMPTS, 0);
+        session.setAttribute(FLOW_SIMULATED_QUOTA_COUNT, 1);
+        session.setAttribute(FLOW_SIMULATED_QUOTA_UNTIL, now.plusSeconds(RESEND_QUOTA_WINDOW_SECONDS));
     }
 
-    private static void refreshResendSession(HttpSession session) {
+    private static void syncSessionFromView(HttpSession session, AccountOtpService.View view, boolean resendSucceeded) {
         Instant now = Instant.now();
-        Instant resendAt = (Instant) session.getAttribute(FLOW_RESEND_AT);
-        if (resendAt == null || !now.isBefore(resendAt)) {
-            session.setAttribute(FLOW_EXPIRES_AT, now.plusSeconds(OTP_TTL_SECONDS));
-            session.setAttribute(FLOW_RESEND_AT, now.plusSeconds(RESEND_COOLDOWN_SECONDS));
+        session.setAttribute(FLOW_EXPIRES_AT, now.plusSeconds(Math.max(0L, view.expiresIn())));
+        session.setAttribute(FLOW_RESEND_AT, view.resendIn() > 0 ? now.plusSeconds(view.resendIn()) : now);
+        if (resendSucceeded) {
             session.setAttribute(FLOW_ATTEMPTS, 0);
         }
+    }
+
+    private static void refreshSimulatedResendSession(HttpSession session) {
+        Instant now = Instant.now();
+        Instant resendAt = (Instant) session.getAttribute(FLOW_RESEND_AT);
+        if (resendAt != null && now.isBefore(resendAt)) {
+            return;
+        }
+        int nextCount = advanceSimulatedQuota(session, now);
+        if (nextCount > MAX_SENDS_PER_WINDOW) {
+            Instant quotaUntil = (Instant) session.getAttribute(FLOW_SIMULATED_QUOTA_UNTIL);
+            session.setAttribute(FLOW_RESEND_AT,
+                    quotaUntil != null && now.isBefore(quotaUntil)
+                            ? quotaUntil
+                            : now.plusSeconds(RESEND_QUOTA_WINDOW_SECONDS));
+            return;
+        }
+        Instant quotaUntil = (Instant) session.getAttribute(FLOW_SIMULATED_QUOTA_UNTIL);
+        session.setAttribute(FLOW_EXPIRES_AT, now.plusSeconds(OTP_TTL_SECONDS));
+        session.setAttribute(FLOW_RESEND_AT, nextCount >= MAX_SENDS_PER_WINDOW && quotaUntil != null
+                ? quotaUntil
+                : now.plusSeconds(RESEND_COOLDOWN_SECONDS));
+        session.setAttribute(FLOW_ATTEMPTS, 0);
+    }
+
+    private static int advanceSimulatedQuota(HttpSession session, Instant now) {
+        Object untilAttr = session.getAttribute(FLOW_SIMULATED_QUOTA_UNTIL);
+        Object countAttr = session.getAttribute(FLOW_SIMULATED_QUOTA_COUNT);
+        Instant quotaUntil = untilAttr instanceof Instant instant ? instant : null;
+        if (quotaUntil == null || !now.isBefore(quotaUntil)) {
+            session.setAttribute(FLOW_SIMULATED_QUOTA_UNTIL, now.plusSeconds(RESEND_QUOTA_WINDOW_SECONDS));
+            session.setAttribute(FLOW_SIMULATED_QUOTA_COUNT, 1);
+            return 1;
+        }
+        int current = countAttr instanceof Integer count ? count : 0;
+        int next = current + 1;
+        session.setAttribute(FLOW_SIMULATED_QUOTA_COUNT, next);
+        return next;
+    }
+
+    private static String rejectIfUnverifiedDead(HttpSession session, RedirectAttributes flash) {
+        boolean exhausted = attemptsOf(session) >= MAX_VERIFY_ATTEMPTS;
+        boolean expired = isUnverifiedSessionExpired(session);
+        if (!exhausted && !expired) {
+            return null;
+        }
+        clearRecoverySession(session);
+        flash.addFlashAttribute("recoveryMessage", exhausted ? MAX_ATTEMPTS_MESSAGE : EXPIRED_FLOW_MESSAGE);
+        return START;
+    }
+
+    private static boolean isUnverifiedSessionExpired(HttpSession session) {
+        Object value = session.getAttribute(FLOW_EXPIRES_AT);
+        return value instanceof Instant deadline && !Instant.now().isBefore(deadline);
     }
 
     private static void markSessionAuthorized(HttpSession session) {
@@ -252,6 +342,8 @@ public class InternalPasswordRecoveryController {
         session.removeAttribute(FLOW_EXPIRES_AT);
         session.removeAttribute(FLOW_RESEND_AT);
         session.removeAttribute(FLOW_ATTEMPTS);
+        session.removeAttribute(FLOW_SIMULATED_QUOTA_COUNT);
+        session.removeAttribute(FLOW_SIMULATED_QUOTA_UNTIL);
     }
 
     private static boolean isAuthorizedSession(HttpSession session) {
@@ -274,7 +366,14 @@ public class InternalPasswordRecoveryController {
         if (!(value instanceof Instant deadline)) {
             return Math.max(0L, fallbackSeconds);
         }
-        return Math.max(0L, Duration.between(Instant.now(), deadline).getSeconds());
+        return ceilSecondsBetween(Instant.now(), deadline);
+    }
+
+    private static long ceilSecondsBetween(Instant start, Instant end) {
+        if (!start.isBefore(end)) {
+            return 0L;
+        }
+        return Math.max(1L, (Duration.between(start, end).toMillis() + 999L) / 1000L);
     }
 
     private static void preserveOrFlash(Model model, RedirectAttributes flash, String fallbackMessage) {
