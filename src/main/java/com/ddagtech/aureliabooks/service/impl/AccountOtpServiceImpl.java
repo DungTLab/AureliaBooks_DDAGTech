@@ -613,7 +613,7 @@ public class AccountOtpServiceImpl implements AccountOtpService {
                     flow.kind,
                     flow.channel,
                     mask(flow.target),
-                    OtpLogSanitizer.sanitizeFailure(ex, reservation.code(), flow.target, flow.googleEmail)
+                    OtpLogSanitizer.summarizeFailure(ex)
             );
             rollbackFailedSend(flow, reservation, removeOnFailure);
             throw new IllegalArgumentException("Không gửi được mã. Vui lòng kiểm tra cấu hình email/SMS.");

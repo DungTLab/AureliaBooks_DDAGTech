@@ -376,8 +376,9 @@ class StaffContactServiceTest {
             doAnswer(inv -> {
                 sentCode.set(inv.getArgument(2));
                 throw new MailSendException(
-                        "Failed messages: 550 <smtp-fail@aureliabook.vn> rejected via "
-                                + "auth@relay.internal password=mailpass otp=" + sentCode.get()
+                        "Failed messages: Authorization: Bearer header-tok-999 550 5.1.1 "
+                                + "<smtp-fail@aureliabook.vn> rejected via auth@relay.internal password=mailpass otp="
+                                + sentCode.get()
                 );
             }).when(delivery).send(eq("EMAIL"), eq("smtp-fail@aureliabook.vn"), anyString());
 
@@ -388,9 +389,11 @@ class StaffContactServiceTest {
 
             assertThat(appender.list).hasSize(1);
             assertThat(appender.list.getFirst().getFormattedMessage())
-                    .contains("EMAIL", "10", "MailSendException")
+                    .isEqualTo("Failed to deliver staff verification OTP via EMAIL to target user 10: "
+                            + "MailSendException (code=550 5.1.1)")
                     .doesNotContain("smtp-fail@aureliabook.vn", "auth@relay.internal",
-                            "mailpass", sentCode.get());
+                            "Authorization", "Bearer", "header-tok-999",
+                            "Failed messages", "rejected", "mailpass", sentCode.get());
         } finally {
             staffLogger.detachAppender(appender);
             appender.stop();

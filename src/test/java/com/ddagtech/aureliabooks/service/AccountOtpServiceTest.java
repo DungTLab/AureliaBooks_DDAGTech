@@ -535,8 +535,9 @@ class AccountOtpServiceTest {
                 internalCode.set(invocation.getArgument(2));
                 throw new MailSendException(
                         "Failed messages: smtp://relayuser:relaypass@smtp.internal:587 rejected "
-                                + "<secret.staff@aureliabook.vn> from bounces@aureliabook.vn password=topsecret\r\n"
-                                + "otp=" + internalCode.get()
+                                + "<secret.staff@aureliabook.vn> from bounces@aureliabook.vn "
+                                + "Authorization: Bearer header-secret-tok123 password=topsecret\r\n"
+                                + "otp=" + internalCode.get() + " 550 5.1.1"
                 );
             }).when(delivery).send(eq("EMAIL"), eq(staff.getEmail()), anyString());
 
@@ -558,7 +559,10 @@ class AccountOtpServiceTest {
             AtomicReference<String> smsCode = new AtomicReference<>();
             doAnswer(invocation -> {
                 smsCode.set(invocation.getArgument(1));
-                throw new IllegalStateException("SMS gateway timeout for 0912345678 token=sms-secret otp=" + smsCode.get());
+                throw new IllegalStateException(
+                        "SMS gateway timeout for 0912345678 Authorization: Bearer sms-bearer-tok456 "
+                                + "token=sms-secret otp=" + smsCode.get()
+                );
             }).when(delivery).sendRegistrationSms(eq("0912345678"), anyString());
 
             assertThatThrownBy(() -> service.registration(request(), "s-reg", "ip-3"))
@@ -575,7 +579,8 @@ class AccountOtpServiceTest {
             doAnswer(invocation -> {
                 googleCode.set(invocation.getArgument(2));
                 throw new MailSendException(
-                        "Send failed for owner.primary@example.test Bearer tok123 " + googleCode.get()
+                        "Send failed for owner.primary@example.test Authorization: Bearer tok123 "
+                                + "Bearer nested789 Basic dXNlcjpwYXNz " + googleCode.get()
                 );
             }).when(delivery).send(eq("EMAIL"), eq("owner.primary@example.test"), anyString());
 
@@ -588,18 +593,22 @@ class AccountOtpServiceTest {
             assertThat(formattedLogs).hasSize(4);
 
             assertThat(formattedLogs.get(0))
-                .contains("INTERNAL_RESET", "EMAIL", "s***@aureliabook.vn", "MailSendException")
-                .doesNotContain("secret.staff@aureliabook.vn", "bounces@aureliabook.vn",
+                .isEqualTo("Failed to deliver INTERNAL_RESET OTP via EMAIL to s***@aureliabook.vn: MailSendException (code=550 5.1.1)")
+                .doesNotContain("Failed messages", "rejected", "smtp.internal",
+                        "secret.staff@aureliabook.vn", "bounces@aureliabook.vn",
+                        "Authorization", "Bearer", "header-secret-tok123",
                         "relaypass", "topsecret", "\r", "\n", internalCode.get());
             assertThat(formattedLogs.get(1))
-                .contains("RESET", "EMAIL", "c***@example.test", "MailSendException")
-                .doesNotContain("customer.private@example.test", customerCode.get());
+                .isEqualTo("Failed to deliver RESET OTP via EMAIL to c***@example.test: MailSendException (code=550)")
+                .doesNotContain("customer.private@example.test", "user unknown", customerCode.get());
             assertThat(formattedLogs.get(2))
-                .contains("REGISTER", "SMS", "IllegalStateException")
-                .doesNotContain("0912345678", "sms-secret", smsCode.get());
+                .isEqualTo("Failed to deliver REGISTER OTP via SMS to ******5678: IllegalStateException")
+                .doesNotContain("SMS gateway timeout", "0912345678",
+                        "Authorization", "Bearer", "sms-bearer-tok456", "sms-secret", smsCode.get());
             assertThat(formattedLogs.get(3))
-                .contains("GOOGLE_LINK", "EMAIL", "o***@example.test", "MailSendException")
-                .doesNotContain("owner.primary@example.test", "tok123", googleCode.get());
+                .isEqualTo("Failed to deliver GOOGLE_LINK OTP via EMAIL to o***@example.test: MailSendException")
+                .doesNotContain("Send failed", "owner.primary@example.test",
+                        "Authorization", "Bearer", "tok123", "nested789", "Basic", "dXNlcjpwYXNz", googleCode.get());
         } finally {
             otpLogger.detachAppender(appender);
             appender.stop();

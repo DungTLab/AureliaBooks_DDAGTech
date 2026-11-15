@@ -1,112 +1,180 @@
 package com.ddagtech.aureliabooks.service.impl;
 
-import java.util.Locale;
+import com.ddagtech.aureliabooks.exception.AppException;
+import java.lang.reflect.Method;
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Redacts recipient contact details, OTP codes, and credentials from delivery failure logs.
+ * Formats strictly allowlisted OTP delivery failure summaries (exception types and checked numeric status codes)
+ * without emitting raw provider messages, recipient identifiers, OTP values, or credentials.
  */
 final class OtpLogSanitizer {
 
-    private static final int MAX_DETAIL_LENGTH = 200;
     private static final int MAX_CAUSE_DEPTH = 10;
 
     private static final Pattern CONTROL_CHARS = Pattern.compile("[\\r\\n\\t\\p{Cntrl}]+");
-    private static final Pattern MULTI_SPACES = Pattern.compile("\\s{2,}");
-    private static final Pattern URL_CREDENTIALS = Pattern.compile("://[^/\\s@]+:[^/\\s@]+@");
-    private static final Pattern EMAIL_PATTERN = Pattern.compile(
-            "[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+(?:\\.[A-Za-z]{2,})?",
-            Pattern.CASE_INSENSITIVE
+    private static final Pattern AUTH_HEADER_OR_SCHEME = Pattern.compile(
+            "(?i)\\b(?:(?:proxy-)?authorization\\s*[:=]\\s*(?:(?:bearer|basic|digest|token)\\s+)?|(?:bearer|basic)\\s+)\\S+"
     );
-    private static final Pattern ANGLE_EMAIL_PATTERN = Pattern.compile("<[^<>\\s@]+@[^<>\\s]+>");
-    private static final Pattern SECRET_PAIR_PATTERN = Pattern.compile(
-            "(?i)\\b(password|passwd|pwd|secret|token|api[-_]?key|authorization|auth|credential(?:s)?)\\s*([=:])\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s,;]+)"
+    private static final Pattern URL_TOKEN = Pattern.compile("[A-Za-z][A-Za-z0-9+.-]*://\\S+");
+    private static final Pattern EMAIL_TOKEN = Pattern.compile("\\S*@\\S+");
+    private static final Pattern HOST_PORT_TOKEN = Pattern.compile("\\b[A-Za-z0-9.-]+:\\d{1,5}\\b");
+    private static final Pattern SECRET_OR_OTP_PAIR = Pattern.compile(
+            "(?i)\\b(?:(?:password|passwd|pwd|secret|token|api[-_]?key|credential(?:s)?|otp|pin|verification[-_]?code)\\s*[:=]\\s*(?:\"[^\"]*\"|'[^']*'|\\S+)|code\\s*[:=]\\s*(?:\"\\d{4,}\"|'\\d{4,}'|\\d{4,}))"
     );
-    private static final Pattern AUTH_SCHEME_PATTERN = Pattern.compile(
-            "(?i)\\b(Bearer|Basic)\\s+[A-Za-z0-9\\-._~+/]+=*"
-    );
-    private static final Pattern PHONE_PATTERN = Pattern.compile(
+    private static final Pattern PHONE_TOKEN = Pattern.compile(
             "(?<!\\d)(?:\\+\\d{1,3}[\\s.-]?)?\\d(?:[\\s.-]?\\d){8,14}(?!\\d)"
+    );
+    private static final Pattern CHECKED_CODE_WITH_CONTEXT = Pattern.compile(
+            "(?i)\\b(?:smtp|http|status|reply|error|code)\\s*[:=]\\s*([45]\\d{2})(?:[\\s-]([245]\\.\\d{1,3}\\.\\d{1,3}))?(?=$|[\\s.,;\\])])"
+    );
+    private static final Pattern CHECKED_SMTP_ENHANCED_CODE = Pattern.compile(
+            "(?:^|\\s|\\(|\\[)(421|429|45[0-5]|50[0-5]|52[13]|53[045]|55[0-6])[\\s-]([245]\\.\\d{1,3}\\.\\d{1,3})(?=$|[\\s.,;\\])])"
+    );
+    private static final Pattern CHECKED_SMTP_BASE_CODE = Pattern.compile(
+            "(?:^|\\s|\\(|\\[)(421|45[0-5]|50[0-5]|52[13]|53[045]|55[0-6])(?=$|[\\s.,;\\])])"
+    );
+    private static final Pattern STRICT_ALLOWLISTED_CODE = Pattern.compile(
+            "^[45]\\d{2}(?: [245]\\.\\d{1,3}\\.\\d{1,3})?$"
     );
 
     private OtpLogSanitizer() {
     }
 
-    static String sanitizeFailure(Throwable ex, String otpCode, String... sensitiveLiterals) {
+    static String summarizeFailure(Throwable ex) {
         if (ex == null) {
             return "UnknownFailure";
         }
         Throwable root = rootCauseOf(ex);
         String typeSummary = ex.getClass().getSimpleName();
-        if (root != ex && root != null && !root.getClass().equals(ex.getClass())) {
+        if (root != null && root != ex && !root.getClass().equals(ex.getClass())) {
             typeSummary = typeSummary + " -> " + root.getClass().getSimpleName();
         }
-
-        String rawDetail = combineMessages(ex, root);
-        String sanitized = redactDetail(rawDetail, otpCode, sensitiveLiterals);
-        if (sanitized.isBlank()) {
+        String checkedCode = extractCheckedCode(ex);
+        if (checkedCode == null || checkedCode.isBlank()) {
             return typeSummary;
         }
-        return typeSummary + " - " + sanitized;
+        return typeSummary + " (" + checkedCode + ")";
     }
 
     private static Throwable rootCauseOf(Throwable ex) {
         Throwable current = ex;
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
         int depth = 0;
-        while (current.getCause() != null && current.getCause() != current && depth < MAX_CAUSE_DEPTH) {
+        while (current.getCause() != null && seen.add(current) && depth < MAX_CAUSE_DEPTH) {
+            if (current.getCause() == current) {
+                break;
+            }
             current = current.getCause();
             depth++;
         }
         return current;
     }
 
-    private static String combineMessages(Throwable ex, Throwable root) {
-        String primary = ex.getMessage();
-        String rootMsg = root != null ? root.getMessage() : null;
-        if (primary == null || primary.isBlank()) {
-            return rootMsg == null ? "" : rootMsg;
+    private static String extractCheckedCode(Throwable rootEx) {
+        Deque<Throwable> queue = new ArrayDeque<>();
+        Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        queue.add(rootEx);
+        int examined = 0;
+        while (!queue.isEmpty() && examined < 20) {
+            Throwable current = queue.poll();
+            if (current == null || !visited.add(current)) {
+                continue;
+            }
+            examined++;
+            if (current instanceof AppException appEx && appEx.getErrorCode() != null) {
+                return "errorCode=" + appEx.getErrorCode().name();
+            }
+            String numericReply = extractNumericReturnCode(current);
+            if (numericReply != null) {
+                return "code=" + numericReply;
+            }
+            String messageCode = extractAllowlistedCodeFromMessage(current.getMessage());
+            if (messageCode != null) {
+                return "code=" + messageCode;
+            }
+            if (current.getCause() != null) {
+                queue.add(current.getCause());
+            }
+            enqueueMailNestedExceptions(current, queue);
         }
-        if (root == ex || rootMsg == null || rootMsg.isBlank()) {
-            return primary;
-        }
-        if (primary.toLowerCase(Locale.ROOT).contains(rootMsg.toLowerCase(Locale.ROOT))) {
-            return primary;
-        }
-        return primary + " | " + rootMsg;
+        return null;
     }
 
-    static String redactDetail(String rawDetail, String otpCode, String... sensitiveLiterals) {
-        if (rawDetail == null || rawDetail.isBlank()) {
-            return "";
+    private static String extractNumericReturnCode(Throwable ex) {
+        String packageName = ex.getClass().getPackageName();
+        if (!packageName.startsWith("org.eclipse.angus.mail.") && !packageName.startsWith("com.sun.mail.")) {
+            return null;
         }
-        String text = CONTROL_CHARS.matcher(rawDetail).replaceAll(" ");
-
-        if (otpCode != null && !otpCode.isBlank()) {
-            text = text.replace(otpCode, "[REDACTED_OTP]");
-        }
-
-        text = URL_CREDENTIALS.matcher(text).replaceAll("://[REDACTED]@");
-        text = SECRET_PAIR_PATTERN.matcher(text).replaceAll("$1$2[REDACTED]");
-        text = AUTH_SCHEME_PATTERN.matcher(text).replaceAll("$1 [REDACTED]");
-        text = ANGLE_EMAIL_PATTERN.matcher(text).replaceAll("<[REDACTED_EMAIL]>");
-        text = EMAIL_PATTERN.matcher(text).replaceAll("[REDACTED_EMAIL]");
-        text = PHONE_PATTERN.matcher(text).replaceAll("[REDACTED_PHONE]");
-        if (sensitiveLiterals != null) {
-            for (String literal : sensitiveLiterals) {
-                if (literal == null || literal.isBlank()) {
-                    continue;
-                }
-                text = Pattern.compile(Pattern.quote(literal), Pattern.CASE_INSENSITIVE)
-                        .matcher(text)
-                        .replaceAll(Matcher.quoteReplacement("[REDACTED_CONTACT]"));
+        try {
+            Method method = ex.getClass().getMethod("getReturnCode");
+            Object result = method.invoke(ex);
+            if (result instanceof Integer code && code >= 400 && code <= 599) {
+                return Integer.toString(code);
             }
+        } catch (ReflectiveOperationException ignored) {
+            return null;
         }
-        text = MULTI_SPACES.matcher(text).replaceAll(" ").trim();
+        return null;
+    }
 
-        if (text.length() > MAX_DETAIL_LENGTH) {
-            return text.substring(0, MAX_DETAIL_LENGTH - 3) + "...";
+    private static void enqueueMailNestedExceptions(Throwable ex, Deque<Throwable> queue) {
+        try {
+            Method method = ex.getClass().getMethod("getFailedMessages");
+            Object mapObj = method.invoke(ex);
+            if (mapObj instanceof java.util.Map<?, ?> map) {
+                for (Object value : map.values()) {
+                    if (value instanceof Throwable nested) {
+                        queue.add(nested);
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // Not a Spring MailSendException or nested map unavailable.
         }
-        return text;
+    }
+
+    static String extractAllowlistedCodeFromMessage(String rawMessage) {
+        if (rawMessage == null || rawMessage.isBlank()) {
+            return null;
+        }
+        // Scrub all auth headers, schemes, URLs, emails, host:port pairs, phones, and OTP/secret key=value pairs first.
+        String scrubbed = CONTROL_CHARS.matcher(rawMessage).replaceAll(" ");
+        scrubbed = AUTH_HEADER_OR_SCHEME.matcher(scrubbed).replaceAll(" ");
+        scrubbed = URL_TOKEN.matcher(scrubbed).replaceAll(" ");
+        scrubbed = EMAIL_TOKEN.matcher(scrubbed).replaceAll(" ");
+        scrubbed = HOST_PORT_TOKEN.matcher(scrubbed).replaceAll(" ");
+        scrubbed = SECRET_OR_OTP_PAIR.matcher(scrubbed).replaceAll(" ");
+        scrubbed = PHONE_TOKEN.matcher(scrubbed).replaceAll(" ");
+
+        String match = matchCode(CHECKED_SMTP_ENHANCED_CODE, scrubbed, true);
+        if (match == null) {
+            match = matchCode(CHECKED_CODE_WITH_CONTEXT, scrubbed, true);
+        }
+        if (match == null) {
+            match = matchCode(CHECKED_SMTP_BASE_CODE, scrubbed, false);
+        }
+        if (match != null && STRICT_ALLOWLISTED_CODE.matcher(match).matches()) {
+            return match;
+        }
+        return null;
+    }
+
+    private static String matchCode(Pattern pattern, String text, boolean withOptionalEnhanced) {
+        Matcher matcher = pattern.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+        String base = matcher.group(1);
+        if (withOptionalEnhanced && matcher.groupCount() >= 2 && matcher.group(2) != null) {
+            return base + " " + matcher.group(2);
+        }
+        return base;
     }
 }

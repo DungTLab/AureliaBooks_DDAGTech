@@ -283,7 +283,7 @@ public class StaffContactServiceImpl implements StaffContactService {
             log.warn(
                     "Failed to deliver staff verification OTP via EMAIL to target user {}: {}",
                     staffId,
-                    OtpLogSanitizer.sanitizeFailure(ex, token.code(), placeholder.recipient())
+                    OtpLogSanitizer.summarizeFailure(ex)
             );
             throw new AppException(ErrorCode.OTP_DELIVERY_FAILED);
         }
