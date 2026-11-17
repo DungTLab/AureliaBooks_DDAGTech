@@ -11,6 +11,7 @@ import com.ddagtech.aureliabooks.dto.response.ReceiptSummary;
 import com.ddagtech.aureliabooks.dto.response.StockMetricSummary;
 import com.ddagtech.aureliabooks.entity.GoodsReceipt;
 import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.entity.Supplier;
 import com.ddagtech.aureliabooks.exception.AppException;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
@@ -171,7 +172,7 @@ public class AdminReceiptController {
                 return isManager(user) ? "redirect:/manager/receipts" : "redirect:/staff/receipts";
             }
 
-            populateFormReferenceData(model);
+            populateFormReferenceData(model, detail.supplierId());
 
             List<GoodsReceiptItemForm> itemForms = detail.items().stream()
                     .map(i -> new GoodsReceiptItemForm(i.productId(), i.receivedQuantity(), i.unitCost()))
@@ -270,7 +271,7 @@ public class AdminReceiptController {
         model.addAttribute("receiptsPage", receiptsPage);
         model.addAttribute("selectedStatus", status);
         model.addAttribute("selectedSupplierId", supplierId);
-        model.addAttribute("suppliers", supplierRepository.findByIsActiveTrueOrderByNameAsc());
+        model.addAttribute("suppliers", supplierRepository.findAllByOrderByIsActiveDescNameAsc());
 
         return "admin/receipts/list";
     }
@@ -389,7 +390,16 @@ public class AdminReceiptController {
     // =========================================================================
 
     private void populateFormReferenceData(Model model) {
-        model.addAttribute("suppliers", supplierRepository.findByIsActiveTrueOrderByNameAsc());
+        populateFormReferenceData(model, null);
+    }
+
+    private void populateFormReferenceData(Model model, Long originalSupplierId) {
+        List<Supplier> activeSuppliers = supplierRepository.findByIsActiveTrueOrderByNameAsc();
+        List<Supplier> suppliers = activeSuppliers != null ? new ArrayList<>(activeSuppliers) : new ArrayList<>();
+        if (originalSupplierId != null && suppliers.stream().noneMatch(s -> originalSupplierId.equals(s.getId()))) {
+            supplierRepository.findById(originalSupplierId).ifPresent(original -> suppliers.add(0, original));
+        }
+        model.addAttribute("suppliers", suppliers);
         List<Product> products = new ArrayList<>(productRepository.findByIsActiveTrueOrderByTitleAsc());
         products.sort(Comparator
                 .comparingInt((Product p) -> {

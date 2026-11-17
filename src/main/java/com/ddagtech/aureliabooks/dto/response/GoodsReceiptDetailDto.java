@@ -14,6 +14,7 @@ public record GoodsReceiptDetailDto(
         String receiptCode,
         Long supplierId,
         String supplierName,
+        boolean supplierActive,
         String supplierPhone,
         String supplierEmail,
         Long createdByUserId,
@@ -27,4 +28,28 @@ public record GoodsReceiptDetailDto(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         List<GoodsReceiptItemDetailDto> items
-) {}
+) {
+    public GoodsReceiptDetailDto(
+            Long id,
+            String receiptCode,
+            Long supplierId,
+            String supplierName,
+            String supplierPhone,
+            String supplierEmail,
+            Long createdByUserId,
+            String createdByName,
+            GoodsReceipt.Status status,
+            BigDecimal totalAmount,
+            String note,
+            LocalDateTime receivedAt,
+            Long receivedByUserId,
+            String receivedByName,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt,
+            List<GoodsReceiptItemDetailDto> items
+    ) {
+        this(id, receiptCode, supplierId, supplierName, true, supplierPhone, supplierEmail,
+                createdByUserId, createdByName, status, totalAmount, note, receivedAt,
+                receivedByUserId, receivedByName, createdAt, updatedAt, items);
+    }
+}

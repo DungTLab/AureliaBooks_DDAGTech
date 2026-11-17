@@ -79,10 +79,15 @@
                         <option value="">-- Chọn Nhà cung cấp --</option>
                         <option th:each="sup : ${suppliers}"
                                 th:value="${sup.id}"
-                                th:text="${sup.name + ' (' + sup.phone + ')'}">
+                                th:text="${sup.name + ' (' + sup.phone + ')' + (sup.isActive == false ? ' - Ngừng hợp tác' : '')}">
                             Nhà Xuất Bản Trẻ
                         </option>
                     </select>
+                    <p th:if="${isEdit and receiptDetail != null and !receiptDetail.supplierActive}"
+                       class="mt-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+                        <i class="bi bi-exclamation-triangle-fill shrink-0"></i>
+                        <span>Nhà cung cấp ban đầu (<strong th:text="${receiptDetail.supplierName}"></strong>) đã ngừng hợp tác. Bạn vẫn có thể giữ nguyên để cập nhật phiếu nháp hoặc đổi sang nhà cung cấp đang hợp tác.</span>
+                    </p>
                 </div>
 
                 <!-- Note / Reason -->

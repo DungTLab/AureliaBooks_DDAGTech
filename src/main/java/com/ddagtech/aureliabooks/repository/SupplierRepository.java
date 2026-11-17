@@ -32,4 +32,6 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     boolean existsByPhoneAndIdNot(String phone, Long id);
 
     List<Supplier> findByIsActiveTrueOrderByNameAsc();
+
+    List<Supplier> findAllByOrderByIsActiveDescNameAsc();
 }
