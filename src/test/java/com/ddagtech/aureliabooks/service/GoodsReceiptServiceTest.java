@@ -407,6 +407,68 @@ class GoodsReceiptServiceTest {
         }
 
         @Test
+        @DisplayName("Cập nhật phiếu DRAFT giữ nguyên NCC ban đầu đã ngừng hợp tác -> Vẫn cho phép cập nhật")
+        void updateDraft_originalInactiveSupplier_allowed() {
+            Supplier originalInactive = new Supplier();
+            originalInactive.setId(2L);
+            originalInactive.setName("NCC Ban Đầu Đã Ngừng");
+            originalInactive.setIsActive(false);
+
+            GoodsReceipt draftReceipt = GoodsReceipt.builder()
+                    .id(51L)
+                    .receiptCode("GR-20261117-51")
+                    .status(GoodsReceipt.Status.DRAFT)
+                    .supplier(originalInactive)
+                    .createdBy(staffUser)
+                    .totalAmount(new BigDecimal("100000.00"))
+                    .build();
+
+            when(goodsReceiptRepository.findById(51L)).thenReturn(Optional.of(draftReceipt));
+            when(supplierRepository.findById(2L)).thenReturn(Optional.of(originalInactive));
+            when(productRepository.findById(100L)).thenReturn(Optional.of(standardBook));
+            when(bookRepository.findById(100L)).thenReturn(Optional.of(Book.builder().productId(100L).isTextbook(false).build()));
+            when(goodsReceiptItemRepository.hasReceivedReceiptForProduct(100L)).thenReturn(false);
+
+            GoodsReceiptItemForm itemForm = new GoodsReceiptItemForm(100L, 10, new BigDecimal("50000.00"));
+            GoodsReceiptForm form = new GoodsReceiptForm(2L, "Sửa lại số lượng với NCC cũ", List.of(itemForm));
+
+            service.updateDraft(10L, 51L, form);
+
+            verify(goodsReceiptRepository, times(1)).save(draftReceipt);
+            assertThat(draftReceipt.getTotalAmount()).isEqualByComparingTo(new BigDecimal("500000.00"));
+        }
+
+        @Test
+        @DisplayName("Cập nhật phiếu DRAFT đổi sang một NCC KHÁC đã ngừng hợp tác -> Bị chặn với SUPPLIER_INACTIVE")
+        void updateDraft_differentInactiveSupplier_throwsException() {
+            Supplier otherInactive = new Supplier();
+            otherInactive.setId(3L);
+            otherInactive.setName("NCC Khác Đã Ngừng");
+            otherInactive.setIsActive(false);
+
+            GoodsReceipt draftReceipt = GoodsReceipt.builder()
+                    .id(52L)
+                    .receiptCode("GR-20261117-52")
+                    .status(GoodsReceipt.Status.DRAFT)
+                    .supplier(activeSupplier)
+                    .createdBy(staffUser)
+                    .build();
+
+            when(goodsReceiptRepository.findById(52L)).thenReturn(Optional.of(draftReceipt));
+            when(supplierRepository.findById(3L)).thenReturn(Optional.of(otherInactive));
+
+            GoodsReceiptItemForm itemForm = new GoodsReceiptItemForm(100L, 10, new BigDecimal("50000.00"));
+            GoodsReceiptForm form = new GoodsReceiptForm(3L, "Đổi sang NCC ngừng khác", List.of(itemForm));
+
+            assertThatThrownBy(() -> service.updateDraft(10L, 52L, form))
+                    .isInstanceOf(AppException.class)
+                    .satisfies(e -> {
+                        AppException ae = (AppException) e;
+                        assertThat(ae.getErrorCode()).isEqualTo(ErrorCode.SUPPLIER_INACTIVE);
+                    });
+        }
+
+        @Test
         @DisplayName("Khóa bất biến (Immutable): Cố tình cập nhật phiếu đã RECEIVED -> Bị chặn với RECEIPT_ALREADY_RECEIVED")
         void updateDraft_receivedReceipt_throwsException() {
             GoodsReceipt receivedReceipt = GoodsReceipt.builder()

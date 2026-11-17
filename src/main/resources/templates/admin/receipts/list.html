@@ -54,7 +54,8 @@
                     <option value="" th:selected="${selectedSupplierId == null}">-- Tất cả Nhà cung cấp --</option>
                     <option th:each="sup : ${suppliers}"
                             th:value="${sup.id}"
-                            th:text="${sup.name}"
+                            th:text="${sup.isActive != false ? sup.name : sup.name + ' (Ngừng hợp tác)'}"
+                            th:classappend="${sup.isActive == false} ? 'text-rose-700' : ''"
                             th:selected="${selectedSupplierId == sup.id}">
                         Nhà Xuất Bản Trẻ
                     </option>
@@ -96,15 +97,27 @@
                         </td>
                     </tr>
 
-                    <tr th:each="r : ${receiptsPage.content}" class="hover:bg-parchment-50 transition">
+                    <tr th:each="r : ${receiptsPage.content}"
+                        th:classappend="${!r.supplierActive} ? 'bg-rose-50/90 hover:bg-rose-100/80 border-l-4 border-l-rose-500' : 'hover:bg-parchment-50'"
+                        class="transition">
                         <!-- Code -->
                         <td class="py-3.5 px-4 font-mono font-bold text-carbon_black" th:text="${r.receiptCode}">
                             GR-20261011-0001
                         </td>
 
                         <!-- Supplier -->
-                        <td class="py-3.5 px-4 font-semibold text-carbon_black" th:text="${r.supplierName}">
-                            Nhà Xuất Bản Trẻ
+                        <td class="py-3.5 px-4 font-semibold text-carbon_black">
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span th:text="${r.supplierName}"
+                                      th:classappend="${!r.supplierActive} ? 'text-rose-800' : ''">
+                                    Nhà Xuất Bản Trẻ
+                                </span>
+                                <span th:if="${!r.supplierActive}"
+                                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 border border-rose-300">
+                                    <i class="bi bi-exclamation-circle-fill text-[10px]"></i>
+                                    <span>Ngừng hợp tác</span>
+                                </span>
+                            </div>
                         </td>
 
                         <!-- Creator & Date -->
@@ -426,7 +439,13 @@
                 })
                 .then(data => {
                     document.getElementById('modalReceiptCode').textContent = data.receiptCode || '-';
-                    document.getElementById('modalSupplierName').textContent = data.supplierName || '-';
+                    const modalSupplierEl = document.getElementById('modalSupplierName');
+                    if (data.supplierActive === false) {
+                        modalSupplierEl.innerHTML = escapeHtml(data.supplierName || '-') +
+                            ' <span class="inline-flex items-center px-2 py-0.5 ml-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-300 align-middle">Ngừng hợp tác</span>';
+                    } else {
+                        modalSupplierEl.textContent = data.supplierName || '-';
+                    }
                     document.getElementById('modalTotalAmount').textContent =
                         (data.totalAmount ? Number(data.totalAmount).toLocaleString('vi-VN') : '0') + ' đ';
                     document.getElementById('modalCreatedBy').textContent = data.createdByName || '-';

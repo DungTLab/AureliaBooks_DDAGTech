@@ -187,7 +187,9 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
         Supplier supplier = supplierRepository.findById(form.supplierId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nhà cung cấp."));
 
-        if (!Boolean.TRUE.equals(supplier.getIsActive())) {
+        Long originalSupplierId = receipt.getSupplier() != null ? receipt.getSupplier().getId() : null;
+        boolean isOriginalSupplier = originalSupplierId != null && originalSupplierId.equals(supplier.getId());
+        if (!Boolean.TRUE.equals(supplier.getIsActive()) && !isOriginalSupplier) {
             throw new AppException(ErrorCode.SUPPLIER_INACTIVE, "Nhà cung cấp đã ngừng hoạt động hoặc không hợp lệ.");
         }
 
@@ -318,12 +320,14 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             if (itemCount == 0) {
                 itemCount = goodsReceiptItemRepository.findByReceiptId(gr.getId()).size();
             }
+            boolean supplierActive = gr.getSupplier() == null || Boolean.TRUE.equals(gr.getSupplier().getIsActive());
             return new ReceiptSummary(
                     gr.getId(),
                     gr.getReceiptCode(),
                     gr.getStatus().name(),
                     gr.getTotalAmount(),
                     gr.getSupplier() != null ? gr.getSupplier().getName() : "-",
+                    supplierActive,
                     gr.getCreatedBy() != null ? gr.getCreatedBy().getFullName() : "-",
                     gr.getReceivedBy() != null ? gr.getReceivedBy().getFullName() : "-",
                     gr.getCreatedAt(),
@@ -364,11 +368,13 @@ public class GoodsReceiptServiceImpl implements GoodsReceiptService {
             );
         }).toList();
 
+        boolean supplierActive = gr.getSupplier() == null || Boolean.TRUE.equals(gr.getSupplier().getIsActive());
         return new GoodsReceiptDetailDto(
                 gr.getId(),
                 gr.getReceiptCode(),
                 gr.getSupplier() != null ? gr.getSupplier().getId() : null,
                 gr.getSupplier() != null ? gr.getSupplier().getName() : "-",
+                supplierActive,
                 gr.getSupplier() != null ? gr.getSupplier().getPhone() : "-",
                 gr.getSupplier() != null ? gr.getSupplier().getEmail() : "-",
                 gr.getCreatedBy() != null ? gr.getCreatedBy().getId() : null,

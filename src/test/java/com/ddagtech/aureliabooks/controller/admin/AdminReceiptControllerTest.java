@@ -3,9 +3,11 @@ package com.ddagtech.aureliabooks.controller.admin;
 import com.ddagtech.aureliabooks.config.SecurityConfig;
 import com.ddagtech.aureliabooks.dto.request.GoodsReceiptForm;
 import com.ddagtech.aureliabooks.dto.response.GoodsReceiptDetailDto;
+import com.ddagtech.aureliabooks.dto.response.ReceiptSummary;
 import com.ddagtech.aureliabooks.dto.response.StockMetricSummary;
 import com.ddagtech.aureliabooks.entity.GoodsReceipt;
 import com.ddagtech.aureliabooks.entity.Product;
+import com.ddagtech.aureliabooks.entity.Supplier;
 import com.ddagtech.aureliabooks.repository.CategoryRepository;
 import com.ddagtech.aureliabooks.repository.ProductRepository;
 import com.ddagtech.aureliabooks.repository.RoleRepository;
@@ -28,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.containsString;
@@ -145,7 +148,7 @@ class AdminReceiptControllerTest {
     @DisplayName("GET /manager/receipts: MANAGER truy cập được, trả về 200 OK và baseUri = /manager/receipts")
     void listReceipts_manager_accessGranted() throws Exception {
         when(goodsReceiptService.getReceipts(any(), any(), any())).thenReturn(Page.empty());
-        when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(Collections.emptyList());
+        when(supplierRepository.findAllByOrderByIsActiveDescNameAsc()).thenReturn(Collections.emptyList());
 
         mvc.perform(get("/manager/receipts").with(user(mockUser(20L, "manager@aureliabooks.com", "MANAGER"))))
                 .andExpect(status().isOk())
@@ -157,12 +160,57 @@ class AdminReceiptControllerTest {
     @DisplayName("GET /staff/receipts: SALE_STAFF truy cập được, trả về 200 OK và baseUri = /staff/receipts")
     void listReceipts_saleStaff_accessGranted() throws Exception {
         when(goodsReceiptService.getReceipts(any(), any(), any())).thenReturn(Page.empty());
-        when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(Collections.emptyList());
+        when(supplierRepository.findAllByOrderByIsActiveDescNameAsc()).thenReturn(Collections.emptyList());
 
         mvc.perform(get("/staff/receipts").with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin/receipts/list"))
                 .andExpect(model().attribute("baseUri", "/staff/receipts"));
+    }
+
+    @Test
+    @DisplayName("GET /manager/receipts: Bộ lọc hiển thị NCC ngừng hợp tác kèm chú thích và highlight đỏ dòng phiếu tương ứng")
+    void listReceipts_inactiveSupplier_renderedInFilterAndHighlightedRed() throws Exception {
+        Supplier activeSup = Supplier.builder().id(1L).name("NXB Trẻ").phone("0901111111").isActive(true).build();
+        Supplier inactiveSup = Supplier.builder().id(2L).name("NCC Cũ").phone("0902222222").isActive(false).build();
+        ReceiptSummary inactiveReceipt = new ReceiptSummary(
+                55L, "GR-20261117-0001", "DRAFT", new BigDecimal("500000"),
+                "NCC Cũ", false, "Staff A", "-", LocalDateTime.now(), null, 2
+        );
+
+        when(goodsReceiptService.getReceipts(any(), any(), any())).thenReturn(new PageImpl<>(List.of(inactiveReceipt)));
+        when(supplierRepository.findAllByOrderByIsActiveDescNameAsc()).thenReturn(List.of(activeSup, inactiveSup));
+
+        mvc.perform(get("/manager/receipts").with(user(mockUser(20L, "manager@aureliabooks.com", "MANAGER"))))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("NCC Cũ (Ngừng hợp tác)")))
+                .andExpect(content().string(containsString("bg-rose-50/90")))
+                .andExpect(content().string(containsString("Ngừng hợp tác")));
+    }
+
+    @Test
+    @DisplayName("GET /staff/receipts/{id}/edit: Chỉ hiển thị NCC ban đầu (dù ngừng hợp tác) và các NCC đang hợp tác")
+    void editForm_inactiveOriginalSupplier_showsOnlyOriginalAndActiveSuppliers() throws Exception {
+        Supplier activeSup = Supplier.builder().id(1L).name("NXB Trẻ").phone("0901111111").isActive(true).build();
+        Supplier originalInactiveSup = Supplier.builder().id(2L).name("NCC Ban Đầu").phone("0902222222").isActive(false).build();
+
+        GoodsReceiptDetailDto detail = new GoodsReceiptDetailDto(
+                77L, "GR-20261117-0077", 2L, "NCC Ban Đầu", false, "0902222222", "old@sup.com",
+                10L, "Staff A", GoodsReceipt.Status.DRAFT, BigDecimal.valueOf(100000), "Note",
+                null, null, "-", LocalDateTime.now(), LocalDateTime.now(), List.of()
+        );
+
+        when(goodsReceiptService.getReceiptDetail(77L)).thenReturn(detail);
+        when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(List.of(activeSup));
+        when(supplierRepository.findById(2L)).thenReturn(Optional.of(originalInactiveSup));
+        when(productRepository.findByIsActiveTrueOrderByTitleAsc()).thenReturn(Collections.emptyList());
+
+        mvc.perform(get("/staff/receipts/77/edit").with(user(mockUser(10L, "staff@aureliabooks.com", "SALE_STAFF"))))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin/receipts/form"))
+                .andExpect(content().string(containsString("NCC Ban Đầu (0902222222) - Ngừng hợp tác")))
+                .andExpect(content().string(containsString("NXB Trẻ (0901111111)")))
+                .andExpect(content().string(not(containsString("NCC Ngừng Khác"))));
     }
 
     // =========================================================================

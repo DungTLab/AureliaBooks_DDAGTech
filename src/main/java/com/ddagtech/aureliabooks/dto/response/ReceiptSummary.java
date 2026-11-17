@@ -9,6 +9,7 @@ public record ReceiptSummary(
         String status,
         BigDecimal totalAmount,
         String supplierName,
+        boolean supplierActive,
         String createdByName,
         String receivedByName,
         LocalDateTime createdAt,
@@ -16,6 +17,21 @@ public record ReceiptSummary(
         Integer totalItems
 ) {
     public ReceiptSummary(Long id, String receiptCode, String status, BigDecimal totalAmount) {
-        this(id, receiptCode, status, totalAmount, null, null, null, null, null, 0);
+        this(id, receiptCode, status, totalAmount, null, true, null, null, null, null, 0);
+    }
+
+    public ReceiptSummary(
+            Long id,
+            String receiptCode,
+            String status,
+            BigDecimal totalAmount,
+            String supplierName,
+            String createdByName,
+            String receivedByName,
+            LocalDateTime createdAt,
+            LocalDateTime receivedAt,
+            Integer totalItems
+    ) {
+        this(id, receiptCode, status, totalAmount, supplierName, true, createdByName, receivedByName, createdAt, receivedAt, totalItems);
     }
 }
